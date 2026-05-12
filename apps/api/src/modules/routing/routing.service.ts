@@ -7,6 +7,14 @@ export const ROUTING_PROVIDER = Symbol('ROUTING_PROVIDER');
 export class RoutingService {
   constructor(@Inject(ROUTING_PROVIDER) private provider: RoutingProvider) {}
 
-  matrix = this.provider.matrix.bind(this.provider);
-  route = this.provider.route.bind(this.provider);
+  matrix(
+    origins: Array<{ lat: number; lng: number }>,
+    destinations: Array<{ lat: number; lng: number }>,
+  ) {
+    return this.provider.matrix(origins, destinations);
+  }
+
+  route(waypoints: Array<{ lat: number; lng: number }>) {
+    return this.provider.route(waypoints);
+  }
 }
