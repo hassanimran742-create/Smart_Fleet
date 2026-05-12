@@ -1,0 +1,49 @@
+{
+  "name": "@smartfleet/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "start:distributor": "APP_VARIANT=distributor expo start",
+    "start:driver": "APP_VARIANT=driver expo start",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-navigation/native": "^6.1.0",
+    "@react-navigation/native-stack": "^6.10.0",
+    "@smartfleet/shared-types": "*",
+    "@smartfleet/shared-utils": "*",
+    "@smartfleet/shared-validation": "*",
+    "@tanstack/react-query": "^5.51.0",
+    "axios": "^1.7.2",
+    "expo": "~51.0.0",
+    "expo-camera": "~15.0.0",
+    "expo-constants": "~16.0.0",
+    "expo-image-picker": "~15.0.0",
+    "expo-location": "~17.0.0",
+    "expo-notifications": "~0.28.0",
+    "expo-secure-store": "~13.0.0",
+    "expo-status-bar": "~1.12.0",
+    "expo-task-manager": "~11.8.0",
+    "i18next": "^23.0.0",
+    "react": "18.2.0",
+    "react-i18next": "^14.0.0",
+    "react-native": "0.74.5",
+    "react-native-maps": "1.14.0",
+    "react-native-safe-area-context": "4.10.5",
+    "react-native-screens": "3.31.1",
+    "socket.io-client": "^4.7.5",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@types/react": "~18.2.45",
+    "typescript": "^5.6.0"
+  }
+}

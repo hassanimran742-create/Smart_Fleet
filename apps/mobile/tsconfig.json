@@ -1,0 +1,13 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": "./",
+    "paths": {
+      "@smartfleet/shared-types": ["../../packages/shared-types/src"],
+      "@smartfleet/shared-utils": ["../../packages/shared-utils/src"],
+      "@smartfleet/shared-validation": ["../../packages/shared-validation/src"]
+    }
+  },
+  "include": ["src/**/*", "App.tsx", "app.config.ts"]
+}
