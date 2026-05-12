@@ -1,0 +1,656 @@
+// Smart_Fleet Prisma schema
+// PostgreSQL 16 + PostGIS 3.4. Spatial columns use Unsupported("geometry(...,4326)").
+// Spatial queries go through PrismaService.$queryRaw.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis, uuidOssp(map: "uuid-ossp"), pgcrypto]
+}
+
+// ---------- ENUMS ----------
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  STORE_KEEPER
+  DISTRIBUTOR
+  DRIVER
+  CLIENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum OtpPurpose {
+  LOGIN
+  RESET
+}
+
+enum CylinderState {
+  FULL
+  EMPTY
+  FAULTY
+  LOST
+}
+
+enum CustodyType {
+  DISTRIBUTOR
+  STORE
+  VEHICLE
+  CLIENT
+}
+
+enum CylinderEventType {
+  SCAN_IN
+  SCAN_OUT
+  DELIVERED
+  PICKED_UP_EMPTY
+  RETURNED_TO_DISTRIBUTOR
+  TRANSFER
+  MARK_FAULTY
+  MARK_LOST
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  FAILED
+}
+
+enum OrderPaymentStatus {
+  UNPAID
+  PAID_VIA_LEDGER
+  PAID_DIRECT
+}
+
+enum TripStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+}
+
+enum TripStopType {
+  STORE_PICKUP
+  DELIVERY
+  RETURN_DROPOFF
+}
+
+enum TransferStatus {
+  REQUESTED
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentProviderName {
+  JAZZCASH
+  EASYPAISA
+  BANK_MANUAL
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum LedgerEntryType {
+  CREDIT_TOPUP
+  DEBIT_ORDER
+  ADJUSTMENT
+}
+
+enum DistributorStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum ReconciliationStatus {
+  PENDING
+  VERIFIED
+  FLAGGED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ---------- USERS / AUTH ----------
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @unique
+  email        String?    @unique
+  name         String
+  role         UserRole
+  status       UserStatus @default(PENDING)
+  cnicEncrypted Bytes?    @map("cnic_encrypted")
+  cnicIndex    String?    @map("cnic_index") @db.Char(64)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  distributorProfile Distributor?
+  driverProfile      Driver?
+  refreshTokens      RefreshToken[]
+  cylinderEvents     CylinderEvent[]  @relation("ActorEvents")
+  auditLogs          AuditLog[]
+  reconciliations    Reconciliation[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id         String     @id @default(uuid()) @db.Uuid
+  phone      String
+  codeHash   String     @map("code_hash")
+  purpose    OtpPurpose
+  expiresAt  DateTime   @map("expires_at")
+  consumedAt DateTime?  @map("consumed_at")
+  attempts   Int        @default(0)
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@index([phone, createdAt])
+  @@map("otp_codes")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  parentId  String?   @map("parent_id") @db.Uuid
+  revokedAt DateTime? @map("revoked_at")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------- ROLE PROFILES ----------
+
+model Distributor {
+  id                  String            @id @default(uuid()) @db.Uuid
+  userId              String            @unique @map("user_id") @db.Uuid
+  businessName        String            @map("business_name")
+  homeStoreId         String?           @map("home_store_id") @db.Uuid
+  advanceBalancePaisa BigInt            @default(0) @map("advance_balance_paisa")
+  status              DistributorStatus @default(PENDING)
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id])
+  homeStore Store?     @relation(fields: [homeStoreId], references: [id])
+  clients   Client[]
+  cylinders Cylinder[]
+  orders    Order[]
+  ledgerEntries LedgerEntry[]
+  payments      Payment[]
+
+  @@map("distributors")
+}
+
+model Driver {
+  id                       String    @id @default(uuid()) @db.Uuid
+  userId                   String    @unique @map("user_id") @db.Uuid
+  licenceNo                String    @unique @map("licence_no")
+  currentVehicleId         String?   @unique @map("current_vehicle_id") @db.Uuid
+  currentZoneId            String?   @map("current_zone_id") @db.Uuid
+  currentLocation          Unsupported("geometry(Point,4326)")? @map("current_location")
+  currentLocationUpdatedAt DateTime? @map("current_location_updated_at")
+  isOnline                 Boolean   @default(false) @map("is_online")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  user           User    @relation(fields: [userId], references: [id])
+  currentVehicle Vehicle? @relation("DriverCurrentVehicle", fields: [currentVehicleId], references: [id])
+  currentZone    Zone?    @relation(fields: [currentZoneId], references: [id])
+  trips          Trip[]
+  reconciliations Reconciliation[]
+
+  @@index([isOnline])
+  @@map("drivers")
+}
+
+// ---------- GEOGRAPHY ----------
+
+model City {
+  id          String @id @default(uuid()) @db.Uuid
+  name        String
+  countryCode String @default("PK") @map("country_code")
+
+  zones        Zone[]
+  pricingRules PricingRule[]
+
+  @@map("cities")
+}
+
+model Zone {
+  id        String @id @default(uuid()) @db.Uuid
+  cityId    String @map("city_id") @db.Uuid
+  name      String
+  polygon   Unsupported("geometry(MultiPolygon,4326)")
+  centroid  Unsupported("geometry(Point,4326)")?
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  city     City      @relation(fields: [cityId], references: [id])
+  stores   Store[]
+  vehicles Vehicle[]
+  drivers  Driver[]
+  ordersAsDest      Order[]       @relation("OrderDestZone")
+  pricingAsOrigin   PricingRule[] @relation("PricingOrigin")
+  pricingAsDest     PricingRule[] @relation("PricingDest")
+
+  @@map("zones")
+}
+
+model Store {
+  id        String  @id @default(uuid()) @db.Uuid
+  name      String
+  zoneId    String  @map("zone_id") @db.Uuid
+  address   String
+  location  Unsupported("geometry(Point,4326)")
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  zone               Zone           @relation(fields: [zoneId], references: [id])
+  distributorsAsHome Distributor[]
+  ordersAsOrigin     Order[]        @relation("OrderOriginStore")
+  trips              Trip[]
+  transfersFrom      Transfer[]     @relation("TransferFromStore")
+  transfersTo        Transfer[]     @relation("TransferToStore")
+
+  @@map("stores")
+}
+
+// ---------- VEHICLES ----------
+
+model Vehicle {
+  id              String        @id @default(uuid()) @db.Uuid
+  plateNo         String        @unique @map("plate_no")
+  capacityUnits   Int           @map("capacity_units")
+  homeZoneId      String        @map("home_zone_id") @db.Uuid
+  status          VehicleStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  homeZone       Zone    @relation(fields: [homeZoneId], references: [id])
+  currentDriver  Driver? @relation("DriverCurrentVehicle")
+  trips          Trip[]
+  transfers      Transfer[]
+
+  @@map("vehicles")
+}
+
+// ---------- CLIENTS ----------
+
+model Client {
+  id            String @id @default(uuid()) @db.Uuid
+  distributorId String @map("distributor_id") @db.Uuid
+  name          String
+  phone         String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  distributor Distributor      @relation(fields: [distributorId], references: [id])
+  addresses   ClientAddress[]
+  orders      Order[]
+
+  @@index([distributorId])
+  @@map("clients")
+}
+
+model ClientAddress {
+  id       String @id @default(uuid()) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  label    String
+  location Unsupported("geometry(Point,4326)")
+
+  client Client @relation(fields: [clientId], references: [id])
+
+  @@map("client_addresses")
+}
+
+// ---------- CYLINDERS ----------
+
+model CylinderType {
+  id            String @id @default(uuid()) @db.Uuid
+  code          String @unique
+  name          String
+  weightKg      Decimal @map("weight_kg") @db.Decimal(6, 2)
+  capacityUnits Int     @map("capacity_units")
+
+  cylinders  Cylinder[]
+  orderLines OrderLine[]
+  pricingRules PricingRule[]
+
+  @@map("cylinder_types")
+}
+
+model Cylinder {
+  id             String        @id @default(uuid()) @db.Uuid
+  serial         String        @unique
+  qrCode         String        @unique @map("qr_code")
+  distributorId  String        @map("distributor_id") @db.Uuid
+  cylinderTypeId String        @map("cylinder_type_id") @db.Uuid
+  state          CylinderState @default(EMPTY)
+  custodyType    CustodyType   @map("custody_type")
+  custodyId      String        @map("custody_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  distributor  Distributor     @relation(fields: [distributorId], references: [id])
+  cylinderType CylinderType    @relation(fields: [cylinderTypeId], references: [id])
+  events       CylinderEvent[]
+
+  @@index([distributorId, cylinderTypeId, state, custodyType])
+  @@map("cylinders")
+}
+
+model CylinderEvent {
+  id              String              @id @default(uuid()) @db.Uuid
+  cylinderId      String              @map("cylinder_id") @db.Uuid
+  eventType       CylinderEventType   @map("event_type")
+  fromCustodyType CustodyType?        @map("from_custody_type")
+  fromCustodyId   String?             @map("from_custody_id") @db.Uuid
+  toCustodyType   CustodyType?        @map("to_custody_type")
+  toCustodyId     String?             @map("to_custody_id") @db.Uuid
+  actorUserId     String              @map("actor_user_id") @db.Uuid
+  photoUrl        String?             @map("photo_url")
+  location        Unsupported("geometry(Point,4326)")?
+  tripId          String?             @map("trip_id") @db.Uuid
+  orderId         String?             @map("order_id") @db.Uuid
+  transferId      String?             @map("transfer_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  cylinder Cylinder @relation(fields: [cylinderId], references: [id])
+  actor    User     @relation("ActorEvents", fields: [actorUserId], references: [id])
+
+  @@index([cylinderId, createdAt])
+  @@map("cylinder_events")
+}
+
+// ---------- INVENTORY ----------
+
+model InventoryLot {
+  id             String        @id @default(uuid()) @db.Uuid
+  holderType     CustodyType   @map("holder_type")
+  holderId       String        @map("holder_id") @db.Uuid
+  distributorId  String        @map("distributor_id") @db.Uuid
+  cylinderTypeId String        @map("cylinder_type_id") @db.Uuid
+  state          CylinderState
+  count          Int           @default(0)
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@unique([holderType, holderId, distributorId, cylinderTypeId, state], name: "inventory_unique")
+  @@map("inventory_lots")
+}
+
+// ---------- TRANSFERS ----------
+
+model Transfer {
+  id           String         @id @default(uuid()) @db.Uuid
+  fromStoreId  String         @map("from_store_id") @db.Uuid
+  toStoreId    String         @map("to_store_id") @db.Uuid
+  vehicleId    String?        @map("vehicle_id") @db.Uuid
+  status       TransferStatus @default(REQUESTED)
+  requestedBy  String         @map("requested_by") @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at")
+  completedAt  DateTime?      @map("completed_at")
+
+  fromStore Store           @relation("TransferFromStore", fields: [fromStoreId], references: [id])
+  toStore   Store           @relation("TransferToStore", fields: [toStoreId], references: [id])
+  vehicle   Vehicle?        @relation(fields: [vehicleId], references: [id])
+  lines     TransferLine[]
+
+  @@map("transfers")
+}
+
+model TransferLine {
+  id         String @id @default(uuid()) @db.Uuid
+  transferId String @map("transfer_id") @db.Uuid
+  cylinderId String @map("cylinder_id") @db.Uuid
+
+  transfer Transfer @relation(fields: [transferId], references: [id])
+
+  @@unique([transferId, cylinderId])
+  @@map("transfer_lines")
+}
+
+// ---------- PRICING ----------
+
+model PricingRule {
+  id              String   @id @default(uuid()) @db.Uuid
+  cityId          String   @map("city_id") @db.Uuid
+  originZoneId    String   @map("origin_zone_id") @db.Uuid
+  destZoneId      String   @map("dest_zone_id") @db.Uuid
+  cylinderTypeId  String   @map("cylinder_type_id") @db.Uuid
+  basePaisa       BigInt   @map("base_paisa")
+  perUnitPaisa    BigInt   @map("per_unit_paisa")
+  effectiveFrom   DateTime @map("effective_from")
+  effectiveUntil  DateTime? @map("effective_until")
+
+  city         City         @relation(fields: [cityId], references: [id])
+  originZone   Zone         @relation("PricingOrigin", fields: [originZoneId], references: [id])
+  destZone     Zone         @relation("PricingDest", fields: [destZoneId], references: [id])
+  cylinderType CylinderType @relation(fields: [cylinderTypeId], references: [id])
+
+  @@unique([cityId, originZoneId, destZoneId, cylinderTypeId, effectiveFrom], name: "pricing_unique_active")
+  @@map("pricing_rules")
+}
+
+// ---------- ORDERS / TRIPS ----------
+
+model Order {
+  id                   String              @id @default(uuid()) @db.Uuid
+  distributorId        String              @map("distributor_id") @db.Uuid
+  clientId             String              @map("client_id") @db.Uuid
+  deliveryAddress      Unsupported("geometry(Point,4326)") @map("delivery_address")
+  deliveryAddressLabel String              @map("delivery_address_label")
+  destZoneId           String              @map("dest_zone_id") @db.Uuid
+  originStoreId        String?             @map("origin_store_id") @db.Uuid
+  status               OrderStatus         @default(PENDING)
+  paymentStatus        OrderPaymentStatus  @default(UNPAID) @map("payment_status")
+  deliveryFeePaisa     BigInt              @default(0) @map("delivery_fee_paisa")
+  scheduledWindowStart DateTime?           @map("scheduled_window_start")
+  scheduledWindowEnd   DateTime?           @map("scheduled_window_end")
+  tripId               String?             @map("trip_id") @db.Uuid
+  cancellationReason   String?             @map("cancellation_reason")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  distributor Distributor   @relation(fields: [distributorId], references: [id])
+  client      Client        @relation(fields: [clientId], references: [id])
+  destZone    Zone          @relation("OrderDestZone", fields: [destZoneId], references: [id])
+  originStore Store?        @relation("OrderOriginStore", fields: [originStoreId], references: [id])
+  trip        Trip?         @relation(fields: [tripId], references: [id])
+  lines       OrderLine[]
+  stops       TripStop[]
+  ledger      LedgerEntry[]
+
+  @@index([distributorId, status])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderLine {
+  id                  String @id @default(uuid()) @db.Uuid
+  orderId             String @map("order_id") @db.Uuid
+  cylinderTypeId      String @map("cylinder_type_id") @db.Uuid
+  fullCount           Int    @map("full_count")
+  expectedReturnCount Int    @default(0) @map("expected_return_count")
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  cylinderType CylinderType @relation(fields: [cylinderTypeId], references: [id])
+
+  @@map("order_lines")
+}
+
+model Trip {
+  id            String     @id @default(uuid()) @db.Uuid
+  driverId      String     @map("driver_id") @db.Uuid
+  vehicleId     String     @map("vehicle_id") @db.Uuid
+  originStoreId String     @map("origin_store_id") @db.Uuid
+  status        TripStatus @default(PLANNED)
+  plannedAt     DateTime   @default(now()) @map("planned_at")
+  startedAt     DateTime?  @map("started_at")
+  completedAt   DateTime?  @map("completed_at")
+
+  driver      Driver     @relation(fields: [driverId], references: [id])
+  vehicle     Vehicle    @relation(fields: [vehicleId], references: [id])
+  originStore Store      @relation(fields: [originStoreId], references: [id])
+  orders      Order[]
+  stops       TripStop[]
+
+  @@index([driverId, status])
+  @@map("trips")
+}
+
+model TripStop {
+  id         String       @id @default(uuid()) @db.Uuid
+  tripId     String       @map("trip_id") @db.Uuid
+  orderId    String?      @map("order_id") @db.Uuid
+  seq        Int
+  stopType   TripStopType @map("stop_type")
+  location   Unsupported("geometry(Point,4326)")
+  etaAt      DateTime?    @map("eta_at")
+  arrivedAt  DateTime?    @map("arrived_at")
+  departedAt DateTime?    @map("departed_at")
+  notes      String?
+
+  trip  Trip   @relation(fields: [tripId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@unique([tripId, seq])
+  @@map("trip_stops")
+}
+
+// ---------- PAYMENTS / LEDGER ----------
+
+model Payment {
+  id              String              @id @default(uuid()) @db.Uuid
+  distributorId   String              @map("distributor_id") @db.Uuid
+  amountPaisa     BigInt              @map("amount_paisa")
+  provider        PaymentProviderName
+  providerTxnId   String              @map("provider_txn_id")
+  status          PaymentStatus       @default(PENDING)
+  proofUrl        String?             @map("proof_url")
+  verifiedByUserId String?            @map("verified_by_user_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at")
+  completedAt     DateTime?           @map("completed_at")
+
+  distributor   Distributor   @relation(fields: [distributorId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@unique([provider, providerTxnId])
+  @@index([distributorId, createdAt])
+  @@map("payments")
+}
+
+model LedgerEntry {
+  id                String          @id @default(uuid()) @db.Uuid
+  distributorId     String          @map("distributor_id") @db.Uuid
+  entryType         LedgerEntryType @map("entry_type")
+  amountPaisa       BigInt          @map("amount_paisa")
+  balanceAfterPaisa BigInt          @map("balance_after_paisa")
+  paymentId         String?         @map("payment_id") @db.Uuid
+  orderId           String?         @map("order_id") @db.Uuid
+  note              String?
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  distributor Distributor @relation(fields: [distributorId], references: [id])
+  payment     Payment?    @relation(fields: [paymentId], references: [id])
+  order       Order?      @relation(fields: [orderId], references: [id])
+
+  @@index([distributorId, createdAt])
+  @@map("ledger_entries")
+}
+
+// ---------- RECONCILIATION ----------
+
+model Reconciliation {
+  id                  String               @id @default(uuid()) @db.Uuid
+  driverId            String               @map("driver_id") @db.Uuid
+  forDate             DateTime             @map("for_date") @db.Date
+  expectedCashPaisa   BigInt               @map("expected_cash_paisa")
+  submittedCashPaisa  BigInt               @map("submitted_cash_paisa")
+  cylindersDelivered  Int                  @map("cylinders_delivered")
+  cylindersReturned   Int                  @map("cylinders_returned")
+  status              ReconciliationStatus @default(PENDING)
+  verifiedByUserId    String?              @map("verified_by_user_id") @db.Uuid
+  note                String?
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  driver       Driver @relation(fields: [driverId], references: [id])
+  verifiedBy   User?  @relation(fields: [verifiedByUserId], references: [id])
+
+  @@unique([driverId, forDate])
+  @@map("reconciliations")
+}
+
+// ---------- SUPPORT / AUDIT ----------
+
+model SupportTicket {
+  id              String        @id @default(uuid()) @db.Uuid
+  subjectType     String        @map("subject_type")
+  subjectId       String?       @map("subject_id") @db.Uuid
+  reporterUserId  String        @map("reporter_user_id") @db.Uuid
+  assigneeUserId  String?       @map("assignee_user_id") @db.Uuid
+  status          TicketStatus  @default(OPEN)
+  priority        Int           @default(3)
+  subject         String
+  body            String
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([status, priority])
+  @@map("support_tickets")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorUserId  String   @map("actor_user_id") @db.Uuid
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id") @db.Uuid
+  diff         Json?
+  ip           String?
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  actor User @relation(fields: [actorUserId], references: [id])
+
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
