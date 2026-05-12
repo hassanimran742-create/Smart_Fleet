@@ -28,30 +28,46 @@ export class OrdersService {
     );
     if (!zone) throw new BadRequestException('Delivery location is not inside any active zone');
 
-    const order = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.order.create({
-        data: {
-          distributorId: input.distributorId,
-          clientId: input.clientId,
-          deliveryAddressLabel: input.deliveryLabel,
-          destZoneId: zone.id,
-          status: OrderStatus.PENDING,
-          deliveryAddress: undefined as any, // set via raw below
-          scheduledWindowStart: input.scheduledWindowStart ? new Date(input.scheduledWindowStart) : null,
-          scheduledWindowEnd: input.scheduledWindowEnd ? new Date(input.scheduledWindowEnd) : null,
-          lines: { create: input.lines },
-        },
-      });
-      await tx.$executeRaw`
-        UPDATE orders
-        SET delivery_address = ST_SetSRID(ST_MakePoint(${input.deliveryLocation.lng}, ${input.deliveryLocation.lat}), 4326)
-        WHERE id = ${created.id}::uuid
+    const result = await this.prisma.$transaction(async (tx) => {
+      const rows: { id: string }[] = await tx.$queryRaw`
+        INSERT INTO orders (
+          id, distributor_id, client_id, delivery_address_label, dest_zone_id,
+          status, payment_status, delivery_fee_paisa, delivery_address,
+          scheduled_window_start, scheduled_window_end, created_at, updated_at
+        )
+        VALUES (
+          gen_random_uuid(),
+          ${input.distributorId}::uuid,
+          ${input.clientId}::uuid,
+          ${input.deliveryLabel},
+          ${zone.id}::uuid,
+          'PENDING',
+          'UNPAID',
+          0,
+          ST_SetSRID(ST_MakePoint(${input.deliveryLocation.lng}, ${input.deliveryLocation.lat}), 4326),
+          ${input.scheduledWindowStart ? new Date(input.scheduledWindowStart) : null},
+          ${input.scheduledWindowEnd ? new Date(input.scheduledWindowEnd) : null},
+          NOW(), NOW()
+        )
+        RETURNING id
       `;
-      return created;
+      const orderId = rows[0].id;
+
+      for (const line of input.lines) {
+        await tx.orderLine.create({
+          data: {
+            orderId,
+            cylinderTypeId: line.cylinderTypeId,
+            fullCount: line.fullCount,
+            expectedReturnCount: line.expectedReturnCount,
+          },
+        });
+      }
+      return { id: orderId };
     });
 
-    await this.dispatchQueue.add('dispatch-order', { orderId: order.id });
-    return order;
+    await this.dispatchQueue.add('dispatch-order', { orderId: result.id });
+    return this.byId(result.id);
   }
 
   async byId(id: string) {

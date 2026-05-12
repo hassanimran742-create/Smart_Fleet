@@ -79,32 +79,19 @@ export class DispatchService {
           status: TripStatus.PLANNED,
         },
       });
-      await tx.tripStop.create({
-        data: {
-          tripId: t.id,
-          seq: 0,
-          stopType: TripStopType.STORE_PICKUP,
-          location: undefined as any,
-        },
-      });
       await tx.$executeRaw`
-        UPDATE trip_stops
-        SET location = ST_SetSRID(ST_MakePoint(${best.storeLocation.lng}, ${best.storeLocation.lat}), 4326)
-        WHERE trip_id = ${t.id}::uuid AND seq = 0
+        INSERT INTO trip_stops (id, trip_id, seq, stop_type, location)
+        VALUES (
+          gen_random_uuid(), ${t.id}::uuid, 0, 'STORE_PICKUP',
+          ST_SetSRID(ST_MakePoint(${best.storeLocation.lng}, ${best.storeLocation.lat}), 4326)
+        )
       `;
-      await tx.tripStop.create({
-        data: {
-          tripId: t.id,
-          orderId: order.id,
-          seq: 1,
-          stopType: TripStopType.DELIVERY,
-          location: undefined as any,
-        },
-      });
       await tx.$executeRaw`
-        UPDATE trip_stops
-        SET location = ST_SetSRID(ST_MakePoint(${dest.lng}, ${dest.lat}), 4326)
-        WHERE trip_id = ${t.id}::uuid AND seq = 1
+        INSERT INTO trip_stops (id, trip_id, order_id, seq, stop_type, location)
+        VALUES (
+          gen_random_uuid(), ${t.id}::uuid, ${order.id}::uuid, 1, 'DELIVERY',
+          ST_SetSRID(ST_MakePoint(${dest.lng}, ${dest.lat}), 4326)
+        )
       `;
       await tx.order.update({
         where: { id: order.id },
