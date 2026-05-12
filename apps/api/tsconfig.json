@@ -4,12 +4,7 @@
     "module": "commonjs",
     "outDir": "./dist",
     "rootDir": "./src",
-    "baseUrl": "./",
-    "paths": {
-      "@smartfleet/shared-types": ["../../packages/shared-types/src"],
-      "@smartfleet/shared-utils": ["../../packages/shared-utils/src"],
-      "@smartfleet/shared-validation": ["../../packages/shared-validation/src"]
-    }
+    "baseUrl": "./"
   },
   "include": ["src/**/*"]
 }
