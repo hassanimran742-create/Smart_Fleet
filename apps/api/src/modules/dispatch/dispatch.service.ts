@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OrderStatus, TripStatus, TripStopType } from '@prisma/client';
+import { AlertSeverity, AlertType, OrderStatus, TripStatus, TripStopType } from '@prisma/client';
 import { haversineKm } from '@smartfleet/shared-utils';
+import { AlertsService } from '../alerts/alerts.service';
 
 interface Candidate {
   storeId: string;
@@ -27,7 +28,10 @@ const W = {
 export class DispatchService {
   private logger = new Logger(DispatchService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private alerts: AlertsService,
+  ) {}
 
   async dispatchOrder(orderId: string): Promise<{ tripId: string } | { error: string }> {
     const order = await this.prisma.order.findUnique({
@@ -48,6 +52,15 @@ export class DispatchService {
     const candidates: Candidate[] = await this.gatherCandidates(order, dest);
     if (!candidates.length) {
       this.logger.warn(`No eligible candidates for order ${orderId}`);
+      await this.alerts.raise({
+        alertType: AlertType.DISPATCH_NO_CANDIDATE,
+        severity: AlertSeverity.CRITICAL,
+        title: 'Order has no eligible driver',
+        body: `Order ${orderId.slice(0, 8)} could not be dispatched — no driver with stock + capacity is currently online.`,
+        resourceType: 'Order',
+        resourceId: orderId,
+        dedupeKey: { resourceType: 'Order', resourceId: orderId, alertType: AlertType.DISPATCH_NO_CANDIDATE },
+      });
       return { error: 'NO_ELIGIBLE_CANDIDATE' };
     }
 

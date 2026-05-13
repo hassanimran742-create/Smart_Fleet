@@ -32,6 +32,8 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { SupportModule } from './modules/support/support.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { SmsModule } from './modules/sms/sms.module';
+import { AlertsModule } from './modules/alerts/alerts.module';
+import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
 
 @Module({
   imports: [
@@ -76,6 +78,8 @@ import { SmsModule } from './modules/sms/sms.module';
     ReportsModule,
     SupportModule,
     AuditLogModule,
+    AlertsModule,
+    PushTokensModule,
   ],
 })
 export class AppModule {}

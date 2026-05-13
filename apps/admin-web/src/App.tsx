@@ -6,9 +6,14 @@ import { ZonesScreen } from './screens/ZonesScreen';
 import { StoresScreen } from './screens/StoresScreen';
 import { OrdersScreen } from './screens/OrdersScreen';
 import { DriversScreen } from './screens/DriversScreen';
+import { VehiclesScreen } from './screens/VehiclesScreen';
 import { PricingScreen } from './screens/PricingScreen';
 import { DistributorsScreen } from './screens/DistributorsScreen';
 import { ReportsScreen } from './screens/ReportsScreen';
+import { InventoryScreen } from './screens/InventoryScreen';
+import { LiveDeliveriesScreen } from './screens/LiveDeliveriesScreen';
+import { TransfersScreen } from './screens/TransfersScreen';
+import { AlertsScreen } from './screens/AlertsScreen';
 import { useRouteStore } from './store/route';
 
 export function App() {
@@ -17,15 +22,20 @@ export function App() {
 
   if (!token) return <LoginScreen />;
 
-  let body = <DashboardScreen />;
+  let body;
   switch (page) {
     case 'zones':        body = <ZonesScreen />; break;
     case 'stores':       body = <StoresScreen />; break;
     case 'orders':       body = <OrdersScreen />; break;
     case 'drivers':      body = <DriversScreen />; break;
+    case 'vehicles':     body = <VehiclesScreen />; break;
     case 'pricing':      body = <PricingScreen />; break;
     case 'distributors': body = <DistributorsScreen />; break;
     case 'reports':      body = <ReportsScreen />; break;
+    case 'inventory':    body = <InventoryScreen />; break;
+    case 'live':         body = <LiveDeliveriesScreen />; break;
+    case 'transfers':    body = <TransfersScreen />; break;
+    case 'alerts':       body = <AlertsScreen />; break;
     default:             body = <DashboardScreen />;
   }
 

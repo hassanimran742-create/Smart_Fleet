@@ -654,3 +654,61 @@ model AuditLog {
   @@index([resourceType, resourceId])
   @@map("audit_logs")
 }
+
+// ---------- ALERTS ----------
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum AlertType {
+  DISPATCH_NO_CANDIDATE
+  LOW_STOCK
+  ORDER_STUCK_PENDING
+  DRIVER_OFFLINE_WHILE_ON_TRIP
+  PAYMENT_FAILED
+  RECONCILIATION_MISMATCH
+  CYLINDER_LOST
+  OTHER
+}
+
+model Alert {
+  id           String        @id @default(uuid()) @db.Uuid
+  alertType    AlertType     @map("alert_type")
+  severity     AlertSeverity @default(WARNING)
+  status       AlertStatus   @default(OPEN)
+  title        String
+  body         String
+  resourceType String?       @map("resource_type")
+  resourceId   String?       @map("resource_id") @db.Uuid
+  context      Json?
+  acknowledgedAt DateTime?   @map("acknowledged_at")
+  resolvedAt   DateTime?     @map("resolved_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([status, severity, createdAt])
+  @@map("alerts")
+}
+
+// ---------- PUSH TOKENS ----------
+
+model ExpoPushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("expo_push_tokens")
+}

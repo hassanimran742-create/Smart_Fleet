@@ -3,12 +3,8 @@
   "compilerOptions": {
     "module": "commonjs",
     "outDir": "./dist",
-    "baseUrl": "./",
-    "paths": {
-      "@smartfleet/shared-types": ["../../packages/shared-types/src"],
-      "@smartfleet/shared-utils": ["../../packages/shared-utils/src"],
-      "@smartfleet/shared-validation": ["../../packages/shared-validation/src"]
-    }
+    "rootDir": "./src",
+    "baseUrl": "./"
   },
-  "include": ["src/**/*", "test/**/*", "prisma/seed.ts"]
+  "include": ["src/**/*"]
 }
