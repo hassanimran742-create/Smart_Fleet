@@ -1,13 +1,15 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { RefreshDto, VerifyOtpDto } from './dto/verify-otp.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
 import { OtpPurpose } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, private readonly prisma: PrismaService) {}
 
   @Public()
   @Post('otp/send')
@@ -25,5 +27,14 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  // Useful for the client to confirm what role / claims are in its token.
+  @Get('me')
+  me(@CurrentUser() user: AuthContext) {
+    return this.prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { id: true, phone: true, email: true, name: true, role: true, status: true },
+    });
   }
 }

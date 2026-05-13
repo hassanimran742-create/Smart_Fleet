@@ -7,7 +7,13 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { phone: adminPhone },
-    update: {},
+    // Make sure an existing user (e.g. auto-created at first OTP login)
+    // is promoted to ADMIN so the dev account always has admin perms.
+    update: {
+      role: UserRole.ADMIN,
+      status: UserStatus.ACTIVE,
+      name: 'Smart_Fleet Admin',
+    },
     create: {
       phone: adminPhone,
       name: 'Smart_Fleet Admin',
