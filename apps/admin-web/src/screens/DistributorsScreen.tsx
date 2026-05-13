@@ -9,12 +9,34 @@ export function DistributorsScreen() {
   const [showSuspended, setShowSuspended] = useState(false);
 
   const [form, setForm] = useState({ phone: '', name: '', businessName: '' });
+  const [createErr, setCreateErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [editErr, setEditErr] = useState<string | null>(null);
+
+  function errMsg(e: any) {
+    return (
+      e?.response?.data?.message ??
+      (Array.isArray(e?.response?.data?.message) ? e.response.data.message.join(', ') : null) ??
+      e?.message ??
+      'Failed'
+    );
+  }
 
   const create = useMutation({
-    mutationFn: () => api.post('/distributors', form).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['distributors'] }); setForm({ phone: '', name: '', businessName: '' }); },
+    mutationFn: () => {
+      if (!form.phone) throw new Error('Phone is required');
+      if (!/^\+923\d{9}$/.test(form.phone)) throw new Error('Phone must be in form +923XXXXXXXXX');
+      if (!form.name) throw new Error('Contact name is required');
+      if (!form.businessName) throw new Error('Business name is required');
+      return api.post('/distributors', form).then((r) => r.data);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['distributors'] });
+      setForm({ phone: '', name: '', businessName: '' });
+      setCreateErr(null);
+    },
+    onError: (e: any) => setCreateErr(errMsg(e)),
   });
 
   const approve = useMutation({
@@ -34,7 +56,8 @@ export function DistributorsScreen() {
         email: editForm.email,
         phone: editForm.phone,
       }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['distributors'] }); setEditing(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['distributors'] }); setEditing(null); setEditErr(null); },
+    onError: (e: any) => setEditErr(errMsg(e)),
   });
 
   const rows = (data ?? []).filter((d: any) => showSuspended || d.status !== 'SUSPENDED');
@@ -67,6 +90,7 @@ export function DistributorsScreen() {
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <label>Business name</label>
         <input value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
+        {createErr && <p style={{ color: 'var(--danger)' }}>{createErr}</p>}
         <button className="primary" style={{ marginTop: 12 }} onClick={() => create.mutate()}>Create</button>
       </div>
 
@@ -110,6 +134,7 @@ export function DistributorsScreen() {
             <input value={editForm.phone ?? ''} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
             <label>Email</label>
             <input value={editForm.email ?? ''} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+            {editErr && <p style={{ color: 'var(--danger)' }}>{editErr}</p>}
             <div style={{ marginTop: 16, textAlign: 'right' }}>
               <button onClick={() => setEditing(null)}>Cancel</button>{' '}
               <button className="primary" onClick={() => update.mutate()}>Save</button>

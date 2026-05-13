@@ -23,13 +23,15 @@ async function main() {
   });
 
   const types = [
-    { code: 'LPG_11KG', name: 'LPG 11kg', weightKg: 11, capacityUnits: 1 },
-    { code: 'LPG_45KG', name: 'LPG 45kg', weightKg: 45, capacityUnits: 4 },
+    { code: 'LPG_6KG',     name: 'LPG 6 kg',    weightKg: 6,    capacityUnits: 1 },
+    { code: 'LPG_11_8KG',  name: 'LPG 11.8 kg', weightKg: 11.8, capacityUnits: 1 },
+    { code: 'LPG_15KG',    name: 'LPG 15 kg',   weightKg: 15,   capacityUnits: 2 },
+    { code: 'LPG_45_4KG',  name: 'LPG 45.4 kg', weightKg: 45.4, capacityUnits: 4 },
   ];
   for (const t of types) {
     await prisma.cylinderType.upsert({
       where: { code: t.code },
-      update: {},
+      update: { name: t.name, weightKg: t.weightKg, capacityUnits: t.capacityUnits },
       create: t,
     });
   }
@@ -52,6 +54,9 @@ async function main() {
     { code: 'REGULATOR_HIGH', name: 'High-pressure regulator', category: 'REGULATOR' as const, unit: 'piece', defaultPricePaisa: 180_000n },
     { code: 'VALVE_SHUTOFF', name: 'Manual shut-off valve', category: 'VALVE' as const, unit: 'piece', defaultPricePaisa: 45_000n },
     { code: 'HOSE_RUBBER_2M', name: 'Rubber gas hose (2m)', category: 'HOSE' as const, unit: 'piece', defaultPricePaisa: 60_000n },
+    { code: 'VAPORISER_15KG_AUTO',  name: 'Auto LPG vaporiser (15 kg/hr)',  category: 'VAPORISER' as const, unit: 'piece', defaultPricePaisa: 6_500_000n },
+    { code: 'VAPORISER_30KG_AUTO',  name: 'Auto LPG vaporiser (30 kg/hr)',  category: 'VAPORISER' as const, unit: 'piece', defaultPricePaisa: 9_800_000n },
+    { code: 'VAPORISER_60KG_DIRECT',name: 'Direct-fired vaporiser (60 kg/hr)', category: 'VAPORISER' as const, unit: 'piece', defaultPricePaisa: 14_500_000n },
   ];
   for (const a of accessories) {
     await prisma.accessory.upsert({

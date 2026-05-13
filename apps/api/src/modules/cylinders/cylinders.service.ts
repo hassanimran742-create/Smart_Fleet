@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CustodyType } from '@prisma/client';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class CylindersService {
@@ -23,15 +24,51 @@ export class CylindersService {
     });
   }
 
-  bulkRegister(input: {
+  /**
+   * Register cylinders against a distributor and place them at an
+   * initial custody (typically a store, FULL).
+   *
+   * The caller can either:
+   * - supply explicit serials (one row per QR-coded cylinder), or
+   * - supply just a quantity, in which case serials are auto-generated.
+   *
+   * Auto-generated serials use the cylinder-type code + a short random
+   * suffix, e.g. LPG_11_8KG-7G4F9C2A. Replace later with whatever
+   * encoding scheme you adopt for printed QR labels.
+   */
+  async bulkRegister(input: {
     distributorId: string;
     cylinderTypeId: string;
-    serials: string[];
+    serials?: string[];
+    quantity?: number;
     initialCustodyType: CustodyType;
     initialCustodyId: string;
   }) {
+    let serials = input.serials?.filter(Boolean) ?? [];
+
+    if (serials.length === 0) {
+      const qty = Math.floor(input.quantity ?? 0);
+      if (qty <= 0) {
+        throw new BadRequestException(
+          'Provide either serials[] or a positive quantity to register cylinders.',
+        );
+      }
+      if (qty > 5000) {
+        throw new BadRequestException('Quantity capped at 5000 per registration.');
+      }
+      const type = await this.prisma.cylinderType.findUnique({
+        where: { id: input.cylinderTypeId },
+      });
+      if (!type) throw new NotFoundException('cylinderTypeId not found');
+
+      serials = Array.from({ length: qty }, () => {
+        const suffix = randomBytes(4).toString('hex').toUpperCase();
+        return `${type.code}-${suffix}`;
+      });
+    }
+
     return this.prisma.$transaction(
-      input.serials.map((serial) =>
+      serials.map((serial) =>
         this.prisma.cylinder.create({
           data: {
             serial,

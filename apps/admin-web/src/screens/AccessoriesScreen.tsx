@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { Modal, confirmDialog } from '../components/Modal';
 
-const CATEGORIES = ['PIPE', 'CONNECTOR', 'REGULATOR', 'VALVE', 'BURNER', 'HOSE', 'ADAPTER', 'OTHER'] as const;
+const CATEGORIES = ['PIPE', 'CONNECTOR', 'REGULATOR', 'VALVE', 'BURNER', 'HOSE', 'ADAPTER', 'VAPORISER', 'OTHER'] as const;
 type Category = typeof CATEGORIES[number];
 
 interface Accessory {
@@ -25,19 +25,36 @@ export function AccessoriesScreen() {
   });
 
   const [form, setForm] = useState({ code: '', name: '', category: 'PIPE' as Category, unit: 'piece', defaultPriceRs: '0' });
+  const [createErr, setCreateErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<Accessory | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [editErr, setEditErr] = useState<string | null>(null);
+
+  function errMsg(e: any) {
+    return (
+      e?.response?.data?.message ??
+      (Array.isArray(e?.response?.data?.message) ? e.response.data.message.join(', ') : null) ??
+      e?.message ??
+      'Failed'
+    );
+  }
 
   const create = useMutation({
-    mutationFn: () =>
-      api.post('/accessories', {
+    mutationFn: () => {
+      if (!form.code.trim()) throw new Error('Code is required');
+      if (!form.name.trim()) throw new Error('Name is required');
+      if (!form.unit.trim()) throw new Error('Unit is required');
+      return api.post('/accessories', {
         ...form,
-        defaultPricePaisa: Math.round(Number(form.defaultPriceRs) * 100),
-      }),
+        defaultPricePaisa: Math.round(Number(form.defaultPriceRs || '0') * 100),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['accessories'] });
       setForm({ code: '', name: '', category: 'PIPE', unit: 'piece', defaultPriceRs: '0' });
+      setCreateErr(null);
     },
+    onError: (e: any) => setCreateErr(errMsg(e)),
   });
 
   const update = useMutation({
@@ -46,12 +63,14 @@ export function AccessoriesScreen() {
         name: editForm.name,
         category: editForm.category,
         unit: editForm.unit,
-        defaultPricePaisa: Math.round(Number(editForm.defaultPriceRs) * 100),
+        defaultPricePaisa: Math.round(Number(editForm.defaultPriceRs || '0') * 100),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['accessories'] });
       setEditing(null);
+      setEditErr(null);
     },
+    onError: (e: any) => setEditErr(errMsg(e)),
   });
 
   const archive = useMutation({
@@ -114,6 +133,7 @@ export function AccessoriesScreen() {
             <input type="number" value={form.defaultPriceRs} onChange={(e) => setForm({ ...form, defaultPriceRs: e.target.value })} />
           </div>
         </div>
+        {createErr && <p style={{ color: 'var(--danger)' }}>{createErr}</p>}
         <button className="primary" style={{ marginTop: 12 }} onClick={() => create.mutate()}>Add accessory</button>
       </div>
 
@@ -162,6 +182,7 @@ export function AccessoriesScreen() {
             </select>
             <label>Default price (PKR / unit)</label>
             <input type="number" value={editForm.defaultPriceRs ?? ''} onChange={(e) => setEditForm({ ...editForm, defaultPriceRs: e.target.value })} />
+            {editErr && <p style={{ color: 'var(--danger)' }}>{editErr}</p>}
             <div style={{ marginTop: 16, textAlign: 'right' }}>
               <button onClick={() => setEditing(null)}>Cancel</button>{' '}
               <button className="primary" onClick={() => update.mutate()}>Save</button>

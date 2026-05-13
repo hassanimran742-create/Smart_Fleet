@@ -106,9 +106,11 @@ function AllStoresOverview() {
   );
 }
 
+interface CylinderTypeFull { id: string; code: string; name: string; weightKg: string; capacityUnits: number }
+
 function CylindersSection({ storeId, qc }: { storeId: string; qc: any }) {
   const distributors = useQuery({ queryKey: ['distributors'], queryFn: async () => (await api.get<Distributor[]>('/distributors')).data });
-  const types = useQuery({ queryKey: ['cylinder-types'], queryFn: async () => (await api.get<CylinderType[]>('/cylinder-types')).data });
+  const types = useQuery({ queryKey: ['cylinder-types'], queryFn: async () => (await api.get<CylinderTypeFull[]>('/cylinder-types')).data });
 
   const cylinderInv = useQuery({
     queryKey: ['inventory-by-store-filtered', storeId],
@@ -119,20 +121,21 @@ function CylindersSection({ storeId, qc }: { storeId: string; qc: any }) {
     refetchInterval: 30000,
   });
 
-  const [form, setForm] = useState({ distributorId: '', cylinderTypeId: '', serials: '' });
+  const [form, setForm] = useState({ distributorId: '', cylinderTypeId: '', quantity: '' });
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
   const register = useMutation({
     mutationFn: () => {
-      const serials = form.serials.split(/[,\s\n]+/).map((s) => s.trim()).filter(Boolean);
-      if (!form.distributorId || !form.cylinderTypeId || serials.length === 0) {
-        throw new Error('Pick distributor, cylinder type, and paste at least one serial');
-      }
+      const qty = Math.floor(Number(form.quantity));
+      if (!form.distributorId) throw new Error('Pick a distributor');
+      if (!form.cylinderTypeId) throw new Error('Pick a cylinder weight');
+      if (!Number.isFinite(qty) || qty <= 0) throw new Error('Enter a positive quantity');
+      if (qty > 5000) throw new Error('Maximum 5000 cylinders per registration');
       return api.post('/cylinders/bulk-register', {
         distributorId: form.distributorId,
         cylinderTypeId: form.cylinderTypeId,
-        serials,
+        quantity: qty,
         initialCustodyType: 'STORE',
         initialCustodyId: storeId,
       });
@@ -143,7 +146,7 @@ function CylindersSection({ storeId, qc }: { storeId: string; qc: any }) {
       const count = Array.isArray(r.data) ? r.data.length : 0;
       setResult(`${count} cylinder(s) registered at this store.`);
       setErr(null);
-      setForm({ ...form, serials: '' });
+      setForm({ ...form, quantity: '' });
     },
     onError: (e: any) => {
       setErr(e?.response?.data?.message ?? e?.message ?? 'Failed');
@@ -163,34 +166,44 @@ function CylindersSection({ storeId, qc }: { storeId: string; qc: any }) {
       <div className="card">
         <h3>Add cylinders to this store</h3>
         <p className="muted">
-          Bulk-register cylinders (one row per physical cylinder). They will be marked FULL and held at this store.
+          Bulk-register cylinders by quantity. Each one gets an auto-generated serial QR (e.g.{' '}
+          <code>LPG_11_8KG-7G4F9C2A</code>) which you can print as a sticker later. They land FULL and held at this store, owned by the picked distributor.
         </p>
         <div className="flex" style={{ gap: 12 }}>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 2 }}>
             <label>Distributor *</label>
             <select value={form.distributorId} onChange={(e) => setForm({ ...form, distributorId: e.target.value })}>
               <option value="">— pick a distributor —</option>
               {(distributors.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.businessName}</option>)}
             </select>
           </div>
-          <div style={{ flex: 1 }}>
-            <label>Cylinder type *</label>
+          <div style={{ flex: 2 }}>
+            <label>Cylinder weight *</label>
             <select value={form.cylinderTypeId} onChange={(e) => setForm({ ...form, cylinderTypeId: e.target.value })}>
-              <option value="">— pick a type —</option>
-              {(types.data ?? []).map((t) => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+              <option value="">— pick a weight —</option>
+              {(types.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} · {Number(t.weightKg).toString()} kg
+                </option>
+              ))}
             </select>
           </div>
+          <div style={{ flex: 1 }}>
+            <label>Quantity *</label>
+            <input
+              type="number"
+              min={1}
+              value={form.quantity}
+              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+              placeholder="e.g. 100"
+            />
+          </div>
         </div>
-        <label>Serial numbers (one per line, or comma-separated) *</label>
-        <textarea
-          rows={5}
-          value={form.serials}
-          onChange={(e) => setForm({ ...form, serials: e.target.value })}
-          placeholder="CYL-001, CYL-002, CYL-003"
-        />
         {err && <p style={{ color: 'var(--danger)' }}>{err}</p>}
         {result && <p style={{ color: 'var(--ok)' }}>{result}</p>}
-        <button className="primary" style={{ marginTop: 12 }} onClick={() => register.mutate()}>Register cylinders</button>
+        <button className="primary" style={{ marginTop: 12 }} onClick={() => register.mutate()}>
+          Register cylinders
+        </button>
       </div>
 
       <div className="card">
