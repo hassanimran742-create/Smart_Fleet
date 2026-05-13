@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
@@ -12,6 +12,17 @@ export class OrdersController {
   @Post()
   create(@CurrentUser() user: AuthContext, @Body() body: any) {
     return this.orders.create({ ...body, distributorId: user.distributorId ?? body.distributorId });
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @Get('all')
+  listAll(@Query('status') status?: OrderStatus) {
+    return this.orders.listAll({ status });
+  }
+
+  @Get(':id/tracking')
+  tracking(@Param('id') id: string) {
+    return this.orders.tracking(id);
   }
 
   @Get(':id')

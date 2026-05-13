@@ -1,12 +1,19 @@
+import { useQuery } from '@tanstack/react-query';
 import { useRouteStore } from '../store/route';
 import { useAuthStore } from '../store/auth';
+import { api } from '../api/client';
 
 const PAGES = [
   { id: 'dashboard',    label: 'Dashboard' },
+  { id: 'live',         label: 'Live deliveries' },
   { id: 'orders',       label: 'Orders' },
+  { id: 'alerts',       label: 'Alerts',       badge: true },
   { id: 'drivers',      label: 'Drivers' },
+  { id: 'vehicles',     label: 'Vehicles' },
   { id: 'distributors', label: 'Distributors' },
   { id: 'stores',       label: 'Stores' },
+  { id: 'inventory',    label: 'Inventory' },
+  { id: 'transfers',    label: 'Inventory roll plan' },
   { id: 'zones',        label: 'Zones' },
   { id: 'pricing',      label: 'Pricing' },
   { id: 'reports',      label: 'Reports' },
@@ -14,7 +21,14 @@ const PAGES = [
 
 export function Sidebar() {
   const { page, go } = useRouteStore();
-  const { clear } = useAuthStore();
+  const { clear, token } = useAuthStore();
+
+  const unread = useQuery({
+    queryKey: ['alerts-unread'],
+    queryFn: async () => (await api.get('/alerts/unread-count')).data,
+    refetchInterval: 15000,
+    enabled: !!token,
+  });
 
   return (
     <aside className="sidebar">
@@ -26,7 +40,15 @@ export function Sidebar() {
             className={page === p.id ? 'active' : ''}
             onClick={() => go(p.id as any)}
           >
-            {p.label}
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>{p.label}</span>
+              {p.badge && unread.data?.count > 0 && (
+                <span style={{
+                  background: 'var(--danger)', color: 'white',
+                  fontSize: 11, padding: '2px 6px', borderRadius: 10,
+                }}>{unread.data.count}</span>
+              )}
+            </span>
           </button>
         ))}
         <button onClick={clear} style={{ marginTop: 24, color: '#d33a3a' }}>

@@ -1,13 +1,28 @@
 import { create } from 'zustand';
 
-type Page = 'dashboard' | 'zones' | 'stores' | 'orders' | 'drivers' | 'pricing' | 'distributors' | 'reports';
+export type Page =
+  | 'dashboard'
+  | 'zones'
+  | 'stores'
+  | 'orders'
+  | 'drivers'
+  | 'vehicles'
+  | 'pricing'
+  | 'distributors'
+  | 'reports'
+  | 'inventory'
+  | 'live'
+  | 'transfers'
+  | 'alerts';
 
 interface RouteState {
   page: Page;
-  go: (p: Page) => void;
+  params: Record<string, string>;
+  go: (p: Page, params?: Record<string, string>) => void;
 }
 
 export const useRouteStore = create<RouteState>((set) => ({
   page: 'dashboard',
-  go: (p) => set({ page: p }),
+  params: {},
+  go: (p, params = {}) => set({ page: p, params }),
 }));
