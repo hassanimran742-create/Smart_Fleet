@@ -36,6 +36,7 @@ import { AlertsModule } from './modules/alerts/alerts.module';
 import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
 import { CitiesModule } from './modules/cities/cities.module';
 import { FilesModule } from './modules/files/files.module';
+import { AccessoriesModule } from './modules/accessories/accessories.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { FilesModule } from './modules/files/files.module';
     PushTokensModule,
     CitiesModule,
     FilesModule,
+    AccessoriesModule,
   ],
 })
 export class AppModule {}

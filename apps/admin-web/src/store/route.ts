@@ -11,6 +11,7 @@ export type Page =
   | 'distributors'
   | 'reports'
   | 'inventory'
+  | 'accessories'
   | 'live'
   | 'transfers'
   | 'alerts';

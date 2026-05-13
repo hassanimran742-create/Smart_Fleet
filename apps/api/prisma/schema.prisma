@@ -714,3 +714,74 @@ model ExpoPushToken {
   @@index([userId])
   @@map("expo_push_tokens")
 }
+
+// ---------- ACCESSORIES (pipes, connectors, regulators, etc.) ----------
+
+enum AccessoryCategory {
+  PIPE
+  CONNECTOR
+  REGULATOR
+  VALVE
+  BURNER
+  HOSE
+  ADAPTER
+  OTHER
+}
+
+enum AccessoryMovementReason {
+  RECEIPT
+  SALE
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+  DAMAGE_LOSS
+}
+
+model Accessory {
+  id                String            @id @default(uuid()) @db.Uuid
+  code              String            @unique
+  name              String
+  category          AccessoryCategory
+  unit              String
+  defaultPricePaisa BigInt            @default(0) @map("default_price_paisa")
+  isActive          Boolean           @default(true) @map("is_active")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  stock     AccessoryStock[]
+  movements AccessoryMovement[]
+
+  @@map("accessories")
+}
+
+model AccessoryStock {
+  id             String   @id @default(uuid()) @db.Uuid
+  storeId        String   @map("store_id") @db.Uuid
+  accessoryId    String   @map("accessory_id") @db.Uuid
+  quantity       Int      @default(0)
+  unitPricePaisa BigInt?  @map("unit_price_paisa")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  accessory Accessory @relation(fields: [accessoryId], references: [id])
+
+  @@unique([storeId, accessoryId])
+  @@index([storeId])
+  @@map("accessory_stock")
+}
+
+model AccessoryMovement {
+  id          String                  @id @default(uuid()) @db.Uuid
+  storeId     String                  @map("store_id") @db.Uuid
+  accessoryId String                  @map("accessory_id") @db.Uuid
+  delta       Int
+  reason      AccessoryMovementReason
+  note        String?
+  actorUserId String                  @map("actor_user_id") @db.Uuid
+  createdAt   DateTime                @default(now()) @map("created_at")
+
+  accessory Accessory @relation(fields: [accessoryId], references: [id])
+
+  @@index([storeId, createdAt])
+  @@index([accessoryId, createdAt])
+  @@map("accessory_movements")
+}

@@ -44,8 +44,26 @@ async function main() {
     await prisma.city.upsert({ where: { id: c.id }, update: {}, create: c });
   }
 
+  const accessories = [
+    { code: 'PIPE_HALF_INCH', name: '1/2 inch LPG pipe', category: 'PIPE' as const, unit: 'meter', defaultPricePaisa: 50_000n },
+    { code: 'PIPE_QUARTER_INCH', name: '1/4 inch LPG pipe', category: 'PIPE' as const, unit: 'meter', defaultPricePaisa: 35_000n },
+    { code: 'CONNECTOR_BRASS_HALF', name: 'Brass 1/2 inch connector', category: 'CONNECTOR' as const, unit: 'piece', defaultPricePaisa: 25_000n },
+    { code: 'REGULATOR_LOW', name: 'Low-pressure regulator', category: 'REGULATOR' as const, unit: 'piece', defaultPricePaisa: 95_000n },
+    { code: 'REGULATOR_HIGH', name: 'High-pressure regulator', category: 'REGULATOR' as const, unit: 'piece', defaultPricePaisa: 180_000n },
+    { code: 'VALVE_SHUTOFF', name: 'Manual shut-off valve', category: 'VALVE' as const, unit: 'piece', defaultPricePaisa: 45_000n },
+    { code: 'HOSE_RUBBER_2M', name: 'Rubber gas hose (2m)', category: 'HOSE' as const, unit: 'piece', defaultPricePaisa: 60_000n },
+  ];
+  for (const a of accessories) {
+    await prisma.accessory.upsert({
+      where: { code: a.code },
+      update: {},
+      create: a,
+    });
+  }
+
   console.log('Seeded admin user:', admin.phone);
   console.log('Seeded cities:', cities.map((c) => c.name).join(', '));
+  console.log('Seeded accessories:', accessories.length);
 }
 
 main()

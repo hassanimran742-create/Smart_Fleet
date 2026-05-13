@@ -13,6 +13,7 @@ const PAGES = [
   { id: 'distributors', label: 'Distributors' },
   { id: 'stores',       label: 'Stores' },
   { id: 'inventory',    label: 'Inventory' },
+  { id: 'accessories',  label: 'Accessories' },
   { id: 'transfers',    label: 'Inventory roll plan' },
   { id: 'zones',        label: 'Zones' },
   { id: 'pricing',      label: 'Pricing' },

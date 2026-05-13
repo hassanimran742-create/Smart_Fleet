@@ -11,6 +11,7 @@ import { PricingScreen } from './screens/PricingScreen';
 import { DistributorsScreen } from './screens/DistributorsScreen';
 import { ReportsScreen } from './screens/ReportsScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
+import { AccessoriesScreen } from './screens/AccessoriesScreen';
 import { LiveDeliveriesScreen } from './screens/LiveDeliveriesScreen';
 import { TransfersScreen } from './screens/TransfersScreen';
 import { AlertsScreen } from './screens/AlertsScreen';
@@ -33,6 +34,7 @@ export function App() {
     case 'distributors': body = <DistributorsScreen />; break;
     case 'reports':      body = <ReportsScreen />; break;
     case 'inventory':    body = <InventoryScreen />; break;
+    case 'accessories':  body = <AccessoriesScreen />; break;
     case 'live':         body = <LiveDeliveriesScreen />; break;
     case 'transfers':    body = <TransfersScreen />; break;
     case 'alerts':       body = <AlertsScreen />; break;
