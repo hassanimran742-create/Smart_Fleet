@@ -43,4 +43,10 @@ export class DistributorsController {
   suspend(@Param('id') id: string) {
     return this.distributors.suspend(id);
   }
+
+  @Roles(UserRole.ADMIN)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() body: any) {
+    return this.distributors.update(id, body);
+  }
 }

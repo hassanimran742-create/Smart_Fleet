@@ -64,4 +64,28 @@ export class DistributorsService {
       data: { status: DistributorStatus.SUSPENDED },
     });
   }
+
+  async update(
+    id: string,
+    input: { businessName?: string; homeStoreId?: string; name?: string; email?: string; phone?: string },
+  ) {
+    const dist = await this.prisma.distributor.findUnique({ where: { id } });
+    if (!dist) throw new NotFoundException();
+    if (input.businessName !== undefined || input.homeStoreId !== undefined) {
+      await this.prisma.distributor.update({
+        where: { id },
+        data: {
+          businessName: input.businessName,
+          homeStoreId: input.homeStoreId,
+        },
+      });
+    }
+    if (input.name !== undefined || input.email !== undefined || input.phone !== undefined) {
+      await this.prisma.user.update({
+        where: { id: dist.userId },
+        data: { name: input.name, email: input.email, phone: input.phone },
+      });
+    }
+    return this.findById(id);
+  }
 }

@@ -53,4 +53,38 @@ export class ZonesService {
     `;
     return rows[0] ?? null;
   }
+
+  async update(
+    id: string,
+    input: { name?: string; polygonGeoJson?: GeoJSON.MultiPolygon; isActive?: boolean },
+  ) {
+    if (input.name !== undefined) {
+      await this.prisma.$executeRaw`UPDATE zones SET name = ${input.name}, updated_at = NOW() WHERE id = ${id}::uuid`;
+    }
+    if (input.polygonGeoJson) {
+      if (input.polygonGeoJson.type !== 'MultiPolygon') {
+        throw new BadRequestException('polygonGeoJson must be a MultiPolygon');
+      }
+      const geo = JSON.stringify(input.polygonGeoJson);
+      await this.prisma.$executeRaw`
+        UPDATE zones
+        SET polygon = ST_SetSRID(ST_GeomFromGeoJSON(${geo}), 4326),
+            centroid = ST_Centroid(ST_SetSRID(ST_GeomFromGeoJSON(${geo}), 4326)),
+            updated_at = NOW()
+        WHERE id = ${id}::uuid
+      `;
+    }
+    if (input.isActive !== undefined) {
+      await this.prisma.$executeRaw`UPDATE zones SET is_active = ${input.isActive}, updated_at = NOW() WHERE id = ${id}::uuid`;
+    }
+    return { ok: true };
+  }
+
+  archive(id: string) {
+    return this.update(id, { isActive: false });
+  }
+
+  reactivate(id: string) {
+    return this.update(id, { isActive: true });
+  }
 }

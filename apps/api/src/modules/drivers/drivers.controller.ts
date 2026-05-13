@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { DriversService } from './drivers.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
@@ -46,5 +46,17 @@ export class DriversController {
   @Patch(':id/profile')
   updateProfile(@Param('id') id: string, @Body() body: any) {
     return this.drivers.updateProfile(id, body);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete(':id')
+  archive(@Param('id') id: string) {
+    return this.drivers.archive(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/reactivate')
+  reactivate(@Param('id') id: string) {
+    return this.drivers.reactivate(id);
   }
 }

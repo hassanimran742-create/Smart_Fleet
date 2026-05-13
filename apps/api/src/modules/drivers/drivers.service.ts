@@ -121,4 +121,35 @@ export class DriversService {
       data: { currentVehicleId: vehicleId },
     });
   }
+
+  /**
+   * Archive a driver: suspend the underlying user account and unassign
+   * any vehicle. We don't hard-delete because trips/reconciliations
+   * reference the driver row.
+   */
+  async archive(driverId: string) {
+    const driver = await this.prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driver) throw new NotFoundException();
+    await this.prisma.$transaction([
+      this.prisma.driver.update({
+        where: { id: driverId },
+        data: { currentVehicleId: null, isOnline: false },
+      }),
+      this.prisma.user.update({
+        where: { id: driver.userId },
+        data: { status: UserStatus.SUSPENDED },
+      }),
+    ]);
+    return { ok: true };
+  }
+
+  async reactivate(driverId: string) {
+    const driver = await this.prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driver) throw new NotFoundException();
+    await this.prisma.user.update({
+      where: { id: driver.userId },
+      data: { status: UserStatus.ACTIVE },
+    });
+    return { ok: true };
+  }
 }

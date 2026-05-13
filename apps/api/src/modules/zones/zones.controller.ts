@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ZonesService } from './zones.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
@@ -21,5 +21,23 @@ export class ZonesController {
   @Post()
   create(@Body() body: any) {
     return this.zones.create(body);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() body: any) {
+    return this.zones.update(id, body);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete(':id')
+  archive(@Param('id') id: string) {
+    return this.zones.archive(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/reactivate')
+  reactivate(@Param('id') id: string) {
+    return this.zones.reactivate(id);
   }
 }

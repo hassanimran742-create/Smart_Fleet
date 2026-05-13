@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MapContainer, Marker, Polygon, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api } from '../api/client';
+import { Modal, confirmDialog } from '../components/Modal';
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -19,22 +20,24 @@ interface ZoneRow {
   name: string;
   centroid: GeoJSON.Point | null;
   polygon: GeoJSON.MultiPolygon | null;
+  is_active: boolean;
 }
 
 /**
- * Build a square MultiPolygon centred on (lat, lng) with the given
- * half-side in degrees. Quick way to get a usable zone polygon from
- * an area centroid without a drawing tool.
+ * Build a MultiPolygon whose parts are square boxes around each picked
+ * area centroid. Lets one zone span several sectors.
  */
-function boxAround(lat: number, lng: number, half = 0.012): GeoJSON.MultiPolygon {
-  const ring: GeoJSON.Position[] = [
-    [lng - half, lat - half],
-    [lng + half, lat - half],
-    [lng + half, lat + half],
-    [lng - half, lat + half],
-    [lng - half, lat - half],
-  ];
-  return { type: 'MultiPolygon', coordinates: [[ring]] };
+function multiBoxAround(areas: { lat: number; lng: number }[], half: number): GeoJSON.MultiPolygon {
+  return {
+    type: 'MultiPolygon',
+    coordinates: areas.map((a) => [[
+      [a.lng - half, a.lat - half],
+      [a.lng + half, a.lat - half],
+      [a.lng + half, a.lat + half],
+      [a.lng - half, a.lat + half],
+      [a.lng - half, a.lat - half],
+    ]]),
+  };
 }
 
 export function ZonesScreen() {
@@ -42,10 +45,16 @@ export function ZonesScreen() {
   const cities = useQuery({ queryKey: ['cities'], queryFn: async () => (await api.get<City[]>('/cities')).data });
 
   const [cityId, setCityId] = useState<string>('');
-  const [areaName, setAreaName] = useState<string>('');
+  const [pickedAreas, setPickedAreas] = useState<string[]>([]);
   const [zoneName, setZoneName] = useState<string>('');
   const [halfDeg, setHalfDeg] = useState('0.012');
-  const [err, setErr] = useState<string | null>(null);
+  const [createErr, setCreateErr] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const [editing, setEditing] = useState<ZoneRow | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPickedAreas, setEditPickedAreas] = useState<string[]>([]);
+  const [editHalfDeg, setEditHalfDeg] = useState('0.012');
 
   const areas = useQuery({
     queryKey: ['areas', cityId],
@@ -54,72 +63,133 @@ export function ZonesScreen() {
   });
 
   const zones = useQuery({
-    queryKey: ['zones', cityId],
+    queryKey: ['zones', cityId, showArchived],
     queryFn: async () => cityId ? (await api.get<ZoneRow[]>(`/zones/city/${cityId}`)).data : [],
     enabled: !!cityId,
   });
 
-  const pickedArea = (areas.data ?? []).find((a) => a.name === areaName);
+  const pickedAreaData = useMemo(
+    () => (areas.data ?? []).filter((a) => pickedAreas.includes(a.name)),
+    [areas.data, pickedAreas],
+  );
+
+  function toggleArea(name: string) {
+    setPickedAreas((s) => s.includes(name) ? s.filter((x) => x !== name) : [...s, name]);
+  }
+  function toggleEditArea(name: string) {
+    setEditPickedAreas((s) => s.includes(name) ? s.filter((x) => x !== name) : [...s, name]);
+  }
 
   const create = useMutation({
     mutationFn: () => {
-      if (!cityId || !zoneName || !pickedArea) {
-        throw new Error('Pick a city, an area centre, and give the zone a name.');
+      if (!cityId || !zoneName || pickedAreaData.length === 0) {
+        throw new Error('Pick a city, at least one area, and give the zone a name.');
       }
-      const polygon = boxAround(pickedArea.lat, pickedArea.lng, Number(halfDeg));
+      const polygon = multiBoxAround(pickedAreaData, Number(halfDeg));
       return api.post('/zones', { cityId, name: zoneName, polygonGeoJson: polygon }).then((r) => r.data);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['zones', cityId] });
-      setZoneName('');
-      setErr(null);
+      setZoneName(''); setPickedAreas([]); setCreateErr(null);
     },
-    onError: (e: any) => setErr(e?.message ?? 'Failed'),
+    onError: (e: any) => setCreateErr(e?.message ?? 'Failed'),
   });
 
-  const cityCenter: [number, number] = pickedArea
-    ? [pickedArea.lat, pickedArea.lng]
+  const update = useMutation({
+    mutationFn: () => {
+      const payload: any = { name: editName };
+      if (editPickedAreas.length > 0) {
+        const picked = (areas.data ?? []).filter((a) => editPickedAreas.includes(a.name));
+        payload.polygonGeoJson = multiBoxAround(picked, Number(editHalfDeg));
+      }
+      return api.patch(`/zones/${editing!.id}`, payload);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['zones', cityId] });
+      setEditing(null);
+    },
+  });
+
+  const archive = useMutation({
+    mutationFn: (id: string) => api.delete(`/zones/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['zones', cityId] }),
+  });
+  const reactivate = useMutation({
+    mutationFn: (id: string) => api.patch(`/zones/${id}/reactivate`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['zones', cityId] }),
+  });
+
+  const cityCenter: [number, number] = pickedAreaData[0]
+    ? [pickedAreaData[0].lat, pickedAreaData[0].lng]
     : (areas.data?.[0] ? [areas.data[0].lat, areas.data[0].lng] : [33.6844, 73.0479]);
+
+  const visibleZones = (zones.data ?? []).filter((z) => showArchived || z.is_active);
 
   return (
     <>
-      <h2>Zones</h2>
+      <div className="flex" style={{ justifyContent: 'space-between' }}>
+        <h2>Zones</h2>
+        <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+          show archived
+        </label>
+      </div>
 
       <div className="card">
         <h3>Create a zone</h3>
         <div className="flex" style={{ gap: 16 }}>
           <div style={{ flex: 1 }}>
             <label>City *</label>
-            <select value={cityId} onChange={(e) => { setCityId(e.target.value); setAreaName(''); }}>
+            <select value={cityId} onChange={(e) => { setCityId(e.target.value); setPickedAreas([]); }}>
               <option value="">— pick a city —</option>
               {(cities.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div style={{ flex: 1 }}>
-            <label>Centre on area *</label>
-            <select
-              value={areaName}
-              onChange={(e) => setAreaName(e.target.value)}
-              disabled={!cityId}
-            >
-              <option value="">— pick an area —</option>
-              {(areas.data ?? []).map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: 1 }}>
             <label>Zone name *</label>
-            <input value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder={areaName || 'e.g. North-A'} />
+            <input value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="e.g. F-Sectors" />
           </div>
           <div style={{ width: 160 }}>
             <label>Half-side (deg)</label>
             <input value={halfDeg} onChange={(e) => setHalfDeg(e.target.value)} type="number" step="0.001" />
-            <p className="muted" style={{ marginTop: 4 }}>~1.1 km per 0.01°.</p>
+            <p className="muted" style={{ marginTop: 4 }}>0.01° ≈ 1.1 km.</p>
           </div>
         </div>
-        <p className="muted">
-          For now zones are square boxes around the chosen area centre. A drawing tool will replace this.
-        </p>
-        {err && <p style={{ color: 'var(--danger)' }}>{err}</p>}
+
+        <label>Include areas / sectors (pick one or many)</label>
+        <div
+          style={{
+            display: 'flex', flexWrap: 'wrap', gap: 8, padding: 8,
+            background: '#fafafa', border: '1px solid var(--border)', borderRadius: 6, maxHeight: 200, overflow: 'auto',
+          }}
+        >
+          {(areas.data ?? []).length === 0 && <span className="muted">Pick a city first.</span>}
+          {(areas.data ?? []).map((a) => {
+            const checked = pickedAreas.includes(a.name);
+            return (
+              <label
+                key={a.name}
+                style={{
+                  padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+                  background: checked ? 'var(--primary)' : 'white',
+                  color: checked ? 'white' : 'inherit',
+                  border: '1px solid', borderColor: checked ? 'var(--primary)' : 'var(--border)',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  style={{ width: 'auto', marginRight: 6 }}
+                  checked={checked}
+                  onChange={() => toggleArea(a.name)}
+                />
+                {a.name}
+              </label>
+            );
+          })}
+        </div>
+        <p className="muted" style={{ marginTop: 4 }}>{pickedAreas.length} area(s) selected — one zone will contain all of them.</p>
+
+        {createErr && <p style={{ color: 'var(--danger)' }}>{createErr}</p>}
         <button className="primary" style={{ marginTop: 12 }} onClick={() => create.mutate()}>Create zone</button>
       </div>
 
@@ -130,14 +200,22 @@ export function ZonesScreen() {
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {(zones.data ?? []).map((z) => {
+            {visibleZones.map((z) => {
               if (!z.polygon) return null;
-              const positions = z.polygon.coordinates[0][0].map(([lng, lat]) => [lat, lng]) as [number, number][];
-              return <Polygon key={z.id} positions={positions} pathOptions={{ color: '#0f6cf0', fillOpacity: 0.15 }} />;
+              return z.polygon.coordinates.map((part, idx) => {
+                const positions = part[0].map(([lng, lat]) => [lat, lng]) as [number, number][];
+                return (
+                  <Polygon
+                    key={`${z.id}-${idx}`}
+                    positions={positions}
+                    pathOptions={{ color: z.is_active ? '#0f6cf0' : '#9ca3af', fillOpacity: 0.15 }}
+                  />
+                );
+              });
             })}
-            {pickedArea && (
-              <Marker position={[pickedArea.lat, pickedArea.lng]} />
-            )}
+            {pickedAreaData.map((a) => (
+              <Marker key={a.name} position={[a.lat, a.lng]} />
+            ))}
           </MapContainer>
         </div>
       )}
@@ -145,17 +223,29 @@ export function ZonesScreen() {
       {cityId && (
         <div className="card">
           <h3>Zones in this city</h3>
-          {(zones.data ?? []).length === 0 && <p className="muted">No zones yet. Create one above.</p>}
+          {visibleZones.length === 0 && <p className="muted">No zones yet.</p>}
           <table>
-            <thead><tr><th>Name</th><th>Centroid</th></tr></thead>
+            <thead><tr><th>Name</th><th>Parts</th><th>Centroid</th><th>Active</th><th></th></tr></thead>
             <tbody>
-              {(zones.data ?? []).map((z) => (
-                <tr key={z.id}>
+              {visibleZones.map((z) => (
+                <tr key={z.id} style={{ opacity: z.is_active ? 1 : 0.5 }}>
                   <td>{z.name}</td>
+                  <td>{z.polygon?.coordinates.length ?? 0}</td>
                   <td>
                     {z.centroid
                       ? `${z.centroid.coordinates[1].toFixed(4)}, ${z.centroid.coordinates[0].toFixed(4)}`
                       : '—'}
+                  </td>
+                  <td>{z.is_active ? '✓' : '—'}</td>
+                  <td>
+                    <button onClick={() => {
+                      setEditing(z); setEditName(z.name); setEditPickedAreas([]); setEditHalfDeg('0.012');
+                    }}>Edit</button>{' '}
+                    {z.is_active ? (
+                      <button style={{ color: 'var(--danger)' }} onClick={() => { if (confirmDialog(`Archive zone "${z.name}"?`)) archive.mutate(z.id); }}>Archive</button>
+                    ) : (
+                      <button onClick={() => reactivate.mutate(z.id)}>Reactivate</button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -163,6 +253,56 @@ export function ZonesScreen() {
           </table>
         </div>
       )}
+
+      <Modal title="Edit zone" open={!!editing} onClose={() => setEditing(null)} width={640}>
+        {editing && (
+          <>
+            <label>Zone name</label>
+            <input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <label>Half-side (deg) for any redraw</label>
+            <input value={editHalfDeg} onChange={(e) => setEditHalfDeg(e.target.value)} type="number" step="0.001" />
+
+            <label style={{ marginTop: 12 }}>
+              Redraw with these areas (leave empty to keep current polygon)
+            </label>
+            <div
+              style={{
+                display: 'flex', flexWrap: 'wrap', gap: 8, padding: 8,
+                background: '#fafafa', border: '1px solid var(--border)', borderRadius: 6, maxHeight: 200, overflow: 'auto',
+              }}
+            >
+              {(areas.data ?? []).map((a) => {
+                const checked = editPickedAreas.includes(a.name);
+                return (
+                  <label
+                    key={a.name}
+                    style={{
+                      padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+                      background: checked ? 'var(--primary)' : 'white',
+                      color: checked ? 'white' : 'inherit',
+                      border: '1px solid', borderColor: checked ? 'var(--primary)' : 'var(--border)',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      style={{ width: 'auto', marginRight: 6 }}
+                      checked={checked}
+                      onChange={() => toggleEditArea(a.name)}
+                    />
+                    {a.name}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="muted">{editPickedAreas.length} area(s) selected.</p>
+
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <button onClick={() => setEditing(null)}>Cancel</button>{' '}
+              <button className="primary" onClick={() => update.mutate()}>Save</button>
+            </div>
+          </>
+        )}
+      </Modal>
     </>
   );
 }
