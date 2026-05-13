@@ -19,16 +19,32 @@ export class DriversService {
     return d;
   }
 
-  create(input: { phone: string; name: string; licenceNo: string }) {
+  create(input: {
+    phone: string;
+    name: string;
+    licenceNo: string;
+    email?: string;
+    cnic?: string;
+    profilePictureUrl?: string;
+  }) {
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.upsert({
         where: { phone: input.phone },
-        update: { name: input.name, role: UserRole.DRIVER },
+        update: {
+          name: input.name,
+          role: UserRole.DRIVER,
+          email: input.email,
+          cnic: input.cnic,
+          profilePictureUrl: input.profilePictureUrl,
+        },
         create: {
           phone: input.phone,
           name: input.name,
           role: UserRole.DRIVER,
           status: UserStatus.ACTIVE,
+          email: input.email,
+          cnic: input.cnic,
+          profilePictureUrl: input.profilePictureUrl,
         },
       });
       return tx.driver.create({
@@ -36,6 +52,38 @@ export class DriversService {
         include: { user: true },
       });
     });
+  }
+
+  async updateProfile(
+    driverId: string,
+    input: {
+      name?: string;
+      email?: string;
+      cnic?: string;
+      profilePictureUrl?: string;
+      licenceNo?: string;
+    },
+  ) {
+    const driver = await this.prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driver) throw new NotFoundException();
+    if (input.licenceNo) {
+      await this.prisma.driver.update({
+        where: { id: driverId },
+        data: { licenceNo: input.licenceNo },
+      });
+    }
+    if (input.name || input.email || input.cnic || input.profilePictureUrl) {
+      await this.prisma.user.update({
+        where: { id: driver.userId },
+        data: {
+          name: input.name,
+          email: input.email,
+          cnic: input.cnic,
+          profilePictureUrl: input.profilePictureUrl,
+        },
+      });
+    }
+    return this.findById(driverId);
   }
 
   async updateLocation(driverId: string, lat: number, lng: number) {

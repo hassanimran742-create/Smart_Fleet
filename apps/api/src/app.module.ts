@@ -34,6 +34,8 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
+import { CitiesModule } from './modules/cities/cities.module';
+import { FilesModule } from './modules/files/files.module';
 
 @Module({
   imports: [
@@ -80,6 +82,8 @@ import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
     AuditLogModule,
     AlertsModule,
     PushTokensModule,
+    CitiesModule,
+    FilesModule,
   ],
 })
 export class AppModule {}

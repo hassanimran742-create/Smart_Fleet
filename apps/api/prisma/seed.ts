@@ -28,13 +28,18 @@ async function main() {
     });
   }
 
-  await prisma.city.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000001' },
-    update: {},
-    create: { id: '00000000-0000-0000-0000-000000000001', name: 'Lahore', countryCode: 'PK' },
-  });
+  const cities = [
+    { id: '00000000-0000-0000-0000-000000000001', name: 'Islamabad', countryCode: 'PK' },
+    { id: '00000000-0000-0000-0000-000000000002', name: 'Rawalpindi', countryCode: 'PK' },
+    { id: '00000000-0000-0000-0000-000000000003', name: 'Lahore',    countryCode: 'PK' },
+    { id: '00000000-0000-0000-0000-000000000004', name: 'Karachi',   countryCode: 'PK' },
+  ];
+  for (const c of cities) {
+    await prisma.city.upsert({ where: { id: c.id }, update: {}, create: c });
+  }
 
   console.log('Seeded admin user:', admin.phone);
+  console.log('Seeded cities:', cities.map((c) => c.name).join(', '));
 }
 
 main()

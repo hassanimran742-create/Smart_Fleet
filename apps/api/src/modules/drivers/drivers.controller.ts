@@ -41,4 +41,10 @@ export class DriversController {
   assign(@Param('id') id: string, @Body() body: { vehicleId: string | null }) {
     return this.drivers.assignVehicle(id, body.vehicleId);
   }
+
+  @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
+  @Patch(':id/profile')
+  updateProfile(@Param('id') id: string, @Body() body: any) {
+    return this.drivers.updateProfile(id, body);
+  }
 }

@@ -150,6 +150,8 @@ model User {
   name         String
   role         UserRole
   status       UserStatus @default(PENDING)
+  cnic         String?
+  profilePictureUrl String? @map("profile_picture_url")
   cnicEncrypted Bytes?    @map("cnic_encrypted")
   cnicIndex    String?    @map("cnic_index") @db.Char(64)
   createdAt    DateTime   @default(now()) @map("created_at")
