@@ -66,6 +66,12 @@ enum VehicleStatus {
   RETIRED
 }
 
+enum DriverAvailability {
+  AVAILABLE
+  ON_LEAVE
+  OFF_DUTY
+}
+
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -228,6 +234,10 @@ model Driver {
   currentLocation          Unsupported("geometry(Point,4326)")? @map("current_location")
   currentLocationUpdatedAt DateTime? @map("current_location_updated_at")
   isOnline                 Boolean   @default(false) @map("is_online")
+  availability             DriverAvailability @default(AVAILABLE)
+  leaveStart               DateTime? @map("leave_start")
+  leaveEnd                 DateTime? @map("leave_end")
+  leaveReason              String?   @map("leave_reason")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 
@@ -236,9 +246,23 @@ model Driver {
   currentZone    Zone?    @relation(fields: [currentZoneId], references: [id])
   trips          Trip[]
   reconciliations Reconciliation[]
+  shifts         DriverShift[]
 
   @@index([isOnline])
+  @@index([availability])
   @@map("drivers")
+}
+
+model DriverShift {
+  id        String    @id @default(uuid()) @db.Uuid
+  driverId  String    @map("driver_id") @db.Uuid
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@index([driverId, startedAt])
+  @@map("driver_shifts")
 }
 
 // ---------- GEOGRAPHY ----------

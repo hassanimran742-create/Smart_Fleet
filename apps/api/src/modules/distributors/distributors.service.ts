@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DistributorStatus, UserRole, UserStatus } from '@prisma/client';
 
@@ -23,24 +23,34 @@ export class DistributorsService {
     phone: string;
     name: string;
     businessName: string;
-    homeStoreId?: string;
+    homeStoreId?: string | null;
+    email?: string | null;
   }) {
+    if (!input.phone?.trim()) throw new BadRequestException('phone is required');
+    if (!input.name?.trim()) throw new BadRequestException('name is required');
+    if (!input.businessName?.trim()) throw new BadRequestException('businessName is required');
+
+    // Sanitize: empty strings cause Prisma FK / UUID errors. Coerce to undefined.
+    const homeStoreId = input.homeStoreId?.trim() ? input.homeStoreId.trim() : undefined;
+    const email = input.email?.trim() ? input.email.trim() : undefined;
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.upsert({
         where: { phone: input.phone },
-        update: { name: input.name, role: UserRole.DISTRIBUTOR },
+        update: { name: input.name, role: UserRole.DISTRIBUTOR, email },
         create: {
           phone: input.phone,
           name: input.name,
           role: UserRole.DISTRIBUTOR,
           status: UserStatus.PENDING,
+          email,
         },
       });
       return tx.distributor.create({
         data: {
           userId: user.id,
           businessName: input.businessName,
-          homeStoreId: input.homeStoreId,
+          homeStoreId,
           status: DistributorStatus.PENDING,
         },
         include: { user: true, homeStore: true },

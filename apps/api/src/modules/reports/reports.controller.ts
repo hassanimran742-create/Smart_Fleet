@@ -22,4 +22,12 @@ export class ReportsController {
       since ? new Date(since) : new Date(Date.now() - 7 * 24 * 3600 * 1000),
     );
   }
+
+  @Get('driver-attendance')
+  driverAttendance(@Query('since') since?: string, @Query('until') until?: string) {
+    return this.reports.driverAttendance(
+      since ? new Date(since) : new Date(Date.now() - 7 * 24 * 3600 * 1000),
+      until ? new Date(until) : new Date(),
+    );
+  }
 }

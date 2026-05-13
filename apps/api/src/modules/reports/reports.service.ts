@@ -29,4 +29,81 @@ export class ReportsService {
       GROUP BY d.id, u.name
     `;
   }
+
+  /**
+   * Compute per-driver attendance over [since, until] by summing shift
+   * durations. Open shifts (driver still online) count up to "until"
+   * (or "now" if until is in the future).
+   */
+  async driverAttendance(since: Date, until: Date) {
+    const shifts = await this.prisma.driverShift.findMany({
+      where: {
+        startedAt: { lte: until },
+        OR: [{ endedAt: null }, { endedAt: { gte: since } }],
+      },
+      include: { driver: { include: { user: true } } },
+    });
+
+    type Bucket = {
+      driverId: string;
+      name: string;
+      availability: string;
+      totalMinutes: number;
+      daysWorked: Set<string>;
+      lastShiftEndedAt: Date | null;
+    };
+    const byDriver = new Map<string, Bucket>();
+    const cap = until.getTime() < Date.now() ? until : new Date();
+
+    for (const s of shifts) {
+      const startMs = Math.max(s.startedAt.getTime(), since.getTime());
+      const endMs = Math.min((s.endedAt ?? cap).getTime(), cap.getTime());
+      if (endMs <= startMs) continue;
+      const minutes = (endMs - startMs) / 60000;
+      const day = new Date(startMs).toISOString().slice(0, 10);
+
+      const existing =
+        byDriver.get(s.driverId) ??
+        ({
+          driverId: s.driverId,
+          name: s.driver.user.name,
+          availability: s.driver.availability,
+          totalMinutes: 0,
+          daysWorked: new Set<string>(),
+          lastShiftEndedAt: null,
+        } as Bucket);
+      existing.totalMinutes += minutes;
+      existing.daysWorked.add(day);
+      if (s.endedAt && (!existing.lastShiftEndedAt || s.endedAt > existing.lastShiftEndedAt)) {
+        existing.lastShiftEndedAt = s.endedAt;
+      }
+      byDriver.set(s.driverId, existing);
+    }
+
+    // Also surface drivers who have never logged a shift but exist
+    const allDrivers = await this.prisma.driver.findMany({ include: { user: true } });
+    for (const d of allDrivers) {
+      if (!byDriver.has(d.id)) {
+        byDriver.set(d.id, {
+          driverId: d.id,
+          name: d.user.name,
+          availability: d.availability,
+          totalMinutes: 0,
+          daysWorked: new Set<string>(),
+          lastShiftEndedAt: null,
+        });
+      }
+    }
+
+    return Array.from(byDriver.values())
+      .map((b) => ({
+        driverId: b.driverId,
+        name: b.name,
+        availability: b.availability,
+        totalHours: Math.round((b.totalMinutes / 60) * 10) / 10,
+        daysWorked: b.daysWorked.size,
+        lastShiftEndedAt: b.lastShiftEndedAt?.toISOString() ?? null,
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
+  }
 }

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { UserRole, UserStatus } from '@prisma/client';
+import { DriverAvailability, UserRole, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class DriversService {
@@ -111,8 +111,69 @@ export class DriversService {
     return { ok: true, zoneId };
   }
 
-  setOnline(driverId: string, isOnline: boolean) {
-    return this.prisma.driver.update({ where: { id: driverId }, data: { isOnline } });
+  /**
+   * Toggling online opens a new DriverShift; toggling offline closes
+   * the most recent open shift. The attendance report aggregates these
+   * shifts per day to produce hours-worked numbers.
+   */
+  async setOnline(driverId: string, isOnline: boolean) {
+    return this.prisma.$transaction(async (tx) => {
+      const driver = await tx.driver.findUnique({ where: { id: driverId } });
+      if (!driver) throw new NotFoundException();
+      if (isOnline && driver.availability !== DriverAvailability.AVAILABLE) {
+        throw new BadRequestException(
+          `Driver is ${driver.availability}; cannot go online until marked AVAILABLE.`,
+        );
+      }
+      await tx.driver.update({ where: { id: driverId }, data: { isOnline } });
+      if (isOnline) {
+        // Safety: close any previously open shift before starting a new one.
+        await tx.driverShift.updateMany({
+          where: { driverId, endedAt: null },
+          data: { endedAt: new Date() },
+        });
+        await tx.driverShift.create({ data: { driverId } });
+      } else {
+        const open = await tx.driverShift.findFirst({
+          where: { driverId, endedAt: null },
+          orderBy: { startedAt: 'desc' },
+        });
+        if (open) {
+          await tx.driverShift.update({
+            where: { id: open.id },
+            data: { endedAt: new Date() },
+          });
+        }
+      }
+      return { ok: true };
+    });
+  }
+
+  async setAvailability(
+    driverId: string,
+    availability: DriverAvailability,
+    leaveStart?: string,
+    leaveEnd?: string,
+    reason?: string,
+  ) {
+    const data: any = { availability };
+    if (availability === DriverAvailability.ON_LEAVE) {
+      data.leaveStart = leaveStart ? new Date(leaveStart) : null;
+      data.leaveEnd = leaveEnd ? new Date(leaveEnd) : null;
+      data.leaveReason = reason ?? null;
+      // Force offline; close any open shift.
+      data.isOnline = false;
+      await this.prisma.driverShift.updateMany({
+        where: { driverId, endedAt: null },
+        data: { endedAt: new Date() },
+      });
+    } else {
+      data.leaveStart = null;
+      data.leaveEnd = null;
+      data.leaveReason = null;
+      if (availability === DriverAvailability.OFF_DUTY) data.isOnline = false;
+    }
+    return this.prisma.driver.update({ where: { id: driverId }, data });
   }
 
   assignVehicle(driverId: string, vehicleId: string | null) {

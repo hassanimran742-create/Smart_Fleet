@@ -6,11 +6,17 @@ import { Modal, confirmDialog } from '../components/Modal';
 
 const CNIC_REGEX = /^\d{5}-?\d{7}-?\d$/;
 
+type Availability = 'AVAILABLE' | 'ON_LEAVE' | 'OFF_DUTY';
+
 interface DriverRow {
   id: string;
   licenceNo: string;
   isOnline: boolean;
   currentVehicleId: string | null;
+  availability: Availability;
+  leaveStart: string | null;
+  leaveEnd: string | null;
+  leaveReason: string | null;
   user: {
     id: string;
     name: string;
@@ -106,6 +112,32 @@ export function DriversScreen() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
   });
 
+  const setAvailability = useMutation({
+    mutationFn: (payload: {
+      id: string;
+      availability: Availability;
+      leaveStart?: string;
+      leaveEnd?: string;
+      reason?: string;
+    }) =>
+      api
+        .patch(`/drivers/${payload.id}/availability`, {
+          availability: payload.availability,
+          leaveStart: payload.leaveStart,
+          leaveEnd: payload.leaveEnd,
+          reason: payload.reason,
+        })
+        .then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
+  });
+
+  // Leave modal state
+  const [leaveFor, setLeaveFor] = useState<DriverRow | null>(null);
+  const [leaveForm, setLeaveForm] = useState<{ leaveStart: string; leaveEnd: string; reason: string }>(
+    { leaveStart: '', leaveEnd: '', reason: '' },
+  );
+  const [leaveErr, setLeaveErr] = useState<string | null>(null);
+
   const rows = (data ?? []).filter((d) => showArchived || d.user.status !== 'SUSPENDED');
 
   function openEdit(d: DriverRow) {
@@ -168,51 +200,115 @@ export function DriversScreen() {
       <div className="card">
         <table>
           <thead>
-            <tr><th></th><th>Name</th><th>Phone</th><th>Email</th><th>CNIC</th><th>Licence</th><th>Online</th><th>Vehicle</th><th>Status</th><th></th></tr>
+            <tr>
+              <th></th><th>Name</th><th>Phone</th><th>Email</th><th>CNIC</th><th>Licence</th>
+              <th>Online</th><th>Availability</th><th>Vehicle</th><th>Status</th><th></th>
+            </tr>
           </thead>
           <tbody>
-            {rows.map((d) => (
-              <tr key={d.id} style={{ opacity: d.user.status === 'SUSPENDED' ? 0.5 : 1 }}>
-                <td>
-                  {d.user?.profilePictureUrl ? (
-                    <img src={d.user.profilePictureUrl} alt={d.user.name} style={{ width: 32, height: 32, borderRadius: 16, objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: 32, height: 32, borderRadius: 16, background: '#e3e4e8' }} />
-                  )}
-                </td>
-                <td>{d.user?.name}</td>
-                <td>{d.user?.phone}</td>
-                <td>{d.user?.email ?? '—'}</td>
-                <td>{d.user?.cnic ?? '—'}</td>
-                <td>{d.licenceNo}</td>
-                <td>{d.isOnline ? '🟢' : '⚪'}</td>
-                <td>
-                  <select
-                    value={d.currentVehicleId ?? ''}
-                    onChange={(e) => assignVehicle.mutate({ id: d.id, vehicleId: e.target.value || null })}
-                    disabled={d.user.status === 'SUSPENDED'}
-                  >
-                    <option value="">— none —</option>
-                    {(vehicles.data ?? []).map((v: any) => <option key={v.id} value={v.id}>{v.plateNo}</option>)}
-                  </select>
-                </td>
-                <td style={{ fontSize: 12 }}>{d.user.status}</td>
-                <td>
-                  <button onClick={() => openEdit(d)} disabled={d.user.status === 'SUSPENDED'}>Edit</button>{' '}
-                  {d.user.status === 'SUSPENDED' ? (
-                    <button onClick={() => reactivate.mutate(d.id)}>Reactivate</button>
-                  ) : (
-                    <button
-                      style={{ color: 'var(--danger)' }}
-                      onClick={() => { if (confirmDialog(`Archive driver "${d.user.name}"?`)) archive.mutate(d.id); }}
-                    >Archive</button>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {rows.map((d) => {
+              const availColor =
+                d.availability === 'AVAILABLE' ? '#1ea675'
+                  : d.availability === 'ON_LEAVE' ? '#f59e0b'
+                  : '#6b6f76';
+              return (
+                <tr key={d.id} style={{ opacity: d.user.status === 'SUSPENDED' ? 0.5 : 1 }}>
+                  <td>
+                    {d.user?.profilePictureUrl ? (
+                      <img src={d.user.profilePictureUrl} alt={d.user.name} style={{ width: 32, height: 32, borderRadius: 16, objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: 16, background: '#e3e4e8' }} />
+                    )}
+                  </td>
+                  <td>{d.user?.name}</td>
+                  <td>{d.user?.phone}</td>
+                  <td>{d.user?.email ?? '—'}</td>
+                  <td>{d.user?.cnic ?? '—'}</td>
+                  <td>{d.licenceNo}</td>
+                  <td>{d.isOnline ? '🟢' : '⚪'}</td>
+                  <td>
+                    <span style={{ color: availColor, fontWeight: 600, fontSize: 12 }}>● {d.availability}</span>
+                    {d.availability === 'ON_LEAVE' && d.leaveEnd && (
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        until {new Date(d.leaveEnd).toLocaleDateString()}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <select
+                      value={d.currentVehicleId ?? ''}
+                      onChange={(e) => assignVehicle.mutate({ id: d.id, vehicleId: e.target.value || null })}
+                      disabled={d.user.status === 'SUSPENDED'}
+                    >
+                      <option value="">— none —</option>
+                      {(vehicles.data ?? []).map((v: any) => <option key={v.id} value={v.id}>{v.plateNo}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ fontSize: 12 }}>{d.user.status}</td>
+                  <td>
+                    <button onClick={() => openEdit(d)} disabled={d.user.status === 'SUSPENDED'}>Edit</button>{' '}
+                    {d.availability !== 'ON_LEAVE' && d.user.status !== 'SUSPENDED' && (
+                      <button onClick={() => {
+                        setLeaveFor(d);
+                        setLeaveForm({ leaveStart: new Date().toISOString().slice(0, 10), leaveEnd: '', reason: '' });
+                        setLeaveErr(null);
+                      }}>Mark on leave</button>
+                    )}{' '}
+                    {d.availability === 'ON_LEAVE' && (
+                      <button onClick={() => setAvailability.mutate({ id: d.id, availability: 'AVAILABLE' })}>Mark available</button>
+                    )}{' '}
+                    {d.user.status === 'SUSPENDED' ? (
+                      <button onClick={() => reactivate.mutate(d.id)}>Reactivate</button>
+                    ) : (
+                      <button
+                        style={{ color: 'var(--danger)' }}
+                        onClick={() => { if (confirmDialog(`Archive driver "${d.user.name}"?`)) archive.mutate(d.id); }}
+                      >Archive</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      <Modal title="Mark on leave" open={!!leaveFor} onClose={() => setLeaveFor(null)}>
+        {leaveFor && (
+          <>
+            <p>Mark <strong>{leaveFor.user.name}</strong> as ON_LEAVE. They won't be dispatched and any open shift will be closed.</p>
+            <label>Start date *</label>
+            <input type="date" value={leaveForm.leaveStart} onChange={(e) => setLeaveForm({ ...leaveForm, leaveStart: e.target.value })} />
+            <label>End date</label>
+            <input type="date" value={leaveForm.leaveEnd} onChange={(e) => setLeaveForm({ ...leaveForm, leaveEnd: e.target.value })} />
+            <label>Reason</label>
+            <input value={leaveForm.reason} onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })} placeholder="e.g. annual leave, illness, family" />
+            {leaveErr && <p style={{ color: 'var(--danger)' }}>{leaveErr}</p>}
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <button onClick={() => setLeaveFor(null)}>Cancel</button>{' '}
+              <button
+                className="primary"
+                onClick={() => {
+                  if (!leaveForm.leaveStart) {
+                    setLeaveErr('Start date is required');
+                    return;
+                  }
+                  setAvailability.mutate(
+                    {
+                      id: leaveFor.id,
+                      availability: 'ON_LEAVE',
+                      leaveStart: leaveForm.leaveStart,
+                      leaveEnd: leaveForm.leaveEnd || undefined,
+                      reason: leaveForm.reason || undefined,
+                    },
+                    { onSuccess: () => setLeaveFor(null) },
+                  );
+                }}
+              >Confirm leave</button>
+            </div>
+          </>
+        )}
+      </Modal>
 
       <Modal title="Edit driver" open={!!editing} onClose={() => setEditing(null)}>
         {editing && (

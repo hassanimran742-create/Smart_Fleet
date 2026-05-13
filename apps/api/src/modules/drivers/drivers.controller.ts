@@ -48,6 +48,15 @@ export class DriversController {
     return this.drivers.updateProfile(id, body);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @Patch(':id/availability')
+  setAvailability(
+    @Param('id') id: string,
+    @Body() body: { availability: 'AVAILABLE' | 'ON_LEAVE' | 'OFF_DUTY'; leaveStart?: string; leaveEnd?: string; reason?: string },
+  ) {
+    return this.drivers.setAvailability(id, body.availability as any, body.leaveStart, body.leaveEnd, body.reason);
+  }
+
   @Roles(UserRole.ADMIN)
   @Delete(':id')
   archive(@Param('id') id: string) {
