@@ -1,9 +1,11 @@
-import { Button, Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useAuthStore } from '../../store/auth';
+import { Body, Button, Card, Caption, Heading, Pill, Screen } from '../../components/ui';
+import { colors, space } from '../../theme';
 
 export function DistributorHomeScreen() {
   const nav = useNavigation<any>();
@@ -20,24 +22,33 @@ export function DistributorHomeScreen() {
   const inProgress = (orders.data ?? []).filter((o: any) =>
     ['PENDING', 'ASSIGNED', 'IN_TRANSIT'].includes(o.status),
   ).length;
+  const delivered = (orders.data ?? []).filter((o: any) => o.status === 'DELIVERED').length;
 
   return (
-    <View style={{ flex: 1, padding: 24, gap: 12 }}>
-      <View style={{ padding: 16, backgroundColor: '#eef6ff', borderRadius: 8 }}>
-        <Text style={{ color: '#666', fontSize: 12 }}>Advance balance</Text>
-        <Text style={{ fontSize: 22, fontWeight: '600' }}>
+    <Screen scroll>
+      <Card style={{ backgroundColor: colors.primary }}>
+        <Caption style={{ color: '#dbe7ff' }}>Advance balance</Caption>
+        <Heading size="h1" style={{ color: 'white', marginTop: 4 }}>
           {balance.data ? `Rs. ${(Number(balance.data.balancePaisa) / 100).toLocaleString()}` : '…'}
-        </Text>
-        <Text style={{ color: '#666', marginTop: 8 }}>{inProgress} orders in progress</Text>
+        </Heading>
+        <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
+          <Pill label={`${inProgress} in progress`} tone="warn" />
+          <Pill label={`${delivered} delivered`} tone="ok" />
+        </View>
+      </Card>
+
+      <View style={{ gap: space.sm }}>
+        <Button title={t('newOrder') ?? 'New order'} onPress={() => nav.navigate('PlaceOrder')} />
+        <Button title={t('orders') ?? 'My orders'} variant="secondary" onPress={() => nav.navigate('OrderHistory')} />
+        <Button title="Inventory" variant="secondary" onPress={() => nav.navigate('Inventory')} />
+        <Button title="Analytics" variant="secondary" onPress={() => nav.navigate('Analytics')} />
+        <Button title="Ledger" variant="secondary" onPress={() => nav.navigate('Ledger')} />
+        <Button title="Top up balance" variant="secondary" onPress={() => nav.navigate('Topup')} />
       </View>
 
-      <Button title={t('newOrder')} onPress={() => nav.navigate('PlaceOrder')} />
-      <Button title={t('orders')} onPress={() => nav.navigate('OrderHistory')} />
-      <Button title="Inventory" onPress={() => nav.navigate('Inventory')} />
-      <Button title="Analytics" onPress={() => nav.navigate('Analytics')} />
-      <Button title="Ledger" onPress={() => nav.navigate('Ledger')} />
-      <Button title="Top up" onPress={() => nav.navigate('Topup')} />
-      <Button title={t('logout')} color="#d33a3a" onPress={() => clear()} />
-    </View>
+      <View style={{ marginTop: space.lg }}>
+        <Button title={t('logout') ?? 'Sign out'} variant="ghost" onPress={() => clear()} />
+      </View>
+    </Screen>
   );
 }

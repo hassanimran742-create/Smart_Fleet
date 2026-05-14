@@ -1,7 +1,19 @@
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../api/client';
+import { Body, Caption, Heading, Pill } from '../../components/ui';
+import { colors, radius, shadow, space } from '../../theme';
+
+const STATUS_TONE: Record<string, 'ok' | 'warn' | 'danger' | 'primary' | 'neutral'> = {
+  PENDING: 'warn',
+  CONFIRMED: 'primary',
+  ASSIGNED: 'primary',
+  IN_TRANSIT: 'primary',
+  DELIVERED: 'ok',
+  CANCELLED: 'neutral',
+  FAILED: 'danger',
+};
 
 export function OrderHistoryScreen() {
   const nav = useNavigation<any>();
@@ -13,21 +25,39 @@ export function OrderHistoryScreen() {
 
   return (
     <FlatList
+      style={{ backgroundColor: colors.background }}
       data={data ?? []}
       keyExtractor={(o: any) => o.id}
-      contentContainerStyle={{ padding: 16 }}
-      renderItem={({ item }) => (
-        <Pressable
-          onPress={() => nav.navigate('TrackOrder', { orderId: item.id })}
-          style={{ padding: 12, borderWidth: 1, borderColor: '#eee', borderRadius: 8, marginBottom: 8, backgroundColor: 'white' }}
-        >
-          <Text style={{ fontWeight: '600' }}>{item.deliveryAddressLabel}</Text>
-          <Text>Status: {item.status}</Text>
-          <Text>Payment: {item.paymentStatus}</Text>
-          <Text style={{ color: '#0f6cf0', marginTop: 4 }}>Tap to track →</Text>
-          <Text style={{ color: '#888', fontSize: 12 }}>{new Date(item.createdAt).toLocaleString()}</Text>
-        </Pressable>
-      )}
+      contentContainerStyle={{ padding: space.lg, gap: space.sm }}
+      renderItem={({ item }) => {
+        const items = (item.lines ?? []).reduce((s: number, l: any) => s + (l.fullCount ?? 0), 0);
+        return (
+          <Pressable
+            onPress={() => nav.navigate('TrackOrder', { orderId: item.id })}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.85 : 1,
+              backgroundColor: colors.surface,
+              borderRadius: radius.lg,
+              padding: space.lg,
+              ...shadow.card,
+            })}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, marginRight: space.sm }}>
+                <Heading size="h3">{item.deliveryAddressLabel}</Heading>
+                <Caption style={{ marginTop: 2 }}>
+                  {items} cylinder{items === 1 ? '' : 's'} · {new Date(item.createdAt).toLocaleString()}
+                </Caption>
+              </View>
+              <Pill label={item.status} tone={STATUS_TONE[item.status] ?? 'neutral'} />
+            </View>
+            {item.paymentStatus !== 'UNPAID' && (
+              <Pill label={item.paymentStatus} tone={item.paymentStatus === 'PAID_VIA_LEDGER' ? 'ok' : 'primary'} style={{ marginTop: space.sm }} />
+            )}
+            <Caption style={{ marginTop: space.sm, color: colors.primary }}>Tap to track →</Caption>
+          </Pressable>
+        );
+      }}
     />
   );
 }
