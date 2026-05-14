@@ -36,6 +36,11 @@ i18n.use(initReactI18next).init({
   resources,
   lng: 'en',
   fallbackLng: 'en',
+  // Hermes (React Native's JS engine) doesn't include the full Intl.PluralRules
+  // API. Acknowledge the legacy v3 plural-format fallback so i18next stops
+  // warning at runtime. Switch to "v4" + an intl-pluralrules polyfill if you
+  // ever need full CLDR plural categories (rare for en/ur).
+  compatibilityJSON: 'v3',
   interpolation: { escapeValue: false },
 });
 
