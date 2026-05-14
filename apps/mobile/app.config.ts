@@ -11,9 +11,9 @@ const config: ExpoConfig = {
   scheme: isDriver ? 'smartfleet-driver' : 'smartfleet',
   version: '0.1.0',
   orientation: 'portrait',
-  icon: './assets/icon.png',
+  // icon and splash references intentionally omitted until real assets
+  // ship with the repo. Expo falls back to a default icon + splash.
   userInterfaceStyle: 'light',
-  splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: '#ffffff' },
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
@@ -32,7 +32,6 @@ const config: ExpoConfig = {
   },
   android: {
     package: isDriver ? 'com.smartfleet.driver' : 'com.smartfleet.distributor',
-    adaptiveIcon: { foregroundImage: './assets/icon.png', backgroundColor: '#ffffff' },
     permissions: [
       'CAMERA',
       'ACCESS_COARSE_LOCATION',
