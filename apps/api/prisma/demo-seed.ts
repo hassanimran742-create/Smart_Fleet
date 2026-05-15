@@ -184,6 +184,16 @@ async function main() {
   await prisma.client.deleteMany({ where: { id: { in: oldClientIds } } });
   await prisma.distributor.deleteMany({ where: { id: { in: oldDistributorIds } } });
   await prisma.vehicle.deleteMany({ where: { id: { in: oldVehicleIds } } });
+  // Auth + audit tables reference users — must clear before deleting users.
+  await prisma.refreshToken.deleteMany({ where: { userId: { in: oldUserIds } } });
+  await prisma.auditLog.deleteMany({ where: { actorUserId: { in: oldUserIds } } });
+  await prisma.expoPushToken.deleteMany({ where: { userId: { in: oldUserIds } } });
+  // Reconciliations also reference verifiedByUserId (separate from driverId
+  // — already deleted via driverId path) plus support tickets potentially.
+  await prisma.reconciliation.updateMany({
+    where: { verifiedByUserId: { in: oldUserIds } },
+    data: { verifiedByUserId: null },
+  });
   await prisma.user.deleteMany({ where: { id: { in: oldUserIds } } });
   console.log(`  ✓ Cleanup: removed ${oldUserIds.length} users, ${oldDriverIds.length} drivers, ${oldDistributorIds.length} distributors, ${oldVehicleIds.length} vehicles, ${oldOrderIds.length} orders`);
 
