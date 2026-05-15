@@ -697,7 +697,11 @@ async function main() {
   let runningBalanceXYZ = 30_00000n;
 
   for (const s of scenarios) {
-    // Insert order
+    // Insert order. Cast every uuid parameter explicitly — Prisma sends
+    // parameters as text by default and Postgres rejects them otherwise.
+    const createdAtTs = new Date(
+      Date.now() - (s.status === OrderStatus.DELIVERED ? 5 : 2) * HOUR,
+    );
     const orderRows: { id: string }[] = await prisma.$queryRaw`
       INSERT INTO orders (
         id, distributor_id, client_id, delivery_address_label, dest_zone_id,
@@ -710,14 +714,14 @@ async function main() {
         ${s.clientId}::uuid,
         ${s.deliveryLabel},
         ${s.destZoneId}::uuid,
-        ${s.originStoreId ?? null},
+        ${s.originStoreId ?? null}::uuid,
         ${s.status}::"OrderStatus",
-        'UNPAID',
+        'UNPAID'::"OrderPaymentStatus",
         0,
         ST_SetSRID(ST_MakePoint(${s.destLng}, ${s.destLat}), 4326),
         NULL,
         ${s.cancellationReason ?? null},
-        NOW() - INTERVAL '${s.status === OrderStatus.DELIVERED ? 5 : 2} hours',
+        ${createdAtTs},
         NOW()
       )
       RETURNING id
