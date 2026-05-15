@@ -80,7 +80,6 @@ export class ReportsService {
       byDriver.set(s.driverId, existing);
     }
 
-    // Also surface drivers who have never logged a shift but exist
     const allDrivers = await this.prisma.driver.findMany({ include: { user: true } });
     for (const d of allDrivers) {
       if (!byDriver.has(d.id)) {
@@ -105,5 +104,74 @@ export class ReportsService {
         lastShiftEndedAt: b.lastShiftEndedAt?.toISOString() ?? null,
       }))
       .sort((a, b) => b.totalHours - a.totalHours);
+  }
+
+  /**
+   * "Algorithm decisions" report — for every completed/active delivery,
+   * surface the dispatcher's choices: which driver, which vehicle,
+   * which originating store, current status, and fee charged.
+   * Used by admin to audit how the assignment algorithm performed.
+   */
+  async dispatchDecisions(since: Date) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        createdAt: { gte: since },
+        tripId: { not: null },
+      },
+      include: {
+        distributor: true,
+        client: true,
+        destZone: true,
+        originStore: { include: { zone: true } },
+        trip: { include: { driver: { include: { user: true } }, vehicle: true } },
+        lines: { include: { cylinderType: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return orders.map((o) => ({
+      orderId: o.id,
+      createdAt: o.createdAt.toISOString(),
+      status: o.status,
+      paymentStatus: o.paymentStatus,
+      distributor: o.distributor.businessName,
+      client: o.client.name,
+      origin: o.originStore?.name ?? null,
+      originZone: o.originStore?.zone?.name ?? null,
+      destination: o.deliveryAddressLabel,
+      destinationZone: o.destZone.name,
+      driver: o.trip?.driver?.user?.name ?? null,
+      vehicle: o.trip?.vehicle?.plateNo ?? null,
+      tripStatus: o.trip?.status ?? null,
+      tripStartedAt: o.trip?.startedAt?.toISOString() ?? null,
+      tripCompletedAt: o.trip?.completedAt?.toISOString() ?? null,
+      cylinders: o.lines.map((l) => `${l.fullCount}× ${l.cylinderType.code}`).join(' + '),
+      feePaisa: o.deliveryFeePaisa.toString(),
+      cancellationReason: o.cancellationReason,
+    }));
+  }
+
+  /**
+   * Delivery success / failure / cancel funnel.
+   */
+  async deliveryFunnel(since: Date) {
+    const rows = await this.prisma.order.groupBy({
+      by: ['status'],
+      where: { createdAt: { gte: since } },
+      _count: { _all: true },
+    });
+    const total = rows.reduce((s, r) => s + r._count._all, 0) || 1;
+    return {
+      since: since.toISOString(),
+      total,
+      byStatus: rows
+        .map((r) => ({
+          status: r.status,
+          count: r._count._all,
+          percent: Math.round((r._count._all / total) * 1000) / 10,
+        }))
+        .sort((a, b) => b.count - a.count),
+    };
   }
 }

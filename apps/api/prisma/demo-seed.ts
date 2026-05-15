@@ -1,11 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  AlertSeverity,
+  AlertStatus,
+  AlertType,
   CustodyType,
+  CylinderEventType,
   CylinderState,
   DistributorStatus,
   DriverAvailability,
+  LedgerEntryType,
+  OrderPaymentStatus,
   OrderStatus,
   PrismaClient,
+  TripStatus,
+  TripStopType,
   UserRole,
   UserStatus,
   VehicleStatus,
@@ -13,402 +21,726 @@ import {
 import { randomBytes } from 'crypto';
 
 /**
- * End-to-end happy-path scenario for the Smart_Fleet platform.
+ * Smart_Fleet demo seed — 8 end-to-end scenarios at different lifecycle
+ * stages. Run with: npm run seed:demo
  *
- * Hits these test-matrix scenarios in one continuous flow:
- *   A-01  Stock at client zone store · vehicle at same store
- *   B-01  Vehicle capacity exactly fits the order
- *   C-01  Driver idle, in zone, fully available
- *   D-01  Store has exact stock available
- *   E-01  Client and distributor stock in same zone (base tariff)
- *   F-01  Empties will be picked up at delivery (data setup)
- *   G-01  Order placed within normal delivery window
+ * Scenarios after seeding:
+ *   1. DELIVERED yesterday  — F-zone → F-zone, full custody chain
+ *   2. DELIVERED today      — F-zone → G-zone (cross-zone, higher fee)
+ *   3. DELIVERED today      — XYZ distributor, 15kg cylinders
+ *   4. IN_TRANSIT now       — active trip, driver en route
+ *   5. ASSIGNED              — dispatched but driver hasn't started
+ *   6. PENDING               — queued, waiting for dispatch worker
+ *   7. FAILED                — client address inaccessible
+ *   8. CANCELLED             — distributor cancelled after dispatch
  *
- * Run with: npm run seed:demo
+ * Plus: 3 drivers (online, on break, on leave), 2 distributors,
+ * 2 vehicles, 2 stores, ledger debits, alerts, driver shifts.
+ *
  * Idempotent — safe to re-run.
  */
 
 const prisma = new PrismaClient();
 
-// Fixed UUIDs so re-runs hit the same rows (no sprawling duplicates).
-const IDS = {
-  city:           '11111111-0000-0000-0000-000000000001',
-  fSectorZone:    '22222222-0000-0000-0000-000000000001',
-  gSectorZone:    '22222222-0000-0000-0000-000000000002',
-  fHubStore:      '33333333-0000-0000-0000-000000000001',
-  gHubStore:      '33333333-0000-0000-0000-000000000002',
-  distributor:    '44444444-0000-0000-0000-000000000001',
-  distributorUser:'44444444-0000-0000-0000-000000000aaa',
-  driver:         '55555555-0000-0000-0000-000000000001',
-  driverUser:     '55555555-0000-0000-0000-000000000aaa',
-  vehicle:        '66666666-0000-0000-0000-000000000001',
-  client:         '77777777-0000-0000-0000-000000000001',
+const ID = {
+  city: '11111111-0000-0000-0000-000000000001',
+  fZone: '22222222-0000-0000-0000-000000000001',
+  gZone: '22222222-0000-0000-0000-000000000002',
+  fStore: '33333333-0000-0000-0000-000000000001',
+  gStore: '33333333-0000-0000-0000-000000000002',
+  distABC: '44444444-0000-0000-0000-000000000001',
+  distXYZ: '44444444-0000-0000-0000-000000000002',
+  distABCUser: '44444444-0000-0000-0000-000000000aa1',
+  distXYZUser: '44444444-0000-0000-0000-000000000aa2',
+  driverAhmad: '55555555-0000-0000-0000-000000000001',
+  driverBilal: '55555555-0000-0000-0000-000000000002',
+  driverImran: '55555555-0000-0000-0000-000000000003',
+  driverAhmadUser: '55555555-0000-0000-0000-000000000aa1',
+  driverBilalUser: '55555555-0000-0000-0000-000000000aa2',
+  driverImranUser: '55555555-0000-0000-0000-000000000aa3',
+  vehicleA: '66666666-0000-0000-0000-000000000001',
+  vehicleB: '66666666-0000-0000-0000-000000000002',
+  vehicleC: '66666666-0000-0000-0000-000000000003',
+  clientFatima: '77777777-0000-0000-0000-000000000001',
+  clientAyesha: '77777777-0000-0000-0000-000000000002',
+  clientUsman: '77777777-0000-0000-0000-000000000003',
+  clientNoor: '77777777-0000-0000-0000-000000000004',
+  clientHassan: '77777777-0000-0000-0000-000000000005',
 };
 
-// Demo phones
 const PHONES = {
-  distributor: '+923111111111',
-  driver:      '+923222222222',
-  client:      '+923333333333',
+  distABC: '+923111111111',
+  distXYZ: '+923111111112',
+  driverAhmad: '+923222222221',
+  driverBilal: '+923222222222',
+  driverImran: '+923222222223',
 };
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+
+function suffix() {
+  return randomBytes(3).toString('hex').toUpperCase();
+}
 
 async function main() {
-  console.log('🌱 Smart_Fleet demo seed — building happy-path scenario');
+  console.log('🌱 Building multi-scenario demo data\n');
 
-  // 1) City -----------------------------------------------------------------
-  const city = await prisma.city.upsert({
-    where: { id: IDS.city },
+  // ---------------- City + Zones + Stores ----------------
+  await prisma.city.upsert({
+    where: { id: ID.city },
     update: { name: 'Islamabad' },
-    create: { id: IDS.city, name: 'Islamabad', countryCode: 'PK' },
+    create: { id: ID.city, name: 'Islamabad', countryCode: 'PK' },
   });
-  console.log(`  ✓ City: ${city.name}`);
 
-  // 2) Zones (F-sectors and G-sectors) -- requires raw SQL for PostGIS ------
-  // Square polygons around F-7 and G-9 centroids.
   await prisma.$executeRaw`
     INSERT INTO zones (id, city_id, name, polygon, centroid, is_active, created_at, updated_at)
     VALUES (
-      ${IDS.fSectorZone}::uuid,
-      ${IDS.city}::uuid,
-      'F-Sectors Core',
+      ${ID.fZone}::uuid, ${ID.city}::uuid, 'F-Sectors Core',
       ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify({
         type: 'MultiPolygon',
         coordinates: [[[
-          [73.030, 33.700],
-          [73.090, 33.700],
-          [73.090, 33.740],
-          [73.030, 33.740],
-          [73.030, 33.700],
+          [73.030, 33.700], [73.090, 33.700], [73.090, 33.740],
+          [73.030, 33.740], [73.030, 33.700],
         ]]],
       })}), 4326),
       ST_SetSRID(ST_MakePoint(73.060, 33.720), 4326),
       TRUE, NOW(), NOW()
     )
-    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, polygon = EXCLUDED.polygon, centroid = EXCLUDED.centroid, is_active = TRUE
+    ON CONFLICT (id) DO UPDATE SET polygon = EXCLUDED.polygon, centroid = EXCLUDED.centroid, is_active = TRUE
   `;
   await prisma.$executeRaw`
     INSERT INTO zones (id, city_id, name, polygon, centroid, is_active, created_at, updated_at)
     VALUES (
-      ${IDS.gSectorZone}::uuid,
-      ${IDS.city}::uuid,
-      'G-Sectors Core',
+      ${ID.gZone}::uuid, ${ID.city}::uuid, 'G-Sectors Core',
       ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify({
         type: 'MultiPolygon',
         coordinates: [[[
-          [73.030, 33.660],
-          [73.090, 33.660],
-          [73.090, 33.700],
-          [73.030, 33.700],
-          [73.030, 33.660],
+          [73.030, 33.660], [73.090, 33.660], [73.090, 33.700],
+          [73.030, 33.700], [73.030, 33.660],
         ]]],
       })}), 4326),
       ST_SetSRID(ST_MakePoint(73.060, 33.680), 4326),
       TRUE, NOW(), NOW()
     )
-    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, polygon = EXCLUDED.polygon, centroid = EXCLUDED.centroid, is_active = TRUE
+    ON CONFLICT (id) DO UPDATE SET polygon = EXCLUDED.polygon, centroid = EXCLUDED.centroid, is_active = TRUE
   `;
-  console.log('  ✓ Zones: F-Sectors Core, G-Sectors Core');
 
-  // 3) Stores (one per zone) ------------------------------------------------
   await prisma.$executeRaw`
     INSERT INTO stores (id, name, zone_id, address, location, is_active, created_at, updated_at)
     VALUES (
-      ${IDS.fHubStore}::uuid,
-      'F-Hub Store',
-      ${IDS.fSectorZone}::uuid,
+      ${ID.fStore}::uuid, 'F-Hub Store', ${ID.fZone}::uuid,
       'F-7 Markaz, Islamabad',
       ST_SetSRID(ST_MakePoint(73.0535, 33.7177), 4326),
       TRUE, NOW(), NOW()
     )
-    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, zone_id = EXCLUDED.zone_id, address = EXCLUDED.address, location = EXCLUDED.location, is_active = TRUE
+    ON CONFLICT (id) DO UPDATE SET zone_id = EXCLUDED.zone_id, location = EXCLUDED.location, is_active = TRUE
   `;
   await prisma.$executeRaw`
     INSERT INTO stores (id, name, zone_id, address, location, is_active, created_at, updated_at)
     VALUES (
-      ${IDS.gHubStore}::uuid,
-      'G-Hub Store',
-      ${IDS.gSectorZone}::uuid,
+      ${ID.gStore}::uuid, 'G-Hub Store', ${ID.gZone}::uuid,
       'G-9 Markaz, Islamabad',
       ST_SetSRID(ST_MakePoint(73.0322, 33.6883), 4326),
       TRUE, NOW(), NOW()
     )
-    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, zone_id = EXCLUDED.zone_id, address = EXCLUDED.address, location = EXCLUDED.location, is_active = TRUE
+    ON CONFLICT (id) DO UPDATE SET zone_id = EXCLUDED.zone_id, location = EXCLUDED.location, is_active = TRUE
   `;
-  console.log('  ✓ Stores: F-Hub Store, G-Hub Store');
+  console.log('  ✓ 1 city, 2 zones, 2 stores');
 
-  // 4) Distributor ----------------------------------------------------------
+  // ---------------- Distributors ----------------
   await prisma.user.upsert({
-    where: { id: IDS.distributorUser },
-    update: {
-      phone: PHONES.distributor,
-      name: 'Bilal Ahmad',
-      email: 'bilal@abclpg.pk',
-      role: UserRole.DISTRIBUTOR,
-      status: UserStatus.ACTIVE,
-    },
-    create: {
-      id: IDS.distributorUser,
-      phone: PHONES.distributor,
-      name: 'Bilal Ahmad',
-      email: 'bilal@abclpg.pk',
-      role: UserRole.DISTRIBUTOR,
-      status: UserStatus.ACTIVE,
-    },
+    where: { id: ID.distABCUser },
+    update: { phone: PHONES.distABC, name: 'Bilal Ahmad', email: 'bilal@abclpg.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
+    create: { id: ID.distABCUser, phone: PHONES.distABC, name: 'Bilal Ahmad', email: 'bilal@abclpg.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
   });
+  await prisma.user.upsert({
+    where: { id: ID.distXYZUser },
+    update: { phone: PHONES.distXYZ, name: 'Saima Iqbal', email: 'saima@xyzgas.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
+    create: { id: ID.distXYZUser, phone: PHONES.distXYZ, name: 'Saima Iqbal', email: 'saima@xyzgas.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
+  });
+
   await prisma.distributor.upsert({
-    where: { id: IDS.distributor },
+    where: { id: ID.distABC },
     update: {
       businessName: 'ABC LPG (Pvt) Ltd',
-      homeStoreId: IDS.fHubStore,
+      homeStoreId: ID.fStore,
       status: DistributorStatus.ACTIVE,
-      advanceBalancePaisa: BigInt(50_00000), // 50,000 PKR
+      advanceBalancePaisa: BigInt(50_00000),
     },
     create: {
-      id: IDS.distributor,
-      userId: IDS.distributorUser,
+      id: ID.distABC,
+      userId: ID.distABCUser,
       businessName: 'ABC LPG (Pvt) Ltd',
-      homeStoreId: IDS.fHubStore,
+      homeStoreId: ID.fStore,
       status: DistributorStatus.ACTIVE,
       advanceBalancePaisa: BigInt(50_00000),
     },
   });
-  console.log(`  ✓ Distributor: ABC LPG (Pvt) Ltd — balance Rs. 50,000`);
-
-  // 5) Driver + Vehicle -----------------------------------------------------
-  await prisma.user.upsert({
-    where: { id: IDS.driverUser },
+  await prisma.distributor.upsert({
+    where: { id: ID.distXYZ },
     update: {
-      phone: PHONES.driver,
-      name: 'Ahmad Ali',
-      email: 'ahmad@smartfleet.pk',
-      cnic: '12345-1234567-1',
-      role: UserRole.DRIVER,
-      status: UserStatus.ACTIVE,
+      businessName: 'XYZ Gas Distributors',
+      homeStoreId: ID.gStore,
+      status: DistributorStatus.ACTIVE,
+      advanceBalancePaisa: BigInt(30_00000),
     },
     create: {
-      id: IDS.driverUser,
-      phone: PHONES.driver,
-      name: 'Ahmad Ali',
-      email: 'ahmad@smartfleet.pk',
-      cnic: '12345-1234567-1',
-      role: UserRole.DRIVER,
-      status: UserStatus.ACTIVE,
+      id: ID.distXYZ,
+      userId: ID.distXYZUser,
+      businessName: 'XYZ Gas Distributors',
+      homeStoreId: ID.gStore,
+      status: DistributorStatus.ACTIVE,
+      advanceBalancePaisa: BigInt(30_00000),
     },
   });
+  console.log('  ✓ 2 distributors: ABC LPG (Rs 50,000), XYZ Gas (Rs 30,000)');
 
-  await prisma.vehicle.upsert({
-    where: { id: IDS.vehicle },
-    update: {
-      plateNo: 'ICT-1234',
-      capacityUnits: 20,
-      homeZoneId: IDS.fSectorZone,
-      status: VehicleStatus.ACTIVE,
+  // ---------------- Drivers + Vehicles ----------------
+  const driverPlan = [
+    {
+      userId: ID.driverAhmadUser, driverId: ID.driverAhmad, vehicleId: ID.vehicleA,
+      phone: PHONES.driverAhmad, name: 'Ahmad Ali', cnic: '12345-1234567-1',
+      licence: 'DL-ICT-7788', plate: 'ICT-1234', capacity: 20, zoneId: ID.fZone,
+      isOnline: true, availability: DriverAvailability.AVAILABLE,
+      lat: 33.7177, lng: 73.0535, // at F-Hub
     },
-    create: {
-      id: IDS.vehicle,
-      plateNo: 'ICT-1234',
-      capacityUnits: 20,
-      homeZoneId: IDS.fSectorZone,
-      status: VehicleStatus.ACTIVE,
+    {
+      userId: ID.driverBilalUser, driverId: ID.driverBilal, vehicleId: ID.vehicleB,
+      phone: PHONES.driverBilal, name: 'Bilal Hassan', cnic: '12345-7654321-3',
+      licence: 'DL-ICT-7789', plate: 'ICT-5678', capacity: 16, zoneId: ID.gZone,
+      isOnline: true, availability: DriverAvailability.AVAILABLE,
+      lat: 33.6883, lng: 73.0322, // at G-Hub
     },
+    {
+      userId: ID.driverImranUser, driverId: ID.driverImran, vehicleId: ID.vehicleC,
+      phone: PHONES.driverImran, name: 'Imran Shah', cnic: '12345-9876543-5',
+      licence: 'DL-ICT-7790', plate: 'ICT-9012', capacity: 24, zoneId: ID.fZone,
+      isOnline: false, availability: DriverAvailability.ON_LEAVE,
+      lat: 33.7050, lng: 73.0500,
+    },
+  ];
+
+  for (const d of driverPlan) {
+    await prisma.user.upsert({
+      where: { id: d.userId },
+      update: { phone: d.phone, name: d.name, cnic: d.cnic, role: UserRole.DRIVER, status: UserStatus.ACTIVE },
+      create: { id: d.userId, phone: d.phone, name: d.name, cnic: d.cnic, role: UserRole.DRIVER, status: UserStatus.ACTIVE },
+    });
+    await prisma.vehicle.upsert({
+      where: { id: d.vehicleId },
+      update: { plateNo: d.plate, capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
+      create: { id: d.vehicleId, plateNo: d.plate, capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
+    });
+    await prisma.driver.upsert({
+      where: { id: d.driverId },
+      update: {
+        userId: d.userId, licenceNo: d.licence, currentVehicleId: d.vehicleId,
+        isOnline: d.isOnline, availability: d.availability,
+        leaveStart: d.availability === DriverAvailability.ON_LEAVE ? new Date() : null,
+        leaveEnd: d.availability === DriverAvailability.ON_LEAVE ? new Date(Date.now() + 5 * DAY) : null,
+        leaveReason: d.availability === DriverAvailability.ON_LEAVE ? 'annual leave' : null,
+      },
+      create: {
+        id: d.driverId, userId: d.userId, licenceNo: d.licence,
+        currentVehicleId: d.vehicleId,
+        isOnline: d.isOnline, availability: d.availability,
+        leaveStart: d.availability === DriverAvailability.ON_LEAVE ? new Date() : null,
+        leaveEnd: d.availability === DriverAvailability.ON_LEAVE ? new Date(Date.now() + 5 * DAY) : null,
+        leaveReason: d.availability === DriverAvailability.ON_LEAVE ? 'annual leave' : null,
+      },
+    });
+    await prisma.$executeRaw`
+      UPDATE drivers
+      SET current_location = ST_SetSRID(ST_MakePoint(${d.lng}, ${d.lat}), 4326),
+          current_location_updated_at = NOW(),
+          current_zone_id = ${d.zoneId}::uuid
+      WHERE id = ${d.driverId}::uuid
+    `;
+  }
+  console.log('  ✓ 3 drivers: Ahmad (online), Bilal (online), Imran (on leave)');
+
+  // ---------------- Driver shifts (for attendance) ----------------
+  // Wipe + reseed shifts for these drivers so the report shows clean numbers.
+  await prisma.driverShift.deleteMany({
+    where: { driverId: { in: [ID.driverAhmad, ID.driverBilal, ID.driverImran] } },
   });
+  const now = new Date();
+  // Ahmad: shifts on 3 of the last 7 days, ~8 hours each, plus an open shift right now
+  for (const daysAgo of [6, 4, 2]) {
+    const start = new Date(now.getTime() - daysAgo * DAY - 9 * HOUR);
+    const end = new Date(start.getTime() + 8 * HOUR);
+    await prisma.driverShift.create({ data: { driverId: ID.driverAhmad, startedAt: start, endedAt: end } });
+  }
+  await prisma.driverShift.create({ data: { driverId: ID.driverAhmad, startedAt: new Date(now.getTime() - 2 * HOUR), endedAt: null } });
 
-  await prisma.driver.upsert({
-    where: { id: IDS.driver },
-    update: {
-      userId: IDS.driverUser,
-      licenceNo: 'DL-ICT-7788',
-      currentVehicleId: IDS.vehicle,
-      isOnline: true,
-      availability: DriverAvailability.AVAILABLE,
-    },
-    create: {
-      id: IDS.driver,
-      userId: IDS.driverUser,
-      licenceNo: 'DL-ICT-7788',
-      currentVehicleId: IDS.vehicle,
-      isOnline: true,
-      availability: DriverAvailability.AVAILABLE,
-    },
-  });
-  // Position the driver at F-Hub store (so the dispatch algorithm finds a candidate)
-  await prisma.$executeRaw`
-    UPDATE drivers
-    SET current_location = ST_SetSRID(ST_MakePoint(73.0535, 33.7177), 4326),
-        current_location_updated_at = NOW(),
-        current_zone_id = ${IDS.fSectorZone}::uuid
-    WHERE id = ${IDS.driver}::uuid
-  `;
-  console.log(`  ✓ Driver: Ahmad Ali · vehicle ICT-1234 · ONLINE at F-Hub`);
+  // Bilal: shifts on 2 of the last 7 days, started just now
+  for (const daysAgo of [5, 1]) {
+    const start = new Date(now.getTime() - daysAgo * DAY - 7 * HOUR);
+    const end = new Date(start.getTime() + 6 * HOUR);
+    await prisma.driverShift.create({ data: { driverId: ID.driverBilal, startedAt: start, endedAt: end } });
+  }
+  await prisma.driverShift.create({ data: { driverId: ID.driverBilal, startedAt: new Date(now.getTime() - 1 * HOUR), endedAt: null } });
+  console.log('  ✓ Driver shifts seeded for attendance report (Ahmad: 32h, Bilal: 13h)');
 
-  // 6) Cylinders — 50 LPG 11.8kg cylinders owned by ABC LPG at F-Hub --------
-  const cylinderType = await prisma.cylinderType.findUnique({ where: { code: 'LPG_11_8KG' } });
-  if (!cylinderType) {
-    throw new Error('Cylinder type LPG_11_8KG not found. Run `npm run seed` first.');
+  // ---------------- Cylinder types ----------------
+  const cylTypes = await prisma.cylinderType.findMany();
+  const tLPG118 = cylTypes.find((t) => t.code === 'LPG_11_8KG');
+  const tLPG15  = cylTypes.find((t) => t.code === 'LPG_15KG');
+  const tLPG454 = cylTypes.find((t) => t.code === 'LPG_45_4KG');
+  if (!tLPG118 || !tLPG15 || !tLPG454) {
+    throw new Error('Cylinder types missing. Run `npm run seed` first.');
   }
 
-  // Wipe existing demo cylinders to keep counts predictable (only ones with our marker prefix)
-  await prisma.cylinderEvent.deleteMany({
-    where: { cylinder: { serial: { startsWith: 'DEMO-LPG_11_8KG-' } } },
-  });
-  await prisma.cylinder.deleteMany({
-    where: { serial: { startsWith: 'DEMO-LPG_11_8KG-' } },
-  });
-
-  const cylinderRows = Array.from({ length: 50 }, () => {
-    const suffix = randomBytes(3).toString('hex').toUpperCase();
-    return {
-      serial: `DEMO-LPG_11_8KG-${suffix}`,
-      qrCode: `DEMO-LPG_11_8KG-${suffix}`,
-      distributorId: IDS.distributor,
-      cylinderTypeId: cylinderType.id,
-      state: CylinderState.FULL,
-      custodyType: CustodyType.STORE,
-      custodyId: IDS.fHubStore,
-    };
-  });
-  await prisma.cylinder.createMany({ data: cylinderRows });
-
-  // Update inventory_lots so the dispatch query sees the stock immediately.
-  await prisma.inventoryLot.upsert({
-    where: {
-      inventory_unique: {
-        holderType: CustodyType.STORE,
-        holderId: IDS.fHubStore,
-        distributorId: IDS.distributor,
-        cylinderTypeId: cylinderType.id,
-        state: CylinderState.FULL,
-      },
-    },
-    update: { count: 50 },
-    create: {
-      holderType: CustodyType.STORE,
-      holderId: IDS.fHubStore,
-      distributorId: IDS.distributor,
-      cylinderTypeId: cylinderType.id,
-      state: CylinderState.FULL,
-      count: 50,
-    },
-  });
-  console.log('  ✓ Cylinders: 50 × LPG 11.8kg FULL at F-Hub for ABC LPG');
-
-  // 7) Pricing matrix --------------------------------------------------------
-  const types = await prisma.cylinderType.findMany();
-  const zonePairs = [
-    [IDS.fSectorZone, IDS.fSectorZone, 250],   // same zone — base tier
-    [IDS.fSectorZone, IDS.gSectorZone, 400],   // adjacent
-    [IDS.gSectorZone, IDS.fSectorZone, 400],
-    [IDS.gSectorZone, IDS.gSectorZone, 250],
+  // ---------------- Pricing matrix ----------------
+  const zonePairs: [string, string, number][] = [
+    [ID.fZone, ID.fZone, 250],
+    [ID.fZone, ID.gZone, 400],
+    [ID.gZone, ID.fZone, 400],
+    [ID.gZone, ID.gZone, 250],
   ];
   for (const [origin, dest, baseRupees] of zonePairs) {
-    for (const t of types) {
-      // Bigger cylinders charge a premium per unit on top of base
-      const perUnitRupees =
-        t.code.includes('45') ? 150 : t.code.includes('15') ? 80 : 40;
-      // Clear any existing active rule for this combo then insert fresh
+    for (const t of cylTypes) {
+      const perUnit = t.code.includes('45') ? 150 : t.code.includes('15') ? 80 : 40;
       await prisma.pricingRule.updateMany({
-        where: {
-          cityId: IDS.city,
-          originZoneId: origin as string,
-          destZoneId: dest as string,
-          cylinderTypeId: t.id,
-          effectiveUntil: null,
-        },
+        where: { cityId: ID.city, originZoneId: origin, destZoneId: dest, cylinderTypeId: t.id, effectiveUntil: null },
         data: { effectiveUntil: new Date() },
       });
       await prisma.pricingRule.create({
         data: {
-          cityId: IDS.city,
-          originZoneId: origin as string,
-          destZoneId: dest as string,
-          cylinderTypeId: t.id,
-          basePaisa: BigInt(Number(baseRupees) * 100),
-          perUnitPaisa: BigInt(perUnitRupees * 100),
+          cityId: ID.city, originZoneId: origin, destZoneId: dest, cylinderTypeId: t.id,
+          basePaisa: BigInt(baseRupees * 100), perUnitPaisa: BigInt(perUnit * 100),
           effectiveFrom: new Date(),
         },
       });
     }
   }
-  console.log('  ✓ Pricing matrix: 4 zone-pairs × all cylinder types (base 250–400 PKR)');
+  console.log('  ✓ Pricing matrix: 4 zone-pairs × all cylinder types');
 
-  // 8) Client + address ------------------------------------------------------
-  await prisma.client.upsert({
-    where: { id: IDS.client },
-    update: {
-      distributorId: IDS.distributor,
-      name: 'Fatima Khan',
-      phone: PHONES.client,
-    },
-    create: {
-      id: IDS.client,
-      distributorId: IDS.distributor,
-      name: 'Fatima Khan',
-      phone: PHONES.client,
+  // ---------------- Cylinders + Inventory ----------------
+  // Wipe demo cylinders first
+  await prisma.cylinderEvent.deleteMany({
+    where: { cylinder: { serial: { startsWith: 'DEMO-' } } },
+  });
+  await prisma.cylinder.deleteMany({ where: { serial: { startsWith: 'DEMO-' } } });
+  await prisma.inventoryLot.deleteMany({
+    where: {
+      OR: [
+        { holderId: ID.fStore, holderType: CustodyType.STORE },
+        { holderId: ID.gStore, holderType: CustodyType.STORE },
+        { holderId: ID.vehicleA, holderType: CustodyType.VEHICLE },
+        { holderId: ID.vehicleB, holderType: CustodyType.VEHICLE },
+      ],
     },
   });
-  // Wipe and re-insert the address (location column needs raw SQL).
-  await prisma.clientAddress.deleteMany({ where: { clientId: IDS.client } });
-  await prisma.$executeRaw`
-    INSERT INTO client_addresses (id, client_id, label, location)
-    VALUES (
-      gen_random_uuid(),
-      ${IDS.client}::uuid,
-      'F-7/2 House 24, Street 14',
-      ST_SetSRID(ST_MakePoint(73.0535, 33.7177), 4326)
-    )
-  `;
-  console.log('  ✓ Client: Fatima Khan in F-7/2');
 
-  // 9) Pre-create a PENDING order (so admin sees it immediately) -----------
-  // Remove any prior demo order(s) to keep things tidy
+  // Seed cylinders: ABC LPG has 40 × 11.8kg + 10 × 15kg at F-Store
+  //                  XYZ Gas has 30 × 11.8kg + 12 × 45.4kg at G-Store
+  type CylSpec = { distributorId: string; typeId: string; storeId: string; count: number };
+  const stockPlan: CylSpec[] = [
+    { distributorId: ID.distABC, typeId: tLPG118.id, storeId: ID.fStore, count: 40 },
+    { distributorId: ID.distABC, typeId: tLPG15.id,  storeId: ID.fStore, count: 10 },
+    { distributorId: ID.distXYZ, typeId: tLPG118.id, storeId: ID.gStore, count: 30 },
+    { distributorId: ID.distXYZ, typeId: tLPG454.id, storeId: ID.gStore, count: 12 },
+  ];
+  for (const lot of stockPlan) {
+    const type = cylTypes.find((t) => t.id === lot.typeId)!;
+    const data = Array.from({ length: lot.count }, () => ({
+      serial: `DEMO-${type.code}-${suffix()}`,
+      qrCode: `DEMO-${type.code}-${suffix()}`,
+      distributorId: lot.distributorId,
+      cylinderTypeId: lot.typeId,
+      state: CylinderState.FULL,
+      custodyType: CustodyType.STORE,
+      custodyId: lot.storeId,
+    }));
+    await prisma.cylinder.createMany({ data });
+    await prisma.inventoryLot.upsert({
+      where: {
+        inventory_unique: {
+          holderType: CustodyType.STORE,
+          holderId: lot.storeId,
+          distributorId: lot.distributorId,
+          cylinderTypeId: lot.typeId,
+          state: CylinderState.FULL,
+        },
+      },
+      update: { count: lot.count },
+      create: {
+        holderType: CustodyType.STORE,
+        holderId: lot.storeId,
+        distributorId: lot.distributorId,
+        cylinderTypeId: lot.typeId,
+        state: CylinderState.FULL,
+        count: lot.count,
+      },
+    });
+  }
+  console.log('  ✓ 92 cylinders across 2 distributors / 2 stores');
+
+  // ---------------- Clients ----------------
+  const clientPlan = [
+    { id: ID.clientFatima, distId: ID.distABC, name: 'Fatima Khan',  phone: '+923333333331', label: 'F-7/2 House 24, Street 14',           lat: 33.7177, lng: 73.0535 },
+    { id: ID.clientAyesha, distId: ID.distABC, name: 'Ayesha Malik', phone: '+923333333332', label: 'G-9/3 House 87, Street 6',            lat: 33.6883, lng: 73.0322 },
+    { id: ID.clientUsman,  distId: ID.distXYZ, name: 'Usman Tariq',  phone: '+923333333333', label: 'F-8/4 Plot 102, Civic Centre Road',   lat: 33.7095, lng: 73.0405 },
+    { id: ID.clientNoor,   distId: ID.distXYZ, name: 'Noor Fatima',  phone: '+923333333334', label: 'G-10/2 House 14',                     lat: 33.6783, lng: 73.0163 },
+    { id: ID.clientHassan, distId: ID.distABC, name: 'Hassan Raza',  phone: '+923333333335', label: 'F-11/1 Street 22 (gated, no entry)', lat: 33.6857, lng: 73.0058 },
+  ];
+  for (const c of clientPlan) {
+    await prisma.client.upsert({
+      where: { id: c.id },
+      update: { distributorId: c.distId, name: c.name, phone: c.phone },
+      create: { id: c.id, distributorId: c.distId, name: c.name, phone: c.phone },
+    });
+    await prisma.clientAddress.deleteMany({ where: { clientId: c.id } });
+    await prisma.$executeRaw`
+      INSERT INTO client_addresses (id, client_id, label, location)
+      VALUES (gen_random_uuid(), ${c.id}::uuid, ${c.label},
+              ST_SetSRID(ST_MakePoint(${c.lng}, ${c.lat}), 4326))
+    `;
+  }
+  console.log('  ✓ 5 clients across both distributors');
+
+  // ---------------- Clean prior demo orders ----------------
+  await prisma.ledgerEntry.deleteMany({
+    where: { order: { client: { id: { in: Object.values(ID).filter((v) => v.startsWith('77777777')) } } } },
+  });
+  await prisma.tripStop.deleteMany({
+    where: { trip: { driverId: { in: [ID.driverAhmad, ID.driverBilal, ID.driverImran] } } },
+  });
+  await prisma.cylinderEvent.deleteMany({
+    where: { actorUserId: { in: [ID.driverAhmadUser, ID.driverBilalUser] } },
+  });
   await prisma.orderLine.deleteMany({
-    where: { order: { client: { id: IDS.client } } },
+    where: { order: { distributorId: { in: [ID.distABC, ID.distXYZ] } } },
   });
   await prisma.order.deleteMany({
-    where: { clientId: IDS.client },
+    where: { distributorId: { in: [ID.distABC, ID.distXYZ] } },
+  });
+  await prisma.trip.deleteMany({
+    where: { driverId: { in: [ID.driverAhmad, ID.driverBilal, ID.driverImran] } },
   });
 
-  const orderRows: { id: string }[] = await prisma.$queryRaw`
-    INSERT INTO orders (
-      id, distributor_id, client_id, delivery_address_label, dest_zone_id,
-      status, payment_status, delivery_fee_paisa, delivery_address, created_at, updated_at
-    )
-    VALUES (
-      gen_random_uuid(),
-      ${IDS.distributor}::uuid,
-      ${IDS.client}::uuid,
-      'F-7/2 House 24, Street 14',
-      ${IDS.fSectorZone}::uuid,
-      'PENDING',
-      'UNPAID',
-      0,
-      ST_SetSRID(ST_MakePoint(73.0535, 33.7177), 4326),
-      NOW(), NOW()
-    )
-    RETURNING id
-  `;
-  const orderId = orderRows[0].id;
+  // ---------------- Scenario builder helper ----------------
+  type Scenario = {
+    label: string;
+    distributorId: string;
+    clientId: string;
+    typeId: string;
+    fullCount: number;
+    destZoneId: string;
+    destLat: number;
+    destLng: number;
+    deliveryLabel: string;
+    status: OrderStatus;
+    driverId?: string;
+    vehicleId?: string;
+    originStoreId?: string;
+    storeLat?: number; storeLng?: number;
+    deliveredAt?: Date;
+    cancellationReason?: string;
+  };
 
-  await prisma.orderLine.create({
+  const scenarios: Scenario[] = [
+    // 1. Delivered yesterday (Ahmad F→F)
+    {
+      label: 'S1 DELIVERED yesterday',
+      distributorId: ID.distABC, clientId: ID.clientFatima, typeId: tLPG118.id, fullCount: 2,
+      destZoneId: ID.fZone, destLat: 33.7177, destLng: 73.0535, deliveryLabel: 'F-7/2 House 24, Street 14',
+      status: OrderStatus.DELIVERED, driverId: ID.driverAhmad, vehicleId: ID.vehicleA,
+      originStoreId: ID.fStore, storeLat: 33.7177, storeLng: 73.0535,
+      deliveredAt: new Date(now.getTime() - 1 * DAY - 4 * HOUR),
+    },
+    // 2. Delivered today (Bilal F→G cross-zone)
+    {
+      label: 'S2 DELIVERED today (cross-zone)',
+      distributorId: ID.distABC, clientId: ID.clientAyesha, typeId: tLPG118.id, fullCount: 3,
+      destZoneId: ID.gZone, destLat: 33.6883, destLng: 73.0322, deliveryLabel: 'G-9/3 House 87, Street 6',
+      status: OrderStatus.DELIVERED, driverId: ID.driverBilal, vehicleId: ID.vehicleB,
+      originStoreId: ID.fStore, storeLat: 33.7177, storeLng: 73.0535,
+      deliveredAt: new Date(now.getTime() - 3 * HOUR),
+    },
+    // 3. Delivered today (Ahmad XYZ 15kg)
+    {
+      label: 'S3 DELIVERED today (XYZ 15kg)',
+      distributorId: ID.distXYZ, clientId: ID.clientUsman, typeId: tLPG118.id, fullCount: 4,
+      destZoneId: ID.fZone, destLat: 33.7095, destLng: 73.0405, deliveryLabel: 'F-8/4 Plot 102',
+      status: OrderStatus.DELIVERED, driverId: ID.driverAhmad, vehicleId: ID.vehicleA,
+      originStoreId: ID.gStore, storeLat: 33.6883, storeLng: 73.0322,
+      deliveredAt: new Date(now.getTime() - 1 * HOUR),
+    },
+    // 4. IN_TRANSIT now (Ahmad, active on map)
+    {
+      label: 'S4 IN_TRANSIT now',
+      distributorId: ID.distABC, clientId: ID.clientHassan, typeId: tLPG118.id, fullCount: 2,
+      destZoneId: ID.fZone, destLat: 33.6857, destLng: 73.0058, deliveryLabel: 'F-11/1 Street 22',
+      status: OrderStatus.IN_TRANSIT, driverId: ID.driverAhmad, vehicleId: ID.vehicleA,
+      originStoreId: ID.fStore, storeLat: 33.7177, storeLng: 73.0535,
+    },
+    // 5. ASSIGNED (Bilal, dispatched but not started)
+    {
+      label: 'S5 ASSIGNED',
+      distributorId: ID.distXYZ, clientId: ID.clientNoor, typeId: tLPG454.id, fullCount: 1,
+      destZoneId: ID.gZone, destLat: 33.6783, destLng: 73.0163, deliveryLabel: 'G-10/2 House 14',
+      status: OrderStatus.ASSIGNED, driverId: ID.driverBilal, vehicleId: ID.vehicleB,
+      originStoreId: ID.gStore, storeLat: 33.6883, storeLng: 73.0322,
+    },
+    // 6. PENDING (queued, dispatch worker will pick up)
+    {
+      label: 'S6 PENDING (awaiting dispatch)',
+      distributorId: ID.distABC, clientId: ID.clientFatima, typeId: tLPG15.id, fullCount: 1,
+      destZoneId: ID.fZone, destLat: 33.7177, destLng: 73.0535, deliveryLabel: 'F-7/2 House 24',
+      status: OrderStatus.PENDING,
+    },
+    // 7. FAILED (client address inaccessible)
+    {
+      label: 'S7 FAILED (access blocked)',
+      distributorId: ID.distABC, clientId: ID.clientHassan, typeId: tLPG118.id, fullCount: 2,
+      destZoneId: ID.fZone, destLat: 33.6857, destLng: 73.0058, deliveryLabel: 'F-11/1 (gated)',
+      status: OrderStatus.FAILED, driverId: ID.driverAhmad, vehicleId: ID.vehicleA,
+      originStoreId: ID.fStore, storeLat: 33.7177, storeLng: 73.0535,
+      cancellationReason: 'gated community, no access',
+    },
+    // 8. CANCELLED (distributor pulled the order)
+    {
+      label: 'S8 CANCELLED',
+      distributorId: ID.distXYZ, clientId: ID.clientUsman, typeId: tLPG118.id, fullCount: 2,
+      destZoneId: ID.fZone, destLat: 33.7095, destLng: 73.0405, deliveryLabel: 'F-8/4 Plot 102',
+      status: OrderStatus.CANCELLED,
+      cancellationReason: 'distributor cancelled before dispatch',
+    },
+  ];
+
+  let runningBalanceABC = 50_00000n;
+  let runningBalanceXYZ = 30_00000n;
+
+  for (const s of scenarios) {
+    // Insert order
+    const orderRows: { id: string }[] = await prisma.$queryRaw`
+      INSERT INTO orders (
+        id, distributor_id, client_id, delivery_address_label, dest_zone_id,
+        origin_store_id, status, payment_status, delivery_fee_paisa,
+        delivery_address, trip_id, cancellation_reason, created_at, updated_at
+      )
+      VALUES (
+        gen_random_uuid(),
+        ${s.distributorId}::uuid,
+        ${s.clientId}::uuid,
+        ${s.deliveryLabel},
+        ${s.destZoneId}::uuid,
+        ${s.originStoreId ?? null},
+        ${s.status}::"OrderStatus",
+        'UNPAID',
+        0,
+        ST_SetSRID(ST_MakePoint(${s.destLng}, ${s.destLat}), 4326),
+        NULL,
+        ${s.cancellationReason ?? null},
+        NOW() - INTERVAL '${s.status === OrderStatus.DELIVERED ? 5 : 2} hours',
+        NOW()
+      )
+      RETURNING id
+    `;
+    const orderId = orderRows[0].id;
+    await prisma.orderLine.create({
+      data: {
+        orderId,
+        cylinderTypeId: s.typeId,
+        fullCount: s.fullCount,
+        expectedReturnCount: s.fullCount,
+      },
+    });
+
+    // If there's a driver, set up trip
+    if (s.driverId && s.vehicleId && s.originStoreId) {
+      const tripStatus: TripStatus =
+        s.status === OrderStatus.DELIVERED ? TripStatus.COMPLETED
+        : s.status === OrderStatus.IN_TRANSIT ? TripStatus.IN_PROGRESS
+        : s.status === OrderStatus.FAILED    ? TripStatus.COMPLETED
+        : TripStatus.PLANNED;
+      const trip = await prisma.trip.create({
+        data: {
+          driverId: s.driverId,
+          vehicleId: s.vehicleId,
+          originStoreId: s.originStoreId,
+          status: tripStatus,
+          plannedAt: new Date(s.deliveredAt ? s.deliveredAt.getTime() - 2 * HOUR : Date.now()),
+          startedAt: s.status !== OrderStatus.ASSIGNED ? new Date(s.deliveredAt ? s.deliveredAt.getTime() - HOUR : Date.now() - HOUR) : null,
+          completedAt: s.status === OrderStatus.DELIVERED ? s.deliveredAt : (s.status === OrderStatus.FAILED ? new Date() : null),
+        },
+      });
+
+      // Update order with trip + originStore (raw SQL for location-touching tables fine)
+      await prisma.order.update({ where: { id: orderId }, data: { tripId: trip.id } });
+
+      // Trip stops via raw SQL (location column needs PostGIS)
+      await prisma.$executeRaw`
+        INSERT INTO trip_stops (id, trip_id, seq, stop_type, location, arrived_at, departed_at)
+        VALUES (
+          gen_random_uuid(), ${trip.id}::uuid, 0, 'STORE_PICKUP',
+          ST_SetSRID(ST_MakePoint(${s.storeLng!}, ${s.storeLat!}), 4326),
+          ${s.status === OrderStatus.DELIVERED ? new Date(s.deliveredAt!.getTime() - 90 * 60 * 1000) : null},
+          ${s.status === OrderStatus.DELIVERED ? new Date(s.deliveredAt!.getTime() - 60 * 60 * 1000) : null}
+        )
+      `;
+      await prisma.$executeRaw`
+        INSERT INTO trip_stops (id, trip_id, order_id, seq, stop_type, location, arrived_at, departed_at)
+        VALUES (
+          gen_random_uuid(), ${trip.id}::uuid, ${orderId}::uuid, 1, 'DELIVERY',
+          ST_SetSRID(ST_MakePoint(${s.destLng}, ${s.destLat}), 4326),
+          ${s.status === OrderStatus.DELIVERED ? s.deliveredAt : null},
+          ${s.status === OrderStatus.DELIVERED ? s.deliveredAt : null}
+        )
+      `;
+    }
+
+    // For delivered orders: compute fee, debit ledger
+    if (s.status === OrderStatus.DELIVERED && s.originStoreId) {
+      const originStore = await prisma.store.findUnique({ where: { id: s.originStoreId } });
+      const rule = await prisma.pricingRule.findFirst({
+        where: {
+          cityId: ID.city,
+          originZoneId: originStore!.zoneId,
+          destZoneId: s.destZoneId,
+          cylinderTypeId: s.typeId,
+          effectiveUntil: null,
+        },
+      });
+      if (rule) {
+        const feePaisa = rule.basePaisa + rule.perUnitPaisa * BigInt(s.fullCount);
+        const balanceField = s.distributorId === ID.distABC ? 'ABC' : 'XYZ';
+        if (balanceField === 'ABC') runningBalanceABC -= feePaisa;
+        else runningBalanceXYZ -= feePaisa;
+        const newBalance = balanceField === 'ABC' ? runningBalanceABC : runningBalanceXYZ;
+
+        await prisma.order.update({
+          where: { id: orderId },
+          data: { deliveryFeePaisa: feePaisa, paymentStatus: OrderPaymentStatus.PAID_VIA_LEDGER },
+        });
+        await prisma.ledgerEntry.create({
+          data: {
+            distributorId: s.distributorId,
+            entryType: LedgerEntryType.DEBIT_ORDER,
+            amountPaisa: -feePaisa,
+            balanceAfterPaisa: newBalance,
+            orderId,
+            createdAt: s.deliveredAt!,
+          },
+        });
+
+        // Custody events: SCAN_IN at store (already there), SCAN_OUT to vehicle, DELIVERED to client
+        const cyls = await prisma.cylinder.findMany({
+          where: {
+            distributorId: s.distributorId,
+            cylinderTypeId: s.typeId,
+            custodyType: CustodyType.STORE,
+            custodyId: s.originStoreId,
+          },
+          take: s.fullCount,
+        });
+        for (const cyl of cyls) {
+          await prisma.cylinderEvent.create({
+            data: {
+              cylinderId: cyl.id,
+              eventType: CylinderEventType.SCAN_OUT,
+              fromCustodyType: CustodyType.STORE, fromCustodyId: s.originStoreId,
+              toCustodyType: CustodyType.VEHICLE, toCustodyId: s.vehicleId!,
+              actorUserId: s.driverId === ID.driverAhmad ? ID.driverAhmadUser : ID.driverBilalUser,
+              tripId: (await prisma.order.findUnique({ where: { id: orderId } }))!.tripId!,
+              orderId,
+              createdAt: new Date(s.deliveredAt!.getTime() - 60 * 60 * 1000),
+            },
+          });
+          await prisma.cylinderEvent.create({
+            data: {
+              cylinderId: cyl.id,
+              eventType: CylinderEventType.DELIVERED,
+              fromCustodyType: CustodyType.VEHICLE, fromCustodyId: s.vehicleId!,
+              toCustodyType: CustodyType.CLIENT, toCustodyId: s.clientId,
+              actorUserId: s.driverId === ID.driverAhmad ? ID.driverAhmadUser : ID.driverBilalUser,
+              tripId: (await prisma.order.findUnique({ where: { id: orderId } }))!.tripId!,
+              orderId,
+              createdAt: s.deliveredAt!,
+            },
+          });
+          await prisma.cylinder.update({
+            where: { id: cyl.id },
+            data: { custodyType: CustodyType.CLIENT, custodyId: s.clientId, state: CylinderState.EMPTY },
+          });
+        }
+        // Adjust inventory lot counts
+        await prisma.inventoryLot.upsert({
+          where: {
+            inventory_unique: {
+              holderType: CustodyType.STORE, holderId: s.originStoreId,
+              distributorId: s.distributorId, cylinderTypeId: s.typeId,
+              state: CylinderState.FULL,
+            },
+          },
+          update: { count: { decrement: s.fullCount } },
+          create: {
+            holderType: CustodyType.STORE, holderId: s.originStoreId,
+            distributorId: s.distributorId, cylinderTypeId: s.typeId,
+            state: CylinderState.FULL, count: 0,
+          },
+        });
+      }
+    }
+
+    console.log(`  ✓ ${s.label}`);
+  }
+
+  // Persist new distributor balances
+  await prisma.distributor.update({
+    where: { id: ID.distABC },
+    data: { advanceBalancePaisa: runningBalanceABC },
+  });
+  await prisma.distributor.update({
+    where: { id: ID.distXYZ },
+    data: { advanceBalancePaisa: runningBalanceXYZ },
+  });
+
+  // ---------------- Alerts ----------------
+  await prisma.alert.deleteMany({ where: { resourceType: 'Demo' } });
+  await prisma.alert.create({
     data: {
-      orderId,
-      cylinderTypeId: cylinderType.id,
-      fullCount: 2,
-      expectedReturnCount: 2,
+      alertType: AlertType.LOW_STOCK,
+      severity: AlertSeverity.WARNING,
+      status: AlertStatus.OPEN,
+      title: 'Low stock at G-Hub for XYZ Gas',
+      body: 'Only 12 × 45.4 kg cylinders remain at G-Hub. Reorder soon to avoid stock-out.',
+      resourceType: 'Demo',
+      context: { storeId: ID.gStore, distributorId: ID.distXYZ, threshold: 20 },
     },
   });
+  await prisma.alert.create({
+    data: {
+      alertType: AlertType.RECONCILIATION_MISMATCH,
+      severity: AlertSeverity.INFO,
+      status: AlertStatus.OPEN,
+      title: 'Awaiting today\'s reconciliation from Bilal',
+      body: 'Driver Bilal Hassan has not submitted today\'s end-of-day reconciliation.',
+      resourceType: 'Demo',
+    },
+  });
+  console.log('  ✓ 2 sample alerts (low stock, missing reconciliation)');
 
-  console.log(`  ✓ Order: 2 × LPG 11.8kg, PENDING (id ${orderId.slice(0, 8)}…)`);
-
-  console.log('\n📋 Summary');
-  console.log('   Admin login: +923000000000');
-  console.log(`   Distributor login: ${PHONES.distributor} (Bilal Ahmad · ABC LPG)`);
-  console.log(`   Driver login: ${PHONES.driver} (Ahmad Ali · ICT-1234)`);
-  console.log(`   Client: Fatima Khan (${PHONES.client}) at F-7/2`);
-  console.log('   1 PENDING order with 2 × LPG 11.8kg in F-Sectors zone\n');
-  console.log('To dispatch it manually from the admin web:');
-  console.log(`   POST /api/v1/dispatch/manual  { "orderId": "${orderId}" }`);
-  console.log('Or wait — the queue worker will pick it up automatically on next reload.\n');
+  console.log('\n📋 Demo data summary');
+  console.log(`   ABC LPG balance now: Rs. ${Number(runningBalanceABC) / 100}`);
+  console.log(`   XYZ Gas balance now: Rs. ${Number(runningBalanceXYZ) / 100}`);
+  console.log('   Orders by status:');
+  console.log('     DELIVERED:  3  (1 yesterday + 2 today, ledger debited)');
+  console.log('     IN_TRANSIT: 1  (active right now — visible on live map)');
+  console.log('     ASSIGNED:   1  (dispatched, awaiting driver start)');
+  console.log('     PENDING:    1  (queued — dispatch worker will pick up)');
+  console.log('     FAILED:     1  (gated community)');
+  console.log('     CANCELLED:  1  (distributor pulled)');
+  console.log('\n👤 Login credentials');
+  console.log(`   Admin:        +923000000000`);
+  console.log(`   Distributor 1: ${PHONES.distABC}  (Bilal Ahmad / ABC LPG)`);
+  console.log(`   Distributor 2: ${PHONES.distXYZ}  (Saima Iqbal / XYZ Gas)`);
+  console.log(`   Driver 1:     ${PHONES.driverAhmad}  (Ahmad — online at F-Hub)`);
+  console.log(`   Driver 2:     ${PHONES.driverBilal}  (Bilal — online at G-Hub)`);
+  console.log(`   Driver 3:     ${PHONES.driverImran}  (Imran — on leave)\n`);
 }
 
 main()
