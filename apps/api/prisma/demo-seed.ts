@@ -55,17 +55,25 @@ const ID = {
   driverAhmad: '55555555-0000-0000-0000-000000000001',
   driverBilal: '55555555-0000-0000-0000-000000000002',
   driverImran: '55555555-0000-0000-0000-000000000003',
+  driverFarhan:'55555555-0000-0000-0000-000000000004',
+  driverSalman:'55555555-0000-0000-0000-000000000005',
   driverAhmadUser: '55555555-0000-0000-0000-000000000aa1',
   driverBilalUser: '55555555-0000-0000-0000-000000000aa2',
   driverImranUser: '55555555-0000-0000-0000-000000000aa3',
+  driverFarhanUser:'55555555-0000-0000-0000-000000000aa4',
+  driverSalmanUser:'55555555-0000-0000-0000-000000000aa5',
   vehicleA: '66666666-0000-0000-0000-000000000001',
   vehicleB: '66666666-0000-0000-0000-000000000002',
   vehicleC: '66666666-0000-0000-0000-000000000003',
+  vehicleD: '66666666-0000-0000-0000-000000000004',
+  vehicleE: '66666666-0000-0000-0000-000000000005',
   clientFatima: '77777777-0000-0000-0000-000000000001',
   clientAyesha: '77777777-0000-0000-0000-000000000002',
   clientUsman: '77777777-0000-0000-0000-000000000003',
   clientNoor: '77777777-0000-0000-0000-000000000004',
   clientHassan: '77777777-0000-0000-0000-000000000005',
+  clientSara:  '77777777-0000-0000-0000-000000000006',
+  clientAhmed: '77777777-0000-0000-0000-000000000007',
 };
 
 const PHONES = {
@@ -74,6 +82,8 @@ const PHONES = {
   driverAhmad: '+923222222221',
   driverBilal: '+923222222222',
   driverImran: '+923222222223',
+  driverFarhan:'+923222222224',
+  driverSalman:'+923222222225',
 };
 
 const HOUR = 60 * 60 * 1000;
@@ -92,9 +102,10 @@ async function main() {
   const demoPhones = [
     PHONES.distABC, PHONES.distXYZ,
     PHONES.driverAhmad, PHONES.driverBilal, PHONES.driverImran,
+    PHONES.driverFarhan, PHONES.driverSalman,
   ];
-  const demoLicences = ['DL-ICT-7788', 'DL-ICT-7789', 'DL-ICT-7790'];
-  const demoPlates = ['ICT-1234', 'ICT-5678', 'ICT-9012'];
+  const demoLicences = ['DL-ICT-7788', 'DL-ICT-7789', 'DL-ICT-7790', 'DL-ICT-7791', 'DL-ICT-7792'];
+  const demoPlates = ['ICT-1234', 'ICT-5678', 'ICT-9012', 'ICT-3456', 'ICT-7890'];
 
   const matchingUsers = await prisma.user.findMany({
     where: { phone: { in: demoPhones } },
@@ -372,6 +383,22 @@ async function main() {
       isOnline: false, availability: DriverAvailability.ON_LEAVE,
       lat: 33.7050, lng: 73.0500,
     },
+    // Driver 4: Farhan — actively in transit somewhere in F-Sectors
+    {
+      userId: ID.driverFarhanUser, driverId: ID.driverFarhan, vehicleId: ID.vehicleD,
+      phone: PHONES.driverFarhan, name: 'Farhan Aziz', cnic: '12345-2233445-7',
+      licence: 'DL-ICT-7791', plate: 'ICT-3456', capacity: 18, zoneId: ID.fZone,
+      isOnline: true, availability: DriverAvailability.AVAILABLE,
+      lat: 33.7095, lng: 73.0405, // en route in F-8
+    },
+    // Driver 5: Salman — online at G-Hub, just received an assigned trip
+    {
+      userId: ID.driverSalmanUser, driverId: ID.driverSalman, vehicleId: ID.vehicleE,
+      phone: PHONES.driverSalman, name: 'Salman Tariq', cnic: '12345-6677889-2',
+      licence: 'DL-ICT-7792', plate: 'ICT-7890', capacity: 22, zoneId: ID.gZone,
+      isOnline: true, availability: DriverAvailability.AVAILABLE,
+      lat: 33.6911, lng: 73.0184, // around F-10
+    },
   ];
 
   const driverIdMap: Record<string, string> = {};
@@ -427,20 +454,32 @@ async function main() {
   }
 
   // Map our planning IDs to the actual driver/vehicle/user IDs that ended up in the DB.
-  ID.driverAhmad = driverIdMap[ID.driverAhmad];
-  ID.driverBilal = driverIdMap[ID.driverBilal];
-  ID.driverImran = driverIdMap[ID.driverImran];
-  ID.driverAhmadUser = driverUserIdMap[Object.keys(driverIdMap).find((k) => driverIdMap[k] === ID.driverAhmad)!];
-  ID.driverBilalUser = driverUserIdMap[Object.keys(driverIdMap).find((k) => driverIdMap[k] === ID.driverBilal)!];
-  ID.driverImranUser = driverUserIdMap[Object.keys(driverIdMap).find((k) => driverIdMap[k] === ID.driverImran)!];
+  const planToActual = { ...driverIdMap };  // snapshot before we mutate ID.*
+  ID.driverAhmad  = planToActual[ID.driverAhmad];
+  ID.driverBilal  = planToActual[ID.driverBilal];
+  ID.driverImran  = planToActual[ID.driverImran];
+  ID.driverFarhan = planToActual[ID.driverFarhan];
+  ID.driverSalman = planToActual[ID.driverSalman];
+  const userByActualId = Object.fromEntries(
+    Object.entries(planToActual).map(([planId, actualId]) => [actualId, driverUserIdMap[planId]]),
+  );
+  ID.driverAhmadUser  = userByActualId[ID.driverAhmad];
+  ID.driverBilalUser  = userByActualId[ID.driverBilal];
+  ID.driverImranUser  = userByActualId[ID.driverImran];
+  ID.driverFarhanUser = userByActualId[ID.driverFarhan];
+  ID.driverSalmanUser = userByActualId[ID.driverSalman];
   // Vehicle IDs: capture by plate
   const vA = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-1234' } });
   const vB = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-5678' } });
   const vC = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-9012' } });
+  const vD = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-3456' } });
+  const vE = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-7890' } });
   ID.vehicleA = vA!.id;
   ID.vehicleB = vB!.id;
   ID.vehicleC = vC!.id;
-  console.log('  ✓ 3 drivers: Ahmad (online), Bilal (online), Imran (on leave)');
+  ID.vehicleD = vD!.id;
+  ID.vehicleE = vE!.id;
+  console.log('  ✓ 5 drivers: Ahmad, Bilal, Farhan, Salman (online), Imran (on leave)');
 
   // ---------------- Driver shifts (for attendance) ----------------
   // Wipe + reseed shifts for these drivers so the report shows clean numbers.
@@ -567,6 +606,8 @@ async function main() {
     { id: ID.clientUsman,  distId: ID.distXYZ, name: 'Usman Tariq',  phone: '+923333333333', label: 'F-8/4 Plot 102, Civic Centre Road',   lat: 33.7095, lng: 73.0405 },
     { id: ID.clientNoor,   distId: ID.distXYZ, name: 'Noor Fatima',  phone: '+923333333334', label: 'G-10/2 House 14',                     lat: 33.6783, lng: 73.0163 },
     { id: ID.clientHassan, distId: ID.distABC, name: 'Hassan Raza',  phone: '+923333333335', label: 'F-11/1 Street 22 (gated, no entry)', lat: 33.6857, lng: 73.0058 },
+    { id: ID.clientSara,   distId: ID.distABC, name: 'Sara Iqbal',   phone: '+923333333336', label: 'F-10/3 House 5',                      lat: 33.6911, lng: 73.0184 },
+    { id: ID.clientAhmed,  distId: ID.distXYZ, name: 'Ahmed Khan',   phone: '+923333333337', label: 'G-11/1 House 99',                     lat: 33.6649, lng: 73.0017 },
   ];
   for (const c of clientPlan) {
     await prisma.client.upsert({
@@ -690,6 +731,22 @@ async function main() {
       destZoneId: ID.fZone, destLat: 33.7095, destLng: 73.0405, deliveryLabel: 'F-8/4 Plot 102',
       status: OrderStatus.CANCELLED,
       cancellationReason: 'distributor cancelled before dispatch',
+    },
+    // 9. IN_TRANSIT (Farhan, second live trip)
+    {
+      label: 'S9 IN_TRANSIT (Farhan)',
+      distributorId: ID.distABC, clientId: ID.clientSara, typeId: tLPG118.id, fullCount: 1,
+      destZoneId: ID.fZone, destLat: 33.6911, destLng: 73.0184, deliveryLabel: 'F-10/3 House 5',
+      status: OrderStatus.IN_TRANSIT, driverId: ID.driverFarhan, vehicleId: ID.vehicleD,
+      originStoreId: ID.fStore, storeLat: 33.7177, storeLng: 73.0535,
+    },
+    // 10. ASSIGNED (Salman, second assigned trip)
+    {
+      label: 'S10 ASSIGNED (Salman)',
+      distributorId: ID.distXYZ, clientId: ID.clientAhmed, typeId: tLPG118.id, fullCount: 2,
+      destZoneId: ID.gZone, destLat: 33.6649, destLng: 73.0017, deliveryLabel: 'G-11/1 House 99',
+      status: OrderStatus.ASSIGNED, driverId: ID.driverSalman, vehicleId: ID.vehicleE,
+      originStoreId: ID.gStore, storeLat: 33.6883, storeLng: 73.0322,
     },
   ];
 
@@ -908,15 +965,37 @@ async function main() {
       resourceType: 'Demo',
     },
   });
-  console.log('  ✓ 2 sample alerts (low stock, missing reconciliation)');
+  await prisma.alert.create({
+    data: {
+      alertType: AlertType.PAYMENT_FAILED,
+      severity: AlertSeverity.CRITICAL,
+      status: AlertStatus.OPEN,
+      title: 'XYZ Gas balance approaching credit limit',
+      body: 'XYZ Gas Distributors advance balance is below Rs 5,000. Recommend topping up before next dispatch to avoid orders being blocked.',
+      resourceType: 'Demo',
+      context: { distributorId: ID.distXYZ, currentBalancePaisa: Number(runningBalanceXYZ) },
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      alertType: AlertType.CYLINDER_LOST,
+      severity: AlertSeverity.WARNING,
+      status: AlertStatus.OPEN,
+      title: 'Cylinder marked lost on yesterday\'s delivery',
+      body: '1 × 11.8 kg cylinder from ABC LPG\'s yesterday delivery has not been returned. Investigate with client Fatima Khan.',
+      resourceType: 'Demo',
+      context: { distributorId: ID.distABC, clientId: ID.clientFatima },
+    },
+  });
+  console.log('  ✓ 4 sample alerts (low stock, missing reconciliation, low balance, lost cylinder)');
 
   console.log('\n📋 Demo data summary');
   console.log(`   ABC LPG balance now: Rs. ${Number(runningBalanceABC) / 100}`);
   console.log(`   XYZ Gas balance now: Rs. ${Number(runningBalanceXYZ) / 100}`);
   console.log('   Orders by status:');
   console.log('     DELIVERED:  3  (1 yesterday + 2 today, ledger debited)');
-  console.log('     IN_TRANSIT: 1  (active right now — visible on live map)');
-  console.log('     ASSIGNED:   1  (dispatched, awaiting driver start)');
+  console.log('     IN_TRANSIT: 2  (active right now — visible on live map)');
+  console.log('     ASSIGNED:   2  (dispatched, awaiting driver start)');
   console.log('     PENDING:    1  (queued — dispatch worker will pick up)');
   console.log('     FAILED:     1  (gated community)');
   console.log('     CANCELLED:  1  (distributor pulled)');
@@ -924,9 +1003,11 @@ async function main() {
   console.log(`   Admin:        +923000000000`);
   console.log(`   Distributor 1: ${PHONES.distABC}  (Bilal Ahmad / ABC LPG)`);
   console.log(`   Distributor 2: ${PHONES.distXYZ}  (Saima Iqbal / XYZ Gas)`);
-  console.log(`   Driver 1:     ${PHONES.driverAhmad}  (Ahmad — online at F-Hub)`);
-  console.log(`   Driver 2:     ${PHONES.driverBilal}  (Bilal — online at G-Hub)`);
-  console.log(`   Driver 3:     ${PHONES.driverImran}  (Imran — on leave)\n`);
+  console.log(`   Driver 1:     ${PHONES.driverAhmad}   (Ahmad — online at F-Hub)`);
+  console.log(`   Driver 2:     ${PHONES.driverBilal}   (Bilal — online at G-Hub)`);
+  console.log(`   Driver 3:     ${PHONES.driverImran}   (Imran — on leave)`);
+  console.log(`   Driver 4:     ${PHONES.driverFarhan}   (Farhan — IN_TRANSIT in F-8)`);
+  console.log(`   Driver 5:     ${PHONES.driverSalman}   (Salman — ASSIGNED at G-Hub)\n`);
 }
 
 main()
