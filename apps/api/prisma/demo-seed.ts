@@ -148,20 +148,57 @@ async function main() {
   `;
   console.log('  ✓ 1 city, 2 zones, 2 stores');
 
+  // ---------------- Helper: upsert user by PHONE (the natural unique) ----
+  // Returns the actual user id (existing or new). Robust to whatever was
+  // already in the table from a previous seed run.
+  async function upsertUser(payload: {
+    phone: string;
+    name: string;
+    email?: string;
+    cnic?: string;
+    role: UserRole;
+    fallbackId: string;
+  }): Promise<string> {
+    const user = await prisma.user.upsert({
+      where: { phone: payload.phone },
+      update: {
+        name: payload.name,
+        email: payload.email,
+        cnic: payload.cnic,
+        role: payload.role,
+        status: UserStatus.ACTIVE,
+      },
+      create: {
+        id: payload.fallbackId,
+        phone: payload.phone,
+        name: payload.name,
+        email: payload.email,
+        cnic: payload.cnic,
+        role: payload.role,
+        status: UserStatus.ACTIVE,
+      },
+    });
+    return user.id;
+  }
+
   // ---------------- Distributors ----------------
-  await prisma.user.upsert({
-    where: { id: ID.distABCUser },
-    update: { phone: PHONES.distABC, name: 'Bilal Ahmad', email: 'bilal@abclpg.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
-    create: { id: ID.distABCUser, phone: PHONES.distABC, name: 'Bilal Ahmad', email: 'bilal@abclpg.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
+  const distABCUserId = await upsertUser({
+    phone: PHONES.distABC,
+    name: 'Bilal Ahmad',
+    email: 'bilal@abclpg.pk',
+    role: UserRole.DISTRIBUTOR,
+    fallbackId: ID.distABCUser,
   });
-  await prisma.user.upsert({
-    where: { id: ID.distXYZUser },
-    update: { phone: PHONES.distXYZ, name: 'Saima Iqbal', email: 'saima@xyzgas.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
-    create: { id: ID.distXYZUser, phone: PHONES.distXYZ, name: 'Saima Iqbal', email: 'saima@xyzgas.pk', role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE },
+  const distXYZUserId = await upsertUser({
+    phone: PHONES.distXYZ,
+    name: 'Saima Iqbal',
+    email: 'saima@xyzgas.pk',
+    role: UserRole.DISTRIBUTOR,
+    fallbackId: ID.distXYZUser,
   });
 
   await prisma.distributor.upsert({
-    where: { id: ID.distABC },
+    where: { userId: distABCUserId },
     update: {
       businessName: 'ABC LPG (Pvt) Ltd',
       homeStoreId: ID.fStore,
@@ -170,7 +207,7 @@ async function main() {
     },
     create: {
       id: ID.distABC,
-      userId: ID.distABCUser,
+      userId: distABCUserId,
       businessName: 'ABC LPG (Pvt) Ltd',
       homeStoreId: ID.fStore,
       status: DistributorStatus.ACTIVE,
@@ -178,7 +215,7 @@ async function main() {
     },
   });
   await prisma.distributor.upsert({
-    where: { id: ID.distXYZ },
+    where: { userId: distXYZUserId },
     update: {
       businessName: 'XYZ Gas Distributors',
       homeStoreId: ID.gStore,
@@ -187,13 +224,18 @@ async function main() {
     },
     create: {
       id: ID.distXYZ,
-      userId: ID.distXYZUser,
+      userId: distXYZUserId,
       businessName: 'XYZ Gas Distributors',
       homeStoreId: ID.gStore,
       status: DistributorStatus.ACTIVE,
       advanceBalancePaisa: BigInt(30_00000),
     },
   });
+  // After upsert, capture the actual distributor IDs (might be different on re-runs)
+  const distABC = await prisma.distributor.findUnique({ where: { userId: distABCUserId } });
+  const distXYZ = await prisma.distributor.findUnique({ where: { userId: distXYZUserId } });
+  ID.distABC = distABC!.id;
+  ID.distXYZ = distXYZ!.id;
   console.log('  ✓ 2 distributors: ABC LPG (Rs 50,000), XYZ Gas (Rs 30,000)');
 
   // ---------------- Drivers + Vehicles ----------------
@@ -221,43 +263,71 @@ async function main() {
     },
   ];
 
+  const driverIdMap: Record<string, string> = {};
+  const driverUserIdMap: Record<string, string> = {};
+
   for (const d of driverPlan) {
-    await prisma.user.upsert({
-      where: { id: d.userId },
-      update: { phone: d.phone, name: d.name, cnic: d.cnic, role: UserRole.DRIVER, status: UserStatus.ACTIVE },
-      create: { id: d.userId, phone: d.phone, name: d.name, cnic: d.cnic, role: UserRole.DRIVER, status: UserStatus.ACTIVE },
+    const userId = await upsertUser({
+      phone: d.phone, name: d.name, cnic: d.cnic,
+      role: UserRole.DRIVER, fallbackId: d.userId,
     });
+    driverUserIdMap[d.driverId] = userId;
+
+    // Upsert vehicle by plate (the natural unique)
     await prisma.vehicle.upsert({
-      where: { id: d.vehicleId },
-      update: { plateNo: d.plate, capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
+      where: { plateNo: d.plate },
+      update: { capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
       create: { id: d.vehicleId, plateNo: d.plate, capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
     });
+    const veh = await prisma.vehicle.findUnique({ where: { plateNo: d.plate } });
+    const vehicleId = veh!.id;
+
+    // Upsert driver by userId (the natural unique on Driver model)
     await prisma.driver.upsert({
-      where: { id: d.driverId },
+      where: { userId },
       update: {
-        userId: d.userId, licenceNo: d.licence, currentVehicleId: d.vehicleId,
+        licenceNo: d.licence, currentVehicleId: vehicleId,
         isOnline: d.isOnline, availability: d.availability,
         leaveStart: d.availability === DriverAvailability.ON_LEAVE ? new Date() : null,
         leaveEnd: d.availability === DriverAvailability.ON_LEAVE ? new Date(Date.now() + 5 * DAY) : null,
         leaveReason: d.availability === DriverAvailability.ON_LEAVE ? 'annual leave' : null,
       },
       create: {
-        id: d.driverId, userId: d.userId, licenceNo: d.licence,
-        currentVehicleId: d.vehicleId,
+        id: d.driverId, userId, licenceNo: d.licence,
+        currentVehicleId: vehicleId,
         isOnline: d.isOnline, availability: d.availability,
         leaveStart: d.availability === DriverAvailability.ON_LEAVE ? new Date() : null,
         leaveEnd: d.availability === DriverAvailability.ON_LEAVE ? new Date(Date.now() + 5 * DAY) : null,
         leaveReason: d.availability === DriverAvailability.ON_LEAVE ? 'annual leave' : null,
       },
     });
+    const drv = await prisma.driver.findUnique({ where: { userId } });
+    const driverActualId = drv!.id;
+    driverIdMap[d.driverId] = driverActualId;
+
     await prisma.$executeRaw`
       UPDATE drivers
       SET current_location = ST_SetSRID(ST_MakePoint(${d.lng}, ${d.lat}), 4326),
           current_location_updated_at = NOW(),
           current_zone_id = ${d.zoneId}::uuid
-      WHERE id = ${d.driverId}::uuid
+      WHERE id = ${driverActualId}::uuid
     `;
   }
+
+  // Map our planning IDs to the actual driver/vehicle/user IDs that ended up in the DB.
+  ID.driverAhmad = driverIdMap[ID.driverAhmad];
+  ID.driverBilal = driverIdMap[ID.driverBilal];
+  ID.driverImran = driverIdMap[ID.driverImran];
+  ID.driverAhmadUser = driverUserIdMap[Object.keys(driverIdMap).find((k) => driverIdMap[k] === ID.driverAhmad)!];
+  ID.driverBilalUser = driverUserIdMap[Object.keys(driverIdMap).find((k) => driverIdMap[k] === ID.driverBilal)!];
+  ID.driverImranUser = driverUserIdMap[Object.keys(driverIdMap).find((k) => driverIdMap[k] === ID.driverImran)!];
+  // Vehicle IDs: capture by plate
+  const vA = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-1234' } });
+  const vB = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-5678' } });
+  const vC = await prisma.vehicle.findUnique({ where: { plateNo: 'ICT-9012' } });
+  ID.vehicleA = vA!.id;
+  ID.vehicleB = vB!.id;
+  ID.vehicleC = vC!.id;
   console.log('  ✓ 3 drivers: Ahmad (online), Bilal (online), Imran (on leave)');
 
   // ---------------- Driver shifts (for attendance) ----------------
