@@ -86,6 +86,107 @@ function suffix() {
 async function main() {
   console.log('🌱 Building multi-scenario demo data\n');
 
+  // ---------------- Cleanup pass ----------------
+  // Wipe anything from a previous demo run that matches our natural keys
+  // (phones, plates, licences). Must walk FK relations in order.
+  const demoPhones = [
+    PHONES.distABC, PHONES.distXYZ,
+    PHONES.driverAhmad, PHONES.driverBilal, PHONES.driverImran,
+  ];
+  const demoLicences = ['DL-ICT-7788', 'DL-ICT-7789', 'DL-ICT-7790'];
+  const demoPlates = ['ICT-1234', 'ICT-5678', 'ICT-9012'];
+
+  const matchingUsers = await prisma.user.findMany({
+    where: { phone: { in: demoPhones } },
+    select: { id: true },
+  });
+  const oldUserIds = matchingUsers.map((u) => u.id);
+
+  const matchingDrivers = await prisma.driver.findMany({
+    where: { OR: [{ userId: { in: oldUserIds } }, { licenceNo: { in: demoLicences } }] },
+    select: { id: true },
+  });
+  const oldDriverIds = matchingDrivers.map((d) => d.id);
+
+  const matchingDistributors = await prisma.distributor.findMany({
+    where: { userId: { in: oldUserIds } },
+    select: { id: true },
+  });
+  const oldDistributorIds = matchingDistributors.map((d) => d.id);
+
+  const matchingVehicles = await prisma.vehicle.findMany({
+    where: { plateNo: { in: demoPlates } },
+    select: { id: true },
+  });
+  const oldVehicleIds = matchingVehicles.map((v) => v.id);
+
+  // Trips related to those drivers/vehicles, plus orders.tripId nullify
+  const oldTrips = await prisma.trip.findMany({
+    where: { OR: [{ driverId: { in: oldDriverIds } }, { vehicleId: { in: oldVehicleIds } }] },
+    select: { id: true },
+  });
+  const oldTripIds = oldTrips.map((t) => t.id);
+
+  // Orders by demo distributors
+  const oldOrders = await prisma.order.findMany({
+    where: { distributorId: { in: oldDistributorIds } },
+    select: { id: true },
+  });
+  const oldOrderIds = oldOrders.map((o) => o.id);
+
+  // Clients by demo distributors
+  const oldClients = await prisma.client.findMany({
+    where: { distributorId: { in: oldDistributorIds } },
+    select: { id: true },
+  });
+  const oldClientIds = oldClients.map((c) => c.id);
+
+  // Cylinders by demo distributors
+  const oldCylinders = await prisma.cylinder.findMany({
+    where: { distributorId: { in: oldDistributorIds } },
+    select: { id: true },
+  });
+  const oldCylinderIds = oldCylinders.map((c) => c.id);
+
+  // Delete in FK-safe order
+  await prisma.cylinderEvent.deleteMany({
+    where: {
+      OR: [
+        { cylinderId: { in: oldCylinderIds } },
+        { actorUserId: { in: oldUserIds } },
+        { tripId: { in: oldTripIds } },
+        { orderId: { in: oldOrderIds } },
+      ],
+    },
+  });
+  await prisma.cylinder.deleteMany({ where: { id: { in: oldCylinderIds } } });
+  await prisma.inventoryLot.deleteMany({ where: { distributorId: { in: oldDistributorIds } } });
+  await prisma.tripStop.deleteMany({ where: { tripId: { in: oldTripIds } } });
+  await prisma.ledgerEntry.deleteMany({
+    where: { OR: [{ distributorId: { in: oldDistributorIds } }, { orderId: { in: oldOrderIds } }] },
+  });
+  await prisma.payment.deleteMany({ where: { distributorId: { in: oldDistributorIds } } });
+  // Orders reference trips. Null-out then delete orders.
+  await prisma.order.updateMany({ where: { tripId: { in: oldTripIds } }, data: { tripId: null } });
+  await prisma.orderLine.deleteMany({ where: { orderId: { in: oldOrderIds } } });
+  await prisma.order.deleteMany({ where: { id: { in: oldOrderIds } } });
+  // Now safe to delete trips
+  await prisma.trip.deleteMany({ where: { id: { in: oldTripIds } } });
+  await prisma.driverShift.deleteMany({ where: { driverId: { in: oldDriverIds } } });
+  await prisma.reconciliation.deleteMany({ where: { driverId: { in: oldDriverIds } } });
+  // Clear driver→vehicle FK before deleting vehicles to avoid the unique constraint
+  await prisma.driver.updateMany({
+    where: { id: { in: oldDriverIds } },
+    data: { currentVehicleId: null },
+  });
+  await prisma.driver.deleteMany({ where: { id: { in: oldDriverIds } } });
+  await prisma.clientAddress.deleteMany({ where: { clientId: { in: oldClientIds } } });
+  await prisma.client.deleteMany({ where: { id: { in: oldClientIds } } });
+  await prisma.distributor.deleteMany({ where: { id: { in: oldDistributorIds } } });
+  await prisma.vehicle.deleteMany({ where: { id: { in: oldVehicleIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: oldUserIds } } });
+  console.log(`  ✓ Cleanup: removed ${oldUserIds.length} users, ${oldDriverIds.length} drivers, ${oldDistributorIds.length} distributors, ${oldVehicleIds.length} vehicles, ${oldOrderIds.length} orders`);
+
   // ---------------- City + Zones + Stores ----------------
   await prisma.city.upsert({
     where: { id: ID.city },
@@ -273,16 +374,17 @@ async function main() {
     });
     driverUserIdMap[d.driverId] = userId;
 
-    // Upsert vehicle by plate (the natural unique)
+    // Upsert vehicle by plate (the natural unique). Don't pin the id —
+    // a previous run may already have used it.
     await prisma.vehicle.upsert({
       where: { plateNo: d.plate },
       update: { capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
-      create: { id: d.vehicleId, plateNo: d.plate, capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
+      create: { plateNo: d.plate, capacityUnits: d.capacity, homeZoneId: d.zoneId, status: VehicleStatus.ACTIVE },
     });
     const veh = await prisma.vehicle.findUnique({ where: { plateNo: d.plate } });
     const vehicleId = veh!.id;
 
-    // Upsert driver by userId (the natural unique on Driver model)
+    // Upsert driver by userId. Same: don't pin the id.
     await prisma.driver.upsert({
       where: { userId },
       update: {
@@ -293,7 +395,7 @@ async function main() {
         leaveReason: d.availability === DriverAvailability.ON_LEAVE ? 'annual leave' : null,
       },
       create: {
-        id: d.driverId, userId, licenceNo: d.licence,
+        userId, licenceNo: d.licence,
         currentVehicleId: vehicleId,
         isOnline: d.isOnline, availability: d.availability,
         leaveStart: d.availability === DriverAvailability.ON_LEAVE ? new Date() : null,
