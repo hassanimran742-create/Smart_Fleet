@@ -219,7 +219,7 @@ export class FillingOrdersService {
   async cancel(orderId: string, reason: string) {
     const order = await this.prisma.fillingOrder.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException();
-    if ([FillingOrderStatus.COMPLETED, FillingOrderStatus.CANCELLED].includes(order.status)) {
+    if (order.status === FillingOrderStatus.COMPLETED || order.status === FillingOrderStatus.CANCELLED) {
       throw new BadRequestException(`Cannot cancel from ${order.status}`);
     }
     return this.prisma.fillingOrder.update({
