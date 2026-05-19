@@ -6,21 +6,34 @@ export class FillingStationsService {
   constructor(private prisma: PrismaService) {}
 
   list(includeInactive = false) {
+    // Two branches to keep the SQL simple. Trying to splice a WHERE
+    // clause via Prisma's tagged template runs into Prisma's parameter
+    // machinery and Postgres rejects $1 in a non-value position.
+    if (includeInactive) {
+      return this.prisma.$queryRaw<
+        Array<{
+          id: string; name: string; address: string;
+          price_per_cylinder_paisa: string; is_active: boolean;
+          lat: number; lng: number;
+        }>
+      >`
+        SELECT id, name, address, price_per_cylinder_paisa, is_active,
+               ST_Y(location) AS lat, ST_X(location) AS lng
+        FROM filling_stations
+        ORDER BY name
+      `;
+    }
     return this.prisma.$queryRaw<
       Array<{
-        id: string;
-        name: string;
-        address: string;
-        price_per_cylinder_paisa: string;
-        is_active: boolean;
-        lat: number;
-        lng: number;
+        id: string; name: string; address: string;
+        price_per_cylinder_paisa: string; is_active: boolean;
+        lat: number; lng: number;
       }>
     >`
       SELECT id, name, address, price_per_cylinder_paisa, is_active,
              ST_Y(location) AS lat, ST_X(location) AS lng
       FROM filling_stations
-      ${includeInactive ? this.prisma.$queryRaw`` : this.prisma.$queryRaw`WHERE is_active = TRUE`}
+      WHERE is_active = TRUE
       ORDER BY name
     `;
   }
