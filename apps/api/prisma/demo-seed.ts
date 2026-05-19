@@ -185,6 +185,25 @@ async function main() {
   await prisma.trip.deleteMany({ where: { id: { in: oldTripIds } } });
   await prisma.driverShift.deleteMany({ where: { driverId: { in: oldDriverIds } } });
   await prisma.reconciliation.deleteMany({ where: { driverId: { in: oldDriverIds } } });
+  // Fuel refills (newly added schema) reference both driver and vehicle.
+  await prisma.fuelRefill.deleteMany({
+    where: {
+      OR: [
+        { driverId: { in: oldDriverIds } },
+        { vehicleId: { in: oldVehicleIds } },
+      ],
+    },
+  });
+  // Filling orders reference assigned driver / vehicle / distributor / pickup store.
+  await prisma.fillingOrder.deleteMany({
+    where: {
+      OR: [
+        { assignedDriverId: { in: oldDriverIds } },
+        { assignedVehicleId: { in: oldVehicleIds } },
+        { distributorId: { in: oldDistributorIds } },
+      ],
+    },
+  });
   // Clear driver→vehicle FK before deleting vehicles to avoid the unique constraint
   await prisma.driver.updateMany({
     where: { id: { in: oldDriverIds } },
