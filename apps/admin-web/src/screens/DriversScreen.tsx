@@ -1,8 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { api } from '../api/client';
 import { uploadFile } from '../api/upload';
+import { useDriversSocket } from '../hooks/useDriversSocket';
 import { Modal, confirmDialog } from '../components/Modal';
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const truckIcon = L.divIcon({
+  className: '',
+  html: '<div style="background:#0f6cf0;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 0 3px white, 0 4px 10px rgba(15,108,240,.4)">🚚</div>',
+  iconSize: [28, 28],
+});
 
 const CNIC_REGEX = /^\d{5}-?\d{7}-?\d$/;
 
@@ -131,6 +147,11 @@ export function DriversScreen() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
   });
 
+  // Track modal state — opens a live mini-map for a specific driver
+  const [trackingFor, setTrackingFor] = useState<DriverRow | null>(null);
+  // Subscribe to the global driver socket; we filter to the focused driver inside the modal.
+  const { drivers: liveDrivers, connected: liveConnected } = useDriversSocket();
+
   // Leave modal state
   const [leaveFor, setLeaveFor] = useState<DriverRow | null>(null);
   const [leaveForm, setLeaveForm] = useState<{ leaveStart: string; leaveEnd: string; reason: string }>(
@@ -246,6 +267,10 @@ export function DriversScreen() {
                   </td>
                   <td style={{ fontSize: 12 }}>{d.user.status}</td>
                   <td>
+                    <button
+                      onClick={() => setTrackingFor(d)}
+                      style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                    >📍 Track</button>{' '}
                     <button onClick={() => openEdit(d)} disabled={d.user.status === 'SUSPENDED'}>Edit</button>{' '}
                     {d.availability !== 'ON_LEAVE' && d.user.status !== 'SUSPENDED' && (
                       <button onClick={() => {
@@ -343,6 +368,123 @@ export function DriversScreen() {
           </>
         )}
       </Modal>
+
+      <TrackDriverModal
+        driver={trackingFor}
+        liveDrivers={liveDrivers}
+        liveConnected={liveConnected}
+        onClose={() => setTrackingFor(null)}
+      />
     </>
   );
+}
+
+/**
+ * Live-location modal for one driver. Subscribes to the global socket
+ * stream and re-renders whenever this driver's coords change.
+ */
+function TrackDriverModal({
+  driver,
+  liveDrivers,
+  liveConnected,
+  onClose,
+}: {
+  driver: DriverRow | null;
+  liveDrivers: Record<string, { driverId: string; name?: string; lat: number; lng: number; at: string }>;
+  liveConnected: boolean;
+  onClose: () => void;
+}) {
+  // Last known position: prefer live socket data, fallback to a one-shot fetch.
+  const detail = useQuery({
+    queryKey: ['driver-detail', driver?.id],
+    queryFn: async () => (await api.get(`/drivers/${driver!.id}`)).data,
+    enabled: !!driver,
+  });
+
+  const liveSnapshot = driver ? liveDrivers[driver.id] : undefined;
+
+  // Parse PostGIS location → { lat, lng }.
+  const dbLocation = (() => {
+    const loc = detail.data?.currentLocation;
+    if (!loc) return null;
+    if (typeof loc === 'object' && Array.isArray((loc as any).coordinates)) {
+      return { lat: (loc as any).coordinates[1], lng: (loc as any).coordinates[0] };
+    }
+    return null;
+  })();
+
+  const point = liveSnapshot
+    ? { lat: liveSnapshot.lat, lng: liveSnapshot.lng, at: liveSnapshot.at, source: 'live' as const }
+    : dbLocation
+      ? { lat: dbLocation.lat, lng: dbLocation.lng, at: detail.data?.currentLocationUpdatedAt, source: 'db' as const }
+      : null;
+
+  return (
+    <Modal
+      title={driver ? `Live tracking — ${driver.user.name}` : 'Live tracking'}
+      open={!!driver}
+      onClose={onClose}
+      width={720}
+    >
+      {driver && (
+        <>
+          <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div className="muted">
+              {driver.user.phone} · vehicle {driver.currentVehicleId ? driver.currentVehicleId.slice(0, 8) : '—'}
+              {' · '}
+              Socket: {liveConnected ? '🟢 connected' : '🔴 disconnected'}
+            </div>
+            <div>
+              <span className={`pill ${driver.isOnline ? 'pill-ok' : 'pill-neutral'}`}>
+                {driver.isOnline ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
+          </div>
+
+          {point ? (
+            <>
+              <div style={{ height: 360, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <MapContainer center={[point.lat, point.lng]} zoom={15} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer
+                    attribution='&copy; OpenStreetMap'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <RecenterOnChange lat={point.lat} lng={point.lng} />
+                  <Marker position={[point.lat, point.lng]} icon={truckIcon} />
+                </MapContainer>
+              </div>
+
+              <div style={{ marginTop: 12, padding: 12, background: 'var(--surface-soft)', borderRadius: 8, fontSize: 13 }}>
+                <div><strong>Lat / Lng:</strong> <code>{point.lat.toFixed(6)}, {point.lng.toFixed(6)}</code></div>
+                <div className="muted" style={{ marginTop: 4 }}>
+                  Source: {point.source === 'live' ? 'live Socket.io stream from the driver phone GPS' : 'last persisted reading'}
+                  {point.at && <> · updated {new Date(point.at).toLocaleString()}</>}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: 32, textAlign: 'center', background: 'var(--surface-soft)', borderRadius: 8 }}>
+              <p className="muted">No location reported yet.</p>
+              <p className="muted" style={{ fontSize: 12 }}>
+                The driver needs to open the mobile app and toggle "Online" — their phone GPS will start streaming
+                position via Socket.io, and this map will update automatically.
+              </p>
+            </div>
+          )}
+
+          <div style={{ marginTop: 16, textAlign: 'right' }}>
+            <button className="primary" onClick={onClose}>Close</button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+function RecenterOnChange({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.flyTo([lat, lng], map.getZoom(), { duration: 0.6 });
+  }, [lat, lng, map]);
+  return null;
 }
