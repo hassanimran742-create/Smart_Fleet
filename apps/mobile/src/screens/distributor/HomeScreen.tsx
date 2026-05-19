@@ -39,6 +39,7 @@ export function DistributorHomeScreen() {
 
       <View style={{ gap: space.sm }}>
         <Button title={t('newOrder') ?? 'New order'} onPress={() => nav.navigate('PlaceOrder')} />
+        <Button title="Request a filling run" variant="secondary" onPress={() => nav.navigate('RequestFilling')} />
         <Button title={t('orders') ?? 'My orders'} variant="secondary" onPress={() => nav.navigate('OrderHistory')} />
         <Button title="Inventory" variant="secondary" onPress={() => nav.navigate('Inventory')} />
         <Button title="Analytics" variant="secondary" onPress={() => nav.navigate('Analytics')} />

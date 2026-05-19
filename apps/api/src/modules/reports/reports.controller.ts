@@ -44,4 +44,18 @@ export class ReportsController {
       since ? new Date(since) : new Date(Date.now() - 30 * 24 * 3600 * 1000),
     );
   }
+
+  @Get('fuel-consumption')
+  fuelConsumption(@Query('since') since?: string) {
+    return this.reports.fuelConsumption(
+      since ? new Date(since) : new Date(Date.now() - 30 * 24 * 3600 * 1000),
+    );
+  }
+
+  @Get('driver-performance')
+  driverPerformance(@Query('since') since?: string) {
+    return this.reports.driverPerformance(
+      since ? new Date(since) : new Date(Date.now() - 30 * 24 * 3600 * 1000),
+    );
+  }
 }

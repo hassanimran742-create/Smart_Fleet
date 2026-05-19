@@ -15,6 +15,9 @@ import { AccessoriesScreen } from './screens/AccessoriesScreen';
 import { LiveDeliveriesScreen } from './screens/LiveDeliveriesScreen';
 import { TransfersScreen } from './screens/TransfersScreen';
 import { AlertsScreen } from './screens/AlertsScreen';
+import { FillingStationsScreen } from './screens/FillingStationsScreen';
+import { FillingOrdersScreen } from './screens/FillingOrdersScreen';
+import { FuelReportScreen } from './screens/FuelReportScreen';
 import { useRouteStore } from './store/route';
 
 export function App() {
@@ -38,6 +41,9 @@ export function App() {
     case 'live':         body = <LiveDeliveriesScreen />; break;
     case 'transfers':    body = <TransfersScreen />; break;
     case 'alerts':       body = <AlertsScreen />; break;
+    case 'filling-stations': body = <FillingStationsScreen />; break;
+    case 'filling-orders':   body = <FillingOrdersScreen />; break;
+    case 'fuel-report':       body = <FuelReportScreen />; break;
     default:             body = <DashboardScreen />;
   }
 

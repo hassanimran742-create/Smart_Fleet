@@ -942,6 +942,94 @@ async function main() {
     data: { advanceBalancePaisa: runningBalanceXYZ },
   });
 
+  // ---------------- Filling stations ----------------
+  await prisma.fillingOrder.deleteMany({});
+  await prisma.fillingStation.deleteMany({});
+  const fillingStations: { id: string; name: string }[] = [];
+  const stationSpecs = [
+    { name: 'SNGPL Sihala Bottling Plant', address: 'Sihala Industrial Area',  lat: 33.5294, lng: 73.2106, price: 30000 }, // Rs 300
+    { name: 'PSO Tarnol Filling Plant',    address: 'Tarnol Industrial Zone',  lat: 33.6736, lng: 72.8689, price: 28000 }, // Rs 280
+    { name: 'OGRA Rawalpindi Plant',       address: 'Westridge II',            lat: 33.5870, lng: 72.9930, price: 32000 }, // Rs 320
+  ];
+  for (const s of stationSpecs) {
+    const rows: { id: string }[] = await prisma.$queryRaw`
+      INSERT INTO filling_stations (id, name, address, location, price_per_cylinder_paisa, is_active, created_at, updated_at)
+      VALUES (
+        gen_random_uuid(), ${s.name}, ${s.address},
+        ST_SetSRID(ST_MakePoint(${s.lng}, ${s.lat}), 4326),
+        ${s.price}, TRUE, NOW(), NOW()
+      ) RETURNING id
+    `;
+    fillingStations.push({ id: rows[0].id, name: s.name });
+  }
+  console.log(`  ✓ ${fillingStations.length} filling stations`);
+
+  // 1 pending filling order for ABC LPG
+  const fillingOrderABC = await prisma.fillingOrder.create({
+    data: {
+      distributorId: ID.distABC,
+      fillingStationId: fillingStations[0].id,
+      cylinderTypeId: tLPG118.id,
+      requestedCount: 20,
+      pricePerCylinderPaisa: BigInt(stationSpecs[0].price),
+      totalCostPaisa: BigInt(stationSpecs[0].price * 20),
+      pickupStoreId: ID.fStore,
+    },
+  });
+  // 1 ASSIGNED filling order with Salman
+  const fillingOrderXYZ = await prisma.fillingOrder.create({
+    data: {
+      distributorId: ID.distXYZ,
+      fillingStationId: fillingStations[2].id,
+      cylinderTypeId: tLPG118.id,
+      requestedCount: 15,
+      pricePerCylinderPaisa: BigInt(stationSpecs[2].price),
+      totalCostPaisa: BigInt(stationSpecs[2].price * 15),
+      pickupStoreId: ID.gStore,
+      assignedDriverId: ID.driverSalman,
+      assignedVehicleId: ID.vehicleE,
+      status: 'ASSIGNED',
+    },
+  });
+  console.log('  ✓ 2 filling orders (1 PENDING, 1 ASSIGNED to Salman)');
+
+  // ---------------- Fuel refills ----------------
+  await prisma.fuelRefill.deleteMany({
+    where: { vehicleId: { in: [ID.vehicleA, ID.vehicleB, ID.vehicleD, ID.vehicleE] } },
+  });
+  // Set vehicle odometers
+  await prisma.vehicle.update({ where: { id: ID.vehicleA }, data: { currentOdometerKm: 18450 } });
+  await prisma.vehicle.update({ where: { id: ID.vehicleB }, data: { currentOdometerKm: 22130 } });
+  await prisma.vehicle.update({ where: { id: ID.vehicleD }, data: { currentOdometerKm: 9870 } });
+  await prisma.vehicle.update({ where: { id: ID.vehicleE }, data: { currentOdometerKm: 31200 } });
+
+  // Recent fuel refill history (last 14 days)
+  const refillSpecs = [
+    { vehicleId: ID.vehicleA, driverId: ID.driverAhmad,  litres: 35, costPaisa: 1015000, odo: 18100, station: 'PSO F-10',      daysAgo: 12 }, // Rs 10,150
+    { vehicleId: ID.vehicleA, driverId: ID.driverAhmad,  litres: 32, costPaisa:  928000, odo: 18300, station: 'PSO F-10',      daysAgo: 7  }, // Rs 9,280
+    { vehicleId: ID.vehicleA, driverId: ID.driverAhmad,  litres: 28, costPaisa:  812000, odo: 18450, station: 'Shell Margalla', daysAgo: 2  }, // Rs 8,120
+    { vehicleId: ID.vehicleB, driverId: ID.driverBilal,  litres: 40, costPaisa: 1160000, odo: 21950, station: 'PSO G-8',       daysAgo: 9  },
+    { vehicleId: ID.vehicleB, driverId: ID.driverBilal,  litres: 38, costPaisa: 1102000, odo: 22130, station: 'PSO G-8',       daysAgo: 1  },
+    { vehicleId: ID.vehicleD, driverId: ID.driverFarhan, litres: 30, costPaisa:  870000, odo: 9700,  station: 'Total F-7',     daysAgo: 5  },
+    { vehicleId: ID.vehicleD, driverId: ID.driverFarhan, litres: 27, costPaisa:  783000, odo: 9870,  station: 'Total F-7',     daysAgo: 0  },
+    { vehicleId: ID.vehicleE, driverId: ID.driverSalman, litres: 45, costPaisa: 1305000, odo: 31000, station: 'Attock G-11',   daysAgo: 6  },
+    { vehicleId: ID.vehicleE, driverId: ID.driverSalman, litres: 32, costPaisa:  928000, odo: 31200, station: 'Attock G-11',   daysAgo: 0  },
+  ];
+  for (const r of refillSpecs) {
+    await prisma.fuelRefill.create({
+      data: {
+        vehicleId: r.vehicleId,
+        driverId: r.driverId,
+        litres: r.litres,
+        costPaisa: BigInt(r.costPaisa),
+        odometerKm: r.odo,
+        fuelStation: r.station,
+        refillAt: new Date(now.getTime() - r.daysAgo * DAY),
+      },
+    });
+  }
+  console.log(`  ✓ ${refillSpecs.length} fuel refill records across 4 vehicles`);
+
   // ---------------- Alerts ----------------
   await prisma.alert.deleteMany({ where: { resourceType: 'Demo' } });
   await prisma.alert.create({

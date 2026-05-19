@@ -7,6 +7,7 @@ import { TopupScreen } from '../screens/distributor/TopupScreen';
 import { TrackOrderScreen } from '../screens/distributor/TrackOrderScreen';
 import { DistributorInventoryScreen } from '../screens/distributor/InventoryScreen';
 import { AnalyticsScreen } from '../screens/distributor/AnalyticsScreen';
+import { RequestFillingScreen } from '../screens/distributor/RequestFillingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -21,6 +22,7 @@ export function DistributorStack() {
       <Stack.Screen name="Topup" component={TopupScreen} options={{ title: 'Top up' }} />
       <Stack.Screen name="Inventory" component={DistributorInventoryScreen} options={{ title: 'Inventory' }} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
+      <Stack.Screen name="RequestFilling" component={RequestFillingScreen} options={{ title: 'Filling order' }} />
     </Stack.Navigator>
   );
 }

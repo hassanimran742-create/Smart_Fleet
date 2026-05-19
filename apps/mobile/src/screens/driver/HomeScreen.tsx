@@ -61,6 +61,8 @@ export function DriverHomeScreen() {
 
       <View style={{ gap: space.sm }}>
         <Button title="Scan a cylinder" onPress={() => nav.navigate('Scan')} />
+        <Button title="My filling runs" variant="secondary" onPress={() => nav.navigate('FillingRuns')} />
+        <Button title="Record fuel refill" variant="secondary" onPress={() => nav.navigate('FuelRefill')} />
         <Button title="End of day reconciliation" variant="secondary" onPress={() => nav.navigate('Reconcile')} />
       </View>
 

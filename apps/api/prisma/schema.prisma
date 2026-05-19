@@ -221,6 +221,7 @@ model Distributor {
   orders    Order[]
   ledgerEntries LedgerEntry[]
   payments      Payment[]
+  fillingOrders FillingOrder[]
 
   @@map("distributors")
 }
@@ -247,6 +248,8 @@ model Driver {
   trips          Trip[]
   reconciliations Reconciliation[]
   shifts         DriverShift[]
+  fuelRefills    FuelRefill[]
+  fillingOrders  FillingOrder[]
 
   @@index([isOnline])
   @@index([availability])
@@ -315,6 +318,7 @@ model Store {
   trips              Trip[]
   transfersFrom      Transfer[]     @relation("TransferFromStore")
   transfersTo        Transfer[]     @relation("TransferToStore")
+  fillingPickups     FillingOrder[]
 
   @@map("stores")
 }
@@ -322,18 +326,21 @@ model Store {
 // ---------- VEHICLES ----------
 
 model Vehicle {
-  id              String        @id @default(uuid()) @db.Uuid
-  plateNo         String        @unique @map("plate_no")
-  capacityUnits   Int           @map("capacity_units")
-  homeZoneId      String        @map("home_zone_id") @db.Uuid
-  status          VehicleStatus @default(ACTIVE)
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id                String        @id @default(uuid()) @db.Uuid
+  plateNo           String        @unique @map("plate_no")
+  capacityUnits     Int           @map("capacity_units")
+  homeZoneId        String        @map("home_zone_id") @db.Uuid
+  status            VehicleStatus @default(ACTIVE)
+  currentOdometerKm Int           @default(0) @map("current_odometer_km")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
 
-  homeZone       Zone    @relation(fields: [homeZoneId], references: [id])
-  currentDriver  Driver? @relation("DriverCurrentVehicle")
-  trips          Trip[]
-  transfers      Transfer[]
+  homeZone        Zone           @relation(fields: [homeZoneId], references: [id])
+  currentDriver   Driver?        @relation("DriverCurrentVehicle")
+  trips           Trip[]
+  transfers       Transfer[]
+  fuelRefills     FuelRefill[]
+  fillingOrders   FillingOrder[]
 
   @@map("vehicles")
 }
@@ -379,6 +386,7 @@ model CylinderType {
   cylinders  Cylinder[]
   orderLines OrderLine[]
   pricingRules PricingRule[]
+  fillingOrders FillingOrder[]
 
   @@map("cylinder_types")
 }
@@ -809,4 +817,87 @@ model AccessoryMovement {
   @@index([storeId, createdAt])
   @@index([accessoryId, createdAt])
   @@map("accessory_movements")
+}
+
+// ---------- FILLING STATIONS + FILLING ORDERS ----------
+
+model FillingStation {
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String
+  address               String
+  location              Unsupported("geometry(Point,4326)")
+  pricePerCylinderPaisa BigInt   @default(0) @map("price_per_cylinder_paisa")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  fillingOrders FillingOrder[]
+
+  @@map("filling_stations")
+}
+
+enum FillingOrderStatus {
+  PENDING
+  ASSIGNED
+  EMPTIES_PICKED
+  AT_STATION
+  FILLED
+  RETURNED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+model FillingOrder {
+  id                    String             @id @default(uuid()) @db.Uuid
+  distributorId         String             @map("distributor_id") @db.Uuid
+  fillingStationId      String             @map("filling_station_id") @db.Uuid
+  cylinderTypeId        String             @map("cylinder_type_id") @db.Uuid
+  requestedCount        Int                @map("requested_count")
+  pickedUpEmptyCount    Int?               @map("picked_up_empty_count")
+  filledCount           Int?               @map("filled_count")
+  pricePerCylinderPaisa BigInt             @map("price_per_cylinder_paisa")
+  totalCostPaisa        BigInt             @default(0) @map("total_cost_paisa")
+  status                FillingOrderStatus @default(PENDING)
+  assignedDriverId      String?            @map("assigned_driver_id") @db.Uuid
+  assignedVehicleId     String?            @map("assigned_vehicle_id") @db.Uuid
+  pickupStoreId         String?            @map("pickup_store_id") @db.Uuid
+  cancellationReason    String?            @map("cancellation_reason")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+  completedAt           DateTime?          @map("completed_at")
+
+  distributor     Distributor    @relation(fields: [distributorId], references: [id])
+  fillingStation  FillingStation @relation(fields: [fillingStationId], references: [id])
+  cylinderType    CylinderType   @relation(fields: [cylinderTypeId], references: [id])
+  assignedDriver  Driver?        @relation(fields: [assignedDriverId], references: [id])
+  assignedVehicle Vehicle?       @relation(fields: [assignedVehicleId], references: [id])
+  pickupStore     Store?         @relation(fields: [pickupStoreId], references: [id])
+
+  @@index([assignedDriverId, status])
+  @@index([status, createdAt])
+  @@map("filling_orders")
+}
+
+// ---------- FUEL REFILLS ----------
+
+model FuelRefill {
+  id          String   @id @default(uuid()) @db.Uuid
+  vehicleId   String   @map("vehicle_id") @db.Uuid
+  driverId    String   @map("driver_id") @db.Uuid
+  litres      Decimal  @db.Decimal(8, 2)
+  costPaisa   BigInt   @map("cost_paisa")
+  odometerKm  Int      @map("odometer_km")
+  fuelStation String?  @map("fuel_station")
+  receiptUrl  String?  @map("receipt_url")
+  notes       String?
+  refillAt    DateTime @default(now()) @map("refill_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  driver  Driver  @relation(fields: [driverId], references: [id])
+
+  @@index([vehicleId, refillAt])
+  @@index([driverId, refillAt])
+  @@map("fuel_refills")
 }

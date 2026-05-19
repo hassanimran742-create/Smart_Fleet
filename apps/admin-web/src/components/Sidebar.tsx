@@ -12,12 +12,15 @@ const PAGES = [
   { id: 'vehicles',     label: 'Vehicles' },
   { id: 'distributors', label: 'Distributors' },
   { id: 'stores',       label: 'Stores' },
-  { id: 'inventory',    label: 'Inventory' },
-  { id: 'accessories',  label: 'Accessories' },
-  { id: 'transfers',    label: 'Inventory roll plan' },
-  { id: 'zones',        label: 'Zones' },
-  { id: 'pricing',      label: 'Pricing' },
-  { id: 'reports',      label: 'Reports' },
+  { id: 'inventory',         label: 'Inventory' },
+  { id: 'accessories',       label: 'Accessories' },
+  { id: 'transfers',         label: 'Inventory roll plan' },
+  { id: 'filling-orders',    label: 'Filling orders' },
+  { id: 'filling-stations',  label: 'Filling stations' },
+  { id: 'zones',             label: 'Zones' },
+  { id: 'pricing',           label: 'Pricing' },
+  { id: 'reports',           label: 'Reports' },
+  { id: 'fuel-report',       label: 'Fuel & km' },
 ] as const;
 
 export function Sidebar() {

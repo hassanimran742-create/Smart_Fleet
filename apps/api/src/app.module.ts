@@ -37,6 +37,9 @@ import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
 import { CitiesModule } from './modules/cities/cities.module';
 import { FilesModule } from './modules/files/files.module';
 import { AccessoriesModule } from './modules/accessories/accessories.module';
+import { FillingStationsModule } from './modules/filling-stations/filling-stations.module';
+import { FillingOrdersModule } from './modules/filling-orders/filling-orders.module';
+import { FuelRefillsModule } from './modules/fuel-refills/fuel-refills.module';
 
 @Module({
   imports: [
@@ -86,6 +89,9 @@ import { AccessoriesModule } from './modules/accessories/accessories.module';
     CitiesModule,
     FilesModule,
     AccessoriesModule,
+    FillingStationsModule,
+    FillingOrdersModule,
+    FuelRefillsModule,
   ],
 })
 export class AppModule {}
