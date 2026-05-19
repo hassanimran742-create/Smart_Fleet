@@ -4,7 +4,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
 @Controller('reports')
-@Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+@Roles(UserRole.SUPER_ADMIN)
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 

@@ -57,13 +57,13 @@ export class DriversController {
     return this.drivers.setAvailability(id, body.availability as any, body.leaveStart, body.leaveEnd, body.reason);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Delete(':id')
   archive(@Param('id') id: string) {
     return this.drivers.archive(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Patch(':id/reactivate')
   reactivate(@Param('id') id: string) {
     return this.drivers.reactivate(id);

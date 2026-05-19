@@ -40,6 +40,7 @@ import { AccessoriesModule } from './modules/accessories/accessories.module';
 import { FillingStationsModule } from './modules/filling-stations/filling-stations.module';
 import { FillingOrdersModule } from './modules/filling-orders/filling-orders.module';
 import { FuelRefillsModule } from './modules/fuel-refills/fuel-refills.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { FuelRefillsModule } from './modules/fuel-refills/fuel-refills.module';
     FillingStationsModule,
     FillingOrdersModule,
     FuelRefillsModule,
+    ExpensesModule,
   ],
 })
 export class AppModule {}

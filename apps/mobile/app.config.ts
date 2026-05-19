@@ -2,7 +2,7 @@ import { ExpoConfig } from '@expo/config-types';
 
 const variant = (process.env.APP_VARIANT ?? 'distributor') as 'distributor' | 'driver';
 
-const baseName = 'Smart_Fleet';
+const baseName = 'LPG Management';
 const isDriver = variant === 'driver';
 
 const config: ExpoConfig = {

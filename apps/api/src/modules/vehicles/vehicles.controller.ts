@@ -38,7 +38,7 @@ export class VehiclesController {
     return this.vehicles.reassignZone(id, homeZoneId);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Delete(':id')
   archive(@Param('id') id: string) {
     return this.vehicles.archive(id);

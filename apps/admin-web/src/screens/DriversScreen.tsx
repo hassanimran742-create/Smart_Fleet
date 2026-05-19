@@ -22,6 +22,16 @@ const truckIcon = L.divIcon({
 
 const CNIC_REGEX = /^\d{5}-?\d{7}-?\d$/;
 
+function iconBtn(color: string): React.CSSProperties {
+  return {
+    padding: '6px 9px',
+    fontSize: 15,
+    lineHeight: 1,
+    color,
+    borderColor: 'var(--border)',
+  };
+}
+
 type Availability = 'AVAILABLE' | 'ON_LEAVE' | 'OFF_DUTY';
 
 interface DriverRow {
@@ -268,27 +278,46 @@ export function DriversScreen() {
                   <td style={{ fontSize: 12 }}>{d.user.status}</td>
                   <td>
                     <button
+                      title="Track live location"
                       onClick={() => setTrackingFor(d)}
-                      style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                    >📍 Track</button>{' '}
-                    <button onClick={() => openEdit(d)} disabled={d.user.status === 'SUSPENDED'}>Edit</button>{' '}
+                      style={iconBtn('var(--primary)')}
+                    >📍</button>{' '}
+                    <button
+                      title="Edit driver"
+                      onClick={() => openEdit(d)}
+                      disabled={d.user.status === 'SUSPENDED'}
+                      style={iconBtn('#6b6f76')}
+                    >✏️</button>{' '}
                     {d.availability !== 'ON_LEAVE' && d.user.status !== 'SUSPENDED' && (
-                      <button onClick={() => {
-                        setLeaveFor(d);
-                        setLeaveForm({ leaveStart: new Date().toISOString().slice(0, 10), leaveEnd: '', reason: '' });
-                        setLeaveErr(null);
-                      }}>Mark on leave</button>
+                      <button
+                        title="Mark on leave"
+                        onClick={() => {
+                          setLeaveFor(d);
+                          setLeaveForm({ leaveStart: new Date().toISOString().slice(0, 10), leaveEnd: '', reason: '' });
+                          setLeaveErr(null);
+                        }}
+                        style={iconBtn('#f59e0b')}
+                      >🏖️</button>
                     )}{' '}
                     {d.availability === 'ON_LEAVE' && (
-                      <button onClick={() => setAvailability.mutate({ id: d.id, availability: 'AVAILABLE' })}>Mark available</button>
+                      <button
+                        title="Mark available"
+                        onClick={() => setAvailability.mutate({ id: d.id, availability: 'AVAILABLE' })}
+                        style={iconBtn('#1ea675')}
+                      >✓</button>
                     )}{' '}
                     {d.user.status === 'SUSPENDED' ? (
-                      <button onClick={() => reactivate.mutate(d.id)}>Reactivate</button>
+                      <button
+                        title="Reactivate"
+                        onClick={() => reactivate.mutate(d.id)}
+                        style={iconBtn('#1ea675')}
+                      >♻️</button>
                     ) : (
                       <button
-                        style={{ color: 'var(--danger)' }}
+                        title="Archive driver"
+                        style={iconBtn('var(--danger)')}
                         onClick={() => { if (confirmDialog(`Archive driver "${d.user.name}"?`)) archive.mutate(d.id); }}
-                      >Archive</button>
+                      >🗑️</button>
                     )}
                   </td>
                 </tr>

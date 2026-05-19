@@ -7,16 +7,26 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { phone: adminPhone },
-    // Make sure an existing user (e.g. auto-created at first OTP login)
-    // is promoted to ADMIN so the dev account always has admin perms.
     update: {
-      role: UserRole.ADMIN,
+      role: UserRole.SUPER_ADMIN,
       status: UserStatus.ACTIVE,
-      name: 'Smart_Fleet Admin',
+      name: 'LPG Super Admin',
     },
     create: {
       phone: adminPhone,
-      name: 'Smart_Fleet Admin',
+      name: 'LPG Super Admin',
+      role: UserRole.SUPER_ADMIN,
+      status: UserStatus.ACTIVE,
+    },
+  });
+
+  // A regular ADMIN with limited privileges
+  await prisma.user.upsert({
+    where: { phone: '+923000000001' },
+    update: { role: UserRole.ADMIN, status: UserStatus.ACTIVE, name: 'LPG Branch Admin' },
+    create: {
+      phone: '+923000000001',
+      name: 'LPG Branch Admin',
       role: UserRole.ADMIN,
       status: UserStatus.ACTIVE,
     },

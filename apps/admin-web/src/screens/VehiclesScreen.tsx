@@ -5,6 +5,79 @@ import { Modal, confirmDialog } from '../components/Modal';
 
 interface City { id: string; name: string }
 interface Zone { id: string; city_id: string; name: string }
+interface CylinderType { id: string; code: string; name: string; capacityUnits: number; weightKg: string }
+
+/**
+ * Capacity calculator: given total "slots" (capacityUnits) and the
+ * per-type slot cost, show how many of each cylinder type fit.
+ * Internally we measure capacity in 11kg-equivalent slots where a
+ * 45kg cylinder consumes 4 slots, a 15kg consumes 2, etc.
+ */
+function CapacityBreakdown({ slots, types }: { slots: number; types: CylinderType[] }) {
+  if (!slots || !types.length) return null;
+  return (
+    <div style={{ marginTop: 8, padding: 12, background: 'var(--surface-soft)', borderRadius: 8, fontSize: 13 }}>
+      <strong>Equivalent capacity</strong>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginTop: 6 }}>
+        {types.map((t) => (
+          <div key={t.id}>
+            <div className="muted" style={{ fontSize: 11 }}>{t.name}</div>
+            <div><strong>{Math.floor(slots / Math.max(t.capacityUnits, 1))}</strong> cylinders</div>
+          </div>
+        ))}
+      </div>
+      <p className="muted" style={{ marginTop: 6, marginBottom: 0, fontSize: 11 }}>
+        Slots are 11kg-cylinder equivalents. 45kg = 4 slots, 15kg = 2, 11.8kg = 1, 6kg = 1.
+        Capacity is fungible — you can mix any types as long as their total slots ≤ {slots}.
+      </p>
+    </div>
+  );
+}
+
+function MixedCapacityCalculator({ slots, types }: { slots: number; types: CylinderType[] }) {
+  const [load, setLoad] = useState<Record<string, string>>({});
+  const usedSlots = types.reduce(
+    (sum, t) => sum + (Number(load[t.id] || 0) * t.capacityUnits),
+    0,
+  );
+  const remaining = Math.max(0, slots - usedSlots);
+  return (
+    <div style={{ marginTop: 8, padding: 12, background: '#fffdf4', borderRadius: 8, fontSize: 13, border: '1px solid #f0e8d4' }}>
+      <strong>Mix calculator</strong>
+      <p className="muted" style={{ marginTop: 4, marginBottom: 8, fontSize: 11 }}>
+        Enter the current load of each type to see how many of any type can still fit.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
+        {types.map((t) => (
+          <div key={t.id}>
+            <label style={{ fontSize: 11 }}>{t.code}</label>
+            <input
+              type="number"
+              min={0}
+              value={load[t.id] ?? ''}
+              onChange={(e) => setLoad((l) => ({ ...l, [t.id]: e.target.value }))}
+              style={{ padding: '4px 8px', fontSize: 12 }}
+            />
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+        <span>Used: <strong>{usedSlots}</strong> / {slots} slots</span>
+        <span>Remaining: <strong style={{ color: remaining > 0 ? 'var(--ok)' : 'var(--danger)' }}>{remaining}</strong> slots</span>
+      </div>
+      {remaining > 0 && (
+        <div style={{ marginTop: 6, fontSize: 12 }}>
+          That fits:
+          {types.map((t) => (
+            <span key={t.id} style={{ display: 'inline-block', marginLeft: 8 }}>
+              <strong>{Math.floor(remaining / Math.max(t.capacityUnits, 1))}</strong>× {t.code}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function errMsg(e: any): string {
   return (
@@ -19,6 +92,10 @@ export function VehiclesScreen() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ['vehicles'], queryFn: async () => (await api.get('/vehicles')).data });
   const cities = useQuery({ queryKey: ['cities'], queryFn: async () => (await api.get<City[]>('/cities')).data });
+  const cylinderTypes = useQuery({
+    queryKey: ['cylinder-types'],
+    queryFn: async () => (await api.get<CylinderType[]>('/cylinder-types')).data,
+  });
   const [showRetired, setShowRetired] = useState(false);
 
   const [cityId, setCityId] = useState('');
@@ -102,8 +179,10 @@ export function VehiclesScreen() {
         <label>Plate number *</label>
         <input value={form.plateNo} onChange={(e) => setForm({ ...form, plateNo: e.target.value })} placeholder="LXX-1234" />
 
-        <label>Capacity * (in 11kg-cylinder units)</label>
+        <label>Capacity * (in 11kg-cylinder slots)</label>
         <input type="number" value={form.capacityUnits} onChange={(e) => setForm({ ...form, capacityUnits: e.target.value })} />
+        <CapacityBreakdown slots={Number(form.capacityUnits) || 0} types={cylinderTypes.data ?? []} />
+        <MixedCapacityCalculator slots={Number(form.capacityUnits) || 0} types={cylinderTypes.data ?? []} />
 
         <div className="flex" style={{ gap: 12 }}>
           <div style={{ flex: 1 }}>
@@ -167,8 +246,9 @@ export function VehiclesScreen() {
           <>
             <label>Plate number</label>
             <input value={editForm.plateNo ?? ''} onChange={(e) => setEditForm({ ...editForm, plateNo: e.target.value })} />
-            <label>Capacity</label>
+            <label>Capacity (slots)</label>
             <input type="number" value={editForm.capacityUnits ?? ''} onChange={(e) => setEditForm({ ...editForm, capacityUnits: e.target.value })} />
+            <CapacityBreakdown slots={Number(editForm.capacityUnits) || 0} types={cylinderTypes.data ?? []} />
             <div className="flex" style={{ gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <label>City</label>

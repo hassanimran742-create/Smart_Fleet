@@ -14,7 +14,18 @@ export class RolesGuard implements CanActivate {
     ]);
     if (!required || required.length === 0) return true;
     const { user } = context.switchToHttp().getRequest();
-    if (!user || !required.includes(user.role)) {
+    if (!user) {
+      throw new ForbiddenException('Authentication required');
+    }
+
+    // SUPER_ADMIN is implicitly granted ANY endpoint, including those
+    // tagged explicitly only for SUPER_ADMIN. This keeps the @Roles()
+    // decorators readable across the codebase: callers list the
+    // operational roles (ADMIN, DISPATCHER, etc.) and SUPER_ADMIN
+    // never needs to be enumerated.
+    if (user.role === UserRole.SUPER_ADMIN) return true;
+
+    if (!required.includes(user.role)) {
       throw new ForbiddenException(`Requires one of: ${required.join(', ')}`);
     }
     return true;

@@ -48,9 +48,9 @@ export function LoginScreen() {
             fontSize: 24, fontWeight: 700,
             boxShadow: '0 8px 24px rgba(15, 108, 240, .35)',
           }}
-        >SF</div>
-        <h2 style={{ marginBottom: 6 }}>Smart_Fleet Admin</h2>
-        <p className="muted" style={{ margin: 0 }}>LPG delivery operations console</p>
+        >LPG</div>
+        <h2 style={{ marginBottom: 6 }}>LPG Management</h2>
+        <p className="muted" style={{ margin: 0 }}>Delivery & operations console</p>
       </div>
 
       <div className="card">

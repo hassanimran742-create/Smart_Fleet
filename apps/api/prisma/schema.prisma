@@ -16,6 +16,7 @@ datasource db {
 // ---------- ENUMS ----------
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   DISPATCHER
   STORE_KEEPER
@@ -880,6 +881,39 @@ model FillingOrder {
 }
 
 // ---------- FUEL REFILLS ----------
+
+// ---------- EXPENSES (super-admin only) ----------
+
+enum ExpenseCategory {
+  FOOD
+  UTILITIES
+  LABOUR
+  FUEL
+  MAINTENANCE
+  RENT
+  OFFICE
+  TRAVEL
+  EQUIPMENT
+  OTHER
+}
+
+model Expense {
+  id               String          @id @default(uuid()) @db.Uuid
+  category         ExpenseCategory
+  description      String
+  amountPaisa      BigInt          @map("amount_paisa")
+  expenseDate      DateTime        @map("expense_date") @db.Date
+  receiptUrl       String?         @map("receipt_url")
+  recordedByUserId String          @map("recorded_by_user_id") @db.Uuid
+  vendor           String?
+  notes            String?
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  @@index([expenseDate])
+  @@index([category, expenseDate])
+  @@map("expenses")
+}
 
 model FuelRefill {
   id          String   @id @default(uuid()) @db.Uuid

@@ -13,6 +13,9 @@ interface Station {
   lng: number;
 }
 
+interface City { id: string; name: string }
+interface Area { name: string; lat: number; lng: number }
+
 export function FillingStationsScreen() {
   const qc = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
@@ -21,15 +24,37 @@ export function FillingStationsScreen() {
     queryFn: async () =>
       (await api.get<Station[]>(`/filling-stations${showArchived ? '?includeInactive=true' : ''}`)).data,
   });
+  const cities = useQuery({ queryKey: ['cities'], queryFn: async () => (await api.get<City[]>('/cities')).data });
+
+  const [cityId, setCityId] = useState('');
+  const [areaName, setAreaName] = useState('');
+  const areas = useQuery({
+    queryKey: ['areas', cityId],
+    queryFn: async () => (cityId ? (await api.get<Area[]>(`/cities/${cityId}/areas`)).data : []),
+    enabled: !!cityId,
+  });
 
   const [form, setForm] = useState({ name: '', address: '', lat: '', lng: '', pricePkr: '300' });
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<Station | null>(null);
   const [editForm, setEditForm] = useState<any>({});
 
+  function pickArea(name: string) {
+    setAreaName(name);
+    const a = (areas.data ?? []).find((x) => x.name === name);
+    if (a) {
+      setForm((f) => ({
+        ...f,
+        lat: String(a.lat),
+        lng: String(a.lng),
+        address: f.address || `${a.name}, ${(cities.data ?? []).find((c) => c.id === cityId)?.name ?? ''}`,
+      }));
+    }
+  }
+
   const create = useMutation({
     mutationFn: () => {
-      if (!form.name || !form.lat || !form.lng) throw new Error('Name, lat, lng are required');
+      if (!form.name || !form.lat || !form.lng) throw new Error('Name, latitude, and longitude are required');
       return api.post('/filling-stations', {
         name: form.name,
         address: form.address,
@@ -41,7 +66,7 @@ export function FillingStationsScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['filling-stations'] });
       setForm({ name: '', address: '', lat: '', lng: '', pricePkr: '300' });
-      setCreateErr(null);
+      setCityId(''); setAreaName(''); setCreateErr(null);
     },
     onError: (e: any) => setCreateErr(e?.response?.data?.message ?? e?.message ?? 'Failed'),
   });
@@ -73,21 +98,38 @@ export function FillingStationsScreen() {
           show archived
         </label>
       </div>
-      <p className="muted">
-        Filling stations where empty cylinders are refilled. Each station has its own per-cylinder rate.
-      </p>
+      <p className="muted">Pick a city → area to auto-fill coordinates, or type lat/lng directly.</p>
 
       <div className="card">
         <h3>Add filling station</h3>
+        <div className="flex" style={{ gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <label>City</label>
+            <select value={cityId} onChange={(e) => { setCityId(e.target.value); setAreaName(''); }}>
+              <option value="">— pick a city —</option>
+              {(cities.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label>Area / zone (auto-fills coordinates)</label>
+            <select value={areaName} onChange={(e) => pickArea(e.target.value)} disabled={!cityId}>
+              <option value="">— pick an area —</option>
+              {(areas.data ?? []).map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+            </select>
+          </div>
+        </div>
+
         <label>Name *</label>
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. SNGPL Sihala Filling Plant" />
         <label>Address</label>
         <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+
         <div className="flex" style={{ gap: 12 }}>
           <div style={{ flex: 1 }}><label>Latitude *</label><input value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} /></div>
           <div style={{ flex: 1 }}><label>Longitude *</label><input value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} /></div>
           <div style={{ flex: 1 }}><label>Price per cylinder (PKR)</label><input type="number" value={form.pricePkr} onChange={(e) => setForm({ ...form, pricePkr: e.target.value })} /></div>
         </div>
+
         {createErr && <p style={{ color: 'var(--danger)' }}>{createErr}</p>}
         <button className="primary" style={{ marginTop: 12 }} onClick={() => create.mutate()}>Add station</button>
       </div>
@@ -111,9 +153,9 @@ export function FillingStationsScreen() {
                       lat: String(s.lat), lng: String(s.lng),
                       pricePkr: String(Number(s.price_per_cylinder_paisa) / 100),
                     });
-                  }}>Edit</button>{' '}
+                  }}>✏️</button>{' '}
                   {s.is_active && (
-                    <button style={{ color: 'var(--danger)' }} onClick={() => { if (confirmDialog(`Archive "${s.name}"?`)) archive.mutate(s.id); }}>Archive</button>
+                    <button style={{ color: 'var(--danger)' }} onClick={() => { if (confirmDialog(`Archive "${s.name}"?`)) archive.mutate(s.id); }}>🗑️</button>
                   )}
                 </td>
               </tr>

@@ -35,10 +35,10 @@ export function PhoneScreen() {
               marginBottom: space.md,
             }}
           >
-            <Heading size="h1" style={{ color: 'white' }}>SF</Heading>
+            <Heading size="h1" style={{ color: 'white' }}>LPG</Heading>
           </View>
-          <Heading size="h1">Smart_Fleet</Heading>
-          <Body muted style={{ marginTop: 4 }}>LPG delivery, simplified</Body>
+          <Heading size="h1">LPG Management</Heading>
+          <Body muted style={{ marginTop: 4 }}>Delivery, simplified</Body>
         </View>
 
         <Card>

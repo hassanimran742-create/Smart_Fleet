@@ -16,8 +16,8 @@ export type Page =
   | 'transfers'
   | 'alerts'
   | 'filling-stations'
-  | 'filling-orders'
-  | 'fuel-report';
+  | 'fuel-report'
+  | 'expenses';
 
 interface RouteState {
   page: Page;
