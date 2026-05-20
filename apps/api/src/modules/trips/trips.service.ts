@@ -9,7 +9,18 @@ export class TripsService {
   forDriver(driverId: string) {
     return this.prisma.trip.findMany({
       where: { driverId },
-      include: { orders: true, stops: { orderBy: { seq: 'asc' } } },
+      include: {
+        orders: {
+          include: {
+            client: true,
+            distributor: true,
+            lines: { include: { cylinderType: true } },
+          },
+        },
+        stops: { orderBy: { seq: 'asc' } },
+        originStore: true,
+        vehicle: true,
+      },
       orderBy: { plannedAt: 'desc' },
       take: 50,
     });
