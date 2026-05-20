@@ -11,7 +11,7 @@ const Stack = createNativeStackNavigator();
 export function DriverStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="Home" component={DriverHomeScreen} options={{ title: 'Smart_Fleet Driver' }} />
+      <Stack.Screen name="Home" component={DriverHomeScreen} options={{ title: 'LPG Management — Driver' }} />
       <Stack.Screen name="ActiveTrip" component={ActiveTripScreen} options={{ title: 'Active trip' }} />
       <Stack.Screen name="Scan" component={ScanScreen} options={{ title: 'Scan cylinder' }} />
       <Stack.Screen name="Reconcile" component={ReconcileScreen} options={{ title: 'End of day' }} />

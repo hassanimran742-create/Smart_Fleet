@@ -14,7 +14,7 @@ const Stack = createNativeStackNavigator();
 export function DistributorStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="Home" component={DistributorHomeScreen} options={{ title: 'Smart_Fleet' }} />
+      <Stack.Screen name="Home" component={DistributorHomeScreen} options={{ title: 'LPG Management' }} />
       <Stack.Screen name="PlaceOrder" component={PlaceOrderScreen} options={{ title: 'New order' }} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ title: 'Orders' }} />
       <Stack.Screen name="TrackOrder" component={TrackOrderScreen} options={{ title: 'Track order' }} />
