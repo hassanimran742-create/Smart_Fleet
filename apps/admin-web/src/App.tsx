@@ -19,10 +19,16 @@ import { FillingStationsScreen } from './screens/FillingStationsScreen';
 import { FuelReportScreen } from './screens/FuelReportScreen';
 import { ExpensesScreen } from './screens/ExpensesScreen';
 import { useRouteStore } from './store/route';
+import { useIdleLogout } from './hooks/useIdleLogout';
 
 export function App() {
   const { token } = useAuthStore();
   const { page } = useRouteStore();
+
+  // Sign out after 10 minutes of zero interaction. Active use (clicks,
+  // typing, scrolling, mouse moves) keeps the session alive indefinitely
+  // up to the JWT's 12-hour absolute lifetime.
+  useIdleLogout(10 * 60 * 1000);
 
   if (!token) return <LoginScreen />;
 

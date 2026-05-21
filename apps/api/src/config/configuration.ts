@@ -12,8 +12,11 @@ export default () => ({
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? 'change_me_access',
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'change_me_refresh',
-    accessTtl: Number(process.env.JWT_ACCESS_TTL ?? 900),
-    refreshTtl: Number(process.env.JWT_REFRESH_TTL ?? 2_592_000),
+    // 12 hours — generous enough to cover a full work day. The
+    // admin web also enforces a 10-minute idle timeout on top, so
+    // unattended sessions still close.
+    accessTtl: Number(process.env.JWT_ACCESS_TTL ?? 12 * 60 * 60),
+    refreshTtl: Number(process.env.JWT_REFRESH_TTL ?? 30 * 24 * 60 * 60),
   },
   sms: {
     provider: process.env.SMS_PROVIDER ?? 'mock',
