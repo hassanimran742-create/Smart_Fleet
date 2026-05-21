@@ -251,6 +251,7 @@ model Driver {
   shifts         DriverShift[]
   fuelRefills    FuelRefill[]
   fillingOrders  FillingOrder[]
+  transfers      Transfer[]     @relation("TransferDriver")
 
   @@index([isOnline])
   @@index([availability])
@@ -454,20 +455,26 @@ model InventoryLot {
 // ---------- TRANSFERS ----------
 
 model Transfer {
-  id           String         @id @default(uuid()) @db.Uuid
-  fromStoreId  String         @map("from_store_id") @db.Uuid
-  toStoreId    String         @map("to_store_id") @db.Uuid
-  vehicleId    String?        @map("vehicle_id") @db.Uuid
-  status       TransferStatus @default(REQUESTED)
-  requestedBy  String         @map("requested_by") @db.Uuid
-  createdAt    DateTime       @default(now()) @map("created_at")
-  completedAt  DateTime?      @map("completed_at")
+  id            String         @id @default(uuid()) @db.Uuid
+  fromStoreId   String         @map("from_store_id") @db.Uuid
+  toStoreId     String         @map("to_store_id") @db.Uuid
+  vehicleId     String?        @map("vehicle_id") @db.Uuid
+  driverId      String?        @map("driver_id") @db.Uuid
+  scheduledFor  DateTime?      @map("scheduled_for")
+  notes         String?
+  status        TransferStatus @default(REQUESTED)
+  requestedBy   String         @map("requested_by") @db.Uuid
+  createdAt     DateTime       @default(now()) @map("created_at")
+  completedAt   DateTime?      @map("completed_at")
 
   fromStore Store           @relation("TransferFromStore", fields: [fromStoreId], references: [id])
   toStore   Store           @relation("TransferToStore", fields: [toStoreId], references: [id])
   vehicle   Vehicle?        @relation(fields: [vehicleId], references: [id])
+  driver    Driver?         @relation("TransferDriver", fields: [driverId], references: [id])
   lines     TransferLine[]
 
+  @@index([driverId, status])
+  @@index([scheduledFor])
   @@map("transfers")
 }
 
@@ -712,7 +719,44 @@ enum AlertType {
   PAYMENT_FAILED
   RECONCILIATION_MISMATCH
   CYLINDER_LOST
+  DISTRIBUTOR_BALANCE_LOW
+  DISTRIBUTOR_CREDIT_OVER
+  STORE_STOCK_LOW
+  SPECIAL_CLIENT
   OTHER
+}
+
+// User-defined alert rules. Evaluated lazily when the admin opens the
+// alerts page (no separate worker needed for the v1 set). `threshold`
+// is interpreted per `ruleKind`:
+//   DISTRIBUTOR_BALANCE_LOW  → paisa (raise when advance balance falls below)
+//   DISTRIBUTOR_CREDIT_OVER  → paisa (raise when negative balance exceeds)
+//   STORE_STOCK_LOW          → cylinder count (raise when full count below)
+//   SPECIAL_CLIENT           → unused; resourceId points at the Client.
+enum AlertRuleKind {
+  DISTRIBUTOR_BALANCE_LOW
+  DISTRIBUTOR_CREDIT_OVER
+  STORE_STOCK_LOW
+  SPECIAL_CLIENT
+}
+
+model AlertRule {
+  id            String        @id @default(uuid()) @db.Uuid
+  name          String
+  ruleKind      AlertRuleKind @map("rule_kind")
+  threshold     BigInt        @default(0)
+  resourceId    String?       @map("resource_id") @db.Uuid
+  cylinderTypeId String?      @map("cylinder_type_id") @db.Uuid
+  severity      AlertSeverity @default(WARNING)
+  isActive      Boolean       @default(true) @map("is_active")
+  notes         String?
+  createdBy     String        @map("created_by") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  lastTriggeredAt DateTime?   @map("last_triggered_at")
+
+  @@index([isActive, ruleKind])
+  @@map("alert_rules")
 }
 
 model Alert {

@@ -30,6 +30,11 @@ export function DriverHomeScreen() {
     queryFn: async () => (await api.get('/filling-orders/driver/mine')).data,
     refetchInterval: 20000,
   });
+  const transfers = useQuery({
+    queryKey: ['driver-transfers'],
+    queryFn: async () => (await api.get('/transfers/mine')).data,
+    refetchInterval: 30000,
+  });
 
   const allTrips = trips.data ?? [];
   const active = allTrips.find((t: any) => t.status === 'PLANNED' || t.status === 'IN_PROGRESS');
@@ -37,6 +42,7 @@ export function DriverHomeScreen() {
   const openFilling = (filling.data ?? []).filter(
     (f: any) => !['COMPLETED', 'CANCELLED', 'FAILED'].includes(f.status),
   );
+  const openTransfers = (transfers.data ?? []).length;
 
   return (
     <Screen scroll>
@@ -113,6 +119,27 @@ export function DriverHomeScreen() {
             <Body style={{ fontSize: 22, color: colors.textMuted }}>›</Body>
           </Pressable>
         </>
+      )}
+
+      {/* Inventory roll-plan transfers — only shown if any are pending */}
+      {openTransfers > 0 && (
+        <Pressable
+          onPress={() => nav.navigate('Transfers')}
+          style={({ pressed }: any) => ({
+            backgroundColor: colors.surface,
+            padding: space.lg, borderRadius: radius.lg,
+            marginTop: space.md, marginBottom: space.sm,
+            opacity: pressed ? 0.85 : 1, ...shadow.card,
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+          })}
+        >
+          <Body style={{ fontSize: 28 }}>📦</Body>
+          <View style={{ flex: 1 }}>
+            <Heading size="h3">Transfer tasks ({openTransfers})</Heading>
+            <Caption style={{ marginTop: 2 }}>Cylinder moves between stores · tap to see</Caption>
+          </View>
+          <Body style={{ fontSize: 22, color: colors.textMuted }}>›</Body>
+        </Pressable>
       )}
 
       <View style={{ marginTop: space.lg, gap: space.sm }}>

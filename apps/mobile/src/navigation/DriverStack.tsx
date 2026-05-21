@@ -5,6 +5,7 @@ import { ScanScreen } from '../screens/driver/ScanScreen';
 import { ReconcileScreen } from '../screens/driver/ReconcileScreen';
 import { FuelRefillScreen } from '../screens/driver/FuelRefillScreen';
 import { DriverFillingOrdersScreen } from '../screens/driver/FillingOrdersScreen';
+import { DriverTransfersScreen } from '../screens/driver/TransfersScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,6 +18,7 @@ export function DriverStack() {
       <Stack.Screen name="Reconcile" component={ReconcileScreen} options={{ title: 'End of day' }} />
       <Stack.Screen name="FuelRefill" component={FuelRefillScreen} options={{ title: 'Record fuel refill' }} />
       <Stack.Screen name="FillingRuns" component={DriverFillingOrdersScreen} options={{ title: 'My filling runs' }} />
+      <Stack.Screen name="Transfers" component={DriverTransfersScreen} options={{ title: 'Transfer tasks' }} />
     </Stack.Navigator>
   );
 }
