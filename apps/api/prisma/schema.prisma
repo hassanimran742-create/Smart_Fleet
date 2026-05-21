@@ -408,6 +408,7 @@ model Cylinder {
   distributor  Distributor     @relation(fields: [distributorId], references: [id])
   cylinderType CylinderType    @relation(fields: [cylinderTypeId], references: [id])
   events       CylinderEvent[]
+  transferLines TransferLine[]
 
   @@index([distributorId, cylinderTypeId, state, custodyType])
   @@map("cylinders")
@@ -484,6 +485,7 @@ model TransferLine {
   cylinderId String @map("cylinder_id") @db.Uuid
 
   transfer Transfer @relation(fields: [transferId], references: [id])
+  cylinder Cylinder @relation(fields: [cylinderId], references: [id])
 
   @@unique([transferId, cylinderId])
   @@map("transfer_lines")
