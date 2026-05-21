@@ -32,11 +32,22 @@ async function main() {
     },
   });
 
+  // Migrate any old underscore-based cylinder codes to the new dotted form.
+  // E.g. LPG_11_8KG → LPG_11.8KG. Safe to run multiple times.
+  await prisma.cylinderType.updateMany({
+    where: { code: 'LPG_11_8KG' },
+    data: { code: 'LPG_11.8KG' },
+  }).catch(() => undefined);
+  await prisma.cylinderType.updateMany({
+    where: { code: 'LPG_45_4KG' },
+    data: { code: 'LPG_45.4KG' },
+  }).catch(() => undefined);
+
   const types = [
     { code: 'LPG_6KG',     name: 'LPG 6 kg',    weightKg: 6,    capacityUnits: 1 },
-    { code: 'LPG_11_8KG',  name: 'LPG 11.8 kg', weightKg: 11.8, capacityUnits: 1 },
+    { code: 'LPG_11.8KG',  name: 'LPG 11.8 kg', weightKg: 11.8, capacityUnits: 1 },
     { code: 'LPG_15KG',    name: 'LPG 15 kg',   weightKg: 15,   capacityUnits: 2 },
-    { code: 'LPG_45_4KG',  name: 'LPG 45.4 kg', weightKg: 45.4, capacityUnits: 4 },
+    { code: 'LPG_45.4KG',  name: 'LPG 45.4 kg', weightKg: 45.4, capacityUnits: 4 },
   ];
   for (const t of types) {
     await prisma.cylinderType.upsert({

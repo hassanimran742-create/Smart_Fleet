@@ -7,13 +7,13 @@ export class VehiclesService {
   constructor(private prisma: PrismaService) {}
 
   list() {
-    return this.prisma.vehicle.findMany({ include: { homeZone: true, currentDriver: true } });
+    return this.prisma.vehicle.findMany({ include: { homeZone: true, currentDriver: { include: { user: true } } } });
   }
 
   async byId(id: string) {
     const v = await this.prisma.vehicle.findUnique({
       where: { id },
-      include: { homeZone: true, currentDriver: true },
+      include: { homeZone: true, currentDriver: { include: { user: true } } },
     });
     if (!v) throw new NotFoundException();
     return v;

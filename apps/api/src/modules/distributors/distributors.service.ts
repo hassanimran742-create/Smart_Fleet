@@ -25,25 +25,41 @@ export class DistributorsService {
     businessName: string;
     homeStoreId?: string | null;
     email?: string | null;
+    cnic?: string | null;
   }) {
     if (!input.phone?.trim()) throw new BadRequestException('phone is required');
     if (!input.name?.trim()) throw new BadRequestException('name is required');
     if (!input.businessName?.trim()) throw new BadRequestException('businessName is required');
 
-    // Sanitize: empty strings cause Prisma FK / UUID errors. Coerce to undefined.
     const homeStoreId = input.homeStoreId?.trim() ? input.homeStoreId.trim() : undefined;
     const email = input.email?.trim() ? input.email.trim() : undefined;
+    const cnic = input.cnic?.trim() ? input.cnic.trim() : undefined;
+
+    // Server-side CNIC duplicate check across all users (mobile sign-up
+    // forms and admin web both write to the same column).
+    if (cnic) {
+      const conflict = await this.prisma.user.findFirst({
+        where: { cnic, NOT: { phone: input.phone } },
+        include: { distributorProfile: true },
+      });
+      if (conflict) {
+        throw new BadRequestException(
+          `CNIC ${cnic} is already registered to another user (${conflict.name}).`,
+        );
+      }
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.upsert({
         where: { phone: input.phone },
-        update: { name: input.name, role: UserRole.DISTRIBUTOR, email },
+        update: { name: input.name, role: UserRole.DISTRIBUTOR, email, cnic },
         create: {
           phone: input.phone,
           name: input.name,
           role: UserRole.DISTRIBUTOR,
           status: UserStatus.PENDING,
           email,
+          cnic,
         },
       });
       return tx.distributor.create({

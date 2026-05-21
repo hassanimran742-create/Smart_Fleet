@@ -525,9 +525,9 @@ async function main() {
 
   // ---------------- Cylinder types ----------------
   const cylTypes = await prisma.cylinderType.findMany();
-  const tLPG118 = cylTypes.find((t) => t.code === 'LPG_11_8KG');
+  const tLPG118 = cylTypes.find((t) => t.code === 'LPG_11.8KG');
   const tLPG15  = cylTypes.find((t) => t.code === 'LPG_15KG');
-  const tLPG454 = cylTypes.find((t) => t.code === 'LPG_45_4KG');
+  const tLPG454 = cylTypes.find((t) => t.code === 'LPG_45.4KG');
   if (!tLPG118 || !tLPG15 || !tLPG454) {
     throw new Error('Cylinder types missing. Run `npm run seed` first.');
   }

@@ -17,7 +17,8 @@ export type Page =
   | 'alerts'
   | 'filling-stations'
   | 'fuel-report'
-  | 'expenses';
+  | 'expenses'
+  | 'qr-generator';
 
 interface RouteState {
   page: Page;

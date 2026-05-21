@@ -39,6 +39,7 @@ interface DriverRow {
   licenceNo: string;
   isOnline: boolean;
   currentVehicleId: string | null;
+  currentVehicle?: { id: string; plateNo: string } | null;
   availability: Availability;
   leaveStart: string | null;
   leaveEnd: string | null;
@@ -57,7 +58,6 @@ interface DriverRow {
 export function DriversScreen() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ['drivers'], queryFn: async () => (await api.get<DriverRow[]>('/drivers')).data });
-  const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: async () => (await api.get('/vehicles')).data });
   const [showArchived, setShowArchived] = useState(false);
 
   // Create form
@@ -129,12 +129,6 @@ export function DriversScreen() {
   });
   const reactivate = useMutation({
     mutationFn: (id: string) => api.patch(`/drivers/${id}/reactivate`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
-  });
-
-  const assignVehicle = useMutation({
-    mutationFn: ({ id, vehicleId }: { id: string; vehicleId: string | null }) =>
-      api.patch(`/drivers/${id}/vehicle`, { vehicleId }).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
   });
 
@@ -266,14 +260,11 @@ export function DriversScreen() {
                     )}
                   </td>
                   <td>
-                    <select
-                      value={d.currentVehicleId ?? ''}
-                      onChange={(e) => assignVehicle.mutate({ id: d.id, vehicleId: e.target.value || null })}
-                      disabled={d.user.status === 'SUSPENDED'}
-                    >
-                      <option value="">— none —</option>
-                      {(vehicles.data ?? []).map((v: any) => <option key={v.id} value={v.id}>{v.plateNo}</option>)}
-                    </select>
+                    {d.currentVehicle ? (
+                      <span style={{ fontFamily: 'monospace' }}>{d.currentVehicle.plateNo}</span>
+                    ) : (
+                      <span className="muted">— none —</span>
+                    )}
                   </td>
                   <td style={{ fontSize: 12 }}>{d.user.status}</td>
                   <td>

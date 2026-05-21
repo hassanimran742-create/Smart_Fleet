@@ -21,6 +21,7 @@ const PAGES: PageDef[] = [
   { id: 'stores',            label: 'Stores' },
   { id: 'inventory',         label: 'Inventory' },
   { id: 'accessories',       label: 'Accessories' },
+  { id: 'qr-generator',      label: 'QR generator' },
   { id: 'transfers',         label: 'Inventory roll plan' },
   { id: 'filling-stations',  label: 'Filling stations' },
   { id: 'zones',             label: 'Zones' },

@@ -1,30 +1,46 @@
 import { useState } from 'react';
 import { FillingOrdersScreen } from './FillingOrdersScreen';
-import { DeliveryOrdersScreen } from './DeliveryOrdersScreen';
+import { CurrentOrdersScreen } from './CurrentOrdersScreen';
+import { PreviousOrdersScreen } from './PreviousOrdersScreen';
 
-type Category = 'delivery' | 'filling';
+type Tab = 'current' | 'previous' | 'filling';
 
 export function OrdersScreen() {
-  const [category, setCategory] = useState<Category>('delivery');
+  const [tab, setTab] = useState<Tab>('current');
 
   return (
     <>
-      <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ marginBottom: 0 }}>Orders</h2>
-        <div className="flex" style={{ gap: 8 }}>
-          <label style={{ margin: 0 }}>Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as Category)}
-            style={{ width: 220 }}
-          >
-            <option value="delivery">Delivery orders</option>
-            <option value="filling">Filling orders</option>
-          </select>
-        </div>
+      <h2 style={{ marginBottom: 12 }}>Orders</h2>
+
+      <div className="flex" style={{ gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+        <TabButton active={tab === 'current'} onClick={() => setTab('current')}>Current orders</TabButton>
+        <TabButton active={tab === 'previous'} onClick={() => setTab('previous')}>Previous orders</TabButton>
+        <TabButton active={tab === 'filling'} onClick={() => setTab('filling')}>Filling orders</TabButton>
       </div>
 
-      {category === 'delivery' ? <DeliveryOrdersScreen /> : <FillingOrdersScreen />}
+      {tab === 'current'  && <CurrentOrdersScreen />}
+      {tab === 'previous' && <PreviousOrdersScreen />}
+      {tab === 'filling'  && <FillingOrdersScreen />}
     </>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '10px 18px',
+        background: 'transparent',
+        border: 0,
+        borderBottom: active ? '3px solid var(--primary)' : '3px solid transparent',
+        color: active ? 'var(--primary)' : 'var(--muted)',
+        fontWeight: active ? 600 : 500,
+        cursor: 'pointer',
+        marginBottom: -1,
+      }}
+    >
+      {children}
+    </button>
   );
 }
