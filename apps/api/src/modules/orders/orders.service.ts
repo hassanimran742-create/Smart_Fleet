@@ -126,7 +126,10 @@ export class OrdersService {
   listForDistributor(distributorId: string) {
     return this.prisma.order.findMany({
       where: { distributorId },
-      include: { lines: true },
+      include: {
+        lines: { include: { cylinderType: true } },
+        client: true,
+      },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });

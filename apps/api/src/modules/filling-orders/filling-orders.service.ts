@@ -24,38 +24,57 @@ export class FillingOrdersService {
    */
   async create(input: {
     distributorId: string;
-    fillingStationId: string;
+    fillingStationId?: string;
     cylinderTypeId: string;
     requestedCount: number;
     pickupStoreId?: string;
+    serviceType?: 'OUR_SERVICE' | 'DIY';
+    ownStationName?: string;
+    ownStationAddress?: string;
+    ownStationNotes?: string;
   }) {
     if (input.requestedCount <= 0) {
       throw new BadRequestException('requestedCount must be > 0');
     }
-    const [distributor, station] = await Promise.all([
-      this.prisma.distributor.findUnique({ where: { id: input.distributorId } }),
-      this.prisma.fillingStation.findUnique({ where: { id: input.fillingStationId } }),
-    ]);
+    const serviceType = input.serviceType ?? 'OUR_SERVICE';
+    const distributor = await this.prisma.distributor.findUnique({ where: { id: input.distributorId } });
     if (!distributor) throw new NotFoundException('Distributor not found');
-    if (!station) throw new NotFoundException('Filling station not found');
 
-    const pricePerCylinder = station.pricePerCylinderPaisa;
-    const totalCost = pricePerCylinder * BigInt(input.requestedCount);
-    if (distributor.advanceBalancePaisa < totalCost) {
-      throw new BadRequestException(
-        `Insufficient advance balance. Required Rs. ${Number(totalCost) / 100}, available Rs. ${Number(distributor.advanceBalancePaisa) / 100}. Top up before placing this filling order.`,
-      );
+    // OUR_SERVICE: we ferry empties to a Smart_Fleet-listed station and back.
+    // DIY: distributor handles it themselves at their own station; we just
+    // track the refill so the cylinder counts and inventory math stay correct.
+    let pricePerCylinder = 0n;
+    let totalCost = 0n;
+    if (serviceType === 'OUR_SERVICE') {
+      if (!input.fillingStationId) throw new BadRequestException('Pick a filling station.');
+      const station = await this.prisma.fillingStation.findUnique({ where: { id: input.fillingStationId } });
+      if (!station) throw new NotFoundException('Filling station not found');
+      pricePerCylinder = station.pricePerCylinderPaisa;
+      totalCost = pricePerCylinder * BigInt(input.requestedCount);
+      if (distributor.advanceBalancePaisa < totalCost) {
+        throw new BadRequestException(
+          `Insufficient advance balance. Required Rs. ${Number(totalCost) / 100}, available Rs. ${Number(distributor.advanceBalancePaisa) / 100}. Top up before placing this filling order.`,
+        );
+      }
+    } else {
+      if (!input.ownStationName?.trim()) {
+        throw new BadRequestException('Tell us the name of your filling station.');
+      }
     }
 
     return this.prisma.fillingOrder.create({
       data: {
         distributorId: input.distributorId,
-        fillingStationId: input.fillingStationId,
+        fillingStationId: serviceType === 'OUR_SERVICE' ? input.fillingStationId : null,
         cylinderTypeId: input.cylinderTypeId,
         requestedCount: input.requestedCount,
         pricePerCylinderPaisa: pricePerCylinder,
         totalCostPaisa: totalCost,
         pickupStoreId: input.pickupStoreId ?? distributor.homeStoreId,
+        serviceType,
+        ownStationName: input.ownStationName?.trim() || null,
+        ownStationAddress: input.ownStationAddress?.trim() || null,
+        ownStationNotes: input.ownStationNotes?.trim() || null,
       },
       include: { fillingStation: true, cylinderType: true, distributor: true },
     });

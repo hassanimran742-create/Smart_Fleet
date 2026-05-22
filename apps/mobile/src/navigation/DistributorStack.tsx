@@ -5,6 +5,7 @@ import { OrderHistoryScreen } from '../screens/distributor/OrderHistoryScreen';
 import { TopupScreen } from '../screens/distributor/TopupScreen';
 import { TrackOrderScreen } from '../screens/distributor/TrackOrderScreen';
 import { RequestFillingScreen } from '../screens/distributor/RequestFillingScreen';
+import { AddClientScreen } from '../screens/distributor/AddClientScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -13,6 +14,7 @@ export function DistributorStack() {
     <Stack.Navigator>
       <Stack.Screen name="Home" component={DistributorHomeScreen} options={{ title: 'LPG Management' }} />
       <Stack.Screen name="PlaceOrder" component={PlaceOrderScreen} options={{ title: 'New order' }} />
+      <Stack.Screen name="AddClient" component={AddClientScreen} options={{ title: 'Add new client' }} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ title: 'My orders' }} />
       <Stack.Screen name="TrackOrder" component={TrackOrderScreen} options={{ title: 'Track order' }} />
       <Stack.Screen name="Topup" component={TopupScreen} options={{ title: 'Top up balance' }} />

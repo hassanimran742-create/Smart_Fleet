@@ -350,18 +350,25 @@ model Vehicle {
 // ---------- CLIENTS ----------
 
 model Client {
-  id            String @id @default(uuid()) @db.Uuid
-  distributorId String @map("distributor_id") @db.Uuid
-  name          String
-  phone         String
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid()) @db.Uuid
+  distributorId    String   @map("distributor_id") @db.Uuid
+  name             String
+  phone            String
+  address          String?
+  area             String?
+  city             String?
+  creditLimitPaisa BigInt   @default(0) @map("credit_limit_paisa")
+  priority         Int      @default(3)
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   distributor Distributor      @relation(fields: [distributorId], references: [id])
   addresses   ClientAddress[]
   orders      Order[]
 
   @@index([distributorId])
+  @@index([distributorId, phone])
   @@map("clients")
 }
 
@@ -895,11 +902,20 @@ enum FillingOrderStatus {
   FAILED
 }
 
+enum FillingServiceType {
+  OUR_SERVICE
+  DIY
+}
+
 model FillingOrder {
   id                    String             @id @default(uuid()) @db.Uuid
   distributorId         String             @map("distributor_id") @db.Uuid
-  fillingStationId      String             @map("filling_station_id") @db.Uuid
+  fillingStationId      String?            @map("filling_station_id") @db.Uuid
   cylinderTypeId        String             @map("cylinder_type_id") @db.Uuid
+  serviceType           FillingServiceType @default(OUR_SERVICE) @map("service_type")
+  ownStationName        String?            @map("own_station_name")
+  ownStationAddress     String?            @map("own_station_address")
+  ownStationNotes       String?            @map("own_station_notes")
   requestedCount        Int                @map("requested_count")
   pickedUpEmptyCount    Int?               @map("picked_up_empty_count")
   filledCount           Int?               @map("filled_count")
@@ -914,12 +930,12 @@ model FillingOrder {
   updatedAt             DateTime           @updatedAt @map("updated_at")
   completedAt           DateTime?          @map("completed_at")
 
-  distributor     Distributor    @relation(fields: [distributorId], references: [id])
-  fillingStation  FillingStation @relation(fields: [fillingStationId], references: [id])
-  cylinderType    CylinderType   @relation(fields: [cylinderTypeId], references: [id])
-  assignedDriver  Driver?        @relation(fields: [assignedDriverId], references: [id])
-  assignedVehicle Vehicle?       @relation(fields: [assignedVehicleId], references: [id])
-  pickupStore     Store?         @relation(fields: [pickupStoreId], references: [id])
+  distributor     Distributor     @relation(fields: [distributorId], references: [id])
+  fillingStation  FillingStation? @relation(fields: [fillingStationId], references: [id])
+  cylinderType    CylinderType    @relation(fields: [cylinderTypeId], references: [id])
+  assignedDriver  Driver?         @relation(fields: [assignedDriverId], references: [id])
+  assignedVehicle Vehicle?        @relation(fields: [assignedVehicleId], references: [id])
+  pickupStore     Store?          @relation(fields: [pickupStoreId], references: [id])
 
   @@index([assignedDriverId, status])
   @@index([status, createdAt])

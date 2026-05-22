@@ -51,9 +51,20 @@ export class CustodyService {
       const fromType = cylinder.custodyType;
       const fromId = cylinder.custodyId;
 
+      // For PICKED_UP_EMPTY the cylinder goes to the driver's vehicle; resolve
+      // it from the acting driver so the mobile app doesn't have to pass it.
+      let resolvedToId = input.toCustodyId;
+      if (!resolvedToId && input.eventType === CylinderEventType.PICKED_UP_EMPTY) {
+        const driver = await tx.driver.findFirst({
+          where: { userId: input.actorUserId },
+          select: { currentVehicleId: true },
+        });
+        if (driver?.currentVehicleId) resolvedToId = driver.currentVehicleId;
+      }
+
       const toType = input.toCustodyType ?? this.inferToType(input.eventType, fromType);
       const toId =
-        input.toCustodyId ??
+        resolvedToId ??
         this.inferToId(input.eventType, fromType, fromId, input);
 
       const allowed = ALLOWED_TRANSITIONS[input.eventType] ?? [];
@@ -143,8 +154,9 @@ export class CustodyService {
     // Caller usually supplies toCustodyId. Fallbacks:
     if (input.toCustodyId) return input.toCustodyId;
     if (eventType === 'MARK_FAULTY' || eventType === 'MARK_LOST') return fromId;
-    if (eventType === 'PICKED_UP_EMPTY' && input.tripId) return input.tripId; // surrogate: caller should pass vehicleId
-    throw new BadRequestException('toCustodyId required for this event');
+    throw new BadRequestException(
+      'Could not figure out where the cylinder is going. For PICKED_UP_EMPTY, make sure the driver has a vehicle assigned.',
+    );
   }
 
   private async adjustInventory(
