@@ -35,6 +35,24 @@ export function DriverHomeScreen() {
     queryFn: async () => (await api.get('/transfers/mine')).data,
     refetchInterval: 30000,
   });
+  const suggestions = useQuery({
+    queryKey: ['next-suggestions'],
+    queryFn: async () => (await api.get('/trips/next-suggestions')).data as Array<{
+      kind: 'ORDER' | 'FILLING' | 'TRANSFER';
+      id: string;
+      tripId?: string;
+      orderId?: string;
+      title: string;
+      subtitle: string;
+      status: string;
+      distanceKm: number;
+      onYourRoute: boolean;
+      lat: number;
+      lng: number;
+    }>,
+    refetchInterval: 60000,
+    enabled: online,
+  });
 
   const allTrips = trips.data ?? [];
   const active = allTrips.find((t: any) => t.status === 'PLANNED' || t.status === 'IN_PROGRESS');
@@ -77,6 +95,60 @@ export function DriverHomeScreen() {
             {active.stops?.length ?? 0} stops · Tap to open
           </Caption>
         </Pressable>
+      )}
+
+      {/* Smart suggestions — sorted by distance, with on-route flag */}
+      {(suggestions.data ?? []).length > 0 && (
+        <>
+          <Heading size="h3" style={{ marginTop: space.md, marginBottom: space.sm }}>
+            Nearby tasks
+          </Heading>
+          {suggestions.data!.slice(0, 3).map((s) => (
+            <Pressable
+              key={`${s.kind}-${s.id}`}
+              onPress={() => {
+                if (s.kind === 'ORDER' && s.tripId) {
+                  nav.navigate('ActiveTrip', { tripId: s.tripId });
+                } else if (s.kind === 'TRANSFER') {
+                  nav.navigate('TransferDetail', { transferId: s.id });
+                } else if (s.kind === 'FILLING') {
+                  nav.navigate('FillingRuns');
+                }
+              }}
+              style={({ pressed }: any) => ({
+                backgroundColor: s.onYourRoute ? '#ecfdf5' : colors.surface,
+                borderWidth: 1,
+                borderColor: s.onYourRoute ? colors.ok : colors.border,
+                padding: space.md, borderRadius: radius.lg,
+                marginBottom: space.sm,
+                opacity: pressed ? 0.85 : 1,
+                ...shadow.card,
+              })}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View
+                  style={{
+                    width: 44, height: 44, borderRadius: 22,
+                    backgroundColor: s.onYourRoute ? colors.ok : colors.primary,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Body style={{ fontSize: 20 }}>
+                    {s.kind === 'ORDER' ? '📦' : s.kind === 'FILLING' ? '⛽' : '🔄'}
+                  </Body>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Body style={{ fontWeight: '700' }} numberOfLines={1}>{s.title}</Body>
+                  <Caption style={{ marginTop: 2 }} numberOfLines={1}>{s.subtitle}</Caption>
+                  <Caption style={{ marginTop: 4, fontWeight: '600', color: s.onYourRoute ? colors.ok : colors.textMuted }}>
+                    {s.distanceKm.toFixed(1)} km{s.onYourRoute ? ' · on your route' : ' away'}
+                  </Caption>
+                </View>
+                <Body style={{ color: colors.textMuted, fontSize: 20 }}>›</Body>
+              </View>
+            </Pressable>
+          ))}
+        </>
       )}
 
       {/* List of orders */}

@@ -8,6 +8,7 @@ import { DriverFillingOrdersScreen } from '../screens/driver/FillingOrdersScreen
 import { DriverTransfersScreen } from '../screens/driver/TransfersScreen';
 import { TransferDetailScreen } from '../screens/driver/TransferDetailScreen';
 import { TransferScanScreen } from '../screens/driver/TransferScanScreen';
+import { DeliveryStepsScreen } from '../screens/driver/DeliveryStepsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,6 +17,7 @@ export function DriverStack() {
     <Stack.Navigator>
       <Stack.Screen name="Home" component={DriverHomeScreen} options={{ title: 'LPG Management — Driver' }} />
       <Stack.Screen name="ActiveTrip" component={ActiveTripScreen} options={{ title: 'Active trip' }} />
+      <Stack.Screen name="DeliverySteps" component={DeliveryStepsScreen} options={{ title: 'Delivery steps' }} />
       <Stack.Screen name="Scan" component={ScanScreen} options={{ title: 'Scan cylinder' }} />
       <Stack.Screen name="Reconcile" component={ReconcileScreen} options={{ title: 'End of day' }} />
       <Stack.Screen name="FuelRefill" component={FuelRefillScreen} options={{ title: 'Record fuel refill' }} />

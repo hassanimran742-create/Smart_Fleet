@@ -1,4 +1,4 @@
-import { Alert, FlatList, Linking, Pressable, View } from 'react-native';
+import { Alert, Linking, Pressable, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { api } from '../../api/client';
@@ -6,9 +6,9 @@ import { Body, Button, Caption, Card, Heading, Pill, Screen } from '../../compon
 import { colors, radius, shadow, space } from '../../theme';
 
 const STOP_LABEL: Record<string, string> = {
-  STORE_PICKUP: 'Pick up from store',
+  STORE_PICKUP: 'Pickup from store',
   DELIVERY: 'Deliver to client',
-  RETURN_TO_STORE: 'Return empties to store',
+  RETURN_DROPOFF: 'Return empties',
 };
 
 export function ActiveTripScreen() {
@@ -28,26 +28,20 @@ export function ActiveTripScreen() {
     mutationFn: (status: string) => api.patch(`/trips/${tripId}/status`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['trip', tripId] }),
   });
-  const setOrderStatus = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
-      api.patch(`/orders/${orderId}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['trip', tripId] }),
-  });
 
   if (!trip) return <Screen><Body muted>Loading…</Body></Screen>;
 
+  const ordersById: Record<string, any> = {};
+  for (const o of trip.orders ?? []) ordersById[o.id] = o;
+
   function openNav(stop: any) {
-    const loc = stop.location?.coordinates;
+    const loc = stop?.location?.coordinates;
     if (!loc) return;
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${loc[1]},${loc[0]}`);
   }
-  function goScan(stop: any, eventType: string) {
-    nav.navigate('Scan', { eventType, tripId, orderId: stop.orderId });
+  function stepInto(stop: any) {
+    nav.navigate('DeliverySteps', { tripId, stopId: stop.id });
   }
-
-  // Look up the matching order for a delivery stop so we can show empty-pickup info.
-  const ordersById: Record<string, any> = {};
-  for (const o of trip.orders ?? []) ordersById[o.id] = o;
 
   return (
     <Screen scroll>
@@ -76,11 +70,27 @@ export function ActiveTripScreen() {
         const expectedEmpties = order
           ? (order.lines ?? []).reduce((s: number, l: any) => s + (l.expectedReturnCount ?? 0), 0)
           : 0;
-        const isDelivery = stop.stopType === 'DELIVERY';
-        const isPickup = stop.stopType === 'STORE_PICKUP';
+        const phaseLabel = !stop.arrivedAt
+          ? 'NOT STARTED'
+          : !stop.departedAt
+            ? (stop.stopType === 'DELIVERY' ? 'AT CLIENT' : 'AT STORE')
+            : 'DONE';
+        const phaseTone =
+          phaseLabel === 'DONE' ? 'ok'
+          : phaseLabel === 'NOT STARTED' ? 'neutral' : 'warn';
+
         return (
-          <Card key={stop.id}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Pressable
+            key={stop.id}
+            onPress={() => stepInto(stop)}
+            style={({ pressed }: any) => ({
+              backgroundColor: colors.surface,
+              padding: space.lg, borderRadius: radius.lg,
+              marginBottom: space.sm, opacity: pressed ? 0.85 : 1,
+              ...shadow.card,
+            })}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1 }}>
                 <Caption>STOP {stop.seq + 1}</Caption>
                 <Heading size="h3" style={{ marginTop: 2 }}>{STOP_LABEL[stop.stopType] ?? stop.stopType}</Heading>
@@ -90,69 +100,39 @@ export function ActiveTripScreen() {
                       Client: <Body style={{ fontWeight: '600' }}>{order.client?.name ?? '—'}</Body>
                     </Caption>
                     <Caption style={{ marginTop: 2 }} numberOfLines={2}>{order.deliveryAddressLabel}</Caption>
+                    {expectedEmpties > 0 && (
+                      <Caption style={{ marginTop: 4, color: '#92400E' }}>
+                        📦 Pick up {expectedEmpties} empt{expectedEmpties === 1 ? 'y' : 'ies'}
+                      </Caption>
+                    )}
                   </>
                 )}
               </View>
+              <Pill label={phaseLabel} tone={phaseTone as any} />
             </View>
 
-            {/* Empties to pick up — only relevant at delivery */}
-            {isDelivery && expectedEmpties > 0 && (
-              <View style={{ marginTop: space.sm, padding: space.sm, backgroundColor: '#fffbea', borderRadius: radius.md, borderWidth: 1, borderColor: '#fde68a' }}>
-                <Body style={{ fontWeight: '700', color: '#92400E' }}>
-                  📦 Pick up {expectedEmpties} empty cylinder{expectedEmpties === 1 ? '' : 's'} from this client
-                </Body>
-                <Caption style={{ marginTop: 2, color: '#92400E' }}>
-                  Scan each empty before leaving so it's recorded as collected.
-                </Caption>
-              </View>
-            )}
-
-            <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap', marginTop: space.md }}>
+            <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
               <Pressable
-                onPress={() => openNav(stop)}
-                style={({ pressed }: any) => ({ flex: 1, padding: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', opacity: pressed ? 0.85 : 1, ...shadow.card })}
+                onPress={(e) => { e.stopPropagation?.(); openNav(stop); }}
+                style={({ pressed }: any) => ({
+                  flex: 1, padding: space.sm, backgroundColor: colors.surface,
+                  borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+                  alignItems: 'center', opacity: pressed ? 0.85 : 1,
+                })}
               >
-                <Body style={{ fontWeight: '600' }}>🧭 Navigate</Body>
+                <Body style={{ fontWeight: '600' }}>🧭 Open in maps</Body>
               </Pressable>
-
-              {isPickup && (
-                <Pressable
-                  onPress={() => goScan(stop, 'SCAN_OUT')}
-                  style={({ pressed }: any) => ({ flex: 1, padding: space.sm, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', opacity: pressed ? 0.85 : 1, ...shadow.card })}
-                >
-                  <Body style={{ fontWeight: '600', color: 'white' }}>📷 Scan loading</Body>
-                </Pressable>
-              )}
-
-              {isDelivery && (
-                <>
-                  <Pressable
-                    onPress={() => goScan(stop, 'DELIVERED')}
-                    style={({ pressed }: any) => ({ flex: 1, padding: space.sm, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', opacity: pressed ? 0.85 : 1, ...shadow.card })}
-                  >
-                    <Body style={{ fontWeight: '600', color: 'white' }}>📷 Scan delivered</Body>
-                  </Pressable>
-                  {expectedEmpties > 0 && (
-                    <Pressable
-                      onPress={() => goScan(stop, 'PICKED_UP_EMPTY')}
-                      style={({ pressed }: any) => ({ flex: 1, padding: space.sm, backgroundColor: '#f59e0b', borderRadius: radius.md, alignItems: 'center', opacity: pressed ? 0.85 : 1, ...shadow.card })}
-                    >
-                      <Body style={{ fontWeight: '600', color: 'white' }}>📦 Scan empties</Body>
-                    </Pressable>
-                  )}
-                </>
-              )}
+              <Pressable
+                onPress={() => stepInto(stop)}
+                style={({ pressed }: any) => ({
+                  flex: 1, padding: space.sm, backgroundColor: colors.primary,
+                  borderRadius: radius.md, alignItems: 'center', opacity: pressed ? 0.85 : 1,
+                })}
+              >
+                <Body style={{ fontWeight: '600', color: 'white' }}>Open steps →</Body>
+              </Pressable>
             </View>
-
-            {isDelivery && stop.orderId && (
-              <Button
-                title="✓ Mark this delivery complete"
-                variant="success"
-                onPress={() => setOrderStatus.mutate({ orderId: stop.orderId, status: 'DELIVERED' })}
-                style={{ marginTop: space.sm }}
-              />
-            )}
-          </Card>
+          </Pressable>
         );
       })}
     </Screen>
