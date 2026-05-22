@@ -51,6 +51,7 @@ export function PlaceOrderScreen() {
 
   const [clientId, setClientId] = useState('');
   const [clientName, setClientName] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [area, setArea] = useState('');
   const [label, setLabel] = useState('');
@@ -152,48 +153,134 @@ export function PlaceOrderScreen() {
     <Screen scroll>
       <StepDots step={step} />
 
-      {step === 'who' && (
-        <Card>
-          <Heading size="h3">Who is this for?</Heading>
-          <Caption style={{ marginTop: 4, marginBottom: space.md }}>
-            Pick from your saved customers, or add a new one.
-          </Caption>
+      {step === 'who' && (() => {
+        const q = clientQuery.trim().toLowerCase();
+        const allClients = clients.data ?? [];
+        const suggestions = q.length === 0
+          ? []
+          : allClients
+              .filter((c: any) => {
+                return (c.name ?? '').toLowerCase().includes(q)
+                  || (c.phone ?? '').toLowerCase().includes(q)
+                  || (c.area ?? '').toLowerCase().includes(q)
+                  || (c.city ?? '').toLowerCase().includes(q);
+              })
+              .slice(0, 8);
+        const selected = clientId ? allClients.find((c: any) => c.id === clientId) : null;
 
-          <Button
-            title="+ Add new client"
-            variant="success"
-            onPress={() => nav.navigate('AddClient')}
-            style={{ marginBottom: space.md }}
-          />
+        return (
+          <Card>
+            <Heading size="h3">Who is this for?</Heading>
+            <Caption style={{ marginTop: 4, marginBottom: space.md }}>
+              Type a name, phone, or area to find an existing customer — or add a new one.
+            </Caption>
 
-          {(clients.data ?? []).length === 0 ? (
-            <Body muted>No saved customers yet. Tap "+ Add new client" above.</Body>
-          ) : (
-            (clients.data ?? []).map((c: any) => (
-              <Pressable
-                key={c.id}
-                onPress={() => { setClientId(c.id); setClientName(c.name); }}
-                style={({ pressed }: any) => ({
-                  padding: space.md, marginVertical: 4, borderRadius: radius.md,
-                  borderWidth: 2,
-                  borderColor: clientId === c.id ? colors.primary : colors.border,
-                  backgroundColor: clientId === c.id ? colors.primarySoft : colors.surface,
-                  opacity: pressed ? 0.85 : 1,
-                })}
+            <Button
+              title="+ Add new client"
+              variant="success"
+              onPress={() => nav.navigate('AddClient')}
+              style={{ marginBottom: space.md }}
+            />
+
+            <Input
+              label="Search saved customers"
+              value={clientQuery}
+              onChangeText={(v) => {
+                setClientQuery(v);
+                // Clear selection when typing so the user picks again.
+                if (clientId && (allClients.find((c: any) => c.id === clientId)?.name ?? '').toLowerCase() !== v.toLowerCase()) {
+                  setClientId('');
+                  setClientName('');
+                }
+              }}
+              placeholder='e.g. "Ali", "+9230012", "F-7"'
+            />
+
+            {/* Selected client confirmation */}
+            {selected && q.length === 0 && (
+              <View
+                style={{
+                  padding: space.md, borderRadius: radius.md,
+                  borderWidth: 2, borderColor: colors.primary,
+                  backgroundColor: colors.primarySoft, marginTop: space.sm,
+                  flexDirection: 'row', alignItems: 'center', gap: space.sm,
+                }}
               >
-                <Heading size="h3" style={{ color: clientId === c.id ? colors.primary : colors.text }}>{c.name}</Heading>
-                <Caption style={{ marginTop: 2 }}>{c.phone}{c.area ? ` · ${c.area}` : ''}{c.city ? `, ${c.city}` : ''}</Caption>
-              </Pressable>
-            ))
-          )}
+                <Body style={{ fontSize: 22 }}>✓</Body>
+                <View style={{ flex: 1 }}>
+                  <Body style={{ fontWeight: '700', color: colors.primary }}>{selected.name}</Body>
+                  <Caption>{selected.phone}{selected.area ? ` · ${selected.area}` : ''}{selected.city ? `, ${selected.city}` : ''}</Caption>
+                </View>
+                <Pressable
+                  onPress={() => { setClientId(''); setClientName(''); }}
+                  style={({ pressed }: any) => ({ padding: 6, opacity: pressed ? 0.6 : 1 })}
+                >
+                  <Body style={{ color: colors.primary, fontWeight: '700' }}>Change</Body>
+                </Pressable>
+              </View>
+            )}
 
-          <Button
-            title="Next →"
-            onPress={() => clientId ? setStep('cart') : Alert.alert('Pick a customer first')}
-            style={{ marginTop: space.md }}
-          />
-        </Card>
-      )}
+            {/* Search suggestions */}
+            {q.length > 0 && suggestions.length === 0 && (
+              <Caption style={{ marginTop: space.sm }}>
+                No customers match "{clientQuery}". Tap "+ Add new client" above to add them.
+              </Caption>
+            )}
+
+            {q.length > 0 && suggestions.length > 0 && (
+              <View
+                style={{
+                  marginTop: space.sm,
+                  borderRadius: radius.md,
+                  borderWidth: 1, borderColor: colors.border,
+                  overflow: 'hidden',
+                  backgroundColor: colors.surface,
+                }}
+              >
+                {suggestions.map((c: any) => (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => {
+                      setClientId(c.id);
+                      setClientName(c.name);
+                      setClientQuery('');
+                    }}
+                    style={({ pressed }: any) => ({
+                      padding: space.md,
+                      borderBottomWidth: 1, borderBottomColor: colors.border,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
+                  >
+                    <Body style={{ fontWeight: '600' }}>{c.name}</Body>
+                    <Caption style={{ marginTop: 2 }}>
+                      {c.phone}{c.area ? ` · ${c.area}` : ''}{c.city ? `, ${c.city}` : ''}
+                    </Caption>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* Empty state */}
+            {q.length === 0 && !selected && allClients.length === 0 && (
+              <Caption style={{ marginTop: space.md }}>
+                No saved customers yet. Tap "+ Add new client" above to add your first one.
+              </Caption>
+            )}
+            {q.length === 0 && !selected && allClients.length > 0 && (
+              <Caption style={{ marginTop: space.md, color: colors.textMuted }}>
+                You have {allClients.length} saved customer{allClients.length === 1 ? '' : 's'}. Start typing to find one.
+              </Caption>
+            )}
+
+            <Button
+              title="Next →"
+              onPress={() => clientId ? setStep('cart') : Alert.alert('Pick a customer', 'Search and tap a customer, or add a new one.')}
+              disabled={!clientId}
+              style={{ marginTop: space.lg }}
+            />
+          </Card>
+        );
+      })()}
 
       {step === 'cart' && (
         <>
