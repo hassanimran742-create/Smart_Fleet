@@ -1,11 +1,24 @@
 import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
 import { UserRole, UserStatus } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
+
+  // Signed-in user reads/updates their own profile. Used by every mobile
+  // app to populate the side menu.
+  @Get('me')
+  me(@CurrentUser() user: AuthContext) {
+    return this.users.findById(user.userId);
+  }
+
+  @Patch('me')
+  updateMe(@CurrentUser() user: AuthContext, @Body() body: any) {
+    return this.users.updateProfile(user.userId, body);
+  }
 
   @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
   @Get()
