@@ -16,7 +16,10 @@ export class UsersService {
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: { distributorProfile: true, driverProfile: true },
+      include: {
+        distributorProfile: true,
+        driverProfile: { include: { currentVehicle: true } },
+      },
     });
     if (!user) throw new NotFoundException();
     return user;
@@ -46,7 +49,10 @@ export class UsersService {
       }
       return tx.user.findUnique({
         where: { id: userId },
-        include: { distributorProfile: true, driverProfile: true },
+        include: {
+        distributorProfile: true,
+        driverProfile: { include: { currentVehicle: true } },
+      },
       });
     });
   }

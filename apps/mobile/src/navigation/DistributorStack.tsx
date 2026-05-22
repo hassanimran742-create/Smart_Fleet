@@ -37,7 +37,7 @@ export function DistributorStack() {
         <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
         <Stack.Screen name="About" component={AboutScreen} options={{ title: 'About' }} />
       </Stack.Navigator>
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} variant="distributor" />
     </>
   );
 }
