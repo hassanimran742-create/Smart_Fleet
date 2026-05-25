@@ -196,13 +196,12 @@ function DriverBody({ visible, onClose }: { visible: boolean; onClose: () => voi
   };
 
   const items: SideMenuItem[] = useMemo(() => [
-    { icon: '👤', label: 'Profile settings', subtitle: 'Name, phone, licence', onPress: () => go('Profile') },
-    { icon: '🔔', label: 'Notifications', subtitle: 'Trip & order updates', onPress: () => go('Notifications') },
+    { icon: '👤', label: 'Profile', subtitle: 'Name, phone, licence', onPress: () => go('Profile') },
+    { icon: '🔔', label: 'Notifications', onPress: () => go('Notifications') },
     { icon: '🌐', label: i18n.language === 'ur' ? 'Switch to English' : 'اردو میں دیکھیں', onPress: flipLang },
     { icon: '🚐', label: 'My vehicle', subtitle: driverProfile?.currentVehicle?.plateNo ?? 'Not assigned', onPress: () => go('VehicleInfo') },
-    { icon: '⛽', label: 'Record fuel refill', onPress: () => go('FuelRefill') },
-    { icon: '📋', label: 'End-of-day reconciliation', onPress: () => go('Reconcile') },
-    { icon: 'ℹ️', label: 'About', subtitle: 'LPG Management', onPress: () => go('About') },
+    { icon: '⛽', label: 'Fuel refill', onPress: () => go('FuelRefill') },
+    { icon: 'ℹ️', label: 'About', onPress: () => go('About') },
     { icon: '↪️', label: 'Sign out', tone: 'danger', onPress: () => { onClose(); setTimeout(() => clear(), 150); } },
   ], [i18n.language, driverProfile?.currentVehicle?.plateNo]);
 
