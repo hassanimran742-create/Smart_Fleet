@@ -5,6 +5,7 @@ export interface AuthContext {
   role: string;
   distributorId?: string;
   driverId?: string;
+  clientId?: string;
 }
 
 export const CurrentUser = createParamDecorator(

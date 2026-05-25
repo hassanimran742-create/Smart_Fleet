@@ -77,13 +77,31 @@ export class AuthService {
 
     let user = await this.prisma.user.findUnique({
       where: { phone },
-      include: { distributorProfile: true, driverProfile: true },
+      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
     });
     if (!user) {
       user = await this.prisma.user.create({
         data: { phone, name: phone, role: UserRole.CLIENT, status: UserStatus.ACTIVE },
-        include: { distributorProfile: true, driverProfile: true },
+        include: { distributorProfile: true, driverProfile: true, clientProfile: true },
       });
+    }
+
+    // Auto-link: if this is a CLIENT user and a distributor already added
+    // this phone as a client, bind the User → Client row so JWT carries clientId.
+    if (user.role === UserRole.CLIENT && !user.clientProfile) {
+      const match = await this.prisma.client.findFirst({
+        where: { phone: user.phone, userId: null },
+      });
+      if (match) {
+        await this.prisma.client.update({
+          where: { id: match.id },
+          data: { userId: user.id },
+        });
+        user = await this.prisma.user.findUnique({
+          where: { id: user.id },
+          include: { distributorProfile: true, driverProfile: true, clientProfile: true },
+        }) as any;
+      }
     }
 
     return this.issueTokens(user);
@@ -119,7 +137,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { distributorProfile: true, driverProfile: true },
+      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
     });
     if (!user) throw new UnauthorizedException();
     return this.issueTokens(user, stored.id);
@@ -131,6 +149,7 @@ export class AuthService {
       role: user.role,
       distributorId: user.distributorProfile?.id,
       driverId: user.driverProfile?.id,
+      clientId: user.clientProfile?.id,
     };
     const accessTtl = this.cfg.get<number>('jwt.accessTtl') ?? 900;
     const refreshTtl = this.cfg.get<number>('jwt.refreshTtl') ?? 2_592_000;

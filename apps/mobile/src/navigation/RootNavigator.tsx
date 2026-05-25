@@ -5,6 +5,7 @@ import { PhoneScreen } from '../screens/auth/PhoneScreen';
 import { OtpScreen } from '../screens/auth/OtpScreen';
 import { DistributorStack } from './DistributorStack';
 import { DriverStack } from './DriverStack';
+import { ClientStack } from './ClientStack';
 import { ActivityIndicator, View } from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -12,7 +13,7 @@ const Stack = createNativeStackNavigator();
 interface Props { variant: 'distributor' | 'driver' }
 
 export function RootNavigator({ variant }: Props) {
-  const { token, loading, init } = useAuthStore();
+  const { token, role, loading, init } = useAuthStore();
 
   useEffect(() => { init(); }, []);
 
@@ -29,5 +30,9 @@ export function RootNavigator({ variant }: Props) {
     );
   }
 
-  return variant === 'driver' ? <DriverStack /> : <DistributorStack />;
+  // Route by JWT role after login — auto-detects client/driver/distributor.
+  // The build-time `variant` is a fallback for non-CLIENT/DRIVER roles.
+  if (role === 'CLIENT') return <ClientStack />;
+  if (role === 'DRIVER') return <DriverStack />;
+  return <DistributorStack />;
 }

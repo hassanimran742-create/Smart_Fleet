@@ -34,7 +34,7 @@ export function SideMenu({
 }: {
   visible: boolean;
   onClose: () => void;
-  variant: 'distributor' | 'driver';
+  variant: 'distributor' | 'driver' | 'client';
 }) {
   const { width } = useWindowDimensions();
   const sheetWidth = Math.min(width * 0.82, 360);
@@ -65,7 +65,9 @@ export function SideMenu({
         >
           {variant === 'distributor'
             ? <DistributorBody visible={visible} onClose={onClose} />
-            : <DriverBody visible={visible} onClose={onClose} />}
+            : variant === 'driver'
+              ? <DriverBody visible={visible} onClose={onClose} />
+              : <ClientBody visible={visible} onClose={onClose} />}
         </Animated.View>
       </Pressable>
     </Modal>
@@ -204,6 +206,35 @@ function DriverBody({ visible, onClose }: { visible: boolean; onClose: () => voi
     { icon: 'ℹ️', label: 'About', onPress: () => go('About') },
     { icon: '↪️', label: 'Sign out', tone: 'danger', onPress: () => { onClose(); setTimeout(() => clear(), 150); } },
   ], [i18n.language, driverProfile?.currentVehicle?.plateNo]);
+
+  return <SheetBody header={header} items={items} />;
+}
+
+function ClientBody({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const nav = useNavigation<any>();
+  const { clear } = useAuthStore();
+  const { i18n } = useTranslation();
+
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await api.get('/users/me')).data,
+    enabled: visible,
+  });
+
+  const go = (s: string) => { onClose(); setTimeout(() => nav.navigate(s), 200); };
+  const flipLang = async () => setLanguage(i18n.language === 'ur' ? 'en' : 'ur');
+
+  const header: SideMenuHeader = {
+    title: me.data?.name ?? '—',
+    subtitle: me.data?.phone ?? '',
+  };
+
+  const items: SideMenuItem[] = useMemo(() => [
+    { icon: '📦', label: 'My deliveries', onPress: () => go('Home') },
+    { icon: '🌐', label: i18n.language === 'ur' ? 'Switch to English' : 'اردو میں دیکھیں', onPress: flipLang },
+    { icon: 'ℹ️', label: 'About', onPress: () => go('About') },
+    { icon: '↪️', label: 'Sign out', tone: 'danger', onPress: () => { onClose(); setTimeout(() => clear(), 150); } },
+  ], [i18n.language]);
 
   return <SheetBody header={header} items={items} />;
 }

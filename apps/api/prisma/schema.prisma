@@ -166,6 +166,7 @@ model User {
 
   distributorProfile Distributor?
   driverProfile      Driver?
+  clientProfile      Client?
   refreshTokens      RefreshToken[]
   cylinderEvents     CylinderEvent[]  @relation("ActorEvents")
   auditLogs          AuditLog[]
@@ -352,6 +353,7 @@ model Vehicle {
 model Client {
   id               String   @id @default(uuid()) @db.Uuid
   distributorId    String   @map("distributor_id") @db.Uuid
+  userId           String?  @unique @map("user_id") @db.Uuid
   name             String
   phone            String
   address          String?
@@ -364,6 +366,7 @@ model Client {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   distributor Distributor      @relation(fields: [distributorId], references: [id])
+  user        User?            @relation(fields: [userId], references: [id])
   addresses   ClientAddress[]
   orders      Order[]
 
@@ -536,9 +539,11 @@ model Order {
   scheduledWindowStart DateTime?           @map("scheduled_window_start")
   scheduledWindowEnd   DateTime?           @map("scheduled_window_end")
   tripId               String?             @map("trip_id") @db.Uuid
-  cancellationReason   String?             @map("cancellation_reason")
-  createdAt            DateTime            @default(now()) @map("created_at")
-  updatedAt            DateTime            @updatedAt @map("updated_at")
+  cancellationReason    String?             @map("cancellation_reason")
+  clientConfirmedAt     DateTime?           @map("client_confirmed_at")
+  emptiesHandedOverAt   DateTime?           @map("empties_handed_over_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
 
   distributor Distributor   @relation(fields: [distributorId], references: [id])
   client      Client        @relation(fields: [clientId], references: [id])

@@ -41,6 +41,7 @@ import { FillingStationsModule } from './modules/filling-stations/filling-statio
 import { FillingOrdersModule } from './modules/filling-orders/filling-orders.module';
 import { FuelRefillsModule } from './modules/fuel-refills/fuel-refills.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
+import { ClientPortalModule } from './modules/client-portal/client-portal.module';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { ExpensesModule } from './modules/expenses/expenses.module';
     FillingOrdersModule,
     FuelRefillsModule,
     ExpensesModule,
+    ClientPortalModule,
   ],
 })
 export class AppModule {}
