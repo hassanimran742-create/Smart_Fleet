@@ -1,8 +1,10 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ConfigService } from '@nestjs/config';
+import { initSentry } from './common/sentry/sentry';
 
 // Teach BigInt how to JSON-serialise. Prisma returns paisa-denominated
 // money columns and other large counters as BigInt; without this patch
@@ -13,6 +15,8 @@ import { ConfigService } from '@nestjs/config';
 };
 
 async function bootstrap() {
+  initSentry();
+
   const app = await NestFactory.create(AppModule, { cors: true });
   const config = app.get(ConfigService);
 
@@ -25,10 +29,14 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new HttpExceptionFilter());
   app.setGlobalPrefix('api/v1');
+  app.enableShutdownHooks();
 
   const port = config.get<number>('api.port') ?? 3000;
-  await app.listen(port);
-  Logger.log(`Smart_Fleet API listening on :${port}`, 'Bootstrap');
+  await app.listen(port, '0.0.0.0');
+  Logger.log(
+    `Smart_Fleet API listening on :${port} (env=${process.env.NODE_ENV ?? 'dev'})`,
+    'Bootstrap',
+  );
 }
 
 bootstrap();

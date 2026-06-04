@@ -27,7 +27,7 @@ export function useIdleLogout(idleMs = 10 * 60 * 1000) {
     };
 
     // Events that count as user activity. `passive: true` keeps scrolling smooth.
-    const events: (keyof WindowEventMap)[] = [
+    const windowEvents: (keyof WindowEventMap)[] = [
       'mousedown',
       'mousemove',
       'keydown',
@@ -36,14 +36,15 @@ export function useIdleLogout(idleMs = 10 * 60 * 1000) {
       'wheel',
       'click',
       'focus',
-      'visibilitychange',
     ];
-    for (const e of events) window.addEventListener(e, reset, { passive: true });
+    for (const e of windowEvents) window.addEventListener(e, reset, { passive: true });
+    document.addEventListener('visibilitychange', reset, { passive: true });
 
     reset();
 
     return () => {
-      for (const e of events) window.removeEventListener(e, reset);
+      for (const e of windowEvents) window.removeEventListener(e, reset);
+      document.removeEventListener('visibilitychange', reset);
       if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
     };
   }, [token, clear, idleMs]);

@@ -6,16 +6,16 @@ export function Card({ children, style }: { children: ReactNode; style?: ViewSty
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-export function Heading({ children, size = 'h2', style }: { children: ReactNode; size?: 'h1' | 'h2' | 'h3'; style?: TextStyle }) {
-  return <Text style={[text[size], style]}>{children}</Text>;
+export function Heading({ children, size = 'h2', style, numberOfLines }: { children: ReactNode; size?: 'h1' | 'h2' | 'h3'; style?: TextStyle; numberOfLines?: number }) {
+  return <Text style={[text[size], style]} numberOfLines={numberOfLines}>{children}</Text>;
 }
 
-export function Body({ children, muted = false, style }: { children: ReactNode; muted?: boolean; style?: TextStyle }) {
-  return <Text style={[text.body, muted && { color: colors.textMuted }, style]}>{children}</Text>;
+export function Body({ children, muted = false, style, numberOfLines }: { children: ReactNode; muted?: boolean; style?: TextStyle; numberOfLines?: number }) {
+  return <Text style={[text.body, muted && { color: colors.textMuted }, style]} numberOfLines={numberOfLines}>{children}</Text>;
 }
 
-export function Caption({ children, style }: { children: ReactNode; style?: TextStyle }) {
-  return <Text style={[text.caption, style]}>{children}</Text>;
+export function Caption({ children, style, numberOfLines }: { children: ReactNode; style?: TextStyle; numberOfLines?: number }) {
+  return <Text style={[text.caption, style]} numberOfLines={numberOfLines}>{children}</Text>;
 }
 
 type ButtonProps = {

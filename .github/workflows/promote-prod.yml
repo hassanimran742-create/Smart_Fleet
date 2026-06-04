@@ -1,0 +1,42 @@
+name: Promote → Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "promote" to confirm production deploy'
+        required: true
+
+jobs:
+  promote:
+    name: Promote current staging build to production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PROD_API_URL }}
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "promote" ]; then
+            echo "Confirmation phrase did not match"; exit 1
+          fi
+
+      # Trigger Railway promote-from-staging via API. The Railway dashboard's
+      # "Promote" button does the same thing.
+      - name: Trigger Railway promote
+        run: |
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"mutation { deploymentRedeploy(id: \"${{ secrets.RAILWAY_PROD_DEPLOYMENT_ID }}\") { id } }"}' \
+            https://backboard.railway.app/graphql/v2
+
+      - name: Wait for production /health
+        run: |
+          for i in {1..40}; do
+            if curl -fsSL "${{ vars.PROD_API_URL }}/api/v1/health/live" >/dev/null; then
+              echo "prod live"; exit 0
+            fi
+            sleep 15
+          done
+          echo "prod did not come up"; exit 1
