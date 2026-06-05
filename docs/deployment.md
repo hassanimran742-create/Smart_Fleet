@@ -26,7 +26,7 @@ the same email everywhere:
 | Sentry           | sentry.io                    | Free       | Create org; 3 projects (api-prod, api-staging, mobile).    |
 | Better Stack     | betterstack.com              | Free       | Create team; 2 log sources, 2 uptime monitors.             |
 | PostHog          | posthog.com                  | Free       | Create project; copy API key.                              |
-| Eocean SMS       | eocean.com / sendpk.com      | Pay-as-you-go | Submit KYC (CNIC + business letter). Takes 1–3 days.    |
+| (SMS provider)   | — deferred —                 | —          | Pilot uses mock SMS (OTPs in logs). Sign up for Eocean/VeevoTech/Twilio later when going global. |
 
 ---
 
@@ -119,11 +119,12 @@ Store all eight values in your password manager.
    - `JWT_REFRESH_SECRET=<from B7>`
    - `ENCRYPTION_KEY=<from B7>`
    - `BLIND_INDEX_KEY=<from B7>`
-   - `SMS_PROVIDER=eocean`
+   - `SMS_PROVIDER=mock`             # Pilot mode — read OTPs from Railway logs
    - `SMS_FROM=SmartFleet`
-   - `EOCEAN_USERNAME=<from Eocean>`
-   - `EOCEAN_PASSWORD=<from Eocean>`
-   - `EOCEAN_BASE_URL=https://sendpk.com/api/sms.php`
+   # When ready for real SMS, switch SMS_PROVIDER=eocean and add:
+   # - EOCEAN_USERNAME=<from Eocean>
+   # - EOCEAN_PASSWORD=<from Eocean>
+   # - EOCEAN_BASE_URL=https://sendpk.com/api/sms.php
    - `SENTRY_DSN=<SENTRY_DSN_PROD>`
    - `BETTER_STACK_TOKEN=<from B5>`
    - `POSTHOG_API_KEY=<POSTHOG_API_KEY>`

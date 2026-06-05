@@ -48,7 +48,16 @@ export class AuthService {
       },
     });
     await this.sms.sendOtp(phone, code);
-    return { ok: true };
+
+    // Mock-mode convenience: in non-production environments, return the OTP in
+    // the API response so the mobile/admin app can auto-fill it for testing.
+    // Guarded by NODE_ENV so production builds never leak OTPs over the wire.
+    const isMock = (this.cfg.get<string>('sms.provider') ?? 'mock') === 'mock';
+    const isProd = process.env.NODE_ENV === 'production';
+    if (isMock && !isProd) {
+      return { ok: true, devCode: code } as const;
+    }
+    return { ok: true } as const;
   }
 
   async verifyOtp(phone: string, code: string) {
