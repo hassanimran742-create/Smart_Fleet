@@ -1,0 +1,70 @@
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: smartfleet-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api-prod
+      - api-staging
+    networks:
+      - smartfleet
+
+  api-prod:
+    image: ${IMAGE_PROD:-public.ecr.aws/smartfleet/api:latest}
+    container_name: smartfleet-api-prod
+    restart: unless-stopped
+    env_file:
+      - /srv/smartfleet/.env.prod
+    environment:
+      - API_PORT=3001
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+    expose:
+      - "3001"
+    networks:
+      - smartfleet
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-southeast-1
+        awslogs-group: /smartfleet/prod
+        awslogs-create-group: "true"
+        tag: "api-prod"
+
+  api-staging:
+    image: ${IMAGE_STAGING:-public.ecr.aws/smartfleet/api:latest}
+    container_name: smartfleet-api-staging
+    restart: unless-stopped
+    env_file:
+      - /srv/smartfleet/.env.staging
+    environment:
+      - API_PORT=3002
+      - NODE_ENV=staging
+      - NODE_OPTIONS=--max-old-space-size=384
+    expose:
+      - "3002"
+    networks:
+      - smartfleet
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-southeast-1
+        awslogs-group: /smartfleet/staging
+        awslogs-create-group: "true"
+        tag: "api-staging"
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  smartfleet:
+    driver: bridge
