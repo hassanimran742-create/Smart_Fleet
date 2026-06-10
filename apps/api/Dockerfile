@@ -11,12 +11,19 @@ FROM node:20-alpine AS build
 WORKDIR /workspace
 COPY --from=deps /workspace/node_modules ./node_modules
 COPY . .
+# Build shared workspace packages first so apps/api can resolve them
+RUN cd packages/shared-types && npx tsc -p tsconfig.json \
+ && cd ../shared-utils && npx tsc -p tsconfig.json \
+ && cd ../shared-validation && npx tsc -p tsconfig.json
 RUN cd apps/api && npx prisma generate && npm run build
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+# Need openssl for Prisma at runtime on Alpine
+RUN apk add --no-cache openssl
 COPY --from=build /workspace/node_modules ./node_modules
+COPY --from=build /workspace/packages ./packages
 COPY --from=build /workspace/apps/api/dist ./dist
 COPY --from=build /workspace/apps/api/prisma ./prisma
 COPY --from=build /workspace/apps/api/package.json ./package.json
