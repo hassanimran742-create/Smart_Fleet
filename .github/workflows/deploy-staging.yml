@@ -1,9 +1,13 @@
-name: Deploy → Staging
+name: Deploy → Staging (AWS EC2)
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to deploy (default: the branch this workflow runs on)'
+        required: false
 
 concurrency:
   group: deploy-staging
@@ -22,36 +26,32 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 15
 
-  trigger-railway:
-    name: Trigger Railway staging deploy
+  deploy:
+    name: Build + restart staging container on EC2
     runs-on: ubuntu-latest
     needs: wait-for-ci
+    timeout-minutes: 60   # t3.micro builds are slow; allow plenty
     steps:
-      # Railway auto-deploys "staging" environment from main on push by default.
-      # This step exists so we can post-deploy verify. If you wired the staging
-      # env to manual deploys, uncomment the curl below to trigger via API.
-      #
-      # - name: Kick Railway deploy
-      #   run: |
-      #     curl -fsSL -X POST \
-      #       -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
-      #       -H "Content-Type: application/json" \
-      #       -d '{"serviceId":"${{ secrets.RAILWAY_STAGING_SERVICE_ID }}","environmentId":"${{ secrets.RAILWAY_STAGING_ENV_ID }}"}' \
-      #       https://backboard.railway.app/graphql/v2
-      - name: Wait for staging to come up
+      - name: Write SSH key
         run: |
-          for i in {1..40}; do
-            if curl -fsSL "${{ vars.STAGING_API_URL }}/api/v1/health/live" >/dev/null; then
-              echo "staging live"; exit 0
-            fi
-            sleep 15
-          done
-          echo "staging did not come up"; exit 1
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
+          chmod 600 ~/.ssh/ec2.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run deploy script on EC2
+        run: |
+          REF="${{ inputs.ref || github.ref_name }}"
+          ssh -i ~/.ssh/ec2.pem \
+              -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+              "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+              "sudo bash /srv/smartfleet/src/infrastructure/aws/deploy.sh staging '$REF'"
 
   smoke:
     name: Smoke tests against staging
     runs-on: ubuntu-latest
-    needs: trigger-railway
+    needs: deploy
+    if: vars.STAGING_API_URL != ''
     env:
       API_BASE_URL: ${{ vars.STAGING_API_URL }}/api/v1
     steps:

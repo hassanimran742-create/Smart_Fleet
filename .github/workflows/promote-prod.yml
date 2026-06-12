@@ -1,4 +1,4 @@
-name: Promote → Production
+name: Promote → Production (AWS EC2)
 
 on:
   workflow_dispatch:
@@ -6,11 +6,15 @@ on:
       confirm:
         description: 'Type "promote" to confirm production deploy'
         required: true
+      ref:
+        description: 'Git ref to deploy (should be the staging-validated commit)'
+        required: false
 
 jobs:
   promote:
-    name: Promote current staging build to production
+    name: Deploy production container on EC2
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment:
       name: production
       url: ${{ vars.PROD_API_URL }}
@@ -21,22 +25,28 @@ jobs:
             echo "Confirmation phrase did not match"; exit 1
           fi
 
-      # Trigger Railway promote-from-staging via API. The Railway dashboard's
-      # "Promote" button does the same thing.
-      - name: Trigger Railway promote
+      - name: Write SSH key
         run: |
-          curl -fsSL -X POST \
-            -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"mutation { deploymentRedeploy(id: \"${{ secrets.RAILWAY_PROD_DEPLOYMENT_ID }}\") { id } }"}' \
-            https://backboard.railway.app/graphql/v2
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
+          chmod 600 ~/.ssh/ec2.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Wait for production /health
+      - name: Run deploy script on EC2
         run: |
-          for i in {1..40}; do
+          REF="${{ inputs.ref || github.ref_name }}"
+          ssh -i ~/.ssh/ec2.pem \
+              -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+              "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+              "sudo bash /srv/smartfleet/src/infrastructure/aws/deploy.sh prod '$REF'"
+
+      - name: Verify production health (public URL)
+        if: vars.PROD_API_URL != ''
+        run: |
+          for i in {1..20}; do
             if curl -fsSL "${{ vars.PROD_API_URL }}/api/v1/health/live" >/dev/null; then
               echo "prod live"; exit 0
             fi
-            sleep 15
+            sleep 10
           done
-          echo "prod did not come up"; exit 1
+          echo "prod did not come up on public URL"; exit 1
