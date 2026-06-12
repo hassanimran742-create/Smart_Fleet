@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { Public } from '../../common/decorators/public.decorator';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('health')
 export class HealthController {
@@ -9,6 +10,7 @@ export class HealthController {
     private cfg: ConfigService,
   ) {}
 
+  @Public()
   @Get()
   async health() {
     const checks: Record<string, { ok: boolean; latencyMs?: number; error?: string }> = {};
@@ -22,16 +24,16 @@ export class HealthController {
     }
 
     const allOk = Object.values(checks).every((c) => c.ok);
-    const body = {
+    return {
       status: allOk ? 'ok' : 'degraded',
       env: process.env.NODE_ENV ?? 'unknown',
       version: process.env.GIT_COMMIT_SHA ?? 'dev',
       uptimeSeconds: Math.floor(process.uptime()),
       checks,
     };
-    return body;
   }
 
+  @Public()
   @Get('live')
   live() {
     return { status: 'ok' };
