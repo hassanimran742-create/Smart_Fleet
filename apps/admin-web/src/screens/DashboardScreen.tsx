@@ -22,8 +22,8 @@ export function DashboardScreen() {
     refetchInterval: 30000,
   });
 
-  const allOrders = orders.data ?? [];
-  const allDrivers = drivers.data ?? [];
+  const allOrders = Array.isArray(orders.data) ? orders.data : [];
+  const allDrivers = Array.isArray(drivers.data) ? drivers.data : [];
   const onlineDrivers = allDrivers.filter((d: any) => d.isOnline).length;
   const activeOrders = allOrders.filter((o: any) => ['ASSIGNED', 'IN_TRANSIT'].includes(o.status)).length;
   const pendingOrders = allOrders.filter((o: any) => o.status === 'PENDING').length;
@@ -58,8 +58,8 @@ export function DashboardScreen() {
         </div>
         <div className="card" style={{ cursor: 'pointer' }} onClick={() => go('alerts')}>
           <div className="label">Open alerts</div>
-          <div className="value" style={{ color: (alerts.data?.length ?? 0) > 0 ? 'var(--danger)' : 'var(--text)' }}>
-            {alerts.data?.length ?? 0}
+          <div className="value" style={{ color: (Array.isArray(alerts.data) ? alerts.data.length : 0) > 0 ? 'var(--danger)' : 'var(--text)' }}>
+            {Array.isArray(alerts.data) ? alerts.data.length : 0}
           </div>
         </div>
       </div>
