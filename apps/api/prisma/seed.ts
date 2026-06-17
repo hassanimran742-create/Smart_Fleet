@@ -1,12 +1,21 @@
 import { PrismaClient, UserRole, UserStatus } from '@prisma/client';
+import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
+// Default password used on first seed for the admin-side accounts.
+// Override at seed time with SEED_ADMIN_PASSWORD env var.
+// Operators MUST change this from the admin UI after first login.
+const DEFAULT_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe!Now123';
+
 async function main() {
   const adminPhone = '+923000000000';
+  const passwordHash = await argon2.hash(DEFAULT_ADMIN_PASSWORD);
 
   const admin = await prisma.user.upsert({
     where: { phone: adminPhone },
+    // On re-seed, refresh role/status/name but DO NOT overwrite the password
+    // if one already exists — protect any operator-changed password.
     update: {
       role: UserRole.SUPER_ADMIN,
       status: UserStatus.ACTIVE,
@@ -17,11 +26,15 @@ async function main() {
       name: 'LPG Super Admin',
       role: UserRole.SUPER_ADMIN,
       status: UserStatus.ACTIVE,
+      passwordHash,
     },
   });
+  // Backfill: if a previous seed created the admin without a password, set one.
+  if (!admin.passwordHash) {
+    await prisma.user.update({ where: { id: admin.id }, data: { passwordHash } });
+  }
 
-  // A regular ADMIN with limited privileges
-  await prisma.user.upsert({
+  const branchAdmin = await prisma.user.upsert({
     where: { phone: '+923000000001' },
     update: { role: UserRole.ADMIN, status: UserStatus.ACTIVE, name: 'LPG Branch Admin' },
     create: {
@@ -29,8 +42,12 @@ async function main() {
       name: 'LPG Branch Admin',
       role: UserRole.ADMIN,
       status: UserStatus.ACTIVE,
+      passwordHash,
     },
   });
+  if (!branchAdmin.passwordHash) {
+    await prisma.user.update({ where: { id: branchAdmin.id }, data: { passwordHash } });
+  }
 
   // Migrate any old underscore-based cylinder codes to the new dotted form.
   // E.g. LPG_11_8KG → LPG_11.8KG. Safe to run multiple times.

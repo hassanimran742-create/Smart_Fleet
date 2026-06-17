@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { RefreshDto, VerifyOtpDto } from './dto/verify-otp.dto';
+import { LoginPasswordDto } from './dto/login-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
 import { OtpPurpose } from '@prisma/client';
@@ -21,6 +22,14 @@ export class AuthController {
   @Post('otp/verify')
   verify(@Body() dto: VerifyOtpDto) {
     return this.auth.verifyOtp(dto.phone, dto.code);
+  }
+
+  // Password login — only available for admin-side roles.
+  // Field roles (driver/distributor/client) must use OTP.
+  @Public()
+  @Post('login')
+  loginPassword(@Body() dto: LoginPasswordDto) {
+    return this.auth.loginWithPassword(dto.phone, dto.password);
   }
 
   @Public()

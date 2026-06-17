@@ -116,6 +116,43 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
+  // Roles allowed to authenticate via password. Field roles (DISTRIBUTOR,
+  // DRIVER, CLIENT) must continue using OTP — passwords don't fit their
+  // workflow and we don't want a leaked password to compromise field accounts.
+  private static readonly PASSWORD_LOGIN_ROLES: UserRole[] = [
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.DISPATCHER,
+    UserRole.STORE_KEEPER,
+  ];
+
+  async loginWithPassword(phone: string, password: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
+    });
+
+    // Same generic message for every "no user / wrong password / wrong role"
+    // case so we don't leak which step failed.
+    const reject = () => new UnauthorizedException('Invalid phone or password');
+
+    if (!user) throw reject();
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account not active');
+    }
+    if (!AuthService.PASSWORD_LOGIN_ROLES.includes(user.role)) {
+      throw new UnauthorizedException(
+        'This account must sign in with a one-time code, not a password.',
+      );
+    }
+    if (!user.passwordHash) throw reject();
+
+    const ok = await argon2.verify(user.passwordHash, password);
+    if (!ok) throw reject();
+
+    return this.issueTokens(user);
+  }
+
   async refresh(refreshToken: string) {
     let payload: any;
     try {

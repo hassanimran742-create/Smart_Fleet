@@ -162,6 +162,7 @@ model User {
   profilePictureUrl String? @map("profile_picture_url")
   cnicEncrypted Bytes?    @map("cnic_encrypted")
   cnicIndex    String?    @map("cnic_index") @db.Char(64)
+  passwordHash String?    @map("password_hash")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
