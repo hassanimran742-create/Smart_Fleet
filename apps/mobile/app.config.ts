@@ -5,12 +5,23 @@ const variant = (process.env.APP_VARIANT ?? 'distributor') as 'distributor' | 'd
 const baseName = 'LPG Management';
 const isDriver = variant === 'driver';
 
+// One Expo project per slug. Distributor created via `eas init`.
+// Driver project gets its own id (set EAS_PROJECT_ID_DRIVER) after its eas init.
+const projectId = isDriver
+  ? (process.env.EAS_PROJECT_ID_DRIVER ?? '')
+  : '0edc05a5-2034-4838-a24a-62194d799503';
+
 const config: ExpoConfig = {
   name: isDriver ? `${baseName} Driver` : `${baseName}`,
   slug: isDriver ? 'smartfleet-driver' : 'smartfleet-distributor',
   scheme: isDriver ? 'smartfleet-driver' : 'smartfleet',
   version: '0.1.0',
   orientation: 'portrait',
+  // EAS Update (OTA): lets us push JS-only fixes without a new APK.
+  runtimeVersion: { policy: 'appVersion' },
+  ...(projectId
+    ? { updates: { url: `https://u.expo.dev/${projectId}` } }
+    : {}),
   // icon omitted until real assets ship; Expo falls back to a default icon.
   // A splash backgroundColor is required so the Android prebuild generates the
   // splashscreen_background color resource (without it, AAPT resource linking
@@ -48,13 +59,7 @@ const config: ExpoConfig = {
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api/v1',
     variant,
-    eas: {
-      // One Expo project per slug. Distributor created via `eas init`.
-      // Driver project to be created with its own `eas init` (APP_VARIANT=driver).
-      projectId: isDriver
-        ? (process.env.EAS_PROJECT_ID_DRIVER ?? '')
-        : '0edc05a5-2034-4838-a24a-62194d799503',
-    },
+    eas: { projectId },
   },
   owner: 'huzaifalodhi07',
   plugins: [
