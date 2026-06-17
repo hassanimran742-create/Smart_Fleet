@@ -11,8 +11,14 @@ const config: ExpoConfig = {
   scheme: isDriver ? 'smartfleet-driver' : 'smartfleet',
   version: '0.1.0',
   orientation: 'portrait',
-  // icon and splash references intentionally omitted until real assets
-  // ship with the repo. Expo falls back to a default icon + splash.
+  // icon omitted until real assets ship; Expo falls back to a default icon.
+  // A splash backgroundColor is required so the Android prebuild generates the
+  // splashscreen_background color resource (without it, AAPT resource linking
+  // fails: "resource color/splashscreen_background not found").
+  splash: {
+    backgroundColor: '#0F6CF0',
+    resizeMode: 'contain',
+  },
   userInterfaceStyle: 'light',
   assetBundlePatterns: ['**/*'],
   ios: {
