@@ -14,23 +14,46 @@
       },
       "android": { "buildType": "apk" }
     },
-    "staging": {
+
+    "distributor-staging": {
       "distribution": "internal",
-      "channel": "staging",
+      "channel": "distributor-staging",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://smart-fleet-staging.up.railway.app/api/v1",
-        "EXPO_PUBLIC_ENV": "staging",
-        "EXPO_PUBLIC_SENTRY_DSN": "REPLACE_WITH_MOBILE_SENTRY_DSN"
+        "APP_VARIANT": "distributor",
+        "EXPO_PUBLIC_API_BASE_URL": "https://staging.smartfleetpk.com/api/v1",
+        "EXPO_PUBLIC_ENV": "staging"
       },
       "android": { "buildType": "apk" }
     },
-    "production": {
+    "driver-staging": {
       "distribution": "internal",
-      "channel": "production",
+      "channel": "driver-staging",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://smart-fleet-production.up.railway.app/api/v1",
-        "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_SENTRY_DSN": "REPLACE_WITH_MOBILE_SENTRY_DSN"
+        "APP_VARIANT": "driver",
+        "EXPO_PUBLIC_API_BASE_URL": "https://staging.smartfleetpk.com/api/v1",
+        "EXPO_PUBLIC_ENV": "staging"
+      },
+      "android": { "buildType": "apk" }
+    },
+
+    "distributor-production": {
+      "distribution": "internal",
+      "channel": "distributor-production",
+      "env": {
+        "APP_VARIANT": "distributor",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.smartfleetpk.com/api/v1",
+        "EXPO_PUBLIC_ENV": "production"
+      },
+      "android": { "buildType": "apk" },
+      "autoIncrement": true
+    },
+    "driver-production": {
+      "distribution": "internal",
+      "channel": "driver-production",
+      "env": {
+        "APP_VARIANT": "driver",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.smartfleetpk.com/api/v1",
+        "EXPO_PUBLIC_ENV": "production"
       },
       "android": { "buildType": "apk" },
       "autoIncrement": true
