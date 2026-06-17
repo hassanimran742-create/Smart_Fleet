@@ -42,7 +42,15 @@ const config: ExpoConfig = {
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api/v1',
     variant,
+    eas: {
+      // One Expo project per slug. Distributor created via `eas init`.
+      // Driver project to be created with its own `eas init` (APP_VARIANT=driver).
+      projectId: isDriver
+        ? (process.env.EAS_PROJECT_ID_DRIVER ?? '')
+        : '0edc05a5-2034-4838-a24a-62194d799503',
+    },
   },
+  owner: 'huzaifalodhi07',
   plugins: [
     'expo-camera',
     'expo-location',
