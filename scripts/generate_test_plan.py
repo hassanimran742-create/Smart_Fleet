@@ -1,24 +1,29 @@
 """
-Smart_Fleet pilot — generate the Excel test plan workbook.
+Smart_Fleet pilot — generate the comprehensive Excel test plan workbook.
+
+Covers EVERY module surfaced by the codebase audit:
+  API modules: 40
+  Admin screens: 22
+  Distributor mobile screens: 13
+  Driver mobile screens: 13
+  Client mobile screens: 2
 
 Sheets:
-  1. README          — how to use this workbook
-  2. Test Groups     — batches that share setup; one group ≈ one sitting
-  3. Atomic Cases    — the main test matrix (one observable outcome per row)
-  4. Field Scenarios — tests that can ONLY be validated in real conditions
-  5. Build Backlog   — fixes to bundle into the NEXT APK rebuild (saves rebuilds)
-  6. Defect Log      — template
-  7. Sign-off        — gate to "ready for real users"
+  1. README
+  2. Test Groups          (one group ≈ one sitting, independent)
+  3. Atomic Cases         (~250 atomic outcomes)
+  4. Field Scenarios      (real-world only)
+  5. Build Backlog        (batch native changes → ONE rebuild)
+  6. Defect Log
+  7. Sign-off
 
 Run from repo root:
     python3 scripts/generate_test_plan.py
-Produces docs/PILOT_TEST_PLAN.xlsx
 """
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.table import Table, TableStyleInfo
 
 
 # ---------------------------------------------------------------------------
@@ -59,55 +64,59 @@ def set_widths(ws, widths):
 
 
 # ---------------------------------------------------------------------------
-# Sheet 1 — README
+# README
 # ---------------------------------------------------------------------------
 
 def build_readme(wb):
     ws = wb.create_sheet("README")
     set_widths(ws, [4, 110])
-    ws["A1"] = "Smart_Fleet — Pilot Test Plan"
+    ws["A1"] = "Smart_Fleet — Comprehensive Pilot Test Plan"
     ws["A1"].font = Font(name="Calibri", size=18, bold=True, color="0F6CF0")
     ws.merge_cells("A1:B1")
 
     sections = [
         ("Purpose", [
-            "Atomic test cases for the AWS pilot deployment (smartfleetpk.com).",
-            "Every row = one observable outcome. Pass/fail is unambiguous.",
-            "Designed to run grouped, not one-at-a-time, so you cover most features in the FEWEST APK rebuilds.",
+            "Atomic test cases covering every module of the deployed pilot (smartfleetpk.com).",
+            "Every row = one observable PASS/FAIL outcome. No ambiguity.",
+            "Designed for the FEWEST APK rebuilds: group findings in 'Build Backlog', do ONE rebuild covering them all.",
+        ]),
+        ("Coverage", [
+            "  • 40 API modules (auth, orders, custody, dispatch, ledger, transfers, alerts, audit, etc.)",
+            "  • 22 admin web screens",
+            "  • 13 distributor mobile screens",
+            "  • 13 driver mobile screens",
+            "  • 2 client mobile screens + the customer-portal flow",
+            "  • Cross-cutting: security, network, files/S3, push, housekeeping, soak, OTA",
         ]),
         ("How to use", [
-            "1. Open the 'Test Groups' tab. Each group is one sitting (15–45 min) and is independent of every other group.",
-            "2. Pick a group based on what you can test right now (e.g. distributor-only, or only when a driver is available).",
-            "3. Run every Atomic Case in that group's range, marking Result + Actual.",
-            "4. Anything that requires a code change goes into the 'Build Backlog' tab so it ships in the NEXT rebuild, not a new one each time.",
-            "5. Field scenarios (the ones that need a real motorbike + sun + a damaged QR sticker) live in their own tab — schedule them.",
-        ]),
-        ("Why grouped this way", [
-            "Each group shares 'setup state' — one login, one client, one order — and exercises many features off that shared state.",
-            "Groups never depend on each other. You can run Group G (admin) without Groups A–F.",
-            "Field groups (J, K) deliberately run LAST so all desk bugs are out of the way before motorbikes get involved.",
+            "1. Open 'Test Groups' — each group is ONE sitting (15–45 min) and INDEPENDENT of all others.",
+            "2. Run any group based on what you can test right now (desk, yard, motorbike, real shop).",
+            "3. For each Atomic Case in that group, mark Result + Actual + Defect ID (if any).",
+            "4. If a finding requires code: put it in 'Build Backlog' — DO NOT rebuild immediately.",
+            "5. After a test cycle, do ONE rebuild covering every native change in the backlog.",
+            "6. Run field groups (FD-1..FD-3) LAST: motorbike + sun + real shop is the most expensive setup.",
         ]),
         ("Reading OTPs in pilot (mock SMS)", [
-            "EC2: sudo docker logs smartfleet-api-prod --since 2m | grep -A4 'OTP-MOCK'",
-            "The 6-digit code is in the 'msg:' line. Codes expire in 5 minutes; only the most recent works.",
+            "On EC2: sudo docker logs smartfleet-api-prod --since 2m | grep -A4 'OTP-MOCK'",
+            "Code is in the 'msg:' line. Codes valid 5 minutes. Only the newest one works.",
         ]),
-        ("Test accounts (replace at go-live)", [
-            "Super admin (web, password): +923000000000 / ChangeMe!Now123",
+        ("Test accounts (REPLACE BEFORE GO-LIVE)", [
+            "Super admin   (web, password): +923000000000 / ChangeMe!Now123",
             "Branch admin  (web, password): +923000000001 / ChangeMe!Now123",
-            "Distributor (mobile, OTP): +923001111111",
-            "Driver      (mobile, OTP): +923002222222",
-            "Walk-in client phone: +923009999999",
+            "Distributor   (mobile, OTP):  +923001111111",
+            "Driver        (mobile, OTP):  +923002222222",
+            "Walk-in client phone:         +923009999999",
         ]),
-        ("Severity legend", [
-            "P0 (red)   — blocks pilot; must pass before letting any real user touch the system.",
-            "P1 (amber) — should pass; workaround acceptable for ≤1 week.",
-            "P2 (blue)  — nice-to-have; track but don't block.",
+        ("Legend — severity", [
+            "P0 (red)   — blocks pilot launch. Must pass.",
+            "P1 (amber) — should pass; workaround acceptable ≤1 week.",
+            "P2 (blue)  — nice-to-have; track only.",
         ]),
-        ("Outcome legend", [
-            "PASS    — actual matches expected exactly.",
-            "FAIL    — actual differs; write what you saw in 'Actual'.",
-            "BLOCKED — couldn't run (e.g. waiting on a driver). Note why.",
-            "N/A     — not applicable for this environment/build.",
+        ("Legend — outcome", [
+            "PASS    — actual matches expected.",
+            "FAIL    — differs; write what you saw under 'Actual'.",
+            "BLOCKED — cannot run (waiting on a dependency).",
+            "N/A     — not applicable to this build / environment.",
         ]),
     ]
     row = 3
@@ -122,623 +131,1182 @@ def build_readme(wb):
 
 
 # ---------------------------------------------------------------------------
-# Sheet 2 — Test Groups
+# Groups — 30 sittings, each independent
 # ---------------------------------------------------------------------------
 
 GROUPS = [
-    {
-        "id": "A", "name": "Cold-Start + Auth (admin + mobile)",
-        "duration": "20 min", "where": "Desk", "needs": "Distributor APK installed, admin web reachable",
-        "covers": "Login screens, OTP flow, password flow, token persistence, idle/explicit logout, negative auth, role isolation at login",
-        "rebuild?": "No (run as-is)", "depends": "—",
-    },
-    {
-        "id": "B", "name": "Distributor — Add Client + Address Search",
-        "duration": "20 min", "where": "Desk", "needs": "Logged in as distributor",
-        "covers": "Client form validation, duplicate prevention, address-search edge cases (English/Urdu/rural/urban), map-stub render, save-and-revisit",
-        "rebuild?": "No", "depends": "A",
-    },
-    {
-        "id": "C", "name": "Distributor — Place Order (matrix)",
-        "duration": "30 min", "where": "Desk", "needs": "Group B done (at least 1 client), cylinder types seeded",
-        "covers": "Cart math, single/multi-type orders, empty-return quantities, address autofill from client, submit, rejection paths",
-        "rebuild?": "No", "depends": "B",
-    },
-    {
-        "id": "D", "name": "Distributor — History, Track, Ledger, Inventory",
-        "duration": "20 min", "where": "Desk", "needs": "≥3 orders from Group C",
-        "covers": "Order history pagination/filters, tracking status flow, ledger entries, inventory counts, balance display, refresh behaviour",
-        "rebuild?": "No", "depends": "C",
-    },
-    {
-        "id": "E", "name": "Admin Web — Operations & Order Lifecycle",
-        "duration": "30 min", "where": "Desk", "needs": "Orders from Group C",
-        "covers": "Dashboard KPIs, order assignment, status transitions, role-restricted actions, distributor/driver/vehicle CRUD, live deliveries",
-        "rebuild?": "No (admin web hot-deployable via S3 sync)", "depends": "C",
-    },
-    {
-        "id": "F", "name": "Admin Web — Master Data CRUD",
-        "duration": "30 min", "where": "Desk", "needs": "Admin login",
-        "covers": "Cities, zones, stores, cylinder types, accessories, pricing rules, filling stations, drivers, vehicles. Create + edit + soft-delete each.",
-        "rebuild?": "No", "depends": "—",
-    },
-    {
-        "id": "G", "name": "Driver — Receive, Scan, Deliver, Return",
-        "duration": "30 min", "where": "Desk first, then yard",
-        "needs": "Driver APK installed (when ready), printed cylinder QR codes (use admin's QR generator), driver assigned to a vehicle",
-        "covers": "Trip acceptance, sequential custody scans, proof photo upload, status transitions, location pings appearing in admin live map",
-        "rebuild?": "Driver APK only (one-time)", "depends": "E (driver assigned)",
-    },
-    {
-        "id": "H", "name": "Network Resilience",
-        "duration": "20 min", "where": "Desk",
-        "needs": "Distributor app + airplane-mode-capable phone",
-        "covers": "Action on full offline, action on flaky/3G, server-side 5xx response, expired token mid-request, app behaviour when API is restarting",
-        "rebuild?": "Defensive guards may queue → next rebuild", "depends": "B",
-    },
-    {
-        "id": "I", "name": "Security & Permissions",
-        "duration": "30 min", "where": "Desk",
-        "needs": "Two distributor accounts, admin login, browser dev tools",
-        "covers": "Cross-distributor data isolation, role-restricted endpoints reject wrong roles, token tampering rejected, S3 not publicly listable, OTP not leaked in prod, PII encrypted at rest",
-        "rebuild?": "No (server-side)", "depends": "C, E",
-    },
-    {
-        "id": "J", "name": "FIELD — Driver Day-in-the-Life",
-        "duration": "≥1 work day", "where": "Real route on a motorbike",
-        "needs": "Driver APK final build, real distributor, real customer (consenting test customer), real cylinder with real QR sticker",
-        "covers": "Sun glare, dust, gloves, helmet ear-noise on notifications, GPS accuracy in tight alleys, battery drain over a shift, photo quality at dusk, custody-scan on a worn label, mobile signal drops between deliveries",
-        "rebuild?": "Findings go into Build Backlog → batched into ONE rebuild at end of day", "depends": "G",
-    },
-    {
-        "id": "K", "name": "FIELD — Distributor Operations",
-        "duration": "≥1 work day", "where": "Real shop",
-        "needs": "Distributor APK final build, real customer phone numbers (with consent)",
-        "covers": "Phone-input ergonomics on cheap Androids, OTP delivery delay perception, order entry under customer time-pressure, screen visibility under tube light, back-button confusion, network handoff WiFi↔SIM",
-        "rebuild?": "Same as Group J", "depends": "C",
-    },
-    {
-        "id": "L", "name": "Multi-Day Soak + OTA",
-        "duration": "3–5 days elapsed", "where": "Desk + field",
-        "needs": "All apps installed and in use; one OTA fix scheduled in the middle",
-        "covers": "Refresh token rollover, day-boundary edge cases (orders crossing midnight), OTA update delivery + auto-apply, log noise & alarm health, cost steady at ~$0/day",
-        "rebuild?": "Test OTAs without rebuild; one rebuild at end if anything native broke", "depends": "G, J",
-    },
+    # ----- AUTH (cross-surface) -----
+    ("A",  "Cold-Start + Auth (admin + mobile)", "20 min", "Desk",
+        "Distributor APK installed; admin web reachable.",
+        "Login flows, OTP, password, persistence, idle/explicit logout, role isolation.",
+        "No", "—"),
+
+    # ----- DISTRIBUTOR APP (13 screens spread over 6 groups) -----
+    ("DA-1", "Distributor — Home + Quick Actions", "15 min", "Desk",
+        "Logged in as distributor.",
+        "Home KPIs, balance, recent orders, quick-action navigation, pull-to-refresh.",
+        "No", "A"),
+    ("DA-2", "Distributor — Client Management", "20 min", "Desk",
+        "Distributor logged in.",
+        "Add client form, validation, address search, duplicate prevention, persistence, list search.",
+        "No", "A"),
+    ("DA-3", "Distributor — Place Order (matrix)", "30 min", "Desk",
+        "Group DA-2 done (≥1 client); cylinder types seeded.",
+        "Cart math, single/multi-type orders, empty returns, addresses, submit + rejection paths.",
+        "No", "DA-2"),
+    ("DA-4", "Distributor — Order History + Tracking", "20 min", "Desk",
+        "≥5 orders from DA-3.",
+        "History pagination/filter, order detail, Track screen, real-time status updates.",
+        "No", "DA-3"),
+    ("DA-5", "Distributor — Ledger + Top-up + Payments", "25 min", "Desk",
+        "DA-3 done; pricing rules configured (W-Y).",
+        "Ledger entries, balance arithmetic, top-up via 3 providers, payment status, reconciliation.",
+        "No", "DA-3, Y"),
+    ("DA-6", "Distributor — Inventory + Request Filling", "25 min", "Desk",
+        "Cylinder types + filling stations seeded.",
+        "Inventory counts, request-filling flow, pick station vs own, cart, submit, status updates.",
+        "No", "T"),
+    ("DA-7", "Distributor — Analytics + Notifications + Profile + About", "15 min", "Desk",
+        "DA-3 done.",
+        "Analytics charts, notifications read/unread, profile edit, About version info.",
+        "No", "DA-3"),
+
+    # ----- DRIVER APP (13 screens spread over 8 groups) -----
+    ("DR-1", "Driver — Home + Vehicle Info + Trip Reception", "15 min", "Desk",
+        "Driver APK installed; driver assigned to vehicle (X-4).",
+        "Home suggestions, trip list, vehicle plate/capacity, available-trip preview.",
+        "Driver APK only", "X, S-9"),
+    ("DR-2", "Driver — Active Trip + Navigation", "20 min", "Desk first / yard",
+        "Trip ASSIGNED to driver.",
+        "Stops list, status transitions PLANNED→IN_PROGRESS→COMPLETED, deep-link to Google Maps.",
+        "No", "DR-1"),
+    ("DR-3", "Driver — Scan + Custody Chain (5 event types)", "30 min", "Yard",
+        "Printed test QR stickers (admin Z); cylinders in store inventory.",
+        "All 5 custody events: SCAN_OUT, DELIVERED, PICKED_UP_EMPTY, RETURNED_TO_DISTRIBUTOR, TRANSFER. Order matters.",
+        "No", "Z"),
+    ("DR-4", "Driver — Delivery Steps Flow", "20 min", "Yard",
+        "Trip + stops + cylinders ready.",
+        "One-step-at-a-time UI, arrive, deliver, capture proof photo, depart to next stop.",
+        "No", "DR-3"),
+    ("DR-5", "Driver — Fuel Refill", "10 min", "Desk",
+        "Driver assigned to vehicle with odometer set.",
+        "Record litres, cost, current odometer; previous-odometer validation; appears in admin Fuel Report.",
+        "No", "X"),
+    ("DR-6", "Driver — Filling Orders (pickup at station)", "15 min", "Desk",
+        "Filling order assigned to driver (T-4).",
+        "Pickup confirmation, custody chain to vehicle, quantity reconciliation.",
+        "No", "T"),
+    ("DR-7", "Driver — Transfers (intra-distributor moves)", "20 min", "Yard",
+        "Transfer assigned (U-5).",
+        "Transfer list/detail, scan-out at source, IN_TRANSIT, scan-in at destination, missing-cylinder flag.",
+        "No", "U"),
+    ("DR-8", "Driver — Reconciliation + Notifications + Profile", "15 min", "Desk",
+        "Trip COMPLETED; some cash collected.",
+        "End-of-day cash submit, admin verification, notification stream, profile edit, logout.",
+        "No", "DR-4"),
+
+    # ----- CLIENT-PORTAL -----
+    ("CL", "Client — Portal & Confirmations", "15 min", "Desk",
+        "Order DELIVERED but unconfirmed by client; client phone has the link.",
+        "Client portal home, delivery detail, confirm-delivery, confirm-empties.",
+        "No", "DR-4"),
+
+    # ----- ADMIN OPS -----
+    ("R",  "Admin — Dashboard + Live Deliveries", "25 min", "Desk",
+        "Seed run; some orders + ≥1 driver.",
+        "5 KPI tiles, recent-orders table, driver roster, Live map socket, driver markers.",
+        "No", "DR-1"),
+    ("S",  "Admin — Orders Management (current/previous/delivery)", "30 min", "Desk",
+        "Orders in various statuses from DA-3.",
+        "All status filters, assign/reassign, lifecycle PENDING→DELIVERED, illegal jumps rejected, cancel.",
+        "No", "DA-3"),
+    ("T",  "Admin — Filling Stations + Filling Orders", "20 min", "Desk",
+        "Cylinder types + ≥1 distributor.",
+        "Create stations, set price/cylinder, create filling order, assign driver, full status flow.",
+        "No", "X"),
+    ("U",  "Admin — Transfers + Returns", "20 min", "Desk",
+        "Stores + driver + stock available.",
+        "Create transfer, source-stock validation, assign driver, status flow, returns list.",
+        "No", "W"),
+    ("V",  "Admin — Alerts (configure + trigger + resolve)", "30 min", "Desk",
+        "Distributor with balance; ≥1 client.",
+        "Configure 3 alert rule types, trigger each, acknowledge/resolve, severity filter.",
+        "No", "Y"),
+
+    # ----- ADMIN MASTER DATA -----
+    ("W",  "Admin — Geography (Cities, Zones, Stores)", "30 min", "Desk",
+        "Seed cities present.",
+        "Add city, add zone with polygon, edit polygon, soft delete; stores under zones.",
+        "No", "—"),
+    ("X",  "Admin — Fleet (Vehicles, Drivers, Cylinder Types, Accessories)", "25 min", "Desk",
+        "Cities + zones.",
+        "Vehicle CRUD, driver CRUD, assign driver↔vehicle, set availability, cylinder-type edit, accessories CRUD.",
+        "No", "W"),
+    ("Y",  "Admin — Distributors + Pricing Rules", "20 min", "Desk",
+        "Cities/zones + cylinder types.",
+        "Distributor CRUD, suspend (blocks mobile login), pricing rules (zone×zone×type → price), edit rules.",
+        "No", "W"),
+    ("Z",  "Admin — QR Generator (bulk cylinder tagging)", "20 min", "Desk + printer",
+        "Distributors + cylinder types + stores.",
+        "Pick distributor/type/store/qty, queue batches, generate (POST /cylinders), preview, print, CSV export.",
+        "No", "X"),
+
+    # ----- ADMIN INSIGHTS -----
+    ("AA", "Admin — Reports (5 reports)", "30 min", "Desk",
+        "Several days of orders + drivers + dispatch.",
+        "Driver utilization, driver attendance + range filter, dispatch decisions, delivery funnel, inventory-by-store.",
+        "No", "S, DR-2"),
+    ("AB", "Admin — Expenses + Fuel Report", "15 min", "Desk",
+        "DR-5 + driver assignments.",
+        "Record expense, filter by category, fuel report with vehicle/driver/date filters, summary stats.",
+        "No", "DR-5"),
+    ("AC", "Admin — Inventory by Store + Cylinder Custody Trace", "15 min", "Desk",
+        "Custody events from DR-3.",
+        "Inventory totals per store match custody log; trace a single cylinder QR through its full history.",
+        "No", "DR-3"),
+
+    # ----- CROSS-CUTTING -----
+    ("FI", "Files + S3 (proof photos, profile pics)", "20 min", "Desk",
+        "S3 IAM user from Phase F.",
+        "Upload reaches S3, pre-signed read works, direct URL blocked, lifecycle rule active.",
+        "No", "DR-4"),
+    ("PN", "Push Notifications + In-app Alerts", "20 min", "Desk + 2 phones",
+        "Distributor + driver phones with push permissions granted.",
+        "Order assigned/delivered/cancelled push, in-app notification, deep-link to right screen.",
+        "Native (FCM) on first run", "DR-1, DR-4"),
+    ("AU", "API & Backend (audit, support, push tokens, feature flags)", "20 min", "Desk + browser dev tools",
+        "Admin token + browser dev tools.",
+        "Audit log entries on key actions; support ticket CRUD; push-token register/revoke; feature flag toggle reflects.",
+        "No", "S, AA"),
+    ("NR", "Network Resilience", "20 min", "Desk + airplane-mode phone",
+        "Distributor app + phone with airplane-mode shortcut.",
+        "Full offline action, slow 3G, server 5xx, expired token, container restart.",
+        "Defensive JS → backlog", "DA-2"),
+    ("SE", "Security & Permissions", "30 min", "Desk + browser dev tools",
+        "Two distributors with separate data; admin login.",
+        "Cross-distributor isolation, role-restricted endpoints, JWT tamper rejection, S3 not listable, OTP not leaked in prod, PII encrypted at rest, suspended user blocked.",
+        "No", "DA-3, Y"),
+    ("DI", "Data Integrity + Housekeeping", "15 min", "Desk + EC2 SSH",
+        "Production DB running ≥1 day.",
+        "Old OTP purge, session purge, audit-log retention, photo archival to Glacier (>60d), snapshot existence.",
+        "No", "L (soak)"),
+
+    # ----- FIELD -----
+    ("FD-1", "FIELD — Driver Day-in-Life", "≥1 work day", "Real route on motorbike",
+        "Final driver APK; real distributor; consenting customer; real cylinder + sticker.",
+        "Sun glare, dust, gloves, helmet noise, GPS accuracy in dense urban, battery drain, photo at dusk, signal dead-zones.",
+        "Findings → backlog → ONE rebuild end of day", "DR-3..DR-8"),
+    ("FD-2", "FIELD — Distributor Day-in-Life", "≥1 work day", "Real shop",
+        "Final distributor APK; cheap Android (Rs.20–30k); real customer phones with consent.",
+        "Phone-input ergonomics, OTP delivery perception, time-pressured order entry, WiFi↔SIM handoff, back-button confusion.",
+        "Findings → backlog", "DA-3..DA-7"),
+    ("FD-3", "FIELD — Client Receiving Delivery", "1 delivery", "Real customer home",
+        "Real customer with phone; real driver delivers.",
+        "Customer can confirm delivery (portal or via driver), proof photo legible, no-app fallback path works.",
+        "Findings → backlog", "CL, DR-4"),
+    ("L",  "Multi-Day Soak + OTA Update", "3–5 days elapsed", "Desk + field",
+        "All apps installed and used; schedule one OTA in the middle.",
+        "Token rollover, day boundaries, OTA delivery, log/alarm health, daily cost ≈ $0.",
+        "Test OTA without rebuild", "DR-8, FD-1"),
 ]
 
 
+# ---------------------------------------------------------------------------
+# Atomic Cases — full coverage matrix
+# ---------------------------------------------------------------------------
+
+def c(tc_id, group, prio, area, surface, name, pre, steps, expected, tested_on, ttype):
+    return (tc_id, group, prio, area, surface, name, pre, steps, expected, tested_on, ttype)
+
+
+CASES = []
+
+# ===== GROUP A — Cold-Start + Auth =====
+CASES += [
+    c("A01","A","P0","Auth","Admin web","Admin web loads without console errors",
+      "Browser cache cleared; production URL up.",
+      "Open https://admin.smartfleetpk.com; open DevTools → Console.",
+      "Login screen renders; no red console errors; latest bundle filename.",
+      "Admin web","Positive"),
+    c("A02","A","P0","Auth","Admin web","Super-admin password login",
+      "Seed run.",
+      "Enter +923000000000 + correct password; Sign in.",
+      "Lands in Dashboard within 3s.","Admin web","Positive"),
+    c("A03","A","P0","Auth","Admin web","Wrong password rejected uniformly",
+      "—",
+      "Try (a) wrong password (b) unknown phone (c) blank password.",
+      "Same generic 'Invalid phone or password' for all 3; no enumeration leak.","Admin web","Negative"),
+    c("A04","A","P1","Auth","Admin web","Distributor phone rejected on password endpoint",
+      "+923001111111 = DISTRIBUTOR.",
+      "Try password login with +923001111111.",
+      "Server: 'must sign in with a one-time code'.","Admin web","Negative"),
+    c("A05","A","P1","Auth","Admin web","Token persists across reload",
+      "Logged in.",
+      "Ctrl+R.",
+      "Still on dashboard.","Admin web","Positive"),
+    c("A06","A","P1","Auth","Admin web","Explicit logout clears session",
+      "Logged in.",
+      "Logout from sidebar.",
+      "Login screen; reload doesn't auto-login.","Admin web","Positive"),
+    c("A07","A","P2","Auth","Admin web","Idle logout after configured timeout",
+      "Logged in; idle = 10 min.",
+      "Leave tab idle >10 min.",
+      "Auto-logout.","Admin web","Edge"),
+    c("A08","A","P0","Auth","Distributor app","OTP send returns success",
+      "Distributor user exists ACTIVE.",
+      "Enter +923001111111; tap Send OTP.",
+      "App shows 'sent' state; logs contain OTP-MOCK block.","Distributor app","Positive"),
+    c("A09","A","P0","Auth","Distributor app","OTP verify with fresh code logs in",
+      "A08 done <5 min ago.",
+      "Read code from logs; enter; submit.",
+      "Lands on distributor home.","Distributor app","Positive"),
+    c("A10","A","P1","Auth","Distributor app","Stale OTP rejected",
+      "Wait >5 min OR send a new one then use old.",
+      "Submit old code.",
+      "'OTP expired or not found' or 'Invalid code'.","Distributor app","Negative"),
+    c("A11","A","P1","Auth","Distributor app","Rate limit blocks >3 sends/60s",
+      "Fresh phone.",
+      "Tap Send OTP 4× within 30s.",
+      "4th rejected: 'Too many OTP requests'.","Distributor app","Negative"),
+    c("A12","A","P1","Auth","Distributor app","Token survives cold-start",
+      "Logged in.",
+      "Force-stop app; reopen.",
+      "Home shown without re-login.","Distributor app","Positive"),
+    c("A13","A","P1","Auth","Driver app","Driver OTP login",
+      "+923002222222 = DRIVER w/ profile.",
+      "Repeat A08–A09 with driver phone on driver APK.",
+      "Lands on driver home.","Driver app","Positive"),
+    c("A14","A","P1","Auth","Mobile","Suspended user cannot OTP-login",
+      "Admin suspends +923001111111.",
+      "Try OTP login.",
+      "Login rejected; not active.","Mobile","Negative"),
+]
+
+# ===== GROUP DA-1 — Distributor Home + Quick Actions =====
+CASES += [
+    c("DA1-01","DA-1","P0","Home","Distributor app","Home screen renders",
+      "Logged in.","Open app.",
+      "Balance card, recent orders, quick action buttons visible; no crash.","Distributor app","Positive"),
+    c("DA1-02","DA-1","P1","Home","Distributor app","Balance shows in PKR rupees not paisa",
+      "Distributor with balance.","Inspect balance value.",
+      "Displayed as Rs. X with decimals (not raw paisa integer).","Distributor app","Positive"),
+    c("DA1-03","DA-1","P1","Home","Distributor app","Recent orders shows latest ≤5",
+      "≥6 orders exist.","Open home.",
+      "Top 5 newest orders visible; tap navigates to detail.","Distributor app","Positive"),
+    c("DA1-04","DA-1","P0","Home","Distributor app","Quick action: Place Order navigates",
+      "—","Tap Place Order.","New Order screen opens.","Distributor app","Positive"),
+    c("DA1-05","DA-1","P0","Home","Distributor app","Quick action: Order History navigates",
+      "—","Tap Order History.","History screen opens.","Distributor app","Positive"),
+    c("DA1-06","DA-1","P0","Home","Distributor app","Quick action: Topup navigates",
+      "—","Tap Topup.","Topup screen opens.","Distributor app","Positive"),
+    c("DA1-07","DA-1","P0","Home","Distributor app","Quick action: Request Filling navigates",
+      "—","Tap Request Filling.","Filling screen opens.","Distributor app","Positive"),
+    c("DA1-08","DA-1","P1","Home","Distributor app","Pull-to-refresh updates state",
+      "Admin changes status of an order.","Pull down on home.",
+      "Balance & orders refetch; new state visible.","Distributor app","Positive"),
+]
+
+# ===== GROUP DA-2 — Client Management =====
+CASES += [
+    c("DA2-01","DA-2","P0","Clients","Distributor app","Add Client opens without map crash",
+      "Logged in.","Tap Add Client.",
+      "Form renders; MapStub card visible; no exit.","Distributor app","Positive"),
+    c("DA2-02","DA-2","P0","Clients","Distributor app","Save valid client",
+      "Add Client open.",
+      "Name='Asma N', Phone='+923211234567', Area='G-13', City='Islamabad', pick address suggestion; Save.",
+      "Success; appears in client list.","Distributor app","Positive"),
+    c("DA2-03","DA-2","P1","Clients","Distributor app","Reject non-E.164 phone",
+      "Form open.","Type '03001234567'; Save.",
+      "Inline error; not saved.","Distributor app","Negative"),
+    c("DA2-04","DA-2","P1","Clients","Distributor app","Address search returns Pakistani results",
+      "Form open.","Type 'F-7 Markaz Islamabad'.",
+      "Suggestions <3s; pick top → lat/lng visible.","Distributor app","Positive"),
+    c("DA2-05","DA-2","P2","Clients","Distributor app","Search 'abc' returns empty gracefully",
+      "—","Search 'abc'.",
+      "Empty list / no-results msg; no crash/spinner.","Distributor app","Edge"),
+    c("DA2-06","DA-2","P1","Clients","Distributor app","Duplicate phone prevented",
+      "Client from DA2-02 saved.","Add another with same phone.",
+      "Server rejects; UI shows clear error.","Distributor app","Negative"),
+    c("DA2-07","DA-2","P1","Clients","Distributor app","Saved client persists across app restart",
+      "DA2-02 done.","Force-stop; reopen; client list.",
+      "Client still listed.","Distributor app","Positive"),
+    c("DA2-08","DA-2","P2","Clients","Distributor app","Search by partial name and phone",
+      "≥3 clients.","Type partial.",
+      "Filtered list matches; clear restores.","Distributor app","Positive"),
+    c("DA2-09","DA-2","P1","Clients","Admin web","Client visible under its distributor",
+      "DA2-02 done.","Admin → Distributors → open distributor.",
+      "Client listed there.","Admin web","Positive"),
+]
+
+# ===== GROUP DA-3 — Place Order =====
+CASES += [
+    c("DA3-01","DA-3","P0","Orders","Distributor app","New Order screen opens",
+      "≥1 client + 4 cylinder types.","Tap New Order.",
+      "'Who' step shows; client search focused; no crash.","Distributor app","Positive"),
+    c("DA3-02","DA-3","P0","Orders","Distributor app","Single-type order submits",
+      "DA3-01.","Pick client; LPG 11.8kg qty=1 empties=0; Submit.",
+      "Success; new order id; appears as PENDING.","Distributor app","Positive"),
+    c("DA3-03","DA-3","P0","Orders","Distributor app","Multi-type order with empties",
+      "—","LPG 11.8 ×2, LPG 6 ×1; empties returned=1 of 11.8; Submit.",
+      "One order; 2 lines; correct counts in detail.","Distributor app","Positive"),
+    c("DA3-04","DA-3","P1","Orders","Distributor app","Cart +/-/remove consistent",
+      "Cart non-empty.","Use +/- and remove; re-add.",
+      "Totals consistent with submitted payload; no negatives.","Distributor app","Edge"),
+    c("DA3-05","DA-3","P0","Orders","Distributor app","Empty cart cannot submit",
+      "Cart empty.","Try Submit.",
+      "Blocked; clear message.","Distributor app","Negative"),
+    c("DA3-06","DA-3","P1","Orders","Distributor app","No client cannot submit",
+      "Cart has items, no client.","Try Submit.",
+      "Blocked; client step highlighted.","Distributor app","Negative"),
+    c("DA3-07","DA-3","P1","Orders","Distributor app","Override address from client default",
+      "Client has default address.","Pick different address for this order; Submit.",
+      "Order shows the picked address in admin detail.","Distributor app","Positive"),
+    c("DA3-08","DA-3","P1","Orders","Distributor app","Back nav preserves cart",
+      "Cart with 2 lines.","Back to 'who'; pick another client; forward.",
+      "Cart still has lines.","Distributor app","Edge"),
+    c("DA3-09","DA-3","P2","Orders","Distributor app","Submit while offline",
+      "Cart ready.","Airplane mode; Submit.",
+      "Friendly error; no half-created order; retry on reconnect succeeds.","Distributor app","Edge"),
+    c("DA3-10","DA-3","P0","Orders","Admin web","Order appears in admin within 30s",
+      "DA3-02 just submitted.","Refresh Admin → Orders → Current.",
+      "Order id present; distributor + client match.","Admin web","Positive"),
+    c("DA3-11","DA-3","P1","Orders","Admin web","Order detail shows correct lines",
+      "Multi-line order from DA3-03.","Open detail.",
+      "All 2 lines + quantities match.","Admin web","Positive"),
+]
+
+# ===== GROUP DA-4 — Order History + Tracking =====
+CASES += [
+    c("DA4-01","DA-4","P0","History","Distributor app","Order History lists newest first",
+      "≥5 orders today.","Open Order History.",
+      "Sorted newest→oldest; correct status pills.","Distributor app","Positive"),
+    c("DA4-02","DA-4","P1","History","Distributor app","Pagination on >20 orders",
+      "≥25 orders.","Scroll to bottom.",
+      "Load more triggers; no duplicates.","Distributor app","Positive"),
+    c("DA4-03","DA-4","P1","History","Distributor app","Filter by status",
+      "Mix of statuses.","Apply DELIVERED filter.",
+      "Only DELIVERED orders visible.","Distributor app","Positive"),
+    c("DA4-04","DA-4","P2","History","Distributor app","Filter by date range",
+      "Orders from 2+ days.","Set date range.",
+      "Only orders in range visible.","Distributor app","Positive"),
+    c("DA4-05","DA-4","P1","History","Distributor app","Order detail accessible from list",
+      "—","Tap an order.",
+      "Detail screen opens with all fields populated.","Distributor app","Positive"),
+    c("DA4-06","DA-4","P0","Track","Distributor app","Track Order opens without map crash",
+      "Active order.","Open Track.",
+      "Screen renders; MapStub visible; no exit.","Distributor app","Positive"),
+    c("DA4-07","DA-4","P1","Track","Distributor app","Status timeline shown",
+      "Order has multiple events.","Open Track.",
+      "Each status with timestamp listed.","Distributor app","Positive"),
+    c("DA4-08","DA-4","P1","Track","Distributor app","Live status update via socket",
+      "Track open; admin changes order status.","Wait <30s.",
+      "Status updates without manual refresh.","Distributor app","Positive"),
+]
+
+# ===== GROUP DA-5 — Ledger + Top-up + Payments =====
+CASES += [
+    c("DA5-01","DA-5","P0","Ledger","Distributor app","Ledger lists entries",
+      "Pricing rules + orders exist.","Open Ledger.",
+      "Entries listed; CREDIT_TOPUP, DEBIT_ORDER visible.","Distributor app","Positive"),
+    c("DA5-02","DA-5","P1","Ledger","Distributor app","Entry types filterable",
+      "Mix of CREDIT/DEBIT entries.","Filter by type.",
+      "List filtered correctly.","Distributor app","Positive"),
+    c("DA5-03","DA-5","P0","Ledger","Distributor app","Balance equals sum of entries",
+      "—","Sum all entries.",
+      "Equals displayed balance.","Distributor app","Positive"),
+    c("DA5-04","DA-5","P0","Topup","Distributor app","Topup screen opens",
+      "—","Tap Topup.",
+      "Amount input + provider toggle visible.","Distributor app","Positive"),
+    c("DA5-05","DA-5","P0","Topup","Distributor app","Topup with JazzCash provider",
+      "Topup open.","Amount=2000; JazzCash; Submit.",
+      "Pending payment; appears in My Payments.","Distributor app","Positive"),
+    c("DA5-06","DA-5","P1","Topup","Distributor app","Topup with EasyPaisa",
+      "—","Amount=1500; EasyPaisa; Submit.",
+      "Same pending state created.","Distributor app","Positive"),
+    c("DA5-07","DA-5","P1","Topup","Distributor app","Topup with Bank Manual",
+      "—","Amount=5000; Bank; Submit.",
+      "Created; admin must verify.","Distributor app","Positive"),
+    c("DA5-08","DA-5","P1","Topup","Distributor app","Minimum amount enforced",
+      "—","Amount=10; Submit.",
+      "Blocked with min-amount error.","Distributor app","Negative"),
+    c("DA5-09","DA-5","P0","Payments","Admin web","Admin verifies payment",
+      "DA5-05 pending.","Admin → reconciliation/payments; verify.",
+      "Payment SUCCESS; ledger CREDIT_TOPUP entry; balance increases.","Admin web","Positive"),
+    c("DA5-10","DA-5","P1","Payments","Distributor app","Failed payment shown",
+      "Admin marks payment FAILED.","Open My Payments.",
+      "Status FAILED visible; no balance change.","Distributor app","Negative"),
+]
+
+# ===== GROUP DA-6 — Inventory + Request Filling =====
+CASES += [
+    c("DA6-01","DA-6","P1","Inventory","Distributor app","Inventory shows per-type counts",
+      "Custody events seeded.","Open Inventory.",
+      "Full + empty counts per cylinder type.","Distributor app","Positive"),
+    c("DA6-02","DA-6","P1","Inventory","Distributor app","Inventory matches admin view",
+      "Same distributor.","Compare app vs admin Inventory.",
+      "Numbers match exactly.","Distributor app + Admin","Positive"),
+    c("DA6-03","DA-6","P0","Filling","Distributor app","Request Filling opens",
+      "Filling stations seeded.","Tap Request Filling.",
+      "Choose station / own station option visible.","Distributor app","Positive"),
+    c("DA6-04","DA-6","P0","Filling","Distributor app","Filling order via partner station",
+      "—","Pick station; add cylinders; Submit.",
+      "Order created PENDING; appears in My Filling Orders.","Distributor app","Positive"),
+    c("DA6-05","DA-6","P1","Filling","Distributor app","Filling order via own station",
+      "—","Pick 'own station'; fill name/address; Submit.",
+      "Order created without partner station_id.","Distributor app","Positive"),
+    c("DA6-06","DA-6","P1","Filling","Distributor app","Price calc matches station rate",
+      "Station price set.","Add cylinders; observe total.",
+      "Total = qty × price.","Distributor app","Positive"),
+    c("DA6-07","DA-6","P1","Filling","Distributor app","Status updates as order moves",
+      "Admin assigns driver; driver picks up.","Refresh My Filling Orders.",
+      "Status transitions PENDING→IN_PROGRESS→COMPLETED.","Distributor app","Positive"),
+]
+
+# ===== GROUP DA-7 — Analytics + Notifications + Profile + About =====
+CASES += [
+    c("DA7-01","DA-7","P1","Analytics","Distributor app","Analytics screen loads",
+      "Orders exist.","Open Analytics.",
+      "Charts render or 'no data' state.","Distributor app","Positive"),
+    c("DA7-02","DA-7","P2","Analytics","Distributor app","Date range filter applies",
+      "—","Change date range.",
+      "Charts update accordingly.","Distributor app","Positive"),
+    c("DA7-03","DA-7","P1","Notifications","Distributor app","Notification list opens",
+      "Notifications exist.","Open Notifications.",
+      "List with unread badges.","Distributor app","Positive"),
+    c("DA7-04","DA-7","P1","Notifications","Distributor app","Mark notification as read",
+      "Unread notification.","Tap it.",
+      "Badge clears; mark-read persists.","Distributor app","Positive"),
+    c("DA7-05","DA-7","P1","Profile","Distributor app","Profile shows current info",
+      "—","Open Profile.",
+      "Name, phone, business name shown.","Distributor app","Positive"),
+    c("DA7-06","DA-7","P1","Profile","Distributor app","Edit profile name",
+      "—","Change name; Save.",
+      "New name persists across reload.","Distributor app","Positive"),
+    c("DA7-07","DA-7","P2","About","Distributor app","About screen shows version",
+      "—","Open About.",
+      "Version + build info visible; matches deployed.","Distributor app","Positive"),
+    c("DA7-08","DA-7","P1","Profile","Distributor app","Logout from profile",
+      "—","Logout.",
+      "Returns to phone-input screen.","Distributor app","Positive"),
+]
+
+# ===== GROUP DR-1 — Driver Home + Vehicle + Trip Reception =====
+CASES += [
+    c("DR1-01","DR-1","P0","Home","Driver app","Driver home renders",
+      "Logged in as driver.","Open home.",
+      "Trips list, suggestions, transfers section; no crash.","Driver app","Positive"),
+    c("DR1-02","DR-1","P1","Home","Driver app","Empty-trip state shown",
+      "No assigned trips.","Open home.",
+      "Empty-state message; no broken layout.","Driver app","Positive"),
+    c("DR1-03","DR-1","P0","Home","Driver app","Sees newly-assigned trip",
+      "Admin assigns trip.","Refresh.",
+      "Trip appears in trips list.","Driver app","Positive"),
+    c("DR1-04","DR-1","P1","Home","Driver app","Quick action: Scan",
+      "—","Tap Scan.","Scan screen opens (camera permission requested if first time).","Driver app","Positive"),
+    c("DR1-05","DR-1","P1","Home","Driver app","Quick action: Delivery (DELIVERED)",
+      "—","Tap Delivery quick action.",
+      "Scan screen with eventType=DELIVERED.","Driver app","Positive"),
+    c("DR1-06","DR-1","P1","Vehicle","Driver app","Vehicle Info shows assignment",
+      "Driver assigned to vehicle (X-4).","Open Vehicle Info.",
+      "Plate + capacity + last odometer visible.","Driver app","Positive"),
+    c("DR1-07","DR-1","P1","Vehicle","Driver app","Unassigned driver state",
+      "Driver with no vehicle.","Open Vehicle Info.",
+      "Clear 'not assigned' message; no crash.","Driver app","Edge"),
+]
+
+# ===== GROUP DR-2 — Active Trip + Navigation =====
+CASES += [
+    c("DR2-01","DR-2","P0","Trip","Driver app","Active Trip opens",
+      "Trip assigned.","Tap trip.",
+      "Stops list shown in order.","Driver app","Positive"),
+    c("DR2-02","DR-2","P1","Trip","Driver app","Trip starts (PLANNED→IN_PROGRESS)",
+      "Trip PLANNED.","Tap 'Start trip'.",
+      "Status IN_PROGRESS; admin sees update.","Driver app","Positive"),
+    c("DR2-03","DR-2","P1","Trip","Driver app","Tap stop opens Delivery Steps",
+      "—","Tap a stop.",
+      "Delivery Steps screen for that stop opens.","Driver app","Positive"),
+    c("DR2-04","DR-2","P1","Trip","Driver app","Map deep-link opens Google Maps",
+      "Stop has location.","Tap 'Open Map' on a stop.",
+      "Google Maps opens with destination prefilled.","Driver app","Positive"),
+    c("DR2-05","DR-2","P1","Trip","Driver app","Cannot end trip with incomplete stops",
+      "One stop undelivered.","Tap End Trip.",
+      "Blocked or confirmation; trip not COMPLETED.","Driver app","Negative"),
+    c("DR2-06","DR-2","P0","Trip","Driver app","End trip when all stops done",
+      "All stops complete.","End Trip.",
+      "Status COMPLETED; driver shows AVAILABLE in admin.","Driver app","Positive"),
+]
+
+# ===== GROUP DR-3 — Scan + Custody Chain (5 event types) =====
+CASES += [
+    c("DR3-01","DR-3","P0","Scan","Driver app","Scan screen opens with camera",
+      "Camera permission granted.","Open Scan.",
+      "Live camera preview; scanner active.","Driver app","Positive"),
+    c("DR3-02","DR-3","P0","Custody","Driver app","SCAN_OUT loads cylinder onto vehicle",
+      "At store; QR scanned matches a cylinder.","Scan cylinder.",
+      "Custody event SCAN_OUT created; custody=VEHICLE.","Driver app","Positive"),
+    c("DR3-03","DR-3","P0","Custody","Driver app","DELIVERED to client",
+      "Driver at customer location.","Scan with eventType=DELIVERED.",
+      "Custody event DELIVERED created; custody=CLIENT.","Driver app","Positive"),
+    c("DR3-04","DR-3","P1","Custody","Driver app","PICKED_UP_EMPTY",
+      "Customer hands empty.","Scan empty cylinder QR.",
+      "Custody=VEHICLE; cylinder state=EMPTY.","Driver app","Positive"),
+    c("DR3-05","DR-3","P1","Custody","Driver app","RETURNED_TO_DISTRIBUTOR",
+      "Empty back at distributor.","Scan at return.",
+      "Custody event recorded; distributor inventory updates.","Driver app","Positive"),
+    c("DR3-06","DR-3","P1","Custody","Driver app","TRANSFER event creates record",
+      "Transfer task active.","Scan during transfer step.",
+      "Custody event TRANSFER created.","Driver app","Positive"),
+    c("DR3-07","DR-3","P1","Scan","Driver app","Unrecognized QR rejected",
+      "Random QR.","Scan it.",
+      "'Not recognized' inline error; no event created.","Driver app","Negative"),
+    c("DR3-08","DR-3","P1","Scan","Driver app","Duplicate scan debounced",
+      "Cylinder already VEHICLE.","Scan it again same event.",
+      "No duplicate event OR clear 'already in custody' msg.","Driver app","Edge"),
+    c("DR3-09","DR-3","P1","Scan","Driver app","Sequential events keep order",
+      "Scan 5 cylinders rapidly.","Inspect audit/log.",
+      "All 5 events present with monotonic timestamps.","Driver app","Edge"),
+    c("DR3-10","DR-3","P0","Custody","Admin web","Custody chain visible in admin",
+      "Events from DR3-02..06.","Open order/cylinder detail.",
+      "Full chain rendered in chronological order.","Admin web","Positive"),
+]
+
+# ===== GROUP DR-4 — Delivery Steps Flow =====
+CASES += [
+    c("DR4-01","DR-4","P0","Delivery","Driver app","Delivery Steps opens",
+      "Stop selected.","Open it.",
+      "Single 'current step' card shown.","Driver app","Positive"),
+    c("DR4-02","DR-4","P0","Delivery","Driver app","Arrive action records timestamp",
+      "Step=ARRIVE.","Tap Arrive.",
+      "arrivedAt timestamp set; UI moves to next sub-step.","Driver app","Positive"),
+    c("DR4-03","DR-4","P0","Delivery","Driver app","Capture proof photo",
+      "Step=DELIVER.","Tap Capture; take photo.",
+      "Photo uploaded to S3 (smartfleet-files-prod).","Driver app","Positive"),
+    c("DR4-04","DR-4","P0","Delivery","Driver app","Mark delivered action",
+      "Photo captured.","Tap Mark Delivered.",
+      "Order DELIVERED; reflected on admin.","Driver app","Positive"),
+    c("DR4-05","DR-4","P1","Delivery","Driver app","Depart action moves to next stop",
+      "Stop marked delivered.","Tap Depart.",
+      "departedAt set; Active Trip shows progression.","Driver app","Positive"),
+    c("DR4-06","DR-4","P1","Delivery","Driver app","Skip stop with reason",
+      "Customer not home.","Skip; provide reason.",
+      "Order marked FAILED with reason; driver moves on.","Driver app","Edge"),
+    c("DR4-07","DR-4","P1","Delivery","Admin web","Proof photo visible in admin",
+      "DR4-03 done.","Open order in admin → Proof Photo.",
+      "Image renders (pre-signed URL).","Admin web","Positive"),
+    c("DR4-08","DR-4","P1","Delivery","Distributor app","Status DELIVERED on distributor",
+      "Distributor refreshes.","Open the order.",
+      "Status DELIVERED with photo.","Distributor app","Positive"),
+]
+
+# ===== GROUP DR-5 — Fuel Refill =====
+CASES += [
+    c("DR5-01","DR-5","P1","Fuel","Driver app","Fuel screen prefills plate + odometer",
+      "Driver+vehicle.","Open Fuel.",
+      "Plate visible; last odometer prefilled.","Driver app","Positive"),
+    c("DR5-02","DR-5","P0","Fuel","Driver app","Record refill",
+      "—","Litres=10, Cost=2500, Odometer=12345.","Saved; in 'My refills'.","Driver app","Positive"),
+    c("DR5-03","DR-5","P1","Fuel","Driver app","Odometer regression blocked",
+      "Last odometer=12345.","Enter 12300.",
+      "Blocked with validation msg.","Driver app","Negative"),
+    c("DR5-04","DR-5","P1","Fuel","Driver app","Missing fields rejected",
+      "—","Submit with empty litres.",
+      "'Missing values' alert.","Driver app","Negative"),
+    c("DR5-05","DR-5","P1","Fuel","Admin web","Refill in admin Fuel Report",
+      "DR5-02.","Admin → Fuel Report.","Entry visible with cost + odometer + driver.","Admin web","Positive"),
+]
+
+# ===== GROUP DR-6 — Filling Orders (driver pickup) =====
+CASES += [
+    c("DR6-01","DR-6","P1","Filling","Driver app","Assigned filling orders shown",
+      "T-4 assigned driver to a filling order.","Open Filling Orders.",
+      "Order in list with station + counts.","Driver app","Positive"),
+    c("DR6-02","DR-6","P1","Filling","Driver app","Open detail",
+      "—","Tap order.",
+      "Detail with station info, target counts.","Driver app","Positive"),
+    c("DR6-03","DR-6","P1","Filling","Driver app","Pickup confirmation at station",
+      "At station.","Confirm pickup.",
+      "Status IN_TRANSIT; custody to VEHICLE.","Driver app","Positive"),
+    c("DR6-04","DR-6","P1","Filling","Driver app","Quantity discrepancy flagged",
+      "Station gave 8 instead of 10.","Enter actual=8.",
+      "Variance recorded; admin can review.","Driver app","Edge"),
+]
+
+# ===== GROUP DR-7 — Transfers =====
+CASES += [
+    c("DR7-01","DR-7","P1","Transfer","Driver app","Transfers list shows tasks",
+      "Transfer assigned (U-5).","Open Transfers.",
+      "Task listed.","Driver app","Positive"),
+    c("DR7-02","DR-7","P1","Transfer","Driver app","Open transfer detail",
+      "—","Tap task.",
+      "Source store, destination, cylinder list visible.","Driver app","Positive"),
+    c("DR7-03","DR-7","P1","Transfer","Driver app","Scan at source picks cylinders",
+      "—","Transfer Scan; scan all source cylinders.",
+      "All scanned; status IN_TRANSIT.","Driver app","Positive"),
+    c("DR7-04","DR-7","P1","Transfer","Driver app","Scan at destination drops",
+      "Arrived at dest.","Scan each cylinder.",
+      "Transfer COMPLETED; destination inventory increased.","Driver app","Positive"),
+    c("DR7-05","DR-7","P1","Transfer","Driver app","Missing cylinder flagged",
+      "Scan only 9 of 10.","Try to complete.",
+      "Variance flagged; transfer stays open or partial.","Driver app","Negative"),
+]
+
+# ===== GROUP DR-8 — Reconciliation + Notifications + Profile =====
+CASES += [
+    c("DR8-01","DR-8","P1","Reconcile","Driver app","Reconcile screen opens",
+      "Trip COMPLETED.","Open Reconcile.",
+      "Cash input visible.","Driver app","Positive"),
+    c("DR8-02","DR-8","P0","Reconcile","Driver app","Submit reconciliation",
+      "—","Cash=5000; Submit.",
+      "Recon created; status PENDING.","Driver app","Positive"),
+    c("DR8-03","DR-8","P1","Reconcile","Admin web","Admin sees pending recon",
+      "DR8-02.","Admin → Reconciliations.","Listed PENDING with driver + amount.","Admin web","Positive"),
+    c("DR8-04","DR-8","P1","Reconcile","Admin web","Admin verifies/flags recon",
+      "—","Mark VERIFIED.",
+      "Driver app shows verified state on refresh.","Admin web + Driver app","Positive"),
+    c("DR8-05","DR-8","P1","Notifications","Driver app","Notifications screen",
+      "Some notifications exist.","Open Notifications.",
+      "List renders.","Driver app","Positive"),
+    c("DR8-06","DR-8","P1","Profile","Driver app","Profile view & edit",
+      "—","Open Profile; change name; Save.",
+      "Persists across reload.","Driver app","Positive"),
+    c("DR8-07","DR-8","P1","Profile","Driver app","Logout from driver app",
+      "—","Logout.",
+      "Returns to phone screen.","Driver app","Positive"),
+]
+
+# ===== GROUP CL — Client Portal =====
+CASES += [
+    c("CL-01","CL","P1","Portal","Client device","Client receives delivery link/notification",
+      "Order DELIVERED.","Check client phone (SMS/push depending on channel).",
+      "Link or notification arrives with order id.","Client device","Positive"),
+    c("CL-02","CL","P1","Portal","Client portal","Active deliveries shown",
+      "Client logs in to portal.","Open active deliveries.",
+      "Recent orders listed.","Client portal","Positive"),
+    c("CL-03","CL","P1","Portal","Client portal","Order detail accessible",
+      "—","Tap order.",
+      "Lines, status, proof photo (if delivered) shown.","Client portal","Positive"),
+    c("CL-04","CL","P0","Portal","Client portal","Confirm delivery received",
+      "Order DELIVERED but unconfirmed.","Tap Confirm Delivery.",
+      "Confirmation recorded; admin & driver see updated state.","Client portal","Positive"),
+    c("CL-05","CL","P1","Portal","Client portal","Confirm empties picked up",
+      "Empties returned.","Tap Confirm Empties.",
+      "Empties confirmation recorded.","Client portal","Positive"),
+]
+
+# ===== GROUP R — Admin Dashboard + Live Deliveries =====
+CASES += [
+    c("R01","R","P0","Dashboard","Admin web","KPI tiles render",
+      "—","Open Dashboard.",
+      "5 tiles (drivers online, active, pending, delivered today, alerts).","Admin web","Positive"),
+    c("R02","R","P1","Dashboard","Admin web","Drivers online count matches",
+      "≥1 driver online.","Inspect tile vs Drivers screen count.",
+      "Numbers match.","Admin web","Positive"),
+    c("R03","R","P1","Dashboard","Admin web","Active deliveries count matches",
+      "Orders IN_TRANSIT/ASSIGNED present.","Inspect tile vs Orders list filter.",
+      "Counts match.","Admin web","Positive"),
+    c("R04","R","P1","Dashboard","Admin web","Pending dispatch count",
+      "Orders PENDING.","Compare.",
+      "Match.","Admin web","Positive"),
+    c("R05","R","P1","Dashboard","Admin web","Delivered today count uses local date",
+      "Orders delivered today + yesterday.","Compare.",
+      "Today's count only.","Admin web","Edge"),
+    c("R06","R","P1","Dashboard","Admin web","Open alerts count matches Alerts screen",
+      "—","Compare.",
+      "Match.","Admin web","Positive"),
+    c("R07","R","P1","Dashboard","Admin web","Recent orders table populated",
+      "Orders exist.","Inspect.",
+      "Latest ≤10 orders with correct fields.","Admin web","Positive"),
+    c("R08","R","P1","Dashboard","Admin web","Driver roster lists drivers",
+      "Drivers seeded.","Scroll roster.",
+      "Lists each driver with online state.","Admin web","Positive"),
+    c("R09","R","P0","Live","Admin web","Live Deliveries opens",
+      "—","Open Live.",
+      "Map + driver list render.","Admin web","Positive"),
+    c("R10","R","P1","Live","Admin web","Driver markers appear when online",
+      "≥1 driver online.","Wait <30s.",
+      "Marker appears on map.","Admin web","Positive"),
+    c("R11","R","P1","Live","Admin web","Marker moves as driver moves",
+      "Driver walking.","Watch.",
+      "Marker updates ≤30s.","Admin web","Positive"),
+    c("R12","R","P2","Live","Admin web","Click marker shows driver info",
+      "—","Click marker.",
+      "Tooltip/panel with driver name + last update.","Admin web","Positive"),
+    c("R13","R","P2","Live","Admin web","Socket reconnects after tab away",
+      "Live open.","Switch tabs 60s; return.",
+      "Markers up-to-date; no permanent disconnect.","Admin web","Edge"),
+]
+
+# ===== GROUP S — Admin Orders Management =====
+CASES += [
+    c("S01","S","P0","Orders","Admin web","Current Orders lists PENDING/ASSIGNED/IN_TRANSIT",
+      "Mixed statuses.","Open Current.",
+      "Only those statuses present.","Admin web","Positive"),
+    c("S02","S","P0","Orders","Admin web","Previous Orders shows terminal statuses",
+      "—","Open Previous.",
+      "Only DELIVERED/CANCELLED/FAILED present.","Admin web","Positive"),
+    c("S03","S","P1","Orders","Admin web","Delivery Orders list",
+      "Active orders.","Open Delivery Orders.",
+      "Only deliverable orders visible.","Admin web","Positive"),
+    c("S04","S","P1","Orders","Admin web","Status filter",
+      "Mixed.","Filter by status.",
+      "Filter applies.","Admin web","Positive"),
+    c("S05","S","P1","Orders","Admin web","Distributor filter",
+      "≥2 distributors with orders.","Filter.",
+      "Only chosen distributor's orders.","Admin web","Positive"),
+    c("S06","S","P2","Orders","Admin web","Date range filter",
+      "Orders across days.","Apply.","Restricted to range.","Admin web","Positive"),
+    c("S07","S","P1","Orders","Admin web","Order detail complete",
+      "Order has lines + proof.","Open detail.",
+      "Lines, addresses, custody, timeline, proof all visible.","Admin web","Positive"),
+    c("S08","S","P0","Orders","Admin web","Assign driver from detail",
+      "PENDING order; driver exists.","Assign.",
+      "Status ASSIGNED; driver attached.","Admin web","Positive"),
+    c("S09","S","P0","Orders","Admin web","Status PENDING→CONFIRMED",
+      "Order PENDING.","Confirm.",
+      "Status updated.","Admin web","Positive"),
+    c("S10","S","P0","Orders","Admin web","CONFIRMED→ASSIGNED",
+      "—","Assign driver.","Status ASSIGNED.","Admin web","Positive"),
+    c("S11","S","P0","Orders","Admin web","ASSIGNED→IN_TRANSIT",
+      "Driver starts trip.","Watch admin.","Status IN_TRANSIT.","Admin web","Positive"),
+    c("S12","S","P0","Orders","Admin web","IN_TRANSIT→DELIVERED",
+      "Driver delivers.","Watch.","Status DELIVERED.","Admin web","Positive"),
+    c("S13","S","P0","Orders","Admin web","Illegal status jump rejected",
+      "Order PENDING.","Force DELIVERED via API.",
+      "403/400; order stays PENDING.","Admin web","Negative"),
+    c("S14","S","P1","Orders","Admin web","Cancel order with reason",
+      "PENDING.","Cancel with reason.",
+      "CANCELLED with reason; distributor sees.","Admin web","Positive"),
+    c("S15","S","P1","Orders","Admin web","Reassign to different driver",
+      "ASSIGNED.","Reassign.",
+      "New driver attached; old driver's app removes it.","Admin web","Positive"),
+]
+
+# ===== GROUP T — Filling Stations + Filling Orders =====
+CASES += [
+    c("T01","T","P1","Filling","Admin web","Filling Stations list",
+      "—","Open Filling Stations.","List renders or empty state.","Admin web","Positive"),
+    c("T02","T","P1","Filling","Admin web","Create filling station",
+      "—","Name, address, price/cylinder; Save.",
+      "Listed; selectable on distributor app.","Admin web","Positive"),
+    c("T03","T","P1","Filling","Admin web","Edit station price",
+      "—","Change price.",
+      "Persists; reflects on distributor request.","Admin web","Positive"),
+    c("T04","T","P1","Filling","Admin web","Create filling order",
+      "Station + distributor + type.","New Filling Order; fill; Save.",
+      "Created PENDING.","Admin web","Positive"),
+    c("T05","T","P1","Filling","Admin web","Assign driver to filling order",
+      "PENDING order; driver.","Assign.",
+      "Order ASSIGNED; visible in driver app.","Admin web","Positive"),
+    c("T06","T","P1","Filling","Admin web","Cancel filling order",
+      "PENDING.","Cancel.","Status CANCELLED.","Admin web","Positive"),
+]
+
+# ===== GROUP U — Transfers + Returns =====
+CASES += [
+    c("U01","U","P1","Transfers","Admin web","Transfers list opens",
+      "—","Open Transfers.","List renders.","Admin web","Positive"),
+    c("U02","U","P1","Transfers","Admin web","Create transfer with stock validation",
+      "Source store has stock.","Pick source/dest; cylinders.",
+      "Stock summary shown; cannot exceed available.","Admin web","Positive"),
+    c("U03","U","P1","Transfers","Admin web","Source≠destination enforced",
+      "—","Pick same store both.",
+      "Validation: must differ.","Admin web","Negative"),
+    c("U04","U","P1","Transfers","Admin web","Assign driver",
+      "Transfer created.","Assign.","Driver sees task.","Admin web","Positive"),
+    c("U05","U","P1","Transfers","Admin web","Track status REQUESTED→COMPLETED",
+      "Driver carries out transfer.","Watch.","Status progresses correctly.","Admin web","Positive"),
+    c("U06","U","P2","Returns","Admin web","Returns list shows empties going back",
+      "—","Open Returns.","Empties listed with origin/destination.","Admin web","Positive"),
+]
+
+# ===== GROUP V — Alerts =====
+CASES += [
+    c("V01","V","P1","Alerts","Admin web","Alerts screen opens",
+      "—","Open Alerts.","List opens.","Admin web","Positive"),
+    c("V02","V","P1","Alerts","Admin web","Open vs all toggle",
+      "—","Toggle.","Filter applies.","Admin web","Positive"),
+    c("V03","V","P2","Alerts","Admin web","Filter by severity",
+      "Alerts of various severities.","Filter.","Correct subset.","Admin web","Positive"),
+    c("V04","V","P1","Alerts","Admin web","Acknowledge alert",
+      "Open alert.","Ack.","Status ACK; UI updates.","Admin web","Positive"),
+    c("V05","V","P1","Alerts","Admin web","Resolve alert",
+      "—","Resolve.","Status RESOLVED.","Admin web","Positive"),
+    c("V06","V","P1","Alerts","Admin web","Create DISTRIBUTOR_BALANCE_LOW rule",
+      "—","New rule; threshold=500; pick distributor.",
+      "Rule saved.","Admin web","Positive"),
+    c("V07","V","P1","Alerts","Admin web","Rule triggers an alert",
+      "V06; distributor balance below 500.","Wait for housekeeping cron or trigger.",
+      "Alert created within ~1 min.","Admin web","Positive"),
+    c("V08","V","P1","Alerts","Admin web","Create DISTRIBUTOR_CREDIT_OVER rule",
+      "—","Threshold=2000 (PKR debt tolerated).",
+      "Rule saved.","Admin web","Positive"),
+    c("V09","V","P1","Alerts","Admin web","Create SPECIAL_CLIENT rule",
+      "—","Pick client; create rule.","Saved.","Admin web","Positive"),
+    c("V10","V","P1","Alerts","Admin web","Special client order triggers info alert",
+      "V09; place order from that client.","Wait <1 min.",
+      "Info alert created.","Admin web","Positive"),
+]
+
+# ===== GROUP W — Geography =====
+CASES += [
+    c("W01","W","P0","Cities","Admin web","Cities list seeded",
+      "Seed run.","Open Cities.",
+      "Islamabad/Rawalpindi/Lahore/Karachi visible.","Admin web","Positive"),
+    c("W02","W","P1","Cities","Admin web","Add new city",
+      "—","Add Peshawar.","Listed.","Admin web","Positive"),
+    c("W03","W","P1","Zones","Admin web","List zones",
+      "—","Open Zones.","List or empty state.","Admin web","Positive"),
+    c("W04","W","P1","Zones","Admin web","Create zone with polygon",
+      "City exists.","New Zone; draw polygon; Save.",
+      "Saved with PostGIS polygon.","Admin web","Positive"),
+    c("W05","W","P1","Zones","Admin web","Active-only filter",
+      "Mix active/inactive.","Toggle filter.","Correct list.","Admin web","Positive"),
+    c("W06","W","P1","Zones","Admin web","Edit zone polygon",
+      "Zone exists.","Edit; redraw; Save.",
+      "New polygon persists.","Admin web","Positive"),
+    c("W07","W","P1","Zones","Admin web","Deactivate zone",
+      "—","Toggle is_active off.",
+      "Hidden in active-only view.","Admin web","Positive"),
+    c("W08","W","P1","Stores","Admin web","Stores list",
+      "—","Open Stores.",
+      "List or empty state.","Admin web","Positive"),
+    c("W09","W","P1","Stores","Admin web","Add store under a zone",
+      "Zone exists.","New Store; pick zone; Save.","Listed.","Admin web","Positive"),
+    c("W10","W","P2","Stores","Admin web","Soft delete store",
+      "—","Deactivate.","Hidden by default.","Admin web","Positive"),
+]
+
+# ===== GROUP X — Fleet =====
+CASES += [
+    c("X01","X","P1","Vehicles","Admin web","Vehicles list",
+      "—","Open Vehicles.","Renders.","Admin web","Positive"),
+    c("X02","X","P0","Vehicles","Admin web","Add vehicle",
+      "—","Plate, capacity, type; Save.","Listed.","Admin web","Positive"),
+    c("X03","X","P1","Vehicles","Admin web","Edit vehicle",
+      "—","Change capacity.","Persists.","Admin web","Positive"),
+    c("X04","X","P0","Vehicles","Admin web","Assign driver to vehicle",
+      "Driver + vehicle.","Assign.","Driver Vehicle Info reflects.","Admin web","Positive"),
+    c("X05","X","P1","Vehicles","Admin web","Set status MAINTENANCE",
+      "—","Change status.","Persists.","Admin web","Positive"),
+    c("X06","X","P0","Cylinder types","Admin web","List cylinder types (seeded)",
+      "Seed.","Open.","4 types listed.","Admin web","Positive"),
+    c("X07","X","P1","Cylinder types","Admin web","Edit type display name",
+      "—","Change name; Save.","Persists; reflects on apps.","Admin web","Positive"),
+    c("X08","X","P2","Accessories","Admin web","List accessories (seeded)",
+      "—","Open Accessories.","10 items listed.","Admin web","Positive"),
+    c("X09","X","P2","Accessories","Admin web","Add accessory",
+      "—","Code/name/category/price.","Listed.","Admin web","Positive"),
+    c("X10","X","P2","Accessories","Admin web","Edit accessory price",
+      "—","Change price.","Persists.","Admin web","Positive"),
+    c("X11","X","P1","Drivers","Admin web","Drivers list",
+      "—","Open Drivers.","Renders.","Admin web","Positive"),
+    c("X12","X","P1","Drivers","Admin web","Driver detail with trip + refill history",
+      "Driver with activity.","Open detail.",
+      "Trips + fuel refills + reconciliations visible.","Admin web","Positive"),
+    c("X13","X","P1","Drivers","Admin web","Set availability ON_LEAVE",
+      "—","Change availability.","Persists; visible in dispatch.","Admin web","Positive"),
+]
+
+# ===== GROUP Y — Distributors + Pricing =====
+CASES += [
+    c("Y01","Y","P0","Distributors","Admin web","Distributors list",
+      "—","Open Distributors.","Renders.","Admin web","Positive"),
+    c("Y02","Y","P0","Distributors","Admin web","Add distributor",
+      "—","Phone, name, business name; Save.",
+      "User+profile created.","Admin web","Positive"),
+    c("Y03","Y","P0","Distributors","Admin web","Suspend distributor blocks mobile login",
+      "Active distributor.","Suspend; try mobile OTP.",
+      "Mobile login refused.","Admin web + Mobile","Negative"),
+    c("Y04","Y","P1","Distributors","Admin web","Re-activate distributor",
+      "Suspended.","Re-activate.","Mobile login works again.","Admin web","Positive"),
+    c("Y05","Y","P1","Distributors","Admin web","View distributor's clients",
+      "Distributor with clients.","Open detail.","Clients listed.","Admin web","Positive"),
+    c("Y06","Y","P1","Distributors","Admin web","View distributor orders",
+      "Orders exist.","Open detail → orders tab.","Listed.","Admin web","Positive"),
+    c("Y07","Y","P1","Distributors","Admin web","View distributor balance + ledger",
+      "—","Open detail.","Balance + ledger entries visible.","Admin web","Positive"),
+    c("Y08","Y","P1","Pricing","Admin web","Pricing screen opens",
+      "—","Open Pricing.","Renders.","Admin web","Positive"),
+    c("Y09","Y","P1","Pricing","Admin web","Create pricing rule",
+      "Zones + types.","Origin zone × dest zone × type → base+per-unit; Save.",
+      "Listed; takes effect on new orders.","Admin web","Positive"),
+    c("Y10","Y","P1","Pricing","Admin web","Edit pricing rule",
+      "—","Change per-unit.","Persists; reflects on next order's price.","Admin web","Positive"),
+]
+
+# ===== GROUP Z — QR Generator =====
+CASES += [
+    c("Z01","Z","P1","QR","Admin web","QR Generator opens",
+      "—","Open QR Generator.","Form + batches list visible.","Admin web","Positive"),
+    c("Z02","Z","P1","QR","Admin web","Build a batch",
+      "Distributor + type + store + qty=10.","Add batch.",
+      "Batch row visible.","Admin web","Positive"),
+    c("Z03","Z","P0","QR","Admin web","Generate batch (POST /cylinders)",
+      "Batch queued.","Generate.",
+      "10 cylinders created; QR codes returned.","Admin web","Positive"),
+    c("Z04","Z","P1","QR","Admin web","Preview grid renders",
+      "Z03.","Inspect.",
+      "10 QR codes shown.","Admin web","Positive"),
+    c("Z05","Z","P1","QR","Admin web","Print page renders",
+      "—","Print preview.",
+      "Codes laid out for printing.","Admin web","Positive"),
+    c("Z06","Z","P1","QR","Admin web","CSV export downloads",
+      "—","Export CSV.",
+      "CSV file with cylinder ids + QR strings.","Admin web","Positive"),
+    c("Z07","Z","P0","QR","Admin web","New cylinders visible in inventory",
+      "Z03.","Open Inventory.",
+      "Counts match generated qty.","Admin web","Positive"),
+]
+
+# ===== GROUP AA — Reports =====
+CASES += [
+    c("AA01","AA","P1","Reports","Admin web","Reports screen opens",
+      "—","Open Reports.","Sub-tabs visible.","Admin web","Positive"),
+    c("AA02","AA","P1","Reports","Admin web","Driver utilization",
+      "Trips data.","Open utilization.","Chart + numbers.","Admin web","Positive"),
+    c("AA03","AA","P1","Reports","Admin web","Driver attendance with date range",
+      "Shifts logged.","Pick range; refresh.","Per-driver hours render.","Admin web","Positive"),
+    c("AA04","AA","P1","Reports","Admin web","Dispatch decisions report",
+      "Orders with dispatch decisions.","Open.","List of decisions + scores.","Admin web","Positive"),
+    c("AA05","AA","P1","Reports","Admin web","Delivery funnel",
+      "Orders across statuses.","Open.","Counts per status; conversion %.","Admin web","Positive"),
+    c("AA06","AA","P1","Reports","Admin web","Inventory by store",
+      "Custody seeded.","Open.","Per-store/type counts.","Admin web","Positive"),
+    c("AA07","AA","P2","Reports","Admin web","Charts render on empty data",
+      "Empty environment.","Open each.","No crashes; empty states.","Admin web","Edge"),
+]
+
+# ===== GROUP AB — Expenses + Fuel Report =====
+CASES += [
+    c("AB01","AB","P1","Expenses","Admin web","Expenses screen opens",
+      "—","Open.","Renders.","Admin web","Positive"),
+    c("AB02","AB","P1","Expenses","Admin web","Record expense",
+      "—","Category, amount, date; Save.","Listed.","Admin web","Positive"),
+    c("AB03","AB","P2","Expenses","Admin web","Filter by category",
+      "Multiple expenses.","Filter.","Correct subset.","Admin web","Positive"),
+    c("AB04","AB","P1","Fuel","Admin web","Fuel Report opens",
+      "—","Open.","Renders.","Admin web","Positive"),
+    c("AB05","AB","P1","Fuel","Admin web","Filter by vehicle/driver/date",
+      "Multiple refills.","Apply filters.","Subset matches.","Admin web","Positive"),
+    c("AB06","AB","P2","Fuel","Admin web","Summary stats correct",
+      "—","Inspect totals.","Sum of cost matches.","Admin web","Positive"),
+]
+
+# ===== GROUP AC — Inventory + Custody Trace =====
+CASES += [
+    c("AC01","AC","P1","Inventory","Admin web","Inventory by Store opens",
+      "—","Open Inventory.","Stores listed with cylinder counts.","Admin web","Positive"),
+    c("AC02","AC","P1","Inventory","Admin web","Counts match custody",
+      "Custody events seeded.","Compare totals.",
+      "Match.","Admin web","Positive"),
+    c("AC03","AC","P1","Custody","Admin web","Trace single cylinder by QR",
+      "Cylinder with events.","Search by QR.",
+      "Full timeline of events.","Admin web","Positive"),
+    c("AC04","AC","P2","Custody","Admin web","Cylinder marked LOST",
+      "—","Mark LOST.",
+      "State updated; visible in inventory.","Admin web","Edge"),
+]
+
+# ===== GROUP FI — Files + S3 =====
+CASES += [
+    c("FI01","FI","P0","Files","S3","Proof photo upload reaches S3",
+      "DR4-03 just happened.","aws s3 ls s3://smartfleet-files-prod/.","Photo file visible.","S3","Positive"),
+    c("FI02","FI","P1","Files","Mobile/Admin","Profile picture upload (if implemented)",
+      "Profile screen.","Upload photo.","Visible in profile.","Mobile/Admin","Positive"),
+    c("FI03","FI","P1","Files","Admin web","Pre-signed URL works",
+      "Proof photo in S3.","Open in admin order detail.","Image renders.","Admin web","Positive"),
+    c("FI04","FI","P0","Files","S3","Direct public URL blocked",
+      "Bucket public-access blocked.","Open S3 URL in incognito.","AccessDenied.","S3","Negative"),
+    c("FI05","FI","P1","Files","S3","Lifecycle rule active",
+      "Bucket configured.","aws s3api get-bucket-lifecycle-configuration.","Rule moves >60d to Glacier IR.","S3","Positive"),
+]
+
+# ===== GROUP PN — Push Notifications =====
+CASES += [
+    c("PN01","PN","P0","Push","Driver app","Order assigned → push notification",
+      "FCM configured (or fallback); driver app installed + permission granted.",
+      "Admin assigns order to driver.",
+      "Push received <30s.","Driver app","Positive"),
+    c("PN02","PN","P1","Push","Distributor app","Order delivered → push to distributor",
+      "—","Driver delivers.","Push received.","Distributor app","Positive"),
+    c("PN03","PN","P1","Push","Client portal","Order delivered → notification to client",
+      "—","Watch client device.","Notification or SMS link arrives.","Client device","Positive"),
+    c("PN04","PN","P1","Push","Driver app","Tap notification deep-links to right screen",
+      "Push received.","Tap.","Opens Active Trip or relevant screen.","Driver app","Positive"),
+    c("PN05","PN","P2","Push","All apps","Backgrounded app receives push",
+      "App in background.","Trigger.","Notification rings even if app not active.","All apps","Positive"),
+    c("PN06","PN","P1","In-app","All apps","In-app notification badge increments",
+      "Trigger event.","Refresh.","Bell badge increments.","All apps","Positive"),
+]
+
+# ===== GROUP AU — API & Backend =====
+CASES += [
+    c("AU01","AU","P1","Audit","API","Audit log entries on key actions",
+      "Perform: status change, distributor suspend.","Query /audit-log.",
+      "Entries exist with userId + action + timestamp.","API","Positive"),
+    c("AU02","AU","P2","Audit","API","Audit log queryable by user",
+      "—","Query with filter.","Returns only that user's events.","API","Positive"),
+    c("AU03","AU","P1","Support","Admin web/API","Create support ticket",
+      "—","Create.","Ticket persists; listed.","API + Admin web","Positive"),
+    c("AU04","AU","P1","Support","Admin web/API","Resolve ticket",
+      "Open ticket.","Resolve with note.","Status RESOLVED.","API + Admin web","Positive"),
+    c("AU05","AU","P1","Push tokens","Mobile/API","Push token registers on login",
+      "Push permission granted.","Login.","Token POSTed to /push-tokens.","API","Positive"),
+    c("AU06","AU","P1","Push tokens","Mobile/API","Token deregisters on logout",
+      "Logged in.","Logout.","Token deleted; no further push to that device.","API","Positive"),
+    c("AU07","AU","P2","Feature flags","API","Feature flag toggle reflects on next call",
+      "PostHog flag set.","Toggle on then off.","Behaviour changes accordingly.","API","Positive"),
+]
+
+# ===== GROUP NR — Network Resilience =====
+CASES += [
+    c("NR01","NR","P1","Network","Distributor app","Action on full offline",
+      "Logged in.","Airplane mode; tap Send OTP / Place Order.",
+      "Friendly 'no connection' msg; no spinner; no crash.","Distributor app","Edge"),
+    c("NR02","NR","P1","Network","Distributor app","Slow 3G doesn't hang the app",
+      "~150 kbps.","Open lists.",
+      "Skeleton/spinner; eventually loads.","Distributor app","Edge"),
+    c("NR03","NR","P1","Network","Distributor app","5xx from server",
+      "Restart api-prod mid-request.","Trigger fetch.",
+      "Retry button shown; no crash.","Distributor app","Edge"),
+    c("NR04","NR","P1","Auth","Distributor app","Expired token forces re-login or silent refresh",
+      "Token expired.","Call authed endpoint.",
+      "Either auto-refresh silently OR redirect to login.","Distributor app","Edge"),
+    c("NR05","NR","P0","Resilience","EC2","Container crash auto-restarts",
+      "SSH.","docker kill smartfleet-api-prod.",
+      "Auto-restart ~2s; /health/live OK ≤10s.","API","Edge"),
+    c("NR06","NR","P1","Resilience","EC2","Full reboot recovers everything",
+      "—","sudo reboot.","All come back: Caddy/containers/app reconnects.","All","Edge"),
+]
+
+# ===== GROUP SE — Security & Permissions =====
+CASES += [
+    c("SE01","SE","P0","Sec","API","Cross-distributor isolation",
+      "Two distributors with their data.","Use A's token to list, then B's.",
+      "Each sees only their own; no overlap.","API","Negative"),
+    c("SE02","SE","P0","Sec","API","Role-restricted endpoint",
+      "Distributor token.","POST /orders/{id}/assign.","403.","API","Negative"),
+    c("SE03","SE","P0","Sec","API","Tampered JWT rejected",
+      "Valid token; flip signature char.","Call /auth/me.","401.","API","Negative"),
+    c("SE04","SE","P0","Sec","S3","Bucket not listable",
+      "—","Open https://...s3.../ in incognito.","AccessDenied.","S3","Negative"),
+    c("SE05","SE","P0","Sec","API","OTP not leaked in prod response",
+      "—","POST /auth/otp/send in prod.","Response only {ok:true} (no devCode).","API","Positive"),
+    c("SE06","SE","P1","Sec","DB","PII encrypted at rest (CNIC)",
+      "User with CNIC.","Query users.cnic_encrypted.","Ciphertext.","DB","Positive"),
+    c("SE07","SE","P1","Sec","API","Suspended user cannot authenticate",
+      "Suspend +923001111111.","Try mobile OTP login.",
+      "Refused with 'Account not active'.","API","Negative"),
+    c("SE08","SE","P1","Sec","API","Driver role can't access admin endpoints",
+      "Driver token.","Call /admin/* endpoints.","403.","API","Negative"),
+    c("SE09","SE","P1","Sec","API","Field roles can't use password endpoint",
+      "Distributor created with hashed password manually.","POST /auth/login as distributor.",
+      "Rejected: 'must sign in with one-time code'.","API","Negative"),
+    c("SE10","SE","P2","Sec","API","Brute-force protection on password",
+      "—","Try 10 wrong passwords rapidly.",
+      "Slows / locks (or just consistently rejects without crash).","API","Negative"),
+]
+
+# ===== GROUP DI — Data Integrity & Housekeeping =====
+CASES += [
+    c("DI01","DI","P1","Housekeeping","DB","Old OTP codes purged",
+      "DB has codes >10 min old.","Query otp_codes.","No codes older than retention.","DB","Positive"),
+    c("DI02","DI","P1","Housekeeping","DB","Expired sessions purged",
+      "Old refresh tokens.","Query refresh_tokens.","None past expiry.","DB","Positive"),
+    c("DI03","DI","P2","Housekeeping","DB","Audit log retention",
+      "Old entries.","Query.","Entries >retention archived/dropped.","DB","Positive"),
+    c("DI04","DI","P1","Backup","RDS","Automated snapshots exist",
+      "—","aws rds describe-db-snapshots.","Recent snapshots present.","RDS","Positive"),
+    c("DI05","DI","P1","Storage","S3","Glacier transition on >60d photos",
+      "S3 lifecycle.","Test object aged via TestExecution.","Transitioned (if old enough).","S3","Positive"),
+    c("DI06","DI","P1","Encryption","DB","Password hashes are argon2",
+      "—","Inspect users.password_hash.","Starts with $argon2.","DB","Positive"),
+]
+
+# ===== FIELD groups (FD-1..FD-3, L) — keep inline below =====
+FIELD_GROUPS_CASES = [
+    # ---- FD-1 (driver day-in-life) ----
+    ("FD1-01","FD-1","P0","Field","Driver app","Screen readable in midday sun",
+      "Driver outside 11am–4pm.","Use screen for trip + scan.","Readable without shading.","Driver app","Field"),
+    ("FD1-02","FD-1","P0","Field","Driver app","Scan worn QR sticker",
+      "Cylinder used 1+ month.","Scan.","Reads or guides retry; ≥80% success.","Driver app","Field"),
+    ("FD1-03","FD-1","P0","Field","Driver app","Proof photo at dusk",
+      "Real delivery 7pm.","Capture.","Legible or torch prompt.","Driver app","Field"),
+    ("FD1-04","FD-1","P0","Field","Driver app","Battery drain over 4-hour shift",
+      "Start 100%.","Use 4h.","Drop ≤40%.","Driver app","Field"),
+    ("FD1-05","FD-1","P1","Field","Driver app","Background location",
+      "App backgrounded; phone in pocket.","Watch admin map.","Updates ≥15 min in BG.","Driver app + Admin","Field"),
+    ("FD1-06","FD-1","P1","Field","Driver app","Dead-zone recovery",
+      "Known dead-zone.","Pass through.","Queues; syncs on signal return.","Driver app","Field"),
+    ("FD1-07","FD-1","P1","Field","Driver app","Notification heard with helmet",
+      "Helmet + bike sounds.","Receive push.","Heard or felt; or document need for vibration.","Driver app","Field"),
+    ("FD1-08","FD-1","P1","Field","Driver app","Glove-friendly buttons",
+      "Riding gloves.","Tap.","First-tap accuracy.","Driver app","Field"),
+    ("FD1-09","FD-1","P2","Field","Driver app","Urban GPS drift ≤30m",
+      "6-storey buildings.","Compare.","Drift acceptable.","Driver app","Field"),
+    # ---- FD-2 (distributor day-in-life) ----
+    ("FD2-01","FD-2","P0","Field","Distributor app","Cheap-Android performance",
+      "Rs.25k Android.","Place an order.","Completes ≤90s.","Distributor app","Field"),
+    ("FD2-02","FD-2","P0","Field","Distributor app","OTP perception in tube light",
+      "Shop.","Login 5×.","All complete <60s.","Distributor app","Field"),
+    ("FD2-03","FD-2","P1","Field","Distributor app","Order entry under customer pressure",
+      "Customer waiting.","Place order.","No blockers; <60s.","Distributor app","Field"),
+    ("FD2-04","FD-2","P1","Field","Distributor app","WiFi↔SIM handoff mid-action",
+      "Shop has both.","Walk out mid-order.","Continues on cellular; no data loss.","Distributor app","Field"),
+    ("FD2-05","FD-2","P2","Field","Distributor app","Back-button confusion",
+      "Naive user.","Watch them.","No 'stuck' moments.","Distributor app","Field"),
+    ("FD2-06","FD-2","P1","Field","Distributor app","End-of-day responsiveness",
+      "≥30 orders today.","Open app.","Lists <2s.","Distributor app","Field"),
+    # ---- FD-3 (client field) ----
+    ("FD3-01","FD-3","P1","Field","Customer","Customer can confirm delivery",
+      "Delivery just happened.","Hand customer phone with link OR driver confirms verbally.",
+      "Confirmation recorded.","Customer device","Field"),
+    ("FD3-02","FD-3","P1","Field","Customer","Proof photo legible",
+      "—","View photo.","Cylinder + signature visible.","Admin web","Field"),
+    ("FD3-03","FD-3","P2","Field","Customer","No-app fallback path",
+      "Customer has no smartphone.","Driver confirms.","Order still completes.","Driver app","Field"),
+    # ---- L (soak + OTA) ----
+    ("L01","L","P1","Soak","Apps","Token valid next morning",
+      "Logged in overnight.","Reopen 12h later.","Still logged in OR refresh succeeds silently.","Apps","Edge"),
+    ("L02","L","P0","OTA","Distributor app","EAS Update picked up",
+      "Push small JS change.","eas update; close+reopen app.","Change visible; old crash not back.","Distributor app","Positive"),
+    ("L03","L","P1","Cost","AWS","Day-over-day cost ≈ $0",
+      "—","Billing → daily.","MTD <$1.","AWS","Positive"),
+    ("L04","L","P1","Logs","CloudWatch","No recurring noisy errors",
+      "—","Inspect log group.","Quiet; no repeat 500s.","CloudWatch","Positive"),
+    ("L05","L","P1","Alarms","CloudWatch","No chronic ALARM state",
+      "—","describe-alarms.","All OK / INSUFFICIENT_DATA.","CloudWatch","Positive"),
+    ("L06","L","P2","Day boundary","Apps","Orders crossing midnight",
+      "Order 11:55pm; deliver 12:05am.","Inspect timestamps.","Local-date logic correct; no off-by-one.","All","Edge"),
+]
+CASES += FIELD_GROUPS_CASES
+
+
+# ---------------------------------------------------------------------------
+# Sheet builders
+# ---------------------------------------------------------------------------
+
 def build_groups(wb):
     ws = wb.create_sheet("Test Groups")
-    headers = ["Group", "Name", "Duration", "Where", "Pre-requirements", "What it covers", "Rebuild needed?", "Depends on"]
-    set_widths(ws, [7, 32, 12, 18, 36, 70, 30, 12])
-    for c, h in enumerate(headers, start=1):
-        ws.cell(row=1, column=c, value=h)
+    headers = ["Group", "Name", "Duration", "Where", "Pre-requirements", "What it covers", "Rebuild?", "Depends on"]
+    set_widths(ws, [8, 40, 14, 22, 42, 70, 24, 16])
+    for c_, h in enumerate(headers, start=1):
+        ws.cell(row=1, column=c_, value=h)
     style_header(ws, 1, len(headers))
 
     for i, g in enumerate(GROUPS, start=2):
-        row = [g["id"], g["name"], g["duration"], g["where"], g["needs"], g["covers"], g["rebuild?"], g["depends"]]
-        for c, v in enumerate(row, start=1):
-            cell = ws.cell(row=i, column=c, value=v)
+        gid, name, dur, where, pre, covers, rebuild, depends = g
+        row = [gid, name, dur, where, pre, covers, rebuild, depends]
+        for c_, v in enumerate(row, start=1):
+            cell = ws.cell(row=i, column=c_, value=v)
             cell.alignment = CELL_ALIGN
             cell.border = BORDER
             if i % 2 == 0:
                 cell.fill = ZEBRA
-            if g["id"] in ("J", "K"):
-                cell.font = Font(color="A23A1A", bold=True if c == 1 else False)
+            if gid.startswith("FD") or gid == "L":
+                cell.font = Font(color="A23A1A", bold=(c_ == 1))
         ws.row_dimensions[i].height = 60
-
     ws.freeze_panes = "A2"
-
-
-# ---------------------------------------------------------------------------
-# Sheet 3 — Atomic Cases
-# ---------------------------------------------------------------------------
-
-CASES = [
-    # ----- GROUP A: Cold-Start + Auth -----
-    ("A01", "A", "P0", "Auth", "Admin web", "Admin web loads without console errors",
-        "Browser cache cleared; production URL up.",
-        "1. Open https://admin.smartfleetpk.com 2. Open DevTools → Console.",
-        "Login screen renders; no red console errors; bundle filename in Network ≠ a stale broken one.",
-        "Admin web", "Positive"),
-    ("A02", "A", "P0", "Auth", "Admin web", "Super-admin signs in with valid password",
-        "Seed run; default password ChangeMe!Now123 known.",
-        "1. Enter +923000000000 + correct password 2. Submit.",
-        "Lands in Dashboard within 3s; sidebar visible.",
-        "Admin web", "Positive"),
-    ("A03", "A", "P0", "Auth", "Admin web", "Wrong password is rejected with same message every time",
-        "—",
-        "Try (a) wrong password (b) unknown phone +923444444444 (c) blank password.",
-        "All three return the exact same 'Invalid phone or password' (no enumeration leak); no dashboard.",
-        "Admin web", "Negative"),
-    ("A04", "A", "P1", "Auth", "Admin web", "Distributor phone with any password is rejected with role hint",
-        "+923001111111 exists as DISTRIBUTOR.",
-        "Sign in with +923001111111 + any password.",
-        "Server returns 'must sign in with a one-time code, not a password'. Login fails.",
-        "Admin web", "Negative"),
-    ("A05", "A", "P1", "Auth", "Admin web", "Token persists across browser refresh",
-        "Logged in as super-admin.",
-        "Reload the tab (Ctrl+R).",
-        "Still on Dashboard; no re-login required.",
-        "Admin web", "Positive"),
-    ("A06", "A", "P1", "Auth", "Admin web", "Explicit logout clears token + returns to login",
-        "Logged in.",
-        "Click Logout from sidebar/profile menu.",
-        "Login screen shown; refreshing does not auto-login.",
-        "Admin web", "Positive"),
-    ("A07", "A", "P2", "Auth", "Admin web", "Idle logout after configured timeout",
-        "Logged in. Site sets 10-min idle.",
-        "Leave the tab focused but untouched for >10 min (cheat by editing the constant in dev if testing in <10).",
-        "Auto-redirects to login.",
-        "Admin web", "Edge"),
-    ("A08", "A", "P0", "Auth", "Distributor app", "OTP send returns success",
-        "Distributor user +923001111111 exists and is ACTIVE.",
-        "Open app → enter +923001111111 → Send OTP.",
-        "App shows 'code sent' state; logs on EC2 show an OTP-MOCK block for +923001111111.",
-        "Distributor app", "Positive"),
-    ("A09", "A", "P0", "Auth", "Distributor app", "OTP verify with fresh code succeeds",
-        "A09 immediately after A08 (within 5 min).",
-        "Read code from logs → enter → submit.",
-        "Lands in distributor home; bottom tabs/main screen visible.",
-        "Distributor app", "Positive"),
-    ("A10", "A", "P1", "Auth", "Distributor app", "Stale OTP is rejected",
-        "Wait >5 min after a send, or send a NEW OTP then try the OLD code.",
-        "Submit the older code.",
-        "Error 'OTP expired or not found' OR 'Invalid code'; not logged in.",
-        "Distributor app", "Negative"),
-    ("A11", "A", "P1", "Auth", "Distributor app", "Rate limit kicks in after 3 sends in 60s",
-        "Fresh phone with no recent OTPs.",
-        "Tap Send OTP four times within 30s.",
-        "4th request returns 'Too many OTP requests'; client shows error.",
-        "Distributor app", "Negative"),
-    ("A12", "A", "P1", "Auth", "Distributor app", "Login state survives app cold-start",
-        "Logged in.",
-        "Force-stop the app, reopen.",
-        "Back on home screen without re-OTP.",
-        "Distributor app", "Positive"),
-    ("A13", "A", "P1", "Auth", "Driver app", "Driver OTP login (same flow as distributor)",
-        "+923002222222 exists as DRIVER with Driver profile.",
-        "Repeat A08–A09 with driver phone using driver APK.",
-        "Lands in driver home; trip queue/idle state visible.",
-        "Driver app", "Positive"),
-
-    # ----- GROUP B: Distributor — Clients -----
-    ("B01", "B", "P0", "Clients", "Distributor app", "Add Client screen opens without crash",
-        "Logged in.",
-        "Tap Add Client.",
-        "Form opens; MapStub card visible where map used to be; no white screen / no app exit.",
-        "Distributor app", "Positive"),
-    ("B02", "B", "P0", "Clients", "Distributor app", "Save a valid client",
-        "Add Client open.",
-        "Name='Asma Naveed', Phone='+923211234567', Area='G-13', City='Islamabad', address search → pick a suggestion. Save.",
-        "Toast/success; client appears in client list.",
-        "Distributor app", "Positive"),
-    ("B03", "B", "P1", "Clients", "Distributor app", "Phone is validated as E.164",
-        "Add Client open.",
-        "Type '03001234567' (no country code) → Save.",
-        "Inline error or rejection; not saved.",
-        "Distributor app", "Negative"),
-    ("B04", "B", "P1", "Clients", "Distributor app", "Address search returns Pakistani results",
-        "Add Client open, search field focused.",
-        "Type 'F-7 Markaz Islamabad'.",
-        "Suggestions appear within ~3s; pick top → lat/lng visible in marker card.",
-        "Distributor app", "Positive"),
-    ("B05", "B", "P2", "Clients", "Distributor app", "Address search handles ambiguous query gracefully",
-        "—",
-        "Search 'abc'.",
-        "Either no results message OR an empty list; no crash, no infinite spinner.",
-        "Distributor app", "Edge"),
-    ("B06", "B", "P1", "Clients", "Distributor app", "Duplicate phone is prevented",
-        "Client from B02 saved.",
-        "Add another client with same phone.",
-        "Server rejects with a clear error; UI shows it.",
-        "Distributor app", "Negative"),
-    ("B07", "B", "P1", "Clients", "Distributor app", "Saved client persists across app restart",
-        "B02 done.",
-        "Force-stop app → reopen → go to client list.",
-        "Client still listed.",
-        "Distributor app", "Positive"),
-    ("B08", "B", "P2", "Clients", "Distributor app", "Client list searchable by name and phone",
-        "≥3 clients in list.",
-        "Type partial name; then partial phone.",
-        "Filtered results match; clearing search restores list.",
-        "Distributor app", "Positive"),
-
-    # ----- GROUP C: Distributor — Place Order -----
-    ("C01", "C", "P0", "Orders", "Distributor app", "New Order screen opens",
-        "Logged in; ≥1 client + 4 cylinder types seeded.",
-        "Tap New Order.",
-        "'Who' step shows; client search field focused; no crash.",
-        "Distributor app", "Positive"),
-    ("C02", "C", "P0", "Orders", "Distributor app", "Order with one cylinder type submits",
-        "C01.",
-        "Search 'Walk' → pick Walk-in Customer; address autofill OR re-search; cylinder 'LPG 11.8 kg' qty=1, empty-return=0; Submit.",
-        "Success screen; new order id printed; appears in My Orders as PENDING.",
-        "Distributor app", "Positive"),
-    ("C03", "C", "P0", "Orders", "Distributor app", "Order with multiple cylinder types",
-        "—",
-        "Add LPG 11.8 (qty 2), LPG 6 (qty 1); empties returned = 1 of LPG 11.8. Submit.",
-        "Single order created with 2 lines; quantities exactly as entered in My Orders detail.",
-        "Distributor app", "Positive"),
-    ("C04", "C", "P1", "Orders", "Distributor app", "Cart math: increment / decrement / remove",
-        "Cart with mixed items.",
-        "+/- buttons; remove a line; re-add same type.",
-        "On-screen totals stay consistent with what you submit. No negative quantities.",
-        "Distributor app", "Edge"),
-    ("C05", "C", "P0", "Orders", "Distributor app", "Cannot submit empty cart",
-        "Cart empty.",
-        "Try Submit.",
-        "Submit disabled or rejected with a message; no order created.",
-        "Distributor app", "Negative"),
-    ("C06", "C", "P1", "Orders", "Distributor app", "Cannot submit with no client",
-        "Cart has items, client step skipped.",
-        "Try Submit.",
-        "Blocked; prompt to pick a client.",
-        "Distributor app", "Negative"),
-    ("C07", "C", "P1", "Orders", "Distributor app", "Address picked from address search saves on the order",
-        "—",
-        "Place an order using a different address than the client's default.",
-        "Admin web Orders detail shows the picked address, not the client's default.",
-        "Distributor app", "Positive"),
-    ("C08", "C", "P1", "Orders", "Distributor app", "Back navigation does not lose cart",
-        "Cart with 2 items.",
-        "Back to 'Who' step; pick a different client; come forward.",
-        "Cart intact (or behaviour matches expected design); no orphan order.",
-        "Distributor app", "Edge"),
-    ("C09", "C", "P2", "Orders", "Distributor app", "Submit while network drops",
-        "Cart ready; toggle airplane mode at moment of Submit.",
-        "Tap Submit with airplane mode on.",
-        "Clear error; no half-created order on server; retry succeeds after reconnect.",
-        "Distributor app", "Edge"),
-
-    # ----- GROUP D: Distributor — History / Track / Ledger / Inventory -----
-    ("D01", "D", "P0", "History", "Distributor app", "Order History lists today's orders",
-        "≥3 orders placed today.",
-        "Open Order History.",
-        "All 3 visible, newest first; correct status badges.",
-        "Distributor app", "Positive"),
-    ("D02", "D", "P1", "History", "Distributor app", "Pull-to-refresh updates state",
-        "Admin changes one order's status in web.",
-        "Pull down to refresh in app.",
-        "Status updates without app restart.",
-        "Distributor app", "Positive"),
-    ("D03", "D", "P0", "Track", "Distributor app", "Track Order screen opens without map crash",
-        "Tap an active order.",
-        "Open Track.",
-        "Screen renders; MapStub card visible; no app exit.",
-        "Distributor app", "Positive"),
-    ("D04", "D", "P1", "Ledger", "Distributor app", "Ledger entries reflect order activity",
-        "Pricing rules configured (admin) → otherwise mark N/A.",
-        "Open Ledger.",
-        "Entries present for placed orders OR explicit 'no activity' state; balance arithmetic correct.",
-        "Distributor app", "Positive"),
-    ("D05", "D", "P1", "Inventory", "Distributor app", "Inventory shows current full/empty counts",
-        "Custody seeded or after Group G.",
-        "Open Inventory.",
-        "Counts shown by cylinder type; refresh consistent with admin view.",
-        "Distributor app", "Positive"),
-
-    # ----- GROUP E: Admin Web Operations -----
-    ("E01", "E", "P0", "Dashboard", "Admin web", "KPI tiles populate",
-        "Seed + Groups C ran.",
-        "Open Dashboard.",
-        "Tiles render (zero or non-zero values), no console errors.",
-        "Admin web", "Positive"),
-    ("E02", "E", "P0", "Dashboard", "Admin web", "Recent orders include the latest distributor order",
-        "Place an order in app, wait <30s.",
-        "Refresh Dashboard.",
-        "Order id matches; correct distributor + client + status PENDING.",
-        "Admin web", "Positive"),
-    ("E03", "E", "P0", "Orders", "Admin web", "Assign order to driver",
-        "Order PENDING; driver record exists.",
-        "Open order → Assign → pick driver → Save.",
-        "Status changes to ASSIGNED; driver attached; activity log updated.",
-        "Admin web", "Positive"),
-    ("E04", "E", "P1", "Orders", "Admin web", "Illegal status jump rejected by API",
-        "Order PENDING.",
-        "Use dev tools or admin UI to push status DELIVERED directly.",
-        "Server rejects with a clear error; order stays PENDING.",
-        "Admin web", "Negative"),
-    ("E05", "E", "P1", "Orders", "Admin web", "Cancel order updates status",
-        "Order PENDING.",
-        "Cancel from admin web.",
-        "Status CANCELLED; reflected in distributor app on refresh.",
-        "Admin web", "Positive"),
-    ("E06", "E", "P1", "Live", "Admin web", "Live Deliveries screen loads",
-        "—",
-        "Open Live screen.",
-        "Map area + driver list render; no console errors. (Driver markers may be empty if no drivers online.)",
-        "Admin web", "Positive"),
-    ("E07", "E", "P1", "Live", "Admin web", "Driver location appears when driver is online",
-        "Group G running.",
-        "Driver online → admin watches.",
-        "Marker appears within ~30s and updates as driver moves.",
-        "Admin web", "Positive"),
-    ("E08", "E", "P2", "Live", "Admin web", "Tab away + return reconnects socket",
-        "Live screen open with driver online.",
-        "Switch tabs for 1 min; return.",
-        "Socket reconnects; latest location shown.",
-        "Admin web", "Edge"),
-
-    # ----- GROUP F: Master Data CRUD -----
-    ("F01", "F", "P0", "Cities", "Admin web", "List cities (seeded)",
-        "Seed ran.",
-        "Open Cities.",
-        "Islamabad / Rawalpindi / Lahore / Karachi visible.",
-        "Admin web", "Positive"),
-    ("F02", "F", "P1", "Zones", "Admin web", "Create a zone with a polygon",
-        "City exists.",
-        "New Zone → name → draw polygon → save.",
-        "Zone saved with PostGIS polygon; appears on map.",
-        "Admin web", "Positive"),
-    ("F03", "F", "P1", "Stores", "Admin web", "Create a store under a zone",
-        "Zone from F02.",
-        "New Store → fill fields → Save.",
-        "Store listed; assignable to drivers/orders.",
-        "Admin web", "Positive"),
-    ("F04", "F", "P0", "Cylinder types", "Admin web", "Cylinder types editable",
-        "Seed types exist.",
-        "Edit a type's display name.",
-        "Saved; updated name shows in distributor app after refresh.",
-        "Admin web", "Positive"),
-    ("F05", "F", "P1", "Pricing", "Admin web", "Create a pricing rule",
-        "City + cylinder type exist.",
-        "Pricing → New Rule → set price.",
-        "Rule listed; later orders use it.",
-        "Admin web", "Positive"),
-    ("F06", "F", "P1", "Vehicles", "Admin web", "Create a vehicle and assign driver",
-        "Driver exists.",
-        "Vehicles → New → plate / capacity → assign driver.",
-        "Vehicle + assignment saved; visible in Driver detail.",
-        "Admin web", "Positive"),
-    ("F07", "F", "P1", "Drivers", "Admin web", "Edit driver (e.g. set availability)",
-        "Driver record.",
-        "Edit availability ON_LEAVE; save.",
-        "Persists; dispatcher view reflects it.",
-        "Admin web", "Positive"),
-    ("F08", "F", "P1", "Distributors", "Admin web", "Suspend a distributor",
-        "Distributor record.",
-        "Suspend.",
-        "Suspended distributor cannot place new orders on mobile (returns auth/role error).",
-        "Admin web", "Edge"),
-    ("F09", "F", "P2", "Accessories", "Admin web", "List + create accessory",
-        "Seed accessories present.",
-        "Create a new accessory.",
-        "Saved; listed; pricing assignable.",
-        "Admin web", "Positive"),
-    ("F10", "F", "P2", "Filling stations", "Admin web", "Create a filling station",
-        "—",
-        "New filling station.",
-        "Saved + listed.",
-        "Admin web", "Positive"),
-
-    # ----- GROUP G: Driver — Trip + Custody + Delivery -----
-    ("G01", "G", "P0", "Driver", "Driver app", "Driver sees assigned trip",
-        "E03 happened (order ASSIGNED).",
-        "Open driver app.",
-        "Assigned trip listed; tapping opens its details.",
-        "Driver app", "Positive"),
-    ("G02", "G", "P0", "Custody", "Driver app", "Scan cylinder QR at store pickup",
-        "Printed test QR sticker generated by admin's QR generator.",
-        "Open camera; scan the QR.",
-        "Custody event created (VEHICLE); count increments.",
-        "Driver app", "Positive"),
-    ("G03", "G", "P0", "Custody", "Driver app", "Scan unrecognized QR is rejected",
-        "Random QR.",
-        "Scan a non-Smart_Fleet QR.",
-        "Inline error 'not recognized'; no custody event created.",
-        "Driver app", "Negative"),
-    ("G04", "G", "P1", "Custody", "Driver app", "Re-scan of the same cylinder is debounced",
-        "Cylinder already VEHICLE.",
-        "Scan it again.",
-        "No duplicate event OR a clear 'already in custody' message.",
-        "Driver app", "Edge"),
-    ("G05", "G", "P0", "Delivery", "Driver app", "Mark delivered + capture proof photo",
-        "At delivery step.",
-        "Capture proof photo → confirm.",
-        "Photo uploads to S3 (smartfleet-files-prod) — verify in admin order detail.",
-        "Driver app", "Positive"),
-    ("G06", "G", "P0", "Delivery", "Driver app", "Delivered status reflects on distributor + admin",
-        "After G05.",
-        "Refresh distributor + admin views.",
-        "Order status DELIVERED everywhere within ~30s.",
-        "Distributor app / Admin web", "Positive"),
-    ("G07", "G", "P1", "Custody", "Driver app", "Pick up empty cylinder back to vehicle",
-        "Customer hands over empty cylinder QR.",
-        "Scan empty in.",
-        "Custody event captures empty; counts adjust.",
-        "Driver app", "Positive"),
-    ("G08", "G", "P1", "Trip", "Driver app", "End trip / return to store",
-        "All stops complete.",
-        "Mark trip complete.",
-        "Trip COMPLETED; driver shows AVAILABLE again on admin.",
-        "Driver app", "Positive"),
-    ("G09", "G", "P1", "Location", "Driver app", "Live location pings reach admin",
-        "Driver online + permission granted.",
-        "Walk around for 60s.",
-        "Admin Live screen marker moves; data points stored.",
-        "Driver app + Admin web", "Positive"),
-
-    # ----- GROUP H: Network Resilience -----
-    ("H01", "H", "P1", "Network", "Distributor app", "Action on full offline shows friendly error",
-        "Distributor logged in.",
-        "Airplane mode ON → Send OTP/Place Order.",
-        "Specific 'no connection' message; UI not stuck on spinner; no crash.",
-        "Distributor app", "Edge"),
-    ("H02", "H", "P1", "Network", "Distributor app", "Slow 3G doesn't hang the app",
-        "Throttle to ~150 kbps using phone's slow-network shortcut OR a known weak-signal location.",
-        "Open List screens.",
-        "Skeleton/spinner shown; eventually loads; no white screen.",
-        "Distributor app", "Edge"),
-    ("H03", "H", "P1", "Network", "Distributor app", "5xx from server shown clearly",
-        "Restart api-prod container while screen loads.",
-        "Trigger a list fetch during restart.",
-        "Error message + Retry button; no app exit.",
-        "Distributor app", "Edge"),
-    ("H04", "H", "P1", "Auth", "Distributor app", "Expired token triggers re-login",
-        "Tamper with stored token to expire it (dev only) OR wait past JWT TTL.",
-        "Trigger any authed call.",
-        "App redirects to login OR refreshes token silently and continues.",
-        "Distributor app", "Edge"),
-    ("H05", "H", "P0", "Resilience", "EC2", "Container crash auto-restarts",
-        "SSH to EC2.",
-        "sudo docker kill smartfleet-api-prod",
-        "Container restarts within ~2s; /health/live returns ok within 10s.",
-        "API", "Edge"),
-    ("H06", "H", "P1", "Resilience", "EC2", "After EC2 reboot, system is fully serving without manual steps",
-        "SSH access.",
-        "sudo reboot, wait, retest API + admin web + app.",
-        "All come back: Caddy HTTPS, containers up, app reconnects.",
-        "API + Admin web + Apps", "Edge"),
-
-    # ----- GROUP I: Security & Permissions -----
-    ("I01", "I", "P0", "Sec", "API", "Cross-distributor isolation",
-        "Two distributors A and B with their own clients.",
-        "Log in as A, hit /clients with A's token; then with B's token.",
-        "Each sees only their own clients; no overlap.",
-        "API", "Negative"),
-    ("I02", "I", "P0", "Sec", "API", "Role-restricted endpoint rejects wrong role",
-        "Distributor token in hand.",
-        "Call POST /orders/{id}/assign with distributor token.",
-        "403 Forbidden.",
-        "API", "Negative"),
-    ("I03", "I", "P0", "Sec", "API", "Tampered JWT rejected",
-        "Valid token.",
-        "Flip one character in the signature; call /auth/me.",
-        "401 Unauthorized; no role escalation.",
-        "API", "Negative"),
-    ("I04", "I", "P0", "Sec", "S3", "S3 bucket cannot be listed publicly",
-        "Bucket name.",
-        "Open https://smartfleet-files-prod.s3.ap-southeast-1.amazonaws.com/ in incognito.",
-        "AccessDenied. (Files accessible only via app/pre-signed URLs.)",
-        "S3", "Negative"),
-    ("I05", "I", "P0", "Sec", "API", "OTP NOT leaked in prod response",
-        "—",
-        "POST /auth/otp/send with phone in prod; inspect response.",
-        "Body is {ok:true} ONLY (no devCode). Compare to staging which DOES return devCode.",
-        "API", "Positive"),
-    ("I06", "I", "P1", "Sec", "DB", "PII encrypted at rest",
-        "SSH access; one user has CNIC stored.",
-        "Query users.cnic_encrypted in RDS.",
-        "Column is binary ciphertext, NOT readable plaintext.",
-        "DB", "Positive"),
-    ("I07", "I", "P1", "Sec", "API", "Suspended user cannot authenticate",
-        "Suspend +923001111111 from admin.",
-        "Try mobile OTP login.",
-        "Login refused with 'Account not active' (or equivalent).",
-        "API", "Negative"),
-
-    # ----- GROUP J: FIELD — Driver -----
-    ("J01", "J", "P0", "Field", "Driver app", "App readable in direct midday sun",
-        "Real driver on bike, midday.",
-        "Read trip details + scan QR.",
-        "Driver can read screen without shading; if not, raise UI contrast issue.",
-        "Driver app", "Field"),
-    ("J02", "J", "P0", "Field", "Driver app", "QR scan on a worn / sun-faded sticker",
-        "Cylinder used for ~1 month with sticker outside.",
-        "Scan it.",
-        "Either reads OR shows a clear 'try again with light/closer' guidance.",
-        "Driver app", "Field"),
-    ("J03", "J", "P0", "Field", "Driver app", "Photo proof at dusk / low light",
-        "Real delivery at ~7pm.",
-        "Capture proof.",
-        "Photo legible OR app prompts to use torch; uploads succeed.",
-        "Driver app", "Field"),
-    ("J04", "J", "P0", "Field", "Driver app", "Battery drain over a 4-hour shift with location ON",
-        "Start at 100% battery; driver app foreground/background.",
-        "Use the app for 4 hours.",
-        "Battery drop ≤40% on a typical mid-range Android. Anything worse is a P1.",
-        "Driver app", "Field"),
-    ("J05", "J", "P1", "Field", "Driver app", "Backgrounded app continues to report location",
-        "Driver on the move; app in background.",
-        "Watch admin live map.",
-        "Location continues updating for at least 15 min in background.",
-        "Driver app + Admin web", "Field"),
-    ("J06", "J", "P1", "Field", "Driver app", "Mobile signal cuts in narrow alley → recovers",
-        "Known dead-zone street.",
-        "Pass through.",
-        "App holds the trip in memory, syncs scans/photos automatically when signal returns.",
-        "Driver app", "Field"),
-    ("J07", "J", "P1", "Field", "Driver app", "Notifications heard with helmet on / loud street",
-        "Helmet + bike sounds.",
-        "Receive a new order while riding.",
-        "Either sound is loud enough OR vibration is detectable on grip; or add a startup tip.",
-        "Driver app", "Field"),
-    ("J08", "J", "P1", "Field", "Driver app", "Glove-friendly buttons",
-        "Driver wears riding gloves.",
-        "Tap key buttons.",
-        "All primary actions tappable; no double-tap required.",
-        "Driver app", "Field"),
-    ("J09", "J", "P2", "Field", "Driver app", "GPS accuracy in dense urban",
-        "Run past 6-storey buildings in Karachi/Lahore.",
-        "Compare app marker to real position.",
-        "Drift ≤30m most of the time. Anything wilder → flag for future fix.",
-        "Driver app", "Field"),
-
-    # ----- GROUP K: FIELD — Distributor -----
-    ("K01", "K", "P0", "Field", "Distributor app", "Phone-input ergonomics on a cheap Android",
-        "Test on a Rs. 25k Android (e.g. Vivo Y02 / Tecno).",
-        "Place an order under shop noise.",
-        "Form usable; no frame drops; full flow completes in ≤90s.",
-        "Distributor app", "Field"),
-    ("K02", "K", "P0", "Field", "Distributor app", "Reading OTP under tube light + dusty shop",
-        "Real distributor shop.",
-        "Distributor receives + reads OTP. (For pilot OTP comes via separate channel.)",
-        "Distributor can complete login within 60s of clicking Send.",
-        "Distributor app", "Field"),
-    ("K03", "K", "P1", "Field", "Distributor app", "Order entry under customer time-pressure",
-        "Customer at counter waiting.",
-        "Place order while talking to customer.",
-        "Distributor does not get blocked by validation; flow completes <60s.",
-        "Distributor app", "Field"),
-    ("K04", "K", "P1", "Field", "Distributor app", "Switch WiFi ↔ mobile data mid-action",
-        "Shop has both.",
-        "Begin order on WiFi; walk out (loses WiFi) before Submit.",
-        "App seamlessly continues over cellular; order saved correctly.",
-        "Distributor app", "Field"),
-    ("K05", "K", "P2", "Field", "Distributor app", "Back-button confusion",
-        "Distributor unfamiliar with Android nav.",
-        "Hand them the device, ask to place an order.",
-        "No 'I'm lost' moments; if they get stuck twice, raise a UI issue.",
-        "Distributor app", "Field"),
-    ("K06", "K", "P1", "Field", "Distributor app", "After full work day, app still responsive",
-        "Distributor places ≥30 orders over a day.",
-        "End-of-day open app.",
-        "No noticeable slowdown; lists render in <2s.",
-        "Distributor app", "Field"),
-
-    # ----- GROUP L: Soak + OTA -----
-    ("L01", "L", "P1", "Soak", "Apps", "Token still valid next morning",
-        "Logged in, leave overnight.",
-        "Reopen 12h later.",
-        "Either still logged in OR refresh-token flow runs silently.",
-        "Apps", "Edge"),
-    ("L02", "L", "P0", "OTA", "Distributor app", "EAS Update with a small JS change is picked up",
-        "Push a benign change (e.g. version label).",
-        "Run eas update --branch distributor-production; close + reopen app.",
-        "New change visible; old crash not back; runtime version match confirmed.",
-        "Distributor app", "Positive"),
-    ("L03", "L", "P1", "Cost", "AWS Console", "Day-over-day actual cost ≈ $0",
-        "—",
-        "Billing → Bills, daily.",
-        "MTD actual cost stays under $1 even with active use; matches free-tier expectations.",
-        "AWS", "Positive"),
-    ("L04", "L", "P1", "Logs", "CloudWatch", "Errors don't drown the log group",
-        "—",
-        "CloudWatch /smartfleet/prod — daily glance.",
-        "<5 GB ingest/month overall; no recurring noisy error pattern.",
-        "CloudWatch", "Positive"),
-    ("L05", "L", "P1", "Alarms", "CloudWatch", "Alarms are not in ALARM state long-term",
-        "—",
-        "describe-alarms --alarm-name-prefix smartfleet-.",
-        "All OK or INSUFFICIENT_DATA; nothing chronic in ALARM.",
-        "CloudWatch", "Positive"),
-    ("L06", "L", "P2", "Day boundary", "Apps", "Orders crossing midnight handled",
-        "Place an order at 11:55 PM, deliver at 12:05 AM.",
-        "Inspect timestamps + 'Delivered today' KPI.",
-        "Delivered-today reflects the actual local date of delivery; no off-by-one.",
-        "Apps + Admin web", "Edge"),
-]
 
 
 def build_atomic(wb):
@@ -747,12 +1315,12 @@ def build_atomic(wb):
         "TC-ID", "Group", "Priority", "Area", "Surface", "Test Case",
         "Pre-condition", "Steps", "Expected Outcome",
         "Tested on", "Type",
-        "Result (PASS/FAIL/BLOCKED/NA)", "Actual Result", "Defect ID",
+        "Result", "Actual Result", "Defect ID",
         "Tester", "Date", "Notes",
     ]
-    set_widths(ws, [9, 8, 10, 14, 14, 38, 30, 50, 50, 20, 12, 18, 28, 12, 14, 12, 24])
-    for c, h in enumerate(headers, start=1):
-        ws.cell(row=1, column=c, value=h)
+    set_widths(ws, [10, 8, 9, 14, 14, 38, 30, 50, 50, 20, 11, 12, 28, 12, 14, 12, 24])
+    for c_, h in enumerate(headers, start=1):
+        ws.cell(row=1, column=c_, value=h)
     style_header(ws, 1, len(headers))
 
     row = 2
@@ -761,8 +1329,7 @@ def build_atomic(wb):
         tc_id, group, prio, area, surface, name, pre, steps, expected, tested_on, ttype = tc
         if group != current_group:
             current_group = group
-            # group header row
-            label = next(g["name"] for g in GROUPS if g["id"] == group)
+            label = next(g[1] for g in GROUPS if g[0] == group)
             cell = ws.cell(row=row, column=1, value=f"Group {group} — {label}")
             cell.fill = GROUP_HEADER_FILL
             cell.font = GROUP_HEADER_FONT
@@ -773,102 +1340,106 @@ def build_atomic(wb):
 
         values = [tc_id, group, prio, area, surface, name, pre, steps, expected, tested_on, ttype,
                   "", "", "", "", "", ""]
-        for c, v in enumerate(values, start=1):
-            cell = ws.cell(row=row, column=c, value=v)
+        for c_, v in enumerate(values, start=1):
+            cell = ws.cell(row=row, column=c_, value=v)
             cell.alignment = CELL_ALIGN
             cell.border = BORDER
-            if c == 3 and prio in PRIORITY_FILLS:
+            if c_ == 3 and prio in PRIORITY_FILLS:
                 cell.fill = PRIORITY_FILLS[prio]
-        ws.row_dimensions[row].height = 60
+        ws.row_dimensions[row].height = 55
         row += 1
 
-    ws.freeze_panes = "F2"  # freeze ID/Group/Priority/Area/Surface columns
+    ws.freeze_panes = "F2"
 
 
-# ---------------------------------------------------------------------------
-# Sheet 4 — Field Scenarios (deep dive on the J/K stuff)
-# ---------------------------------------------------------------------------
-
-FIELD = [
-    ("FS-01", "Sun glare on screen", "Drivers + distributors during 11am–4pm",
-        "Take both apps outside in direct sun. Time how long to find the next-step button.",
-        "Define brightness/contrast acceptable; if ≥1 user struggles ≥3 times → P1 fix."),
-    ("FS-02", "Dust on camera lens", "Driver bike rider",
-        "Don't wipe lens. Take 5 proof photos through dust.",
-        "Photos legible OR app prompts to wipe lens."),
-    ("FS-03", "Worn / faded QR sticker", "Real cylinders after 1+ month outdoor use",
-        "Scan deliberately damaged QRs.",
-        "App reads ≥80% of attempts. <80% → improve sticker material or QR error-correction level."),
-    ("FS-04", "Background location while screen off", "Driver app",
-        "Lock the phone for 15 min while moving.",
-        "Admin live map keeps receiving pings during that 15 min."),
-    ("FS-05", "Helmet + bike noise on notifications", "Driver",
-        "Push a new-assignment notification while riding.",
-        "Either heard via Bluetooth helmet speaker OR seen on next stop. Else add vibration pattern."),
-    ("FS-06", "Glove-friendly tap targets", "Driver wearing summer gloves",
-        "Tap every primary action (scan, capture, mark delivered).",
-        "All hit on first attempt. Else raise minimum tap-target size."),
-    ("FS-07", "Cheap-Android performance", "Distributor on Rs. 20–30k device",
-        "Test on at least one budget Android (e.g. Infinix Smart 8, Vivo Y02).",
-        "Order flow under 90s end-to-end. List screens under 2s on cached data."),
-    ("FS-08", "Network handoff WiFi↔SIM", "Distributor walking out of shop",
-        "Mid-action, walk past WiFi range.",
-        "Ongoing request retries / completes; no orphan state."),
-    ("FS-09", "Battery drain over a real shift", "Driver, 4 hours",
-        "Start at 100% with location ON.",
-        "End ≥60%. If <60%, throttle location ping rate."),
-    ("FS-10", "Dead-zone tolerance", "Driver in a known signal black spot",
-        "Place actions inside black spot.",
-        "App queues or shows offline; recovers on signal return."),
-    ("FS-11", "OTP delivery perception", "Real distributor in pilot",
-        "Watch them log in 5 times across a week.",
-        "All complete <60s from Send to Verify. Frustration index logged."),
-    ("FS-12", "Confused-user think-aloud", "Brand-new distributor",
-        "Ask them to place an order with no help.",
-        "Time + count of 'stuck moments'. >2 stuck moments → UI issue → backlog."),
-    ("FS-13", "Photo upload on weak 3G", "Driver in rural area",
-        "Try proof photo at 3G.",
-        "Upload completes <60s or queues for retry. App stays usable."),
-    ("FS-14", "Multiple drivers on live map", "Run 3 driver devices concurrently",
-        "All online, moving.",
-        "Admin map shows all 3 markers updating; no lag >5s."),
-    ("FS-15", "Push notification delivery", "Driver phone with app backgrounded",
-        "Admin assigns 5 orders over 30 min.",
-        "All 5 push notifications received within ≤30s of assignment."),
+FIELD_DETAILS = [
+    ("FS-01", "Sun glare on screen",
+        "Driver + distributor 11am–4pm. Read screen + find next-step button.",
+        "≥1 user struggles ≥3× → P1 fix."),
+    ("FS-02", "Dust on camera lens",
+        "Driver on bike. 5 proof photos without wiping lens.",
+        "Photos legible OR app prompts to wipe."),
+    ("FS-03", "Worn / faded QR sticker",
+        "Cylinders ≥1 month outdoor use. Scan deliberately damaged QRs.",
+        "≥80% success."),
+    ("FS-04", "Background location while screen off",
+        "Lock phone 15 min while moving.",
+        "Admin map keeps receiving pings."),
+    ("FS-05", "Helmet + bike noise on push",
+        "Push new-assignment while riding.",
+        "Heard via Bluetooth or via stop-check vibration."),
+    ("FS-06", "Glove-friendly tap targets",
+        "Summer gloves; tap every primary action.",
+        "All hit first try."),
+    ("FS-07", "Cheap Android performance",
+        "Rs.20–30k device, order flow.",
+        "End-to-end ≤90s; lists ≤2s cached."),
+    ("FS-08", "Network handoff WiFi↔SIM",
+        "Walk out of WiFi range mid-action.",
+        "Request completes/recovers; no orphan."),
+    ("FS-09", "Battery drain real shift",
+        "4 hours with location on.",
+        "End ≥60%."),
+    ("FS-10", "Dead-zone tolerance",
+        "Known black spot.",
+        "Queues; syncs on recovery."),
+    ("FS-11", "OTP delivery perception",
+        "Watch real distributor login 5× over a week.",
+        "All <60s; frustration logged."),
+    ("FS-12", "Confused first-time user",
+        "Brand-new distributor; place order solo.",
+        "≤2 stuck moments."),
+    ("FS-13", "Photo upload weak 3G",
+        "Rural area.",
+        "Upload <60s or queues."),
+    ("FS-14", "Multiple drivers on live map",
+        "3 driver devices online.",
+        "All markers updating, lag <5s."),
+    ("FS-15", "Push notification delivery to backgrounded app",
+        "Driver backgrounded; admin assigns 5 orders over 30 min.",
+        "All 5 pushes received within ≤30s each."),
+    ("FS-16", "Real cash reconciliation discrepancy",
+        "Driver entered Rs. 5,000 but Rs. 4,800 actually counted.",
+        "Admin flags discrepancy; clear UI."),
+    ("FS-17", "Multiple deliveries in same zone",
+        "Driver does 8 deliveries within 2 hours.",
+        "Trip stops sequenced correctly; no out-of-order custody events."),
+    ("FS-18", "Out-of-range customer phone",
+        "Customer phone has no data signal at delivery.",
+        "Driver can mark delivered without customer confirmation; reconciles later."),
+    ("FS-19", "Real driver no English",
+        "Driver only reads Urdu.",
+        "UI strings clear/iconic; or i18n flagged for next sprint."),
+    ("FS-20", "Cylinder swap edge case",
+        "Customer returns DIFFERENT cylinder type than ordered.",
+        "App allows scan; admin flags mismatch; not silently absorbed."),
 ]
 
 
 def build_field(wb):
     ws = wb.create_sheet("Field Scenarios")
-    headers = ["FS-ID", "Scenario", "Who tests it", "How", "Pass criteria", "Result", "Notes / device", "Tester", "Date"]
-    set_widths(ws, [9, 32, 24, 50, 60, 16, 30, 14, 12])
-    for c, h in enumerate(headers, start=1):
-        ws.cell(row=1, column=c, value=h)
+    headers = ["FS-ID", "Scenario", "How to run", "Pass criteria", "Result", "Notes / device", "Tester", "Date"]
+    set_widths(ws, [9, 32, 60, 50, 16, 30, 14, 12])
+    for c_, h in enumerate(headers, start=1):
+        ws.cell(row=1, column=c_, value=h)
     style_header(ws, 1, len(headers))
-    for i, row in enumerate(FIELD, start=2):
-        for c, v in enumerate(row, start=1):
-            cell = ws.cell(row=i, column=c, value=v)
+    for i, row in enumerate(FIELD_DETAILS, start=2):
+        fs_id, scen, how, pass_crit = row
+        vals = [fs_id, scen, how, pass_crit, "", "", "", ""]
+        for c_, v in enumerate(vals, start=1):
+            cell = ws.cell(row=i, column=c_, value=v)
             cell.alignment = CELL_ALIGN
             cell.border = BORDER
             if i % 2 == 0:
                 cell.fill = ZEBRA
-        # blank result/notes/tester/date
-        for c in range(6, 10):
-            ws.cell(row=i, column=c).border = BORDER
-        ws.row_dimensions[i].height = 50
+        ws.row_dimensions[i].height = 48
     ws.freeze_panes = "A2"
 
 
-# ---------------------------------------------------------------------------
-# Sheet 5 — Build Backlog
-# ---------------------------------------------------------------------------
-
 def build_backlog(wb):
     ws = wb.create_sheet("Build Backlog")
-    intro = (
-        "Add every code-change idea here as you test. NOTHING triggers a rebuild on its own — "
-        "we batch them, then do ONE rebuild that covers all of them."
-    )
+    intro = ("Add every code-change idea here as you test. NOTHING triggers a rebuild on its own — "
+             "we batch them and do ONE rebuild covering many fixes.")
     ws["A1"] = intro
     ws["A1"].font = Font(italic=True, color="555555")
     ws.merge_cells("A1:H1")
@@ -876,75 +1447,60 @@ def build_backlog(wb):
 
     headers = ["#", "Found in TC-ID", "Surface", "Problem (what user sees)", "Proposed change", "Native or JS-only?", "Status", "Notes"]
     set_widths(ws, [5, 14, 16, 50, 50, 18, 12, 30])
-    for c, h in enumerate(headers, start=1):
-        ws.cell(row=2, column=c, value=h)
+    for c_, h in enumerate(headers, start=1):
+        ws.cell(row=2, column=c_, value=h)
     style_header(ws, 2, len(headers))
-    # blank rows ready to fill
-    for i in range(3, 33):
-        for c in range(1, len(headers) + 1):
-            cell = ws.cell(row=i, column=c)
+    for i in range(3, 60):
+        for c_ in range(1, len(headers) + 1):
+            cell = ws.cell(row=i, column=c_)
             cell.border = BORDER
             cell.alignment = CELL_ALIGN
-        if i % 2 == 0:
-            for c in range(1, len(headers) + 1):
-                ws.cell(row=i, column=c).fill = ZEBRA
+            if i % 2 == 0:
+                cell.fill = ZEBRA
     ws.freeze_panes = "A3"
 
 
-# ---------------------------------------------------------------------------
-# Sheet 6 — Defect Log
-# ---------------------------------------------------------------------------
-
 def build_defects(wb):
     ws = wb.create_sheet("Defect Log")
-    headers = ["DEF-ID", "TC-ID", "Severity (P0/P1/P2)", "Title", "Steps to reproduce", "Expected", "Actual", "Status", "Owner", "Found", "Fixed in", "Notes"]
-    set_widths(ws, [9, 9, 14, 28, 40, 32, 32, 12, 14, 12, 14, 30])
-    for c, h in enumerate(headers, start=1):
-        ws.cell(row=1, column=c, value=h)
+    headers = ["DEF-ID", "TC-ID", "Severity", "Title", "Steps to reproduce", "Expected", "Actual", "Status", "Owner", "Found", "Fixed in", "Notes"]
+    set_widths(ws, [9, 9, 12, 28, 40, 32, 32, 12, 14, 12, 14, 30])
+    for c_, h in enumerate(headers, start=1):
+        ws.cell(row=1, column=c_, value=h)
     style_header(ws, 1, len(headers))
-    for i in range(2, 32):
-        for c in range(1, len(headers) + 1):
-            ws.cell(row=i, column=c).border = BORDER
-            ws.cell(row=i, column=c).alignment = CELL_ALIGN
-        if i % 2 == 0:
-            for c in range(1, len(headers) + 1):
-                ws.cell(row=i, column=c).fill = ZEBRA
+    for i in range(2, 60):
+        for c_ in range(1, len(headers) + 1):
+            ws.cell(row=i, column=c_).border = BORDER
+            ws.cell(row=i, column=c_).alignment = CELL_ALIGN
+            if i % 2 == 0:
+                ws.cell(row=i, column=c_).fill = ZEBRA
     ws.freeze_panes = "A2"
 
 
-# ---------------------------------------------------------------------------
-# Sheet 7 — Sign-off
-# ---------------------------------------------------------------------------
-
 def build_signoff(wb):
     ws = wb.create_sheet("Sign-off")
-    set_widths(ws, [22, 14, 14, 14, 14, 36])
+    set_widths(ws, [40, 14, 14, 14, 14, 36])
     ws["A1"] = "Pilot Go-Live Sign-off"
     ws["A1"].font = Font(size=16, bold=True, color="0F6CF0")
     ws.merge_cells("A1:F1")
 
-    headers = ["Group", "Cases Pass", "Cases Fail", "Cases Blocked", "% Pass", "Tester / Date / Comment"]
-    for c, h in enumerate(headers, start=1):
-        ws.cell(row=3, column=c, value=h)
+    headers = ["Group", "Pass", "Fail", "Blocked", "% Pass", "Tester / Date / Comment"]
+    for c_, h in enumerate(headers, start=1):
+        ws.cell(row=3, column=c_, value=h)
     style_header(ws, 3, len(headers))
 
     for i, g in enumerate(GROUPS, start=4):
-        ws.cell(row=i, column=1, value=f"{g['id']} — {g['name']}")
-        for c in range(1, len(headers) + 1):
-            ws.cell(row=i, column=c).border = BORDER
-            ws.cell(row=i, column=c).alignment = CELL_ALIGN
-        if i % 2 == 0:
-            for c in range(1, len(headers) + 1):
-                ws.cell(row=i, column=c).fill = ZEBRA
+        ws.cell(row=i, column=1, value=f"{g[0]} — {g[1]}")
+        for c_ in range(1, len(headers) + 1):
+            ws.cell(row=i, column=c_).border = BORDER
+            ws.cell(row=i, column=c_).alignment = CELL_ALIGN
+            if i % 2 == 0:
+                ws.cell(row=i, column=c_).fill = ZEBRA
 
     base = 5 + len(GROUPS)
     ws.cell(row=base, column=1, value="Pilot approved for real users:").font = Font(bold=True)
-    ws.cell(row=base + 1, column=1, value="Approver name").alignment = Alignment(horizontal="right")
-    ws.cell(row=base + 1, column=2, value="").border = BORDER
-    ws.cell(row=base + 2, column=1, value="Approver signature").alignment = Alignment(horizontal="right")
-    ws.cell(row=base + 2, column=2, value="").border = BORDER
-    ws.cell(row=base + 3, column=1, value="Date").alignment = Alignment(horizontal="right")
-    ws.cell(row=base + 3, column=2, value="").border = BORDER
+    for r, label in [(base + 1, "Approver name"), (base + 2, "Signature"), (base + 3, "Date")]:
+        ws.cell(row=r, column=1, value=label).alignment = Alignment(horizontal="right")
+        ws.cell(row=r, column=2).border = BORDER
 
 
 # ---------------------------------------------------------------------------
@@ -953,9 +1509,7 @@ def build_signoff(wb):
 
 def main():
     wb = Workbook()
-    # remove the default sheet so order is deterministic
-    default = wb.active
-    wb.remove(default)
+    wb.remove(wb.active)
 
     build_readme(wb)
     build_groups(wb)
@@ -970,7 +1524,7 @@ def main():
     print(f"wrote {out}")
     print(f"  groups: {len(GROUPS)}")
     print(f"  atomic cases: {len(CASES)}")
-    print(f"  field scenarios: {len(FIELD)}")
+    print(f"  field scenarios: {len(FIELD_DETAILS)}")
 
 
 if __name__ == "__main__":
