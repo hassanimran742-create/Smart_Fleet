@@ -65,4 +65,20 @@ export class OrdersController {
     }
     return this.orders.updateStatus(id, body.status, body.reason);
   }
+
+  // Manual driver assignment — admin picks a driver and a store; the system
+  // creates a one-stop trip even when the auto-dispatcher couldn't find a
+  // candidate (no online drivers / no matching inventory / etc).
+  // This is the reliable "just get the order to a driver" path for the pilot.
+  @Post(':id/assign-driver')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER)
+  assignDriver(
+    @Param('id') id: string,
+    @Body() body: { driverId: string; originStoreId?: string },
+  ) {
+    if (!body.driverId) {
+      throw new BadRequestException('driverId is required');
+    }
+    return this.orders.assignDriverManually(id, body.driverId, body.originStoreId);
+  }
 }
