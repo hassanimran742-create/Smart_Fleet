@@ -55,6 +55,17 @@ const config: ExpoConfig = {
       'ACCESS_FINE_LOCATION',
       ...(isDriver ? ['ACCESS_BACKGROUND_LOCATION', 'FOREGROUND_SERVICE'] : []),
     ],
+    // Google Maps SDK for Android — needed for the distributor app's location
+    // picker (AddClient, PlaceOrder, TrackOrder). Maps SDK display is free of
+    // charge; key is restricted to package + SHA-1 at the Google Cloud Console.
+    // Provided as an EAS secret named GOOGLE_MAPS_ANDROID_API_KEY.
+    config: isDriver
+      ? undefined
+      : {
+          googleMaps: {
+            apiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? '',
+          },
+        },
   },
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api/v1',
