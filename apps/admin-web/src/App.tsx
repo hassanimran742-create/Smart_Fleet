@@ -25,10 +25,10 @@ export function App() {
   const { token } = useAuthStore();
   const { page } = useRouteStore();
 
-  // Sign out after 10 minutes of zero interaction. Active use (clicks,
+  // Sign out after 30 minutes of zero interaction. Active use (clicks,
   // typing, scrolling, mouse moves) keeps the session alive indefinitely
   // up to the JWT's 12-hour absolute lifetime.
-  useIdleLogout(10 * 60 * 1000);
+  useIdleLogout(30 * 60 * 1000);
 
   if (!token) return <LoginScreen />;
 

@@ -10,7 +10,7 @@ import { useAuthStore } from '../store/auth';
  * we restart the clock on visibilitychange so a quick tab-switch
  * doesn't kick the user out.
  */
-export function useIdleLogout(idleMs = 10 * 60 * 1000) {
+export function useIdleLogout(idleMs = 30 * 60 * 1000) {
   const { token, clear } = useAuthStore();
   const timeoutRef = useRef<number | null>(null);
 
