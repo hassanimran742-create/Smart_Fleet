@@ -18,9 +18,19 @@ const config: ExpoConfig = {
   version: '0.1.0',
   orientation: 'portrait',
   // EAS Update (OTA): lets us push JS-only fixes without a new APK.
+  // checkAutomatically + 0 fallback timeout = check on every cold start.
+  // The actual apply step is forced in App.tsx so the user never has to
+  // restart twice to see the new bundle.
   runtimeVersion: { policy: 'appVersion' },
   ...(projectId
-    ? { updates: { url: `https://u.expo.dev/${projectId}` } }
+    ? {
+        updates: {
+          url: `https://u.expo.dev/${projectId}`,
+          enabled: true,
+          checkAutomatically: 'ON_LOAD',
+          fallbackToCacheTimeout: 0,
+        },
+      }
     : {}),
   // icon omitted until real assets ship; Expo falls back to a default icon.
   // A splash backgroundColor is required so the Android prebuild generates the
@@ -77,6 +87,7 @@ const config: ExpoConfig = {
     'expo-camera',
     'expo-location',
     'expo-notifications',
+    'expo-updates',
     ['expo-secure-store', { faceIDPermission: 'Used to unlock saved credentials.' }],
     ...(isDriver ? ['expo-task-manager'] : []),
   ],
