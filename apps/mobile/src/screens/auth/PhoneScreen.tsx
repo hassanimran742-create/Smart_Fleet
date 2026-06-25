@@ -3,14 +3,30 @@ import { Alert, Pressable, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
+import { useAuthStore } from '../../store/auth';
 import { Body, Button, Caption, Card, Heading, Input, Screen } from '../../components/ui';
 import { colors, radius, space } from '../../theme';
 import { currentLanguage, setLanguage } from '../../i18n/persist';
 
+// Login flow for the mobile app.
+//
+// Drivers, distributors, and admin/dispatcher-class users sign in with a
+// PASSWORD (set by an admin). End-customer CLIENT users still sign in with
+// an OTP — they're not staff and shouldn't manage a credential.
+//
+// We don't know the user's role until they tap "Sign in". Strategy:
+//   1. Try password login. If it succeeds → done.
+//   2. If the server rejects with a "must use one-time code" message,
+//      fall back to the OTP path automatically.
+//   3. If the server returns generic "Invalid phone or password", show that.
+
 export function PhoneScreen() {
   const nav = useNavigation<any>();
   const { t, i18n } = useTranslation();
+  const setAuth = useAuthStore((s) => s.set);
   const [phone, setPhone] = useState('+923');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lang, setLang] = useState<'en' | 'ur'>(currentLanguage());
 
@@ -19,13 +35,33 @@ export function PhoneScreen() {
     await setLanguage(next);
   }
 
-  async function send() {
+  async function signIn() {
     setLoading(true);
     try {
-      await api.post('/auth/otp/send', { phone });
-      nav.navigate('Otp', { phone });
+      const { data } = await api.post('/auth/login', { phone, password });
+      setAuth({
+        token: data.accessToken,
+        refreshToken: data.refreshToken,
+        role: data.role,
+      });
+      // Root navigator picks the right stack from `role`.
     } catch (e: any) {
-      Alert.alert('OTP failed', e?.response?.data?.message ?? 'Try again');
+      const msg = e?.response?.data?.message ?? '';
+      const needsOtp =
+        typeof msg === 'string' &&
+        (msg.toLowerCase().includes('one-time code') ||
+          msg.toLowerCase().includes('otp'));
+
+      if (needsOtp) {
+        try {
+          await api.post('/auth/otp/send', { phone });
+          nav.navigate('Otp', { phone });
+        } catch (e2: any) {
+          Alert.alert('OTP failed', e2?.response?.data?.message ?? 'Try again');
+        }
+      } else {
+        Alert.alert('Sign-in failed', msg || 'Check your phone number and password.');
+      }
     } finally {
       setLoading(false);
     }
@@ -34,7 +70,6 @@ export function PhoneScreen() {
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        {/* Language toggle at top-right */}
         <View style={{ position: 'absolute', top: 12, right: 0, flexDirection: 'row', gap: 6 }}>
           <LangPill code="en" label="English" current={lang} onPress={pickLang} />
           <LangPill code="ur" label="اردو" current={lang} onPress={pickLang} />
@@ -55,11 +90,11 @@ export function PhoneScreen() {
         </View>
 
         <Card>
-          <Heading size="h3" style={{ marginBottom: space.sm }}>{t('welcome')}</Heading>
+          <Heading size="h3" style={{ marginBottom: space.sm }}>{t('signIn') ?? 'Sign in'}</Heading>
           <Caption style={{ marginBottom: space.md }}>
             {i18n.language === 'ur'
-              ? 'پاکستانی موبائل نمبر درج کریں تاکہ OTP موصول ہو سکے۔'
-              : 'Enter your PK mobile to receive a one-time code.'}
+              ? 'فون اور پاس ورڈ درج کریں۔ اگر آپ کے پاس پاس ورڈ نہیں ہے تو اپنے ایڈمن سے رابطہ کریں۔'
+              : 'Enter phone and password. Ask your admin to set one if you don\'t have it yet.'}
           </Caption>
           <Input
             label={t('phone') ?? 'Phone'}
@@ -69,7 +104,23 @@ export function PhoneScreen() {
             autoFocus
             placeholder="+923XXXXXXXXX"
           />
-          <Button title={loading ? 'Sending…' : t('sendOtp') ?? 'Send OTP'} onPress={send} disabled={loading} />
+          <Input
+            label={t('password') ?? 'Password'}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            placeholder="••••••••"
+          />
+          <Pressable onPress={() => setShowPassword((v) => !v)} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 8 }}>
+            <Caption style={{ color: colors.primary }}>
+              {showPassword ? (i18n.language === 'ur' ? 'چھپائیں' : 'Hide') : (i18n.language === 'ur' ? 'دکھائیں' : 'Show')}
+            </Caption>
+          </Pressable>
+          <Button
+            title={loading ? (i18n.language === 'ur' ? 'سائن ان...' : 'Signing in…') : (t('signIn') ?? 'Sign in')}
+            onPress={signIn}
+            disabled={loading || !phone || !password}
+          />
         </Card>
       </View>
     </Screen>

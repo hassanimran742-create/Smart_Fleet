@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../api/client';
 import { Modal, confirmDialog } from '../components/Modal';
+import { PasswordResetButton } from '../components/PasswordResetButton';
 
 interface City { id: string; name: string }
 interface Zone { id: string; name: string; cityId?: string }
@@ -259,6 +260,11 @@ export function DistributorsScreen() {
                 <td>{Number(d.advanceBalancePaisa) / 100} PKR</td>
                 <td>
                   <button onClick={() => openEdit(d)}>Edit</button>{' '}
+                  {d.user?.id && (
+                    <>
+                      <PasswordResetButton userId={d.user.id} userName={d.user?.name} />{' '}
+                    </>
+                  )}
                   {d.status === 'PENDING' && <button className="primary" onClick={() => approve.mutate(d.id)}>Approve</button>}
                   {d.status === 'ACTIVE' && (
                     <button

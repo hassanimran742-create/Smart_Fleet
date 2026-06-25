@@ -116,14 +116,17 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  // Roles allowed to authenticate via password. Field roles (DISTRIBUTOR,
-  // DRIVER, CLIENT) must continue using OTP — passwords don't fit their
-  // workflow and we don't want a leaked password to compromise field accounts.
+  // Roles allowed to authenticate via password. CLIENT is the only role that
+  // still uses OTP — they're end customers who shouldn't manage a credential.
+  // Field roles (DISTRIBUTOR, DRIVER) use password from the mobile app; admin
+  // operates the password reset for them.
   private static readonly PASSWORD_LOGIN_ROLES: UserRole[] = [
     UserRole.SUPER_ADMIN,
     UserRole.ADMIN,
     UserRole.DISPATCHER,
     UserRole.STORE_KEEPER,
+    UserRole.DISTRIBUTOR,
+    UserRole.DRIVER,
   ];
 
   async loginWithPassword(phone: string, password: string) {
@@ -151,6 +154,24 @@ export class AuthService {
     if (!ok) throw reject();
 
     return this.issueTokens(user);
+  }
+
+  async changeOwnPassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'No password is set on this account. Ask an admin to set one for you.',
+      );
+    }
+    const ok = await argon2.verify(user.passwordHash, currentPassword);
+    if (!ok) throw new UnauthorizedException('Current password is incorrect');
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('New password must differ from current password');
+    }
+    const hash = await argon2.hash(newPassword);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } });
+    return { ok: true };
   }
 
   async refresh(refreshToken: string) {

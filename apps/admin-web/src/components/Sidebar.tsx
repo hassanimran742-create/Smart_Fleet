@@ -28,6 +28,7 @@ const PAGES: PageDef[] = [
   { id: 'reports',           label: 'Reports',       superAdminOnly: true },
   { id: 'fuel-report',       label: 'Fuel & km',     superAdminOnly: true },
   { id: 'expenses',          label: 'Expenses',      superAdminOnly: true },
+  { id: 'profile',           label: 'My profile' },
 ];
 
 export function Sidebar() {

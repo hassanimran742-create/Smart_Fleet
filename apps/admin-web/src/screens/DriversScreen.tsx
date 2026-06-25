@@ -7,6 +7,7 @@ import { api } from '../api/client';
 import { uploadFile } from '../api/upload';
 import { useDriversSocket } from '../hooks/useDriversSocket';
 import { Modal, confirmDialog } from '../components/Modal';
+import { PasswordResetButton } from '../components/PasswordResetButton';
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -279,6 +280,11 @@ export function DriversScreen() {
                       disabled={d.user.status === 'SUSPENDED'}
                       style={iconBtn('#6b6f76')}
                     >✏️</button>{' '}
+                    <PasswordResetButton
+                      userId={d.user.id}
+                      userName={d.user.name}
+                      style={iconBtn('#0f6cf0')}
+                    />{' '}
                     {d.availability !== 'ON_LEAVE' && d.user.status !== 'SUSPENDED' && (
                       <button
                         title="Mark on leave"

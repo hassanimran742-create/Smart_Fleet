@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, UserStatus } from '@prisma/client';
+import { PrismaClient, UserRole, UserStatus, DistributorStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -7,6 +7,10 @@ const prisma = new PrismaClient();
 // Override at seed time with SEED_ADMIN_PASSWORD env var.
 // Operators MUST change this from the admin UI after first login.
 const DEFAULT_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe!Now123';
+
+// Default password for the seeded test driver + distributor. Admin can reset
+// these from the Drivers / Distributors screens any time.
+const DEFAULT_MOBILE_PASSWORD = process.env.SEED_MOBILE_PASSWORD ?? 'Driver!Now123';
 
 async function main() {
   const adminPhone = '+923000000000';
@@ -48,6 +52,54 @@ async function main() {
   if (!branchAdmin.passwordHash) {
     await prisma.user.update({ where: { id: branchAdmin.id }, data: { passwordHash } });
   }
+
+  // ───── Test mobile users (distributor + driver) for end-to-end testing ─────
+  //
+  // We seed these so that a fresh deployment can verify mobile login + the
+  // assignment flow without manual DB tinkering. Default password matches
+  // DEFAULT_MOBILE_PASSWORD; admin can reset either user from the UI.
+  // Existing passwords are NEVER overwritten — operator-changed passwords win.
+  const mobileHash = await argon2.hash(DEFAULT_MOBILE_PASSWORD);
+
+  const distrUser = await prisma.user.upsert({
+    where: { phone: '+923001111111' },
+    update: { role: UserRole.DISTRIBUTOR, status: UserStatus.ACTIVE, name: 'Test Distributor' },
+    create: {
+      phone: '+923001111111',
+      name: 'Test Distributor',
+      role: UserRole.DISTRIBUTOR,
+      status: UserStatus.ACTIVE,
+      passwordHash: mobileHash,
+    },
+  });
+  if (!distrUser.passwordHash) {
+    await prisma.user.update({ where: { id: distrUser.id }, data: { passwordHash: mobileHash } });
+  }
+  await prisma.distributor.upsert({
+    where: { userId: distrUser.id },
+    update: { status: DistributorStatus.ACTIVE },
+    create: { userId: distrUser.id, businessName: 'Test LPG Shop', status: DistributorStatus.ACTIVE },
+  });
+
+  const drvUser = await prisma.user.upsert({
+    where: { phone: '+923002222222' },
+    update: { role: UserRole.DRIVER, status: UserStatus.ACTIVE, name: 'Test Driver' },
+    create: {
+      phone: '+923002222222',
+      name: 'Test Driver',
+      role: UserRole.DRIVER,
+      status: UserStatus.ACTIVE,
+      passwordHash: mobileHash,
+    },
+  });
+  if (!drvUser.passwordHash) {
+    await prisma.user.update({ where: { id: drvUser.id }, data: { passwordHash: mobileHash } });
+  }
+  await prisma.driver.upsert({
+    where: { userId: drvUser.id },
+    update: {},
+    create: { userId: drvUser.id, licenceNo: 'DL-TEST-001' },
+  });
 
   // Migrate any old underscore-based cylinder codes to the new dotted form.
   // E.g. LPG_11_8KG → LPG_11.8KG. Safe to run multiple times.

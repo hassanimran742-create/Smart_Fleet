@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { RefreshDto, VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginPasswordDto } from './dto/login-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
 import { OtpPurpose } from '@prisma/client';
@@ -25,11 +26,20 @@ export class AuthController {
   }
 
   // Password login — only available for admin-side roles.
-  // Field roles (driver/distributor/client) must use OTP.
+  // CLIENT users still authenticate via OTP — they're end customers.
   @Public()
   @Post('login')
   loginPassword(@Body() dto: LoginPasswordDto) {
     return this.auth.loginWithPassword(dto.phone, dto.password);
+  }
+
+  // Authenticated self-change. Requires the current password.
+  @Post('change-password')
+  changePassword(
+    @CurrentUser() user: AuthContext,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changeOwnPassword(user.userId, dto.currentPassword, dto.newPassword);
   }
 
   @Public()
