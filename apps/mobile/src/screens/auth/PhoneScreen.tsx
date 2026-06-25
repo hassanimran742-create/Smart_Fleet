@@ -39,8 +39,10 @@ export function PhoneScreen() {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', { phone, password });
-      setAuth({
-        token: data.accessToken,
+      // Auth store expects `accessToken` (not `token`) — naming matches the
+      // server's issueTokens() response shape.
+      await setAuth({
+        accessToken: data.accessToken,
         refreshToken: data.refreshToken,
         role: data.role,
       });
