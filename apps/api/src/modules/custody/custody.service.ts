@@ -51,27 +51,35 @@ export class CustodyService {
       const fromType = cylinder.custodyType;
       const fromId = cylinder.custodyId;
 
-      // For PICKED_UP_EMPTY the cylinder goes to the driver's vehicle; resolve
-      // it from the acting driver so the mobile app doesn't have to pass it.
-      let resolvedToId = input.toCustodyId;
-      if (!resolvedToId && input.eventType === CylinderEventType.PICKED_UP_EMPTY) {
-        const driver = await tx.driver.findFirst({
-          where: { userId: input.actorUserId },
-          select: { currentVehicleId: true },
-        });
-        if (driver?.currentVehicleId) resolvedToId = driver.currentVehicleId;
-      }
+      // Resolve the destination automatically using driver / order context, so
+      // the mobile app only has to pass {qrCode, eventType, tripId, orderId}.
+      // Order matters — for events that imply the driver's vehicle, we need
+      // the driver's currentVehicleId, so look the driver up once up front.
+      const driver = await tx.driver.findFirst({
+        where: { userId: input.actorUserId },
+        select: { id: true, currentVehicleId: true, user: { select: { id: true } } },
+      });
 
       const toType = input.toCustodyType ?? this.inferToType(input.eventType, fromType);
       const toId =
-        resolvedToId ??
-        this.inferToId(input.eventType, fromType, fromId, input);
+        input.toCustodyId ??
+        (await this.resolveToId({
+          tx,
+          eventType: input.eventType,
+          fromType,
+          fromId,
+          cylinder,
+          driver,
+          tripId: input.tripId,
+          orderId: input.orderId,
+        }));
 
       const allowed = ALLOWED_TRANSITIONS[input.eventType] ?? [];
       const transitionOk = allowed.some(([f, t]) => f === fromType && t === toType);
       if (!transitionOk) {
         throw new BadRequestException(
-          `Illegal transition ${fromType} → ${toType} for event ${input.eventType}`,
+          `Illegal transition ${fromType} → ${toType} for event ${input.eventType}. ` +
+          `Cylinder is currently at ${fromType}; this event expects it to start somewhere else.`,
         );
       }
 
@@ -145,17 +153,79 @@ export class CustodyService {
     return map[eventType];
   }
 
-  private inferToId(
-    eventType: CylinderEventType,
-    fromType: CustodyType,
-    fromId: string,
-    input: ScanInput,
-  ): string {
-    // Caller usually supplies toCustodyId. Fallbacks:
-    if (input.toCustodyId) return input.toCustodyId;
+  /**
+   * Resolve the destination custody id for the most common scans without
+   * the mobile app having to pass it. Strategy by event:
+   *
+   *   SCAN_OUT (STORE → VEHICLE)              → driver's currentVehicleId
+   *   DELIVERED (VEHICLE → CLIENT)            → order.clientId
+   *   PICKED_UP_EMPTY (CLIENT → VEHICLE)      → driver's currentVehicleId
+   *   RETURNED_TO_DISTRIBUTOR (STORE → DIST)  → cylinder.distributorId
+   *   SCAN_IN (* → STORE)                     → trip.originStoreId (if any)
+   *   TRANSFER (STORE → STORE)                → caller must pass it
+   *   MARK_FAULTY / MARK_LOST                 → same as fromId
+   *
+   * Throws a clear, operator-actionable error if it can't figure it out.
+   */
+  private async resolveToId(p: {
+    tx: any;
+    eventType: CylinderEventType;
+    fromType: CustodyType;
+    fromId: string;
+    cylinder: { distributorId: string };
+    driver: { id: string; currentVehicleId: string | null } | null;
+    tripId?: string;
+    orderId?: string;
+  }): Promise<string> {
+    const { tx, eventType, fromId, cylinder, driver, tripId, orderId } = p;
+
     if (eventType === 'MARK_FAULTY' || eventType === 'MARK_LOST') return fromId;
+
+    if (eventType === 'SCAN_OUT' || eventType === 'PICKED_UP_EMPTY') {
+      if (!driver) {
+        throw new BadRequestException('Only drivers can perform vehicle-bound scans.');
+      }
+      if (!driver.currentVehicleId) {
+        throw new BadRequestException(
+          'Driver has no vehicle assigned. Ask admin to assign one in Vehicles → Assign drivers.',
+        );
+      }
+      return driver.currentVehicleId;
+    }
+
+    if (eventType === 'DELIVERED') {
+      if (!orderId) {
+        throw new BadRequestException(
+          'Delivery scan requires an orderId so we know which client receives the cylinder. Open the delivery from My Trips and tap "Mark delivered" instead of opening Scan directly.',
+        );
+      }
+      const order = await tx.order.findUnique({ where: { id: orderId }, select: { clientId: true } });
+      if (!order?.clientId) {
+        throw new BadRequestException('Order has no client — cannot resolve delivery destination.');
+      }
+      return order.clientId;
+    }
+
+    if (eventType === 'RETURNED_TO_DISTRIBUTOR') {
+      // Cylinder always knows its owning distributor.
+      return cylinder.distributorId;
+    }
+
+    if (eventType === 'SCAN_IN') {
+      // Use the trip's origin store, the only deterministic "where" we have
+      // without an explicit picker on the driver app.
+      if (tripId) {
+        const trip = await tx.trip.findUnique({ where: { id: tripId }, select: { originStoreId: true } });
+        if (trip?.originStoreId) return trip.originStoreId;
+      }
+      throw new BadRequestException(
+        'SCAN_IN needs a tripId so we can resolve which store this is coming back to.',
+      );
+    }
+
+    // TRANSFER + anything new — require explicit destination.
     throw new BadRequestException(
-      'Could not figure out where the cylinder is going. For PICKED_UP_EMPTY, make sure the driver has a vehicle assigned.',
+      `Could not figure out where the cylinder is going for ${eventType}. Pass toCustodyId explicitly.`,
     );
   }
 
