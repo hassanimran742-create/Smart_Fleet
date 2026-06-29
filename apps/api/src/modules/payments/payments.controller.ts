@@ -1,9 +1,9 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
-import { PaymentProviderName, UserRole } from '@prisma/client';
+import { PaymentProviderName, PaymentStatus, UserRole } from '@prisma/client';
 
 @Controller('payments')
 export class PaymentsController {
@@ -22,6 +22,20 @@ export class PaymentsController {
     });
   }
 
+  // Distributor's own top-up history.
+  @Roles(UserRole.DISTRIBUTOR)
+  @Get('mine')
+  mine(@CurrentUser() user: AuthContext) {
+    return this.payments.listForDistributor(user.distributorId!);
+  }
+
+  // Admin verification queue. ?status=PENDING by default in the UI.
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER)
+  @Get()
+  list(@Query('status') status?: PaymentStatus) {
+    return this.payments.listForAdmin({ status });
+  }
+
   @Public()
   @Post('webhook/:provider')
   webhook(@Param('provider') provider: PaymentProviderName, @Body() payload: any) {
@@ -34,7 +48,7 @@ export class PaymentsController {
     return this.payments.submitBankProof(id, proofUrl);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER)
   @Post(':id/verify')
   verify(
     @CurrentUser() user: AuthContext,

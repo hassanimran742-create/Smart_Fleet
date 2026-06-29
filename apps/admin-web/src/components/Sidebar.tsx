@@ -18,6 +18,7 @@ const PAGES: PageDef[] = [
   { id: 'drivers',           label: 'Drivers' },
   { id: 'vehicles',          label: 'Vehicles' },
   { id: 'distributors',      label: 'Distributors' },
+  { id: 'payments',          label: 'Payments' },
   { id: 'stores',            label: 'Stores' },
   { id: 'inventory',         label: 'Inventory' },
   { id: 'qr-generator',      label: 'QR generator' },

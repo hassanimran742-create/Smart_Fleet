@@ -18,6 +18,7 @@ import { FillingStationsScreen } from './screens/FillingStationsScreen';
 import { FuelReportScreen } from './screens/FuelReportScreen';
 import { ExpensesScreen } from './screens/ExpensesScreen';
 import { QrGeneratorScreen } from './screens/QrGeneratorScreen';
+import { PaymentsScreen } from './screens/PaymentsScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { useRouteStore } from './store/route';
 import { useIdleLogout } from './hooks/useIdleLogout';
@@ -52,6 +53,7 @@ export function App() {
     case 'fuel-report':      body = <FuelReportScreen />; break;
     case 'expenses':         body = <ExpensesScreen />; break;
     case 'qr-generator':     body = <QrGeneratorScreen />; break;
+    case 'payments':         body = <PaymentsScreen />; break;
     case 'profile':          body = <ProfileScreen />; break;
     default:                 body = <DashboardScreen />;
   }

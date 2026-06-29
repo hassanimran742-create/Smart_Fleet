@@ -89,6 +89,28 @@ export class PaymentsService {
     });
   }
 
+  // A distributor's own top-up history (newest first).
+  listForDistributor(distributorId: string) {
+    return this.prisma.payment.findMany({
+      where: { distributorId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  // Admin queue. Defaults to the payments that need a human decision:
+  // bank-transfer top-ups that are still PENDING and have a proof uploaded.
+  listForAdmin(filter: { status?: PaymentStatus } = {}) {
+    return this.prisma.payment.findMany({
+      where: { status: filter.status },
+      include: {
+        distributor: { include: { user: { select: { name: true, phone: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+  }
+
   async verifyBankPayment(paymentId: string, verifiedByUserId: string, approve: boolean) {
     return this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({ where: { id: paymentId } });

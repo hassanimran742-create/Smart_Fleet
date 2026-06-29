@@ -19,6 +19,7 @@ export type Page =
   | 'fuel-report'
   | 'expenses'
   | 'qr-generator'
+  | 'payments'
   | 'profile';
 
 interface RouteState {
