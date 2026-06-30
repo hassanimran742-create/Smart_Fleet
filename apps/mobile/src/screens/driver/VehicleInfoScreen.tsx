@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { Body, Caption, Card, Heading, Pill, Screen } from '../../components/ui';
+import { VehicleLoad } from '../../components/VehicleLoad';
 import { space } from '../../theme';
 
 /**
@@ -35,6 +36,9 @@ export function VehicleInfoScreen() {
         <Heading size="h1" style={{ marginTop: 6 }}>{vehicle.plateNo}</Heading>
         <Pill label={vehicle.status ?? 'ACTIVE'} tone={vehicle.status === 'ACTIVE' ? 'ok' : 'warn'} style={{ marginTop: space.sm, alignSelf: 'flex-start' }} />
       </Card>
+
+      {/* Live cylinder load on this vehicle (full / empty by type) */}
+      <VehicleLoad />
 
       <Card>
         <Heading size="h3">Capacity</Heading>

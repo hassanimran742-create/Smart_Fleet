@@ -6,6 +6,7 @@ import { api } from '../../api/client';
 import { useAuthStore } from '../../store/auth';
 import { useLiveLocation } from '../../hooks/useLiveLocation';
 import { Body, Caption, Card, Heading, Pill, Screen } from '../../components/ui';
+import { VehicleLoad } from '../../components/VehicleLoad';
 import { colors, radius, shadow, space } from '../../theme';
 
 export function DriverHomeScreen() {
@@ -54,6 +55,11 @@ export function DriverHomeScreen() {
         </View>
         <Switch value={online} onValueChange={setOnline} />
       </Card>
+
+      {/* Live vehicle cylinder load (full / empty) */}
+      <View style={{ marginTop: space.md }}>
+        <VehicleLoad compact />
+      </View>
 
       {/* ───── Two main actions ───── */}
       <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>

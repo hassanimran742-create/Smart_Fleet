@@ -254,6 +254,7 @@ function ManageTab() {
   const [editCityId, setEditCityId] = useState('');
   const [editForm, setEditForm] = useState<any>({});
   const [editErr, setEditErr] = useState<string | null>(null);
+  const [loadFor, setLoadFor] = useState<{ id: string; plateNo: string } | null>(null);
   const editZones = useQuery({
     queryKey: ['zones', editCityId],
     queryFn: async () => editCityId ? (await api.get<Zone[]>(`/zones/city/${editCityId}`)).data : [],
@@ -306,12 +307,13 @@ function ManageTab() {
 
       <div className="card">
         <table>
-          <thead><tr><th>Plate</th><th>Capacity</th><th>Zone</th><th>Status</th><th>Current driver</th><th></th></tr></thead>
+          <thead><tr><th>Plate</th><th>Capacity</th><th>Load</th><th>Zone</th><th>Status</th><th>Current driver</th><th></th></tr></thead>
           <tbody>
             {rows.map((v: any) => (
               <tr key={v.id} style={{ opacity: v.status === 'RETIRED' ? 0.5 : 1 }}>
                 <td>{v.plateNo}</td>
                 <td>{v.capacityUnits} slots</td>
+                <td><button onClick={() => setLoadFor({ id: v.id, plateNo: v.plateNo })}>View load</button></td>
                 <td>{v.homeZone?.name ?? v.homeZoneId.slice(0, 8)}</td>
                 <td>{v.status}</td>
                 <td>{v.currentDriver?.user?.name ?? (v.currentDriver ? v.currentDriver.id.slice(0, 8) : '—')}</td>
@@ -332,11 +334,13 @@ function ManageTab() {
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 24 }}>No vehicles yet. Use the Create vehicle tab.</td></tr>
+              <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 24 }}>No vehicles yet. Use the Create vehicle tab.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {loadFor && <VehicleLoadModal vehicle={loadFor} onClose={() => setLoadFor(null)} />}
 
       <Modal title="Edit vehicle" open={!!editing} onClose={() => setEditing(null)} width={560}>
         {editing && (
@@ -478,5 +482,66 @@ function AssignTab() {
         </table>
       </div>
     </>
+  );
+}
+
+interface VehicleSummary {
+  vehicleId: string;
+  plateNo: string | null;
+  totalFull: number;
+  totalEmpty: number;
+  byType: Array<{ cylinderTypeId: string; code: string; name: string; full: number; empty: number }>;
+}
+
+function VehicleLoadModal({ vehicle, onClose }: { vehicle: { id: string; plateNo: string }; onClose: () => void }) {
+  const { data, isLoading } = useQuery<VehicleSummary>({
+    queryKey: ['vehicle-summary', vehicle.id],
+    queryFn: async () => (await api.get(`/inventory/vehicle/${vehicle.id}/summary`)).data,
+    refetchInterval: 15000,
+  });
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,18,27,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="card" style={{ width: 460, maxWidth: '92vw' }}>
+        <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>Load on {vehicle.plateNo}</h3>
+          <button onClick={onClose}>Close</button>
+        </div>
+
+        {isLoading ? (
+          <p className="muted">Loading…</p>
+        ) : !data || data.byType.length === 0 ? (
+          <p className="muted" style={{ marginTop: 12 }}>
+            This vehicle has no cylinders loaded right now.
+          </p>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 8, margin: '12px 0' }}>
+              <span className="pill pill-ok">{data.totalFull} full</span>
+              <span className="pill pill-warn">{data.totalEmpty} empty</span>
+              <span className="pill pill-neutral">{data.totalFull + data.totalEmpty} total</span>
+            </div>
+            <table>
+              <thead><tr><th>Cylinder type</th><th style={{ textAlign: 'right' }}>Full</th><th style={{ textAlign: 'right' }}>Empty</th></tr></thead>
+              <tbody>
+                {data.byType.map((r) => (
+                  <tr key={r.cylinderTypeId}>
+                    <td>{r.name}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ok, #1ea675)' }}>{r.full}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--warn, #f59e0b)' }}>{r.empty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

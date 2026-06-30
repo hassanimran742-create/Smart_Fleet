@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRoute } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 
 type EventType =
@@ -22,6 +23,7 @@ const FLOWS: { key: EventType; label: string; desc: string }[] = [
 
 export function ScanScreen() {
   const route = useRoute<any>();
+  const qc = useQueryClient();
   const initialEvent: EventType = route.params?.eventType ?? 'SCAN_OUT';
   const tripId = route.params?.tripId;
   const orderId = route.params?.orderId;
@@ -60,6 +62,8 @@ export function ScanScreen() {
         orderId,
       });
       setCount((c) => c + 1);
+      // Refresh the vehicle-load card so counts move immediately.
+      qc.invalidateQueries({ queryKey: ['my-vehicle-load'] });
       Alert.alert('Scan recorded', `Cylinder now: ${result.newState} → ${result.toType}`);
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? '';
