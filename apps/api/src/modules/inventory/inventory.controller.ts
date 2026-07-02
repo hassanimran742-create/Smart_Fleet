@@ -45,6 +45,13 @@ export class InventoryController {
     return this.inv.vehicleSummary(id);
   }
 
+  // Fleet-wide: every vehicle currently holding cylinders (full/empty by type).
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER, UserRole.STORE_KEEPER)
+  @Get('vehicles-summary')
+  vehiclesSummary() {
+    return this.inv.allVehiclesSummary();
+  }
+
   // The signed-in driver's own vehicle load (full/empty by type).
   @Roles(UserRole.DRIVER)
   @Get('my-vehicle')

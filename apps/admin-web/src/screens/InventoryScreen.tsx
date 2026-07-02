@@ -33,7 +33,7 @@ const REASONS = ['RECEIPT', 'SALE', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT',
 const CATEGORIES = ['PIPE', 'CONNECTOR', 'REGULATOR', 'VALVE', 'BURNER', 'HOSE', 'ADAPTER', 'VAPORISER', 'OTHER'] as const;
 type Category = typeof CATEGORIES[number];
 
-type Tab = 'add' | 'view' | 'catalog';
+type Tab = 'add' | 'view' | 'vehicles' | 'catalog';
 
 function errMsg(e: any) {
   return (
@@ -53,7 +53,8 @@ export function InventoryScreen() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
         {([
           ['add', '➕ Add inventory'],
-          ['view', '📊 View / edit'],
+          ['view', '📊 Stores (full/empty)'],
+          ['vehicles', '🚚 On vehicles'],
           ['catalog', '🧰 Accessory catalog'],
         ] as [Tab, string][]).map(([id, label]) => (
           <button
@@ -76,8 +77,70 @@ export function InventoryScreen() {
 
       {tab === 'add' && <AddTab />}
       {tab === 'view' && <ViewTab />}
+      {tab === 'vehicles' && <VehiclesInventoryTab />}
       {tab === 'catalog' && <CatalogTab />}
     </>
+  );
+}
+
+interface VehLoad {
+  vehicleId: string;
+  plateNo: string;
+  totalFull: number;
+  totalEmpty: number;
+  byType: Array<{ cylinderTypeId: string; code: string; name: string; full: number; empty: number }>;
+}
+
+function VehiclesInventoryTab() {
+  const { data, isLoading } = useQuery<VehLoad[]>({
+    queryKey: ['inventory-vehicles-summary'],
+    queryFn: async () => (await api.get('/inventory/vehicles-summary')).data,
+    refetchInterval: 20000,
+  });
+
+  const vehicles = data ?? [];
+  const fleetFull = vehicles.reduce((s, v) => s + v.totalFull, 0);
+  const fleetEmpty = vehicles.reduce((s, v) => s + v.totalEmpty, 0);
+
+  return (
+    <div className="card">
+      <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Cylinders currently on vehicles</h3>
+          <p className="muted" style={{ margin: '4px 0 0' }}>
+            Live fleet load. Updates as drivers scan cylinders on/off vehicles.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <span className="pill pill-ok">{fleetFull} full</span>
+          <span className="pill pill-warn">{fleetEmpty} empty</span>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <p className="muted">Loading…</p>
+      ) : vehicles.length === 0 ? (
+        <p className="muted">No cylinders on any vehicle right now.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr><th>Vehicle</th><th>Cylinder type</th><th style={{ textAlign: 'right' }}>Full</th><th style={{ textAlign: 'right' }}>Empty</th></tr>
+          </thead>
+          <tbody>
+            {vehicles.flatMap((v) =>
+              v.byType.map((t, i) => (
+                <tr key={`${v.vehicleId}-${t.cylinderTypeId}`}>
+                  <td>{i === 0 ? <strong>{v.plateNo}</strong> : ''}</td>
+                  <td>{t.name}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ok, #1ea675)' }}>{t.full}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--warn, #f59e0b)' }}>{t.empty}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

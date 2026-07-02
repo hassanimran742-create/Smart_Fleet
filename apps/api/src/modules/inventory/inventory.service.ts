@@ -76,6 +76,61 @@ export class InventoryService {
     };
   }
 
+  /**
+   * Fleet-wide vehicle load summary for admin: every vehicle that currently
+   * holds cylinders, with FULL/EMPTY per type. Vehicles with nothing loaded
+   * are omitted.
+   */
+  async allVehiclesSummary() {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        vehicle_id: string;
+        plate_no: string;
+        cylinder_type_id: string;
+        code: string;
+        name: string;
+        state: CylinderState;
+        count: number;
+      }>
+    >`
+      SELECT v.id AS vehicle_id, v.plate_no,
+             ct.id AS cylinder_type_id, ct.code, ct.name,
+             il.state, il.count
+      FROM inventory_lots il
+      JOIN vehicles v ON v.id = il.holder_id AND il.holder_type = 'VEHICLE'
+      JOIN cylinder_types ct ON ct.id = il.cylinder_type_id
+      WHERE il.count > 0
+      ORDER BY v.plate_no, ct.code, il.state
+    `;
+
+    // Pivot into { vehicleId, plateNo, totalFull, totalEmpty, byType[] }
+    const map = new Map<string, any>();
+    for (const r of rows) {
+      const v =
+        map.get(r.vehicle_id) ?? {
+          vehicleId: r.vehicle_id,
+          plateNo: r.plate_no,
+          totalFull: 0,
+          totalEmpty: 0,
+          byType: new Map<string, { cylinderTypeId: string; code: string; name: string; full: number; empty: number }>(),
+        };
+      const t =
+        v.byType.get(r.cylinder_type_id) ?? {
+          cylinderTypeId: r.cylinder_type_id,
+          code: r.code,
+          name: r.name,
+          full: 0,
+          empty: 0,
+        };
+      const n = Number(r.count);
+      if (r.state === CylinderState.FULL) { t.full += n; v.totalFull += n; }
+      else if (r.state === CylinderState.EMPTY) { t.empty += n; v.totalEmpty += n; }
+      v.byType.set(r.cylinder_type_id, t);
+      map.set(r.vehicle_id, v);
+    }
+    return [...map.values()].map((v) => ({ ...v, byType: [...v.byType.values()] }));
+  }
+
   /** The signed-in driver's current vehicle load. */
   async forMyVehicle(userId: string) {
     const driver = await this.prisma.driver.findFirst({

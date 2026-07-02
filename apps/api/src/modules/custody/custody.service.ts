@@ -238,8 +238,22 @@ export class CustodyService {
       to: { holderType: CustodyType; holderId: string; state: CylinderState };
     },
   ) {
-    // -1 from origin
+    // -1 from origin. Guard against going negative — if the origin lot is
+    // missing or already 0 (e.g. legacy data registered before inventory
+    // seeding), clamp at 0 instead of drifting negative.
     if (p.from.state !== CylinderState.FAULTY && p.from.state !== CylinderState.LOST) {
+      const existing = await tx.inventoryLot.findUnique({
+        where: {
+          inventory_unique: {
+            holderType: p.from.holderType,
+            holderId: p.from.holderId,
+            distributorId: p.distributorId,
+            cylinderTypeId: p.cylinderTypeId,
+            state: p.from.state,
+          },
+        },
+      });
+      const nextFrom = Math.max(0, (existing?.count ?? 0) - 1);
       await tx.inventoryLot.upsert({
         where: {
           inventory_unique: {
@@ -250,7 +264,7 @@ export class CustodyService {
             state: p.from.state,
           },
         },
-        update: { count: { decrement: 1 } },
+        update: { count: nextFrom },
         create: {
           holderType: p.from.holderType,
           holderId: p.from.holderId,

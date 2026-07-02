@@ -67,20 +67,53 @@ export class CylindersService {
       });
     }
 
-    return this.prisma.$transaction(
-      serials.map((serial) =>
-        this.prisma.cylinder.create({
-          data: {
-            serial,
-            qrCode: serial,
+    const count = serials.length;
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1) Create the cylinder records (each starts FULL at the initial holder).
+      const created = [];
+      for (const serial of serials) {
+        created.push(
+          await tx.cylinder.create({
+            data: {
+              serial,
+              qrCode: serial,
+              distributorId: input.distributorId,
+              cylinderTypeId: input.cylinderTypeId,
+              custodyType: input.initialCustodyType,
+              custodyId: input.initialCustodyId,
+              state: 'FULL',
+            },
+          }),
+        );
+      }
+
+      // 2) Seed the inventory ledger so store/holder counts are correct.
+      //    Without this, inventory_lots stays empty and every later scan
+      //    decrements a non-existent lot into the negatives.
+      await tx.inventoryLot.upsert({
+        where: {
+          inventory_unique: {
+            holderType: input.initialCustodyType,
+            holderId: input.initialCustodyId,
             distributorId: input.distributorId,
             cylinderTypeId: input.cylinderTypeId,
-            custodyType: input.initialCustodyType,
-            custodyId: input.initialCustodyId,
             state: 'FULL',
           },
-        }),
-      ),
-    );
+        },
+        update: { count: { increment: count } },
+        create: {
+          holderType: input.initialCustodyType,
+          holderId: input.initialCustodyId,
+          distributorId: input.distributorId,
+          cylinderTypeId: input.cylinderTypeId,
+          state: 'FULL',
+          count,
+        },
+      });
+
+      // Return the created rows (QR generator renders these).
+      return created;
+    });
   }
 }
