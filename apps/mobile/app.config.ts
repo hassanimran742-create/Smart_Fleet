@@ -5,10 +5,11 @@ const variant = (process.env.APP_VARIANT ?? 'distributor') as 'distributor' | 'd
 const baseName = 'LPG Management';
 const isDriver = variant === 'driver';
 
-// One Expo project per slug. Distributor created via `eas init`.
-// Driver project gets its own id (set EAS_PROJECT_ID_DRIVER) after its eas init.
+// One Expo project per slug. Each has its own hardcoded id so OTA updates
+// (updates.url below) are always wired — an empty id silently drops the
+// whole updates block and the app can never receive EAS Updates.
 const projectId = isDriver
-  ? (process.env.EAS_PROJECT_ID_DRIVER ?? '')
+  ? (process.env.EAS_PROJECT_ID_DRIVER ?? 'b4275b13-a37f-41e5-8d97-fbac62d1c25e')
   : '0edc05a5-2034-4838-a24a-62194d799503';
 
 const config: ExpoConfig = {
