@@ -92,7 +92,7 @@ export class FilesService implements OnModuleInit {
    * regardless of which endpoint host was baked into the stored URL. Returns
    * the original value if it can't be signed, and null passes through.
    */
-  async signStoredUrl(storedUrl: string | null, expiresIn = 600): Promise<string | null> {
+  async signStoredUrl(storedUrl: string | null, expiresIn = 3600): Promise<string | null> {
     if (!storedUrl) return null;
     const idx = storedUrl.indexOf('uploads/');
     if (idx === -1) return storedUrl;
