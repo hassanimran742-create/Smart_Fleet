@@ -177,9 +177,21 @@ export class DriversService {
   }
 
   assignVehicle(driverId: string, vehicleId: string | null) {
-    return this.prisma.driver.update({
-      where: { id: driverId },
-      data: { currentVehicleId: vehicleId },
+    return this.prisma.$transaction(async (tx) => {
+      // currentVehicleId is unique — a vehicle belongs to at most one driver.
+      // If another driver currently holds this vehicle, release it first so
+      // reassigning doesn't blow up on the unique constraint. This makes the
+      // admin "assign vehicle" action a clean move rather than a hard error.
+      if (vehicleId) {
+        await tx.driver.updateMany({
+          where: { currentVehicleId: vehicleId, id: { not: driverId } },
+          data: { currentVehicleId: null },
+        });
+      }
+      return tx.driver.update({
+        where: { id: driverId },
+        data: { currentVehicleId: vehicleId },
+      });
     });
   }
 
