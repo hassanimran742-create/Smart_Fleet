@@ -99,7 +99,31 @@ export function DriverFillingOrdersScreen() {
 
             {o.status === 'AT_STATION' && (
               <>
-                <Caption>You picked up {o.pickedUpEmptyCount} empties. How many were filled?</Caption>
+                <Caption>
+                  You loaded {o.pickedUpEmptyCount} empties. Once the station has filled them all,
+                  tap the button below to mark the whole load filled in one go.
+                </Caption>
+                <Button
+                  title={`✓ All ${o.pickedUpEmptyCount} filled`}
+                  variant="success"
+                  onPress={() => {
+                    Alert.alert(
+                      'Mark all filled?',
+                      `Confirm all ${o.pickedUpEmptyCount} cylinders were filled at ${o.fillingStation?.name ?? 'the station'}.`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Yes, all filled',
+                          onPress: () =>
+                            transition.mutate({ id: o.id, endpoint: 'filled', body: { filledCount: o.pickedUpEmptyCount } }),
+                        },
+                      ],
+                    );
+                  }}
+                />
+                <Caption muted style={{ marginTop: space.sm }}>
+                  Only some filled? Enter the exact count instead:
+                </Caption>
                 <Input
                   label="Filled count"
                   value={filledFor === o.id ? filledCount : ''}
@@ -108,8 +132,7 @@ export function DriverFillingOrdersScreen() {
                   placeholder={`e.g. ${o.pickedUpEmptyCount}`}
                 />
                 <Button
-                  title="Mark filled at station"
-                  variant="success"
+                  title="Mark this count filled"
                   onPress={() => {
                     const n = Number(filledCount);
                     if (!Number.isFinite(n) || n < 0) {
