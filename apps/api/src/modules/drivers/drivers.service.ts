@@ -2,6 +2,12 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { DriverAvailability, UserRole, UserStatus } from '@prisma/client';
 
+/** Turn "" / whitespace-only into undefined so blanks store as NULL. */
+function blankToUndef(v?: string): string | undefined {
+  const t = (v ?? '').trim();
+  return t === '' ? undefined : t;
+}
+
 @Injectable()
 export class DriversService {
   constructor(private prisma: PrismaService) {}
@@ -27,28 +33,38 @@ export class DriversService {
     cnic?: string;
     profilePictureUrl?: string;
   }) {
+    // Blank optional fields arrive from the form as "" — coerce to undefined so
+    // they store as NULL. email is @unique, and an empty-string email collides
+    // across every driver left blank; NULL does not.
+    const email = blankToUndef(input.email);
+    const cnic = blankToUndef(input.cnic);
+    const profilePictureUrl = blankToUndef(input.profilePictureUrl);
+    const licenceNo = (input.licenceNo ?? '').trim();
+    if (!licenceNo) throw new BadRequestException('Driving licence # is required.');
+
     return this.prisma.$transaction(async (tx) => {
+      const existingDriver = await tx.driver.findFirst({
+        where: { user: { phone: input.phone } },
+        select: { id: true },
+      });
+      if (existingDriver) {
+        throw new BadRequestException('A driver with this phone number already exists.');
+      }
       const user = await tx.user.upsert({
         where: { phone: input.phone },
-        update: {
-          name: input.name,
-          role: UserRole.DRIVER,
-          email: input.email,
-          cnic: input.cnic,
-          profilePictureUrl: input.profilePictureUrl,
-        },
+        update: { name: input.name, role: UserRole.DRIVER, email, cnic, profilePictureUrl },
         create: {
           phone: input.phone,
           name: input.name,
           role: UserRole.DRIVER,
           status: UserStatus.ACTIVE,
-          email: input.email,
-          cnic: input.cnic,
-          profilePictureUrl: input.profilePictureUrl,
+          email,
+          cnic,
+          profilePictureUrl,
         },
       });
       return tx.driver.create({
-        data: { userId: user.id, licenceNo: input.licenceNo },
+        data: { userId: user.id, licenceNo },
         include: { user: true },
       });
     });
@@ -66,21 +82,21 @@ export class DriversService {
   ) {
     const driver = await this.prisma.driver.findUnique({ where: { id: driverId } });
     if (!driver) throw new NotFoundException();
-    if (input.licenceNo) {
+    const email = blankToUndef(input.email);
+    const cnic = blankToUndef(input.cnic);
+    const profilePictureUrl = blankToUndef(input.profilePictureUrl);
+    const name = blankToUndef(input.name);
+    const licenceNo = blankToUndef(input.licenceNo);
+    if (licenceNo) {
       await this.prisma.driver.update({
         where: { id: driverId },
-        data: { licenceNo: input.licenceNo },
+        data: { licenceNo },
       });
     }
-    if (input.name || input.email || input.cnic || input.profilePictureUrl) {
+    if (name || email || cnic || profilePictureUrl) {
       await this.prisma.user.update({
         where: { id: driver.userId },
-        data: {
-          name: input.name,
-          email: input.email,
-          cnic: input.cnic,
-          profilePictureUrl: input.profilePictureUrl,
-        },
+        data: { name, email, cnic, profilePictureUrl },
       });
     }
     return this.findById(driverId);
