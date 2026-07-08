@@ -1,0 +1,52 @@
+{
+	email admin@smart-fleet.com
+}
+
+api.smart-fleet.com {
+	reverse_proxy api-prod:3001 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
+
+staging.smart-fleet.com {
+	reverse_proxy api-staging:3002 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
+
+:80 {
+	respond /health 200
+	respond "Not found" 404
+}

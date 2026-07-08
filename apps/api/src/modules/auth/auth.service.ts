@@ -48,7 +48,16 @@ export class AuthService {
       },
     });
     await this.sms.sendOtp(phone, code);
-    return { ok: true };
+
+    // Mock-mode convenience: in non-production environments, return the OTP in
+    // the API response so the mobile/admin app can auto-fill it for testing.
+    // Guarded by NODE_ENV so production builds never leak OTPs over the wire.
+    const isMock = (this.cfg.get<string>('sms.provider') ?? 'mock') === 'mock';
+    const isProd = process.env.NODE_ENV === 'production';
+    if (isMock && !isProd) {
+      return { ok: true, devCode: code } as const;
+    }
+    return { ok: true } as const;
   }
 
   async verifyOtp(phone: string, code: string) {
@@ -77,16 +86,92 @@ export class AuthService {
 
     let user = await this.prisma.user.findUnique({
       where: { phone },
-      include: { distributorProfile: true, driverProfile: true },
+      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
     });
     if (!user) {
       user = await this.prisma.user.create({
         data: { phone, name: phone, role: UserRole.CLIENT, status: UserStatus.ACTIVE },
-        include: { distributorProfile: true, driverProfile: true },
+        include: { distributorProfile: true, driverProfile: true, clientProfile: true },
       });
     }
 
+    // Auto-link: if this is a CLIENT user and a distributor already added
+    // this phone as a client, bind the User → Client row so JWT carries clientId.
+    if (user.role === UserRole.CLIENT && !user.clientProfile) {
+      const match = await this.prisma.client.findFirst({
+        where: { phone: user.phone, userId: null },
+      });
+      if (match) {
+        await this.prisma.client.update({
+          where: { id: match.id },
+          data: { userId: user.id },
+        });
+        user = await this.prisma.user.findUnique({
+          where: { id: user.id },
+          include: { distributorProfile: true, driverProfile: true, clientProfile: true },
+        }) as any;
+      }
+    }
+
     return this.issueTokens(user);
+  }
+
+  // Roles allowed to authenticate via password. CLIENT is the only role that
+  // still uses OTP — they're end customers who shouldn't manage a credential.
+  // Field roles (DISTRIBUTOR, DRIVER) use password from the mobile app; admin
+  // operates the password reset for them.
+  private static readonly PASSWORD_LOGIN_ROLES: UserRole[] = [
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.DISPATCHER,
+    UserRole.STORE_KEEPER,
+    UserRole.DISTRIBUTOR,
+    UserRole.DRIVER,
+  ];
+
+  async loginWithPassword(phone: string, password: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
+    });
+
+    // Same generic message for every "no user / wrong password / wrong role"
+    // case so we don't leak which step failed.
+    const reject = () => new UnauthorizedException('Invalid phone or password');
+
+    if (!user) throw reject();
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account not active');
+    }
+    if (!AuthService.PASSWORD_LOGIN_ROLES.includes(user.role)) {
+      throw new UnauthorizedException(
+        'This account must sign in with a one-time code, not a password.',
+      );
+    }
+    if (!user.passwordHash) throw reject();
+
+    const ok = await argon2.verify(user.passwordHash, password);
+    if (!ok) throw reject();
+
+    return this.issueTokens(user);
+  }
+
+  async changeOwnPassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'No password is set on this account. Ask an admin to set one for you.',
+      );
+    }
+    const ok = await argon2.verify(user.passwordHash, currentPassword);
+    if (!ok) throw new UnauthorizedException('Current password is incorrect');
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('New password must differ from current password');
+    }
+    const hash = await argon2.hash(newPassword);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } });
+    return { ok: true };
   }
 
   async refresh(refreshToken: string) {
@@ -119,7 +204,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { distributorProfile: true, driverProfile: true },
+      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
     });
     if (!user) throw new UnauthorizedException();
     return this.issueTokens(user, stored.id);
@@ -131,6 +216,7 @@ export class AuthService {
       role: user.role,
       distributorId: user.distributorProfile?.id,
       driverId: user.driverProfile?.id,
+      clientId: user.clientProfile?.id,
     };
     const accessTtl = this.cfg.get<number>('jwt.accessTtl') ?? 900;
     const refreshTtl = this.cfg.get<number>('jwt.refreshTtl') ?? 2_592_000;

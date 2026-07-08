@@ -9,6 +9,7 @@ import { JazzCashProvider } from './providers/jazzcash.provider';
 import { EasypaisaProvider } from './providers/easypaisa.provider';
 import { BankManualProvider } from './providers/bank-manual.provider';
 import { PaymentProvider } from './payment-provider.interface';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class PaymentsService {
@@ -19,6 +20,7 @@ export class PaymentsService {
     private jazz: JazzCashProvider,
     private easy: EasypaisaProvider,
     private bank: BankManualProvider,
+    private files: FilesService,
   ) {
     this.providers = {
       JAZZCASH: jazz,
@@ -87,6 +89,39 @@ export class PaymentsService {
       where: { id: paymentId },
       data: { proofUrl },
     });
+  }
+
+  // A distributor's own top-up history (newest first).
+  async listForDistributor(distributorId: string) {
+    const rows = await this.prisma.payment.findMany({
+      where: { distributorId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return this.withSignedProofs(rows);
+  }
+
+  // Admin queue. Defaults to the payments that need a human decision:
+  // bank-transfer top-ups that are still PENDING and have a proof uploaded.
+  async listForAdmin(filter: { status?: PaymentStatus } = {}) {
+    const rows = await this.prisma.payment.findMany({
+      where: { status: filter.status },
+      include: {
+        distributor: { include: { user: { select: { name: true, phone: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return this.withSignedProofs(rows);
+  }
+
+  // Replace each stored proofUrl with a short-lived presigned URL so the slip
+  // opens in the browser even though the bucket is private. Lists refetch
+  // often enough that the ~10 min signature never goes stale in practice.
+  private async withSignedProofs<T extends { proofUrl: string | null }>(rows: T[]): Promise<T[]> {
+    return Promise.all(
+      rows.map(async (r) => ({ ...r, proofUrl: await this.files.signStoredUrl(r.proofUrl) })),
+    );
   }
 
   async verifyBankPayment(paymentId: string, verifiedByUserId: string, approve: boolean) {

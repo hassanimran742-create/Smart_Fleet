@@ -34,6 +34,18 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
+import { CitiesModule } from './modules/cities/cities.module';
+import { FilesModule } from './modules/files/files.module';
+import { AccessoriesModule } from './modules/accessories/accessories.module';
+import { FillingStationsModule } from './modules/filling-stations/filling-stations.module';
+import { FillingOrdersModule } from './modules/filling-orders/filling-orders.module';
+import { FuelRefillsModule } from './modules/fuel-refills/fuel-refills.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { ClientPortalModule } from './modules/client-portal/client-portal.module';
+import { HealthModule } from './modules/health/health.module';
+import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module';
+import { HousekeepingModule } from './modules/housekeeping/housekeeping.module';
+import { CryptoModule } from './common/crypto/crypto.module';
 
 @Module({
   imports: [
@@ -42,15 +54,26 @@ import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
       load: [configuration],
     }),
     BullModule.forRootAsync({
-      useFactory: () => ({
-        connection: {
-          host: process.env.REDIS_HOST ?? 'localhost',
-          port: Number(process.env.REDIS_PORT ?? 6379),
-        },
-      }),
+      useFactory: () => {
+        const url = process.env.REDIS_URL;
+        if (url) {
+          // BullMQ/ioredis accept a connection string; required for Upstash TLS.
+          return { connection: { url, tls: url.startsWith('rediss://') ? {} : undefined } as any };
+        }
+        return {
+          connection: {
+            host: process.env.REDIS_HOST ?? 'localhost',
+            port: Number(process.env.REDIS_PORT ?? 6379),
+          },
+        };
+      },
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    CryptoModule,
+    FeatureFlagsModule,
+    HealthModule,
+    HousekeepingModule,
     SmsModule,
     AuthModule,
     UsersModule,
@@ -80,6 +103,14 @@ import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
     AuditLogModule,
     AlertsModule,
     PushTokensModule,
+    CitiesModule,
+    FilesModule,
+    AccessoriesModule,
+    FillingStationsModule,
+    FillingOrdersModule,
+    FuelRefillsModule,
+    ExpensesModule,
+    ClientPortalModule,
   ],
 })
 export class AppModule {}

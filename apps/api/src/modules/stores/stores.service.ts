@@ -30,6 +30,40 @@ export class StoresService {
     return { id: rows[0].id };
   }
 
+  async update(
+    id: string,
+    input: { name?: string; zoneId?: string; address?: string; lat?: number; lng?: number; isActive?: boolean },
+  ) {
+    if (input.name !== undefined) {
+      await this.prisma.$executeRaw`UPDATE stores SET name = ${input.name}, updated_at = NOW() WHERE id = ${id}::uuid`;
+    }
+    if (input.zoneId !== undefined) {
+      await this.prisma.$executeRaw`UPDATE stores SET zone_id = ${input.zoneId}::uuid, updated_at = NOW() WHERE id = ${id}::uuid`;
+    }
+    if (input.address !== undefined) {
+      await this.prisma.$executeRaw`UPDATE stores SET address = ${input.address}, updated_at = NOW() WHERE id = ${id}::uuid`;
+    }
+    if (input.lat !== undefined && input.lng !== undefined) {
+      await this.prisma.$executeRaw`
+        UPDATE stores SET location = ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326),
+                          updated_at = NOW()
+        WHERE id = ${id}::uuid
+      `;
+    }
+    if (input.isActive !== undefined) {
+      await this.prisma.$executeRaw`UPDATE stores SET is_active = ${input.isActive}, updated_at = NOW() WHERE id = ${id}::uuid`;
+    }
+    return { ok: true };
+  }
+
+  archive(id: string) {
+    return this.update(id, { isActive: false });
+  }
+
+  reactivate(id: string) {
+    return this.update(id, { isActive: true });
+  }
+
   async nearestStoreWithStock(opts: {
     distributorId: string;
     cylinderTypeId: string;

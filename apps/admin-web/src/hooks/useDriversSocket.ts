@@ -17,7 +17,10 @@ export function useDriversSocket() {
 
   useEffect(() => {
     if (!token) return;
-    const apiHost = window.location.origin.replace(/:\d+$/, ':3000');
+    // Prod: VITE_API_ORIGIN=https://api.smartfleetpk.com. Dev: derive localhost:3000.
+    const apiHost =
+      import.meta.env.VITE_API_ORIGIN ??
+      window.location.origin.replace(/:\d+$/, ':3000');
     const socket: Socket = io(`${apiHost}/drivers`, {
       transports: ['websocket'],
       auth: { token },

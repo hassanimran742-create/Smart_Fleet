@@ -18,42 +18,54 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "seed:demo": "ts-node prisma/demo-seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.642.0",
+    "@aws-sdk/s3-request-presigner": "^3.642.0",
+    "@logtail/pino": "^0.5.0",
+    "@nestjs/bullmq": "^10.2.0",
     "@nestjs/common": "^10.3.0",
-    "@nestjs/core": "^10.3.0",
-    "@nestjs/platform-express": "^10.3.0",
-    "@nestjs/platform-socket.io": "^10.3.0",
-    "@nestjs/websockets": "^10.3.0",
     "@nestjs/config": "^3.2.0",
+    "@nestjs/core": "^10.3.0",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
-    "@nestjs/bullmq": "^10.2.0",
+    "@nestjs/platform-express": "^10.3.0",
+    "@nestjs/platform-socket.io": "^10.3.0",
     "@nestjs/schedule": "^4.1.0",
     "@nestjs/swagger": "^7.4.0",
+    "@nestjs/websockets": "^10.3.0",
     "@prisma/client": "^5.20.0",
-    "bullmq": "^5.7.0",
-    "ioredis": "^5.4.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "socket.io": "^4.7.5",
-    "class-validator": "^0.14.1",
-    "class-transformer": "^0.5.1",
-    "zod": "^3.23.0",
-    "nestjs-zod": "^3.0.0",
-    "argon2": "^0.40.3",
-    "axios": "^1.7.2",
+    "@sentry/node": "^8.30.0",
     "@smartfleet/shared-types": "*",
     "@smartfleet/shared-utils": "*",
-    "@smartfleet/shared-validation": "*"
+    "@smartfleet/shared-validation": "*",
+    "argon2": "^0.40.3",
+    "axios": "^1.7.2",
+    "bullmq": "^5.7.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "ioredis": "^5.4.0",
+    "multer": "^1.4.5-lts.1",
+    "nestjs-zod": "^3.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pino": "^9.4.0",
+    "pino-pretty": "^11.2.2",
+    "posthog-node": "^4.2.0",
+    "reflect-metadata": "^0.2.2",
+    "socket.io": "^4.7.5",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.3.0",
     "@nestjs/schematics": "^10.1.0",
     "@nestjs/testing": "^10.3.0",
     "@types/express": "^4.17.21",
+    "@types/geojson": "^7946.0.14",
     "@types/jest": "^29.5.12",
+    "@types/multer": "^1.4.12",
     "@types/node": "^20.14.0",
     "@types/passport-jwt": "^4.0.1",
     "jest": "^29.7.0",
@@ -64,5 +76,28 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.6.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "testRegex": ".*\\.(spec|test)\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.(t|j)s"
+    ],
+    "coverageDirectory": "./coverage",
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/test/jest.setup.ts"
+    ],
+    "moduleNameMapper": {
+      "^@smartfleet/(.*)$": "<rootDir>/../../packages/$1/src"
+    }
   }
 }

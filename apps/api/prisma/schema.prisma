@@ -5,6 +5,7 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -16,6 +17,7 @@ datasource db {
 // ---------- ENUMS ----------
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   DISPATCHER
   STORE_KEEPER
@@ -64,6 +66,12 @@ enum VehicleStatus {
   ACTIVE
   MAINTENANCE
   RETIRED
+}
+
+enum DriverAvailability {
+  AVAILABLE
+  ON_LEAVE
+  OFF_DUTY
 }
 
 enum OrderStatus {
@@ -150,13 +158,17 @@ model User {
   name         String
   role         UserRole
   status       UserStatus @default(PENDING)
+  cnic         String?
+  profilePictureUrl String? @map("profile_picture_url")
   cnicEncrypted Bytes?    @map("cnic_encrypted")
   cnicIndex    String?    @map("cnic_index") @db.Char(64)
+  passwordHash String?    @map("password_hash")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
   distributorProfile Distributor?
   driverProfile      Driver?
+  clientProfile      Client?
   refreshTokens      RefreshToken[]
   cylinderEvents     CylinderEvent[]  @relation("ActorEvents")
   auditLogs          AuditLog[]
@@ -213,6 +225,7 @@ model Distributor {
   orders    Order[]
   ledgerEntries LedgerEntry[]
   payments      Payment[]
+  fillingOrders FillingOrder[]
 
   @@map("distributors")
 }
@@ -226,6 +239,10 @@ model Driver {
   currentLocation          Unsupported("geometry(Point,4326)")? @map("current_location")
   currentLocationUpdatedAt DateTime? @map("current_location_updated_at")
   isOnline                 Boolean   @default(false) @map("is_online")
+  availability             DriverAvailability @default(AVAILABLE)
+  leaveStart               DateTime? @map("leave_start")
+  leaveEnd                 DateTime? @map("leave_end")
+  leaveReason              String?   @map("leave_reason")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 
@@ -234,9 +251,26 @@ model Driver {
   currentZone    Zone?    @relation(fields: [currentZoneId], references: [id])
   trips          Trip[]
   reconciliations Reconciliation[]
+  shifts         DriverShift[]
+  fuelRefills    FuelRefill[]
+  fillingOrders  FillingOrder[]
+  transfers      Transfer[]     @relation("TransferDriver")
 
   @@index([isOnline])
+  @@index([availability])
   @@map("drivers")
+}
+
+model DriverShift {
+  id        String    @id @default(uuid()) @db.Uuid
+  driverId  String    @map("driver_id") @db.Uuid
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@index([driverId, startedAt])
+  @@map("driver_shifts")
 }
 
 // ---------- GEOGRAPHY ----------
@@ -289,6 +323,7 @@ model Store {
   trips              Trip[]
   transfersFrom      Transfer[]     @relation("TransferFromStore")
   transfersTo        Transfer[]     @relation("TransferToStore")
+  fillingPickups     FillingOrder[]
 
   @@map("stores")
 }
@@ -296,18 +331,21 @@ model Store {
 // ---------- VEHICLES ----------
 
 model Vehicle {
-  id              String        @id @default(uuid()) @db.Uuid
-  plateNo         String        @unique @map("plate_no")
-  capacityUnits   Int           @map("capacity_units")
-  homeZoneId      String        @map("home_zone_id") @db.Uuid
-  status          VehicleStatus @default(ACTIVE)
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id                String        @id @default(uuid()) @db.Uuid
+  plateNo           String        @unique @map("plate_no")
+  capacityUnits     Int           @map("capacity_units")
+  homeZoneId        String        @map("home_zone_id") @db.Uuid
+  status            VehicleStatus @default(ACTIVE)
+  currentOdometerKm Int           @default(0) @map("current_odometer_km")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
 
-  homeZone       Zone    @relation(fields: [homeZoneId], references: [id])
-  currentDriver  Driver? @relation("DriverCurrentVehicle")
-  trips          Trip[]
-  transfers      Transfer[]
+  homeZone        Zone           @relation(fields: [homeZoneId], references: [id])
+  currentDriver   Driver?        @relation("DriverCurrentVehicle")
+  trips           Trip[]
+  transfers       Transfer[]
+  fuelRefills     FuelRefill[]
+  fillingOrders   FillingOrder[]
 
   @@map("vehicles")
 }
@@ -315,18 +353,27 @@ model Vehicle {
 // ---------- CLIENTS ----------
 
 model Client {
-  id            String @id @default(uuid()) @db.Uuid
-  distributorId String @map("distributor_id") @db.Uuid
-  name          String
-  phone         String
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid()) @db.Uuid
+  distributorId    String   @map("distributor_id") @db.Uuid
+  userId           String?  @unique @map("user_id") @db.Uuid
+  name             String
+  phone            String
+  address          String?
+  area             String?
+  city             String?
+  creditLimitPaisa BigInt   @default(0) @map("credit_limit_paisa")
+  priority         Int      @default(3)
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   distributor Distributor      @relation(fields: [distributorId], references: [id])
+  user        User?            @relation(fields: [userId], references: [id])
   addresses   ClientAddress[]
   orders      Order[]
 
   @@index([distributorId])
+  @@index([distributorId, phone])
   @@map("clients")
 }
 
@@ -353,6 +400,7 @@ model CylinderType {
   cylinders  Cylinder[]
   orderLines OrderLine[]
   pricingRules PricingRule[]
+  fillingOrders FillingOrder[]
 
   @@map("cylinder_types")
 }
@@ -372,6 +420,7 @@ model Cylinder {
   distributor  Distributor     @relation(fields: [distributorId], references: [id])
   cylinderType CylinderType    @relation(fields: [cylinderTypeId], references: [id])
   events       CylinderEvent[]
+  transferLines TransferLine[]
 
   @@index([distributorId, cylinderTypeId, state, custodyType])
   @@map("cylinders")
@@ -419,20 +468,26 @@ model InventoryLot {
 // ---------- TRANSFERS ----------
 
 model Transfer {
-  id           String         @id @default(uuid()) @db.Uuid
-  fromStoreId  String         @map("from_store_id") @db.Uuid
-  toStoreId    String         @map("to_store_id") @db.Uuid
-  vehicleId    String?        @map("vehicle_id") @db.Uuid
-  status       TransferStatus @default(REQUESTED)
-  requestedBy  String         @map("requested_by") @db.Uuid
-  createdAt    DateTime       @default(now()) @map("created_at")
-  completedAt  DateTime?      @map("completed_at")
+  id            String         @id @default(uuid()) @db.Uuid
+  fromStoreId   String         @map("from_store_id") @db.Uuid
+  toStoreId     String         @map("to_store_id") @db.Uuid
+  vehicleId     String?        @map("vehicle_id") @db.Uuid
+  driverId      String?        @map("driver_id") @db.Uuid
+  scheduledFor  DateTime?      @map("scheduled_for")
+  notes         String?
+  status        TransferStatus @default(REQUESTED)
+  requestedBy   String         @map("requested_by") @db.Uuid
+  createdAt     DateTime       @default(now()) @map("created_at")
+  completedAt   DateTime?      @map("completed_at")
 
   fromStore Store           @relation("TransferFromStore", fields: [fromStoreId], references: [id])
   toStore   Store           @relation("TransferToStore", fields: [toStoreId], references: [id])
   vehicle   Vehicle?        @relation(fields: [vehicleId], references: [id])
+  driver    Driver?         @relation("TransferDriver", fields: [driverId], references: [id])
   lines     TransferLine[]
 
+  @@index([driverId, status])
+  @@index([scheduledFor])
   @@map("transfers")
 }
 
@@ -442,6 +497,7 @@ model TransferLine {
   cylinderId String @map("cylinder_id") @db.Uuid
 
   transfer Transfer @relation(fields: [transferId], references: [id])
+  cylinder Cylinder @relation(fields: [cylinderId], references: [id])
 
   @@unique([transferId, cylinderId])
   @@map("transfer_lines")
@@ -485,9 +541,11 @@ model Order {
   scheduledWindowStart DateTime?           @map("scheduled_window_start")
   scheduledWindowEnd   DateTime?           @map("scheduled_window_end")
   tripId               String?             @map("trip_id") @db.Uuid
-  cancellationReason   String?             @map("cancellation_reason")
-  createdAt            DateTime            @default(now()) @map("created_at")
-  updatedAt            DateTime            @updatedAt @map("updated_at")
+  cancellationReason    String?             @map("cancellation_reason")
+  clientConfirmedAt     DateTime?           @map("client_confirmed_at")
+  emptiesHandedOverAt   DateTime?           @map("empties_handed_over_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
 
   distributor Distributor   @relation(fields: [distributorId], references: [id])
   client      Client        @relation(fields: [clientId], references: [id])
@@ -677,7 +735,44 @@ enum AlertType {
   PAYMENT_FAILED
   RECONCILIATION_MISMATCH
   CYLINDER_LOST
+  DISTRIBUTOR_BALANCE_LOW
+  DISTRIBUTOR_CREDIT_OVER
+  STORE_STOCK_LOW
+  SPECIAL_CLIENT
   OTHER
+}
+
+// User-defined alert rules. Evaluated lazily when the admin opens the
+// alerts page (no separate worker needed for the v1 set). `threshold`
+// is interpreted per `ruleKind`:
+//   DISTRIBUTOR_BALANCE_LOW  → paisa (raise when advance balance falls below)
+//   DISTRIBUTOR_CREDIT_OVER  → paisa (raise when negative balance exceeds)
+//   STORE_STOCK_LOW          → cylinder count (raise when full count below)
+//   SPECIAL_CLIENT           → unused; resourceId points at the Client.
+enum AlertRuleKind {
+  DISTRIBUTOR_BALANCE_LOW
+  DISTRIBUTOR_CREDIT_OVER
+  STORE_STOCK_LOW
+  SPECIAL_CLIENT
+}
+
+model AlertRule {
+  id            String        @id @default(uuid()) @db.Uuid
+  name          String
+  ruleKind      AlertRuleKind @map("rule_kind")
+  threshold     BigInt        @default(0)
+  resourceId    String?       @map("resource_id") @db.Uuid
+  cylinderTypeId String?      @map("cylinder_type_id") @db.Uuid
+  severity      AlertSeverity @default(WARNING)
+  isActive      Boolean       @default(true) @map("is_active")
+  notes         String?
+  createdBy     String        @map("created_by") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  lastTriggeredAt DateTime?   @map("last_triggered_at")
+
+  @@index([isActive, ruleKind])
+  @@map("alert_rules")
 }
 
 model Alert {
@@ -711,4 +806,201 @@ model ExpoPushToken {
 
   @@index([userId])
   @@map("expo_push_tokens")
+}
+
+// ---------- ACCESSORIES (pipes, connectors, regulators, etc.) ----------
+
+enum AccessoryCategory {
+  PIPE
+  CONNECTOR
+  REGULATOR
+  VALVE
+  BURNER
+  HOSE
+  ADAPTER
+  VAPORISER
+  OTHER
+}
+
+enum AccessoryMovementReason {
+  RECEIPT
+  SALE
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+  DAMAGE_LOSS
+}
+
+model Accessory {
+  id                String            @id @default(uuid()) @db.Uuid
+  code              String            @unique
+  name              String
+  category          AccessoryCategory
+  unit              String
+  defaultPricePaisa BigInt            @default(0) @map("default_price_paisa")
+  isActive          Boolean           @default(true) @map("is_active")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  stock     AccessoryStock[]
+  movements AccessoryMovement[]
+
+  @@map("accessories")
+}
+
+model AccessoryStock {
+  id             String   @id @default(uuid()) @db.Uuid
+  storeId        String   @map("store_id") @db.Uuid
+  accessoryId    String   @map("accessory_id") @db.Uuid
+  quantity       Int      @default(0)
+  unitPricePaisa BigInt?  @map("unit_price_paisa")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  accessory Accessory @relation(fields: [accessoryId], references: [id])
+
+  @@unique([storeId, accessoryId])
+  @@index([storeId])
+  @@map("accessory_stock")
+}
+
+model AccessoryMovement {
+  id          String                  @id @default(uuid()) @db.Uuid
+  storeId     String                  @map("store_id") @db.Uuid
+  accessoryId String                  @map("accessory_id") @db.Uuid
+  delta       Int
+  reason      AccessoryMovementReason
+  note        String?
+  actorUserId String                  @map("actor_user_id") @db.Uuid
+  createdAt   DateTime                @default(now()) @map("created_at")
+
+  accessory Accessory @relation(fields: [accessoryId], references: [id])
+
+  @@index([storeId, createdAt])
+  @@index([accessoryId, createdAt])
+  @@map("accessory_movements")
+}
+
+// ---------- FILLING STATIONS + FILLING ORDERS ----------
+
+model FillingStation {
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String
+  address               String
+  location              Unsupported("geometry(Point,4326)")
+  pricePerCylinderPaisa BigInt   @default(0) @map("price_per_cylinder_paisa")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  fillingOrders FillingOrder[]
+
+  @@map("filling_stations")
+}
+
+enum FillingOrderStatus {
+  PENDING
+  ASSIGNED
+  EMPTIES_PICKED
+  AT_STATION
+  FILLED
+  RETURNED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum FillingServiceType {
+  OUR_SERVICE
+  DIY
+}
+
+model FillingOrder {
+  id                    String             @id @default(uuid()) @db.Uuid
+  distributorId         String             @map("distributor_id") @db.Uuid
+  fillingStationId      String?            @map("filling_station_id") @db.Uuid
+  cylinderTypeId        String             @map("cylinder_type_id") @db.Uuid
+  serviceType           FillingServiceType @default(OUR_SERVICE) @map("service_type")
+  ownStationName        String?            @map("own_station_name")
+  ownStationAddress     String?            @map("own_station_address")
+  ownStationNotes       String?            @map("own_station_notes")
+  requestedCount        Int                @map("requested_count")
+  pickedUpEmptyCount    Int?               @map("picked_up_empty_count")
+  filledCount           Int?               @map("filled_count")
+  pricePerCylinderPaisa BigInt             @map("price_per_cylinder_paisa")
+  totalCostPaisa        BigInt             @default(0) @map("total_cost_paisa")
+  status                FillingOrderStatus @default(PENDING)
+  assignedDriverId      String?            @map("assigned_driver_id") @db.Uuid
+  assignedVehicleId     String?            @map("assigned_vehicle_id") @db.Uuid
+  pickupStoreId         String?            @map("pickup_store_id") @db.Uuid
+  cancellationReason    String?            @map("cancellation_reason")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+  completedAt           DateTime?          @map("completed_at")
+
+  distributor     Distributor     @relation(fields: [distributorId], references: [id])
+  fillingStation  FillingStation? @relation(fields: [fillingStationId], references: [id])
+  cylinderType    CylinderType    @relation(fields: [cylinderTypeId], references: [id])
+  assignedDriver  Driver?         @relation(fields: [assignedDriverId], references: [id])
+  assignedVehicle Vehicle?        @relation(fields: [assignedVehicleId], references: [id])
+  pickupStore     Store?          @relation(fields: [pickupStoreId], references: [id])
+
+  @@index([assignedDriverId, status])
+  @@index([status, createdAt])
+  @@map("filling_orders")
+}
+
+// ---------- FUEL REFILLS ----------
+
+// ---------- EXPENSES (super-admin only) ----------
+
+enum ExpenseCategory {
+  FOOD
+  UTILITIES
+  LABOUR
+  FUEL
+  MAINTENANCE
+  RENT
+  OFFICE
+  TRAVEL
+  EQUIPMENT
+  OTHER
+}
+
+model Expense {
+  id               String          @id @default(uuid()) @db.Uuid
+  category         ExpenseCategory
+  description      String
+  amountPaisa      BigInt          @map("amount_paisa")
+  expenseDate      DateTime        @map("expense_date") @db.Date
+  receiptUrl       String?         @map("receipt_url")
+  recordedByUserId String          @map("recorded_by_user_id") @db.Uuid
+  vendor           String?
+  notes            String?
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  @@index([expenseDate])
+  @@index([category, expenseDate])
+  @@map("expenses")
+}
+
+model FuelRefill {
+  id          String   @id @default(uuid()) @db.Uuid
+  vehicleId   String   @map("vehicle_id") @db.Uuid
+  driverId    String   @map("driver_id") @db.Uuid
+  litres      Decimal  @db.Decimal(8, 2)
+  costPaisa   BigInt   @map("cost_paisa")
+  odometerKm  Int      @map("odometer_km")
+  fuelStation String?  @map("fuel_station")
+  receiptUrl  String?  @map("receipt_url")
+  notes       String?
+  refillAt    DateTime @default(now()) @map("refill_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  driver  Driver  @relation(fields: [driverId], references: [id])
+
+  @@index([vehicleId, refillAt])
+  @@index([driverId, refillAt])
+  @@map("fuel_refills")
 }

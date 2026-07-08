@@ -14,11 +14,23 @@ import { InventoryScreen } from './screens/InventoryScreen';
 import { LiveDeliveriesScreen } from './screens/LiveDeliveriesScreen';
 import { TransfersScreen } from './screens/TransfersScreen';
 import { AlertsScreen } from './screens/AlertsScreen';
+import { FillingStationsScreen } from './screens/FillingStationsScreen';
+import { FuelReportScreen } from './screens/FuelReportScreen';
+import { ExpensesScreen } from './screens/ExpensesScreen';
+import { QrGeneratorScreen } from './screens/QrGeneratorScreen';
+import { PaymentsScreen } from './screens/PaymentsScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { useRouteStore } from './store/route';
+import { useIdleLogout } from './hooks/useIdleLogout';
 
 export function App() {
   const { token } = useAuthStore();
   const { page } = useRouteStore();
+
+  // Sign out after 30 minutes of zero interaction. Active use (clicks,
+  // typing, scrolling, mouse moves) keeps the session alive indefinitely
+  // up to the JWT's 12-hour absolute lifetime.
+  useIdleLogout(30 * 60 * 1000);
 
   if (!token) return <LoginScreen />;
 
@@ -33,10 +45,17 @@ export function App() {
     case 'distributors': body = <DistributorsScreen />; break;
     case 'reports':      body = <ReportsScreen />; break;
     case 'inventory':    body = <InventoryScreen />; break;
+    case 'accessories':  body = <InventoryScreen />; break;
     case 'live':         body = <LiveDeliveriesScreen />; break;
     case 'transfers':    body = <TransfersScreen />; break;
     case 'alerts':       body = <AlertsScreen />; break;
-    default:             body = <DashboardScreen />;
+    case 'filling-stations': body = <FillingStationsScreen />; break;
+    case 'fuel-report':      body = <FuelReportScreen />; break;
+    case 'expenses':         body = <ExpensesScreen />; break;
+    case 'qr-generator':     body = <QrGeneratorScreen />; break;
+    case 'payments':         body = <PaymentsScreen />; break;
+    case 'profile':          body = <ProfileScreen />; break;
+    default:                 body = <DashboardScreen />;
   }
 
   return (

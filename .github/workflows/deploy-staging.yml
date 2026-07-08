@@ -1,0 +1,66 @@
+name: Deploy → Staging (AWS EC2)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to deploy (default: the branch this workflow runs on)'
+        required: false
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  wait-for-ci:
+    name: Wait for CI to pass
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for CI workflow
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'API — typecheck, lint, test'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+
+  deploy:
+    name: Build + restart staging container on EC2
+    runs-on: ubuntu-latest
+    needs: wait-for-ci
+    timeout-minutes: 60   # t3.micro builds are slow; allow plenty
+    steps:
+      - name: Write SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
+          chmod 600 ~/.ssh/ec2.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run deploy script on EC2
+        run: |
+          REF="${{ inputs.ref || github.ref_name }}"
+          ssh -i ~/.ssh/ec2.pem \
+              -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+              "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+              "sudo bash /srv/smartfleet/src/infrastructure/aws/deploy.sh staging '$REF'"
+
+  smoke:
+    name: Smoke tests against staging
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: vars.STAGING_API_URL != ''
+    env:
+      API_BASE_URL: ${{ vars.STAGING_API_URL }}/api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run smoke suite
+        working-directory: apps/api
+        run: npm test -- test/smoke --passWithNoTests

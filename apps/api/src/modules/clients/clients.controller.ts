@@ -20,6 +20,12 @@ export class ClientsController {
     return this.clients.create(user.distributorId!, body);
   }
 
+  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.DISPATCHER)
+  @Get(':id/addresses')
+  addresses(@Param('id') id: string) {
+    return this.clients.listAddresses(id);
+  }
+
   @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN)
   @Post(':id/addresses')
   addAddress(@Param('id') id: string, @Body() body: any) {

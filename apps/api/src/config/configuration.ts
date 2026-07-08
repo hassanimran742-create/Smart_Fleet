@@ -1,24 +1,39 @@
 export default () => ({
   api: {
-    port: Number(process.env.API_PORT ?? 3000),
+    port: Number(process.env.API_PORT ?? process.env.PORT ?? 3000),
   },
   db: {
     url: process.env.DATABASE_URL,
   },
   redis: {
+    // Either REDIS_URL (rediss://user:pass@host:port) or REDIS_HOST/PORT.
+    url: process.env.REDIS_URL,
     host: process.env.REDIS_HOST ?? 'localhost',
     port: Number(process.env.REDIS_PORT ?? 6379),
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? 'change_me_access',
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'change_me_refresh',
-    accessTtl: Number(process.env.JWT_ACCESS_TTL ?? 900),
-    refreshTtl: Number(process.env.JWT_REFRESH_TTL ?? 2_592_000),
+    // 12 hours — generous enough to cover a full work day. The
+    // admin web also enforces a 10-minute idle timeout on top, so
+    // unattended sessions still close.
+    accessTtl: Number(process.env.JWT_ACCESS_TTL ?? 12 * 60 * 60),
+    refreshTtl: Number(process.env.JWT_REFRESH_TTL ?? 30 * 24 * 60 * 60),
+  },
+  encryption: {
+    key: process.env.ENCRYPTION_KEY ?? '',
+    keyOld: process.env.ENCRYPTION_KEY_OLD ?? '',
+    blindIndexKey: process.env.BLIND_INDEX_KEY ?? '',
   },
   sms: {
     provider: process.env.SMS_PROVIDER ?? 'mock',
     from: process.env.SMS_FROM ?? 'SmartFleet',
     apiKey: process.env.SMS_API_KEY ?? '',
+    eocean: {
+      username: process.env.EOCEAN_USERNAME ?? '',
+      password: process.env.EOCEAN_PASSWORD ?? '',
+      baseUrl: process.env.EOCEAN_BASE_URL ?? '',
+    },
   },
   routing: {
     provider: process.env.ROUTING_PROVIDER ?? 'google',
@@ -47,5 +62,14 @@ export default () => ({
   },
   push: {
     expoAccessToken: process.env.EXPO_ACCESS_TOKEN ?? '',
+  },
+  featureFlags: {
+    posthogKey: process.env.POSTHOG_API_KEY ?? '',
+    posthogHost: process.env.POSTHOG_HOST ?? 'https://app.posthog.com',
+  },
+  observability: {
+    sentryDsn: process.env.SENTRY_DSN ?? '',
+    betterStackToken: process.env.BETTER_STACK_TOKEN ?? '',
+    betterStackHost: process.env.BETTER_STACK_HOST ?? '',
   },
 });

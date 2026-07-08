@@ -7,6 +7,7 @@ interface AuthState {
   userId: string | null;
   distributorId: string | null;
   driverId: string | null;
+  clientId: string | null;
   loading: boolean;
   init: () => Promise<void>;
   set: (t: { accessToken: string; refreshToken: string; role: string }) => Promise<void>;
@@ -16,7 +17,6 @@ interface AuthState {
 function decodeJwt(token: string): any {
   try {
     const payload = token.split('.')[1];
-    // base64url -> base64
     const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     const json = typeof atob !== 'undefined' ? atob(b64) : Buffer.from(b64, 'base64').toString('utf8');
     return JSON.parse(json);
@@ -31,6 +31,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   userId: null,
   distributorId: null,
   driverId: null,
+  clientId: null,
   loading: true,
   async init() {
     const token = await SecureStore.getItemAsync('accessToken');
@@ -42,6 +43,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       userId: claims?.sub ?? null,
       distributorId: claims?.distributorId ?? null,
       driverId: claims?.driverId ?? null,
+      clientId: claims?.clientId ?? null,
       loading: false,
     });
   },
@@ -52,12 +54,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.setItemAsync('role', t.role);
     if (claims.distributorId) await SecureStore.setItemAsync('distributorId', claims.distributorId);
     if (claims.driverId) await SecureStore.setItemAsync('driverId', claims.driverId);
+    if (claims.clientId) await SecureStore.setItemAsync('clientId', claims.clientId);
     set({
       token: t.accessToken,
       role: t.role,
       userId: claims.sub ?? null,
       distributorId: claims.distributorId ?? null,
       driverId: claims.driverId ?? null,
+      clientId: claims.clientId ?? null,
     });
   },
   async clear() {
@@ -66,6 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.deleteItemAsync('role');
     await SecureStore.deleteItemAsync('distributorId');
     await SecureStore.deleteItemAsync('driverId');
-    set({ token: null, role: null, userId: null, distributorId: null, driverId: null });
+    await SecureStore.deleteItemAsync('clientId');
+    set({ token: null, role: null, userId: null, distributorId: null, driverId: null, clientId: null });
   },
 }));

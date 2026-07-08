@@ -37,4 +37,25 @@ export class InventoryController {
   forVehicle(@Param('id') id: string) {
     return this.inv.forVehicle(id);
   }
+
+  // Per-type FULL/EMPTY load for a specific vehicle (admin view).
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER, UserRole.STORE_KEEPER)
+  @Get('vehicle/:id/summary')
+  vehicleSummary(@Param('id') id: string) {
+    return this.inv.vehicleSummary(id);
+  }
+
+  // Fleet-wide: every vehicle currently holding cylinders (full/empty by type).
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER, UserRole.STORE_KEEPER)
+  @Get('vehicles-summary')
+  vehiclesSummary() {
+    return this.inv.allVehiclesSummary();
+  }
+
+  // The signed-in driver's own vehicle load (full/empty by type).
+  @Roles(UserRole.DRIVER)
+  @Get('my-vehicle')
+  myVehicle(@CurrentUser() user: AuthContext) {
+    return this.inv.forMyVehicle(user.userId);
+  }
 }

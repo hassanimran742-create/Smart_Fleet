@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRoute } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 
 type EventType =
@@ -22,6 +23,7 @@ const FLOWS: { key: EventType; label: string; desc: string }[] = [
 
 export function ScanScreen() {
   const route = useRoute<any>();
+  const qc = useQueryClient();
   const initialEvent: EventType = route.params?.eventType ?? 'SCAN_OUT';
   const tripId = route.params?.tripId;
   const orderId = route.params?.orderId;
@@ -44,17 +46,44 @@ export function ScanScreen() {
   async function onScanned(data: string) {
     if (scanned) return;
     setScanned(true);
+    // Trim accidental whitespace / newlines some scanners append. The DB
+    // stores qrCode exactly as registered, so anything extra breaks lookup.
+    const qr = (data ?? '').trim();
+    if (!qr) {
+      Alert.alert('Empty scan', 'The QR did not return any value. Try again.');
+      setTimeout(() => setScanned(false), 800);
+      return;
+    }
     try {
       const { data: result } = await api.post('/custody/scan', {
-        qrCode: data,
+        qrCode: qr,
         eventType,
         tripId,
         orderId,
       });
       setCount((c) => c + 1);
+      // Refresh the vehicle-load card so counts move immediately.
+      qc.invalidateQueries({ queryKey: ['my-vehicle-load'] });
       Alert.alert('Scan recorded', `Cylinder now: ${result.newState} → ${result.toType}`);
     } catch (e: any) {
-      Alert.alert('Scan failed', e?.response?.data?.message ?? 'Try again');
+      const msg = e?.response?.data?.message ?? '';
+      const status = e?.response?.status;
+      let title = 'Scan failed';
+      let body = msg || 'Try again.';
+      if (status === 404) {
+        title = 'Cylinder not registered';
+        body = 'This QR is not in the system yet. Ask admin to generate it from QR generator first.';
+      } else if (/illegal transition/i.test(msg)) {
+        title = 'Wrong event for this cylinder';
+        body = msg + ' Check the event type above.';
+      } else if (/vehicle/i.test(msg)) {
+        title = 'No vehicle assigned';
+        body = 'Admin must assign you a vehicle (Vehicles → Assign drivers) before vehicle-bound scans.';
+      } else if (/orderId/i.test(msg)) {
+        title = 'Use the trip flow for delivery';
+        body = 'For Delivered, open the trip → tap the stop → Mark delivered. That carries the order context.';
+      }
+      Alert.alert(title, body);
     } finally {
       setTimeout(() => setScanned(false), 1500);
     }

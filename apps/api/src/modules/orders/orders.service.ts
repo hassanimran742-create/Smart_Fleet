@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ZonesService } from '../zones/zones.service';
 import { PricingService } from '../pricing/pricing.service';
 import { LedgerService } from '../ledger/ledger.service';
-import { OrderPaymentStatus, OrderStatus } from '@prisma/client';
+import { OrderPaymentStatus, OrderStatus, TripStatus } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
@@ -126,7 +126,10 @@ export class OrdersService {
   listForDistributor(distributorId: string) {
     return this.prisma.order.findMany({
       where: { distributorId },
-      include: { lines: true },
+      include: {
+        lines: { include: { cylinderType: true } },
+        client: true,
+      },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -192,5 +195,103 @@ export class OrdersService {
     const z = await this.prisma.zone.findUnique({ where: { id: zoneId } });
     if (!z) throw new NotFoundException('Zone not found');
     return z.cityId;
+  }
+
+  // Manual assignment fallback. The auto-dispatcher needs an online driver
+  // with an assigned vehicle AND stocked store inventory; during the pilot
+  // those preconditions may not all be in place. This bypasses the scoring
+  // algorithm and just attaches the picked driver to the order, optionally
+  // through a chosen origin store.
+  async assignDriverManually(orderId: string, driverId: string, originStoreId?: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { trip: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELLED) {
+      throw new BadRequestException(`Cannot assign — order is already ${order.status}.`);
+    }
+
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: driverId },
+      include: { user: true, currentVehicle: true },
+    });
+    if (!driver) throw new NotFoundException('Driver not found');
+    if (driver.user.status !== 'ACTIVE') {
+      throw new BadRequestException('Driver account is not active');
+    }
+    const vehicleId = driver.currentVehicleId;
+    if (!vehicleId) {
+      throw new BadRequestException(
+        'Driver has no vehicle assigned. Assign one in Vehicles → Assign drivers first.',
+      );
+    }
+
+    // If the caller did not pick a store, take the first active store the
+    // distributor has stock in (or the first active store at all). Operators
+    // can refine via the UI later.
+    let storeId = originStoreId;
+    if (!storeId) {
+      const fallback = await this.prisma.store.findFirst({
+        where: { isActive: true },
+        select: { id: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!fallback) {
+        throw new BadRequestException('No active store exists. Create one in Stores first.');
+      }
+      storeId = fallback.id;
+    }
+
+    // Replace any prior trip the order had if it was incomplete.
+    return this.prisma.$transaction(async (tx) => {
+      // Read delivery coordinates from the order row's PostGIS column.
+      const dest = await tx.$queryRaw<{ lat: number; lng: number }[]>`
+        SELECT ST_Y(delivery_address) AS lat, ST_X(delivery_address) AS lng
+        FROM orders WHERE id = ${orderId}::uuid
+      `;
+      const storeLoc = await tx.$queryRaw<{ lat: number; lng: number }[]>`
+        SELECT ST_Y(location) AS lat, ST_X(location) AS lng
+        FROM stores WHERE id = ${storeId}::uuid
+      `;
+      if (!dest.length || dest[0].lat == null) {
+        throw new BadRequestException('Order has no delivery address coordinates.');
+      }
+      if (!storeLoc.length || storeLoc[0].lat == null) {
+        throw new BadRequestException('Origin store has no coordinates.');
+      }
+
+      const trip = await tx.trip.create({
+        data: {
+          driverId,
+          vehicleId,
+          originStoreId: storeId,
+          status: TripStatus.PLANNED,
+        },
+      });
+      await tx.$executeRaw`
+        INSERT INTO trip_stops (id, trip_id, seq, stop_type, location)
+        VALUES (
+          gen_random_uuid(), ${trip.id}::uuid, 0, 'STORE_PICKUP',
+          ST_SetSRID(ST_MakePoint(${storeLoc[0].lng}, ${storeLoc[0].lat}), 4326)
+        )
+      `;
+      await tx.$executeRaw`
+        INSERT INTO trip_stops (id, trip_id, order_id, seq, stop_type, location)
+        VALUES (
+          gen_random_uuid(), ${trip.id}::uuid, ${orderId}::uuid, 1, 'DELIVERY',
+          ST_SetSRID(ST_MakePoint(${dest[0].lng}, ${dest[0].lat}), 4326)
+        )
+      `;
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.ASSIGNED,
+          tripId: trip.id,
+          originStoreId: storeId,
+        },
+      });
+      return { tripId: trip.id, driverId, originStoreId: storeId };
+    });
   }
 }

@@ -24,6 +24,125 @@ export class InventoryService {
     });
   }
 
+  /**
+   * Per-cylinder-type FULL / EMPTY counts currently loaded on a vehicle,
+   * with human-readable labels. Returns a tidy shape for the driver app and
+   * admin UI:
+   *   { vehicleId, plateNo, totalFull, totalEmpty, byType: [
+   *       { cylinderTypeId, code, name, full, empty } ] }
+   */
+  async vehicleSummary(vehicleId: string) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { id: true, plateNo: true },
+    });
+
+    const lots = await this.prisma.inventoryLot.findMany({
+      where: { holderType: CustodyType.VEHICLE, holderId: vehicleId },
+    });
+
+    const typeIds = [...new Set(lots.map((l) => l.cylinderTypeId))];
+    const types = typeIds.length
+      ? await this.prisma.cylinderType.findMany({ where: { id: { in: typeIds } } })
+      : [];
+    const typeMap = new Map(types.map((t) => [t.id, t]));
+
+    const byTypeMap = new Map<string, { cylinderTypeId: string; code: string; name: string; full: number; empty: number }>();
+    for (const lot of lots) {
+      const t = typeMap.get(lot.cylinderTypeId);
+      const row =
+        byTypeMap.get(lot.cylinderTypeId) ?? {
+          cylinderTypeId: lot.cylinderTypeId,
+          code: t?.code ?? '?',
+          name: t?.name ?? 'Unknown',
+          full: 0,
+          empty: 0,
+        };
+      if (lot.state === CylinderState.FULL) row.full += lot.count;
+      else if (lot.state === CylinderState.EMPTY) row.empty += lot.count;
+      byTypeMap.set(lot.cylinderTypeId, row);
+    }
+
+    const byType = [...byTypeMap.values()]
+      .filter((r) => r.full > 0 || r.empty > 0)
+      .sort((a, b) => a.code.localeCompare(b.code));
+
+    return {
+      vehicleId: vehicle?.id ?? vehicleId,
+      plateNo: vehicle?.plateNo ?? null,
+      totalFull: byType.reduce((s, r) => s + r.full, 0),
+      totalEmpty: byType.reduce((s, r) => s + r.empty, 0),
+      byType,
+    };
+  }
+
+  /**
+   * Fleet-wide vehicle load summary for admin: every vehicle that currently
+   * holds cylinders, with FULL/EMPTY per type. Vehicles with nothing loaded
+   * are omitted.
+   */
+  async allVehiclesSummary() {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        vehicle_id: string;
+        plate_no: string;
+        cylinder_type_id: string;
+        code: string;
+        name: string;
+        state: CylinderState;
+        count: number;
+      }>
+    >`
+      SELECT v.id AS vehicle_id, v.plate_no,
+             ct.id AS cylinder_type_id, ct.code, ct.name,
+             il.state, il.count
+      FROM inventory_lots il
+      JOIN vehicles v ON v.id = il.holder_id AND il.holder_type = 'VEHICLE'
+      JOIN cylinder_types ct ON ct.id = il.cylinder_type_id
+      WHERE il.count > 0
+      ORDER BY v.plate_no, ct.code, il.state
+    `;
+
+    // Pivot into { vehicleId, plateNo, totalFull, totalEmpty, byType[] }
+    const map = new Map<string, any>();
+    for (const r of rows) {
+      const v =
+        map.get(r.vehicle_id) ?? {
+          vehicleId: r.vehicle_id,
+          plateNo: r.plate_no,
+          totalFull: 0,
+          totalEmpty: 0,
+          byType: new Map<string, { cylinderTypeId: string; code: string; name: string; full: number; empty: number }>(),
+        };
+      const t =
+        v.byType.get(r.cylinder_type_id) ?? {
+          cylinderTypeId: r.cylinder_type_id,
+          code: r.code,
+          name: r.name,
+          full: 0,
+          empty: 0,
+        };
+      const n = Number(r.count);
+      if (r.state === CylinderState.FULL) { t.full += n; v.totalFull += n; }
+      else if (r.state === CylinderState.EMPTY) { t.empty += n; v.totalEmpty += n; }
+      v.byType.set(r.cylinder_type_id, t);
+      map.set(r.vehicle_id, v);
+    }
+    return [...map.values()].map((v) => ({ ...v, byType: [...v.byType.values()] }));
+  }
+
+  /** The signed-in driver's current vehicle load. */
+  async forMyVehicle(userId: string) {
+    const driver = await this.prisma.driver.findFirst({
+      where: { userId },
+      select: { currentVehicleId: true },
+    });
+    if (!driver?.currentVehicleId) {
+      return { vehicleId: null, plateNo: null, totalFull: 0, totalEmpty: 0, byType: [], noVehicle: true };
+    }
+    return this.vehicleSummary(driver.currentVehicleId);
+  }
+
   async fullCountForOrderLine(opts: {
     storeId: string;
     distributorId: string;

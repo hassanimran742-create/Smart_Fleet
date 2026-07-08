@@ -1,67 +1,46 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api/client';
+import { FillingOrdersScreen } from './FillingOrdersScreen';
+import { CurrentOrdersScreen } from './CurrentOrdersScreen';
+import { PreviousOrdersScreen } from './PreviousOrdersScreen';
+
+type Tab = 'current' | 'previous' | 'filling';
 
 export function OrdersScreen() {
-  const qc = useQueryClient();
-  const [status, setStatus] = useState<string>('');
-  const { data } = useQuery({
-    queryKey: ['orders-all', status],
-    queryFn: async () => (await api.get(`/orders/all${status ? `?status=${status}` : ''}`)).data,
-    refetchInterval: 15000,
-  });
-
-  const setOrderStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch(`/orders/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders-all'] }),
-  });
+  const [tab, setTab] = useState<Tab>('current');
 
   return (
     <>
-      <div className="flex" style={{ justifyContent: 'space-between' }}>
-        <h2>Orders</h2>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: 200 }}>
-          <option value="">All statuses</option>
-          {['PENDING','CONFIRMED','ASSIGNED','IN_TRANSIT','DELIVERED','CANCELLED','FAILED'].map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+      <h2 style={{ marginBottom: 12 }}>Orders</h2>
+
+      <div className="flex" style={{ gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+        <TabButton active={tab === 'current'} onClick={() => setTab('current')}>Current orders</TabButton>
+        <TabButton active={tab === 'previous'} onClick={() => setTab('previous')}>Previous orders</TabButton>
+        <TabButton active={tab === 'filling'} onClick={() => setTab('filling')}>Filling orders</TabButton>
       </div>
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th><th>Status</th><th>Payment</th><th>Distributor</th>
-              <th>Client</th><th>Fee</th><th>Created</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data ?? []).map((o: any) => (
-              <tr key={o.id}>
-                <td>{o.id.slice(0, 8)}</td>
-                <td>{o.status}</td>
-                <td>{o.paymentStatus}</td>
-                <td>{o.distributor?.businessName}</td>
-                <td>{o.client?.name}</td>
-                <td>{Number(o.deliveryFeePaisa) / 100} PKR</td>
-                <td>{new Date(o.createdAt).toLocaleString()}</td>
-                <td>
-                  {!['DELIVERED','CANCELLED'].includes(o.status) && (
-                    <select onChange={(e) => setOrderStatus.mutate({ id: o.id, status: e.target.value })}>
-                      <option value="">change…</option>
-                      <option>CONFIRMED</option>
-                      <option>IN_TRANSIT</option>
-                      <option>DELIVERED</option>
-                      <option>CANCELLED</option>
-                    </select>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {tab === 'current'  && <CurrentOrdersScreen />}
+      {tab === 'previous' && <PreviousOrdersScreen />}
+      {tab === 'filling'  && <FillingOrdersScreen />}
     </>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '10px 18px',
+        background: 'transparent',
+        border: 0,
+        borderBottom: active ? '3px solid var(--primary)' : '3px solid transparent',
+        color: active ? 'var(--primary)' : 'var(--muted)',
+        fontWeight: active ? 600 : 500,
+        cursor: 'pointer',
+        marginBottom: -1,
+      }}
+    >
+      {children}
+    </button>
   );
 }

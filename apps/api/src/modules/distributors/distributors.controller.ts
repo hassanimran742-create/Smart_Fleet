@@ -8,7 +8,7 @@ import { UserRole } from '@prisma/client';
 export class DistributorsController {
   constructor(private readonly distributors: DistributorsService) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER)
   @Get()
   list() {
     return this.distributors.list();
@@ -20,27 +20,33 @@ export class DistributorsController {
     return this.distributors.findById(user.distributorId!);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DISPATCHER)
   @Get(':id')
   byId(@Param('id') id: string) {
     return this.distributors.findById(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Post()
   create(@Body() body: any) {
     return this.distributors.create(body);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Patch(':id/approve')
   approve(@Param('id') id: string) {
     return this.distributors.approve(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @Patch(':id/suspend')
   suspend(@Param('id') id: string) {
     return this.distributors.suspend(id);
+  }
+
+  @Roles(UserRole.SUPER_ADMIN)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() body: any) {
+    return this.distributors.update(id, body);
   }
 }
