@@ -1,11 +1,14 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { forwardRef, useImperativeHandle, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { colors, Icon, ltr, radius, space, Text } from '../ui';
 
-// Lightweight stand-in for react-native-maps while we add a non-Google map
-// (OSM via WebView) in a planned APK rebuild. Renders a card showing the
-// picked lat/lng so the UX still confirms the address was accepted.
-//
-// Same prop names as MapView/Marker so existing screens compile unchanged.
-// Methods like animateToRegion are no-ops here.
+/**
+ * A stand-in for react-native-maps, for a build whose binary can't show the native map (an APK built
+ * without the Google Maps key crashes on MapView). It has the same names (default `MapView`, `Marker`,
+ * `animateToRegion`), so a screen switches with one import line. The shop screens use the real map,
+ * which the 0.1.0 distributor APK carries; nothing imports this file today.
+ */
 
 export interface Region {
   latitude: number;
@@ -14,41 +17,56 @@ export interface Region {
   longitudeDelta?: number;
 }
 
-interface MapViewProps {
+export interface MapViewProps {
   initialRegion?: Region;
   region?: Region;
-  style?: any;
-  onPress?: (e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => void;
-  children?: any;
+  style?: StyleProp<ViewStyle>;
+  onPress?: (event: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => void;
+  children?: ReactNode;
 }
 
-export default function MapView(_props: MapViewProps) {
+/** What a ref to the map offers: the same call as react-native-maps, doing nothing here. */
+export interface MapViewHandle {
+  animateToRegion: (region: Region, duration?: number) => void;
+}
+
+const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView({ style, children }, ref) {
+  const { t } = useTranslation();
+  useImperativeHandle(ref, () => ({ animateToRegion: () => undefined }), []);
   return (
-    <View style={[styles.card, _props.style]}>
-      <Text style={styles.title}>Map preview unavailable</Text>
-      <Text style={styles.body}>
-        Use the search above to set a delivery address. The interactive map
-        returns in the next app update.
+    <View style={[styles.card, style]}>
+      <Icon name="map" size={32} tone="secondary" />
+      <Text variant="bodyStrong" align="center">
+        {t('customers.map.unavailable')}
       </Text>
+      <Text variant="caption" tone="secondary" align="center">
+        {t('customers.map.unavailableBody')}
+      </Text>
+      {children}
     </View>
   );
-}
+});
 
-// Imperative methods used by callers (e.g. mapRef.current?.animateToRegion(...))
-// — declared via a static so TS sees them on instance refs created with useRef<MapView>.
-(MapView as any).prototype.animateToRegion = function () {};
+export default MapView;
 
-interface MarkerProps {
+export interface MarkerProps {
   coordinate: { latitude: number; longitude: number };
   title?: string;
   description?: string;
 }
 
-export function Marker(props: MarkerProps) {
+/** The chosen spot as text: "Delivery spot · 31.5204, 74.3587". */
+export function Marker({ coordinate, title }: MarkerProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.marker}>
-      <Text style={styles.markerText}>
-        📍 {props.title ?? 'Selected'} · {props.coordinate.latitude.toFixed(4)}, {props.coordinate.longitude.toFixed(4)}
+      <Icon name="map" size={20} tone="onBrand" />
+      <Text variant="label" tone="onBrand">
+        {t('customers.map.selected', {
+          label: title ?? t('customers.map.selectedDefault'),
+          lat: ltr(coordinate.latitude.toFixed(4)),
+          lng: ltr(coordinate.longitude.toFixed(4)),
+        })}
       </Text>
     </View>
   );
@@ -58,23 +76,24 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     minHeight: 160,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#dfe3ea',
-    backgroundColor: '#f6f8fb',
-    padding: 16,
+    borderColor: colors.border,
+    backgroundColor: colors.sunken,
+    padding: space.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: space.sm,
   },
-  title: { fontWeight: '700', color: '#33415c', marginBottom: 6 },
-  body: { color: '#5a6478', fontSize: 12, textAlign: 'center' },
   marker: {
-    marginTop: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: '#0F6CF0',
-    borderRadius: 8,
+    marginTop: space.sm,
+    paddingVertical: space.xs,
+    paddingHorizontal: space.md,
+    backgroundColor: colors.brand,
+    borderRadius: radius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
     alignSelf: 'center',
   },
-  markerText: { color: 'white', fontSize: 12, fontWeight: '600' },
 });

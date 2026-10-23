@@ -3,7 +3,9 @@ import { InventoryService } from './inventory.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
+import { AppError } from '../../common/errors/app-error';
 
+/** Inventory (API_CONTRACT §7.2: roles unchanged). A distributor's figures always come from its token. */
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inv: InventoryService) {}
@@ -17,7 +19,9 @@ export class InventoryController {
   @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.DISPATCHER)
   @Get('me')
   forMe(@CurrentUser() user: AuthContext) {
-    return this.inv.breakdownForDistributor(user.distributorId!);
+    // Without a distributor in the token the filter would be dropped (API_CONTRACT §3.2).
+    if (!user.distributorId) throw new AppError('PERMISSION_DENIED');
+    return this.inv.breakdownForDistributor(user.distributorId);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.STORE_KEEPER)

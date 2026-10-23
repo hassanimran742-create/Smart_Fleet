@@ -1,151 +1,179 @@
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { KeyRound } from 'lucide-react';
+import { PASSWORD_MIN_LENGTH } from '@smartfleet/shared-validation';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
+import { messageFor } from '../api/errors';
+import { qk } from '../api/keys';
+import { useApiMutation } from '../api/useApiMutation';
+import { Button, Field, IconButton, InlineAlert, Modal, SkeletonText, TextInput, useToast } from '../ui';
+import '../features/distributors/distributors.css';
 
-interface Props {
-  userId: string;
-  userName?: string | null;
-  /** Optional inline style override for the button. */
-  style?: any;
-  /** Optional callback after a successful reset. */
+/** The longest password the API takes (API_CONTRACT §7.2: 8–128 characters, not trimmed). */
+const PASSWORD_MAX_LENGTH = 128;
+
+export interface SetAppPasswordDialogProps {
+  /** The sign-in account (`users.id`); `undefined` while it is being found, `null` when there is none. */
+  userId: string | null | undefined;
+  /** The person's or shop's name, for the title, the helper and the toast. */
+  name: string;
+  onClose: () => void;
+  /** After the password is set (the record's "App password set" changes). */
   onDone?: () => void;
 }
 
 /**
- * Tiny admin action that resets a user's password.
- *
- * Click opens a small inline panel with a password input + Save. Once saved,
- * the just-typed value is shown one time so the operator can read it back
- * (e.g. to dictate it to the user over the phone). We never expose the
- * existing hash — passwords are argon2-hashed server-side and not reversible.
+ * "Set app password for {{name}}" (UX_ADMIN §2.4, API_CONTRACT §7.2 `POST /users/:id/password`): one
+ * password field of at least 8 characters with Show/Hide, typed by the office and told to the person by
+ * phone or in person. The typed password is sent once and never kept, logged or shown again: it lives
+ * only in this dialog's state, which is dropped when it closes.
  */
-export function PasswordResetButton({ userId, userName, style, onDone }: Props) {
-  const [open, setOpen] = useState(false);
-  const [pwd, setPwd] = useState('');
-  const [show, setShow] = useState(false);
-  const [savedValue, setSavedValue] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+export function SetAppPasswordDialog({ userId, name, onClose, onDone }: SetAppPasswordDialogProps) {
+  const { t } = useTranslation(['distributors', 'common']);
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const goBackRef = useRef<HTMLButtonElement>(null);
+  const [password, setPassword] = useState('');
+  const [visible, setVisible] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function close() {
-    setOpen(false);
-    setPwd('');
-    setSavedValue(null);
-    setErr(null);
-    setShow(false);
-  }
-
-  const mut = useMutation({
-    mutationFn: () => api.post(`/users/${userId}/password`, { password: pwd }).then((r) => r.data),
-    onSuccess: () => {
-      setSavedValue(pwd);
-      setPwd('');
-      setErr(null);
-      onDone?.();
-    },
-    onError: (e: any) => setErr(e?.response?.data?.message ?? 'Failed to reset password'),
+  const save = useApiMutation({
+    mutationFn: (body: { userId: string; password: string }) =>
+      api.post<{ ok: true }>(`/users/${encodeURIComponent(body.userId)}/password`, { password: body.password }).then((r) => r.data),
   });
 
-  function suggest() {
-    // Simple readable password generator (4 lowercase + 4 digits) — operator
-    // can edit it before saving if they want something else.
-    const letters = 'abcdefghjkmnpqrstuvwxyz';
-    const digits = '23456789';
-    let s = '';
-    for (let i = 0; i < 5; i++) s += letters[Math.floor(Math.random() * letters.length)];
-    for (let i = 0; i < 4; i++) s += digits[Math.floor(Math.random() * digits.length)];
-    setPwd(s);
-    setShow(true);
-  }
+  const tooShort = password.length < PASSWORD_MIN_LENGTH;
+  const finding = userId === undefined;
+  const missing = userId === null;
+
+  const confirm = () => {
+    setTouched(true);
+    if (tooShort || !userId || save.isPending) return;
+    setError(null);
+    save.mutate(
+      { userId, password },
+      {
+        onSuccess: () => {
+          setPassword('');
+          toast.success(t('appPassword.toast', { name }));
+          void queryClient.invalidateQueries({ queryKey: qk.distributors.all });
+          void queryClient.invalidateQueries({ queryKey: qk.drivers.all });
+          void queryClient.invalidateQueries({ queryKey: qk.activity.all });
+          onDone?.();
+          onClose();
+        },
+        onError: (failure) => setError(messageFor(failure)),
+      },
+    );
+  };
 
   return (
-    <>
-      <button
-        title={`Set password for ${userName ?? 'user'}`}
-        onClick={() => setOpen(true)}
-        style={style}
-      >🔑</button>
-      {open && (
-        <div
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(15, 18, 27, 0.55)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1100,
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) close(); }}
+    <Modal
+      open
+      size="sm"
+      title={t('appPassword.title', { name })}
+      onClose={() => {
+        if (!save.isPending) onClose();
+      }}
+      dismissible={!save.isPending}
+      initialFocusRef={goBackRef}
+      footer={
+        <>
+          <Button ref={goBackRef} onClick={onClose} disabled={save.isPending}>
+            {t('common:actions.goBack')}
+          </Button>
+          <Button
+            variant="primary"
+            icon={KeyRound}
+            loading={save.isPending}
+            disabled={finding || missing}
+            onClick={confirm}
+          >
+            {t('appPassword.confirm')}
+          </Button>
+        </>
+      }
+    >
+      <form
+        className="sf-app-password"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          confirm();
+        }}
+      >
+        {finding ? <SkeletonText lines={1} /> : null}
+        {missing ? (
+          <InlineAlert tone="danger" live>
+            {t('appPassword.notFound')}
+          </InlineAlert>
+        ) : null}
+        <Field
+          label={t('appPassword.label')}
+          hint={t('appPassword.hint', { name })}
+          error={touched && tooShort ? t('appPassword.tooShort') : null}
         >
-          <div className="card" style={{ width: 380, maxWidth: '92vw' }}>
-            <h3 style={{ marginTop: 0 }}>Reset password</h3>
-            <p className="muted" style={{ marginTop: 0 }}>
-              {userName ?? 'User'} will sign in with this new password from then on. Tell it to them in person or over the phone — we don't store the plaintext.
-            </p>
+          <TextInput
+            type={visible ? 'text' : 'password'}
+            autoComplete="new-password"
+            spellCheck={false}
+            maxLength={PASSWORD_MAX_LENGTH}
+            value={password}
+            disabled={save.isPending || missing}
+            onChange={(event) => setPassword(event.target.value)}
+            onBlur={() => setTouched(true)}
+            endAdornment={
+              <button
+                type="button"
+                className="sf-app-password__reveal"
+                aria-label={visible ? t('appPassword.hideLabel') : t('appPassword.showLabel')}
+                aria-pressed={visible}
+                onClick={() => setVisible((value) => !value)}
+              >
+                {visible ? t('appPassword.hide') : t('appPassword.show')}
+              </button>
+            }
+          />
+        </Field>
+        {error ? (
+          <InlineAlert tone="danger" live>
+            {error}
+          </InlineAlert>
+        ) : null}
+      </form>
+    </Modal>
+  );
+}
 
-            {savedValue ? (
-              <>
-                <div style={{
-                  background: 'var(--ok-soft, #ecf7ed)',
-                  color: '#1f6b2b',
-                  padding: '12px 14px', borderRadius: 8,
-                  fontFamily: 'monospace', fontSize: 14, marginBottom: 14,
-                  wordBreak: 'break-all',
-                }}>
-                  New password: <strong>{savedValue}</strong>
-                </div>
-                <p className="muted" style={{ fontSize: 12, marginTop: -4 }}>
-                  Write it down now — closing this dialog forgets it.
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={close}>Done</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <label>New password (≥ 8 chars)</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={show ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    value={pwd}
-                    onChange={(e) => setPwd(e.target.value)}
-                    placeholder="••••••••"
-                    style={{ paddingRight: 60 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShow((v) => !v)}
-                    style={{
-                      position: 'absolute', right: 6, top: 6, bottom: 6,
-                      padding: '0 10px', background: 'transparent',
-                      border: 'none', color: 'var(--muted)', fontSize: 12, cursor: 'pointer',
-                    }}
-                  >{show ? 'Hide' : 'Show'}</button>
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  <button type="button" onClick={suggest} style={{ fontSize: 12 }}>
-                    Suggest a password
-                  </button>
-                </div>
+interface Props {
+  userId: string;
+  userName?: string | null;
+  /** `icon` for a table row (the legacy Drivers screen); `button` shows the words too. */
+  variant?: 'icon' | 'button';
+  /** After a successful set. */
+  onDone?: () => void;
+}
 
-                {err && (
-                  <div style={{
-                    background: 'var(--danger-soft)', color: 'var(--danger)',
-                    padding: '8px 12px', borderRadius: 8, marginTop: 12, fontSize: 13,
-                  }}>{err}</div>
-                )}
-
-                <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={close}>Cancel</button>
-                  <button
-                    className="primary"
-                    disabled={pwd.length < 8 || mut.isPending}
-                    onClick={() => mut.mutate()}
-                  >{mut.isPending ? 'Saving…' : 'Save password'}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+/**
+ * The office's "Set app password" action for a distributor or driver login (UX_ADMIN §2.4), as a
+ * button with a key icon that opens {@link SetAppPasswordDialog}.
+ */
+export function PasswordResetButton({ userId, userName, variant = 'icon', onDone }: Props) {
+  const { t } = useTranslation('distributors');
+  const [open, setOpen] = useState(false);
+  const name = userName ?? '';
+  return (
+    <>
+      {variant === 'icon' ? (
+        <IconButton icon={KeyRound} label={t('appPassword.buttonLabel', { name })} onClick={() => setOpen(true)} />
+      ) : (
+        <Button icon={KeyRound} onClick={() => setOpen(true)}>
+          {t('appPassword.button')}
+        </Button>
       )}
+      {open ? <SetAppPasswordDialog userId={userId} name={name} onClose={() => setOpen(false)} onDone={onDone} /> : null}
     </>
   );
 }

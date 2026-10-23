@@ -1,0 +1,325 @@
+/*
+ * Distributors and their one store (UX_ADMIN §2.4): the list, the Add drawer, the distributor page,
+ * its dialogs, the store map and the app-password dialog. Tokens only and logical properties.
+ */
+
+/* ---------- List ---------- */
+.sf-dist__two-line {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.sf-dist__strong {
+  font-weight: 600;
+}
+
+.sf-dist__muted {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-dist__warning {
+  color: var(--warning-fg);
+  font-weight: 600;
+}
+
+.sf-dist__code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.sf-dist__nowrap {
+  white-space: nowrap;
+}
+
+.sf-dist__figure {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-dist__switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-block-size: var(--control-h);
+}
+
+.sf-dist__switch-label {
+  color: var(--text);
+}
+
+/* ---------- Forms (Add drawer and dialogs) ---------- */
+.sf-dist-form {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.sf-dist-form__section {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.sf-dist-form__section + .sf-dist-form__section {
+  padding-block-start: var(--sp-5);
+  border-block-start: 1px solid var(--border);
+}
+
+.sf-dist-form__heading {
+  font-size: var(--fs-16);
+}
+
+.sf-dist-form__help {
+  color: var(--text-muted);
+}
+
+.sf-dist-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-1) var(--sp-4);
+}
+
+.sf-dist-form__map {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 599px) {
+  .sf-dist-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Store map ---------- */
+.sf-map {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.sf-map__jump {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.sf-map__jump .sf-field {
+  flex: 1 1 160px;
+  margin: 0;
+}
+
+.sf-map__jump-title {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-map__frame {
+  overflow: hidden;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-md);
+}
+
+.sf-map__canvas {
+  block-size: 280px;
+  inline-size: 100%;
+}
+
+.sf-map__canvas--thumb {
+  block-size: 160px;
+  cursor: default;
+}
+
+/* The pin: vector, so it needs no image; the colours come from the tokens. */
+.sf-map__pin {
+  fill: var(--primary);
+  fill-opacity: 1;
+  stroke: var(--surface);
+  stroke-width: 3;
+}
+
+.sf-map__below {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.sf-map__status-wrap {
+  display: grid;
+  flex: 1 1 260px;
+  gap: var(--sp-1);
+}
+
+.sf-map__status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--text-muted);
+}
+
+.sf-map__status.is-found {
+  color: var(--success-fg);
+  font-weight: 600;
+}
+
+.sf-map__status.is-warning {
+  color: var(--warning-fg);
+}
+
+.sf-map__status.is-error {
+  color: var(--danger-fg);
+  font-weight: 600;
+}
+
+.sf-map__spin {
+  animation: sf-spin 1s linear infinite;
+}
+
+/* ---------- Distributor page ---------- */
+.sf-dist-page {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.sf-dist-page__head {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.sf-dist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.sf-dist-card {
+  display: grid;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sf-dist-card--wide {
+  grid-column: 1 / -1;
+}
+
+.sf-dist-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-block-size: 32px;
+}
+
+.sf-dist-card__title {
+  font-size: var(--fs-16);
+}
+
+.sf-dist-card__body {
+  display: grid;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.sf-dist-card__map {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.sf-dist-checks {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-dist-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  min-block-size: 36px;
+}
+
+.sf-dist-check.is-done .sf-dist-check__icon {
+  color: var(--success-fg);
+}
+
+.sf-dist-check.is-missing .sf-dist-check__icon {
+  color: var(--danger-fg);
+}
+
+.sf-dist-check__text {
+  font-weight: 600;
+}
+
+.sf-dist-orders {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-dist-orders__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.sf-dist-orders__no {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.sf-dist-orders__customer {
+  flex: 1 1 120px;
+  min-inline-size: 0;
+}
+
+/* ---------- App password dialog (components/PasswordResetButton.tsx) ---------- */
+.sf-app-password {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.sf-app-password__reveal {
+  min-block-size: calc(var(--control-h) - 10px);
+  padding: 0 var(--sp-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--primary);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-app-password__reveal:hover {
+  color: var(--primary-hover);
+}
+
+/* The focused driver on the Live map (legacy/LiveDeliveriesScreen.tsx reuses the pin). */
+.sf-map__pin--focus {
+  fill: var(--success-fg);
+}
+
+/*
+ * Leaflet gives its panes and controls z-indexes of 400–1000. Each map gets its own stacking context, so
+ * no map (these, or the legacy screens' maps) ever paints over a dialog, a drawer or a toast.
+ */
+.sf-map__canvas,
+.legacy .leaflet-container {
+  isolation: isolate;
+}

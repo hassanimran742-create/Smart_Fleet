@@ -1,11 +1,19 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
+import {
+  createAlertRuleSchema,
+  updateAlertRuleSchema,
+  type CreateAlertRuleInput,
+  type UpdateAlertRuleInput,
+} from '@smartfleet/shared-validation';
+import { AuthContext, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ExactRoles } from '../../common/decorators/roles.decorator';
+import { ZodBody } from '../../common/pipes/zod-body.pipe';
 import { AlertRulesService } from './alert-rules.service';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
-import { AlertRuleKind, AlertSeverity, UserRole } from '@prisma/client';
 
+/** Office alert rules (API_CONTRACT §7.2: office exact; "credit over" rules are retired). */
 @Controller('alert-rules')
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@ExactRoles(UserRole.SUPER_ADMIN)
 export class AlertRulesController {
   constructor(private readonly rules: AlertRulesService) {}
 
@@ -15,23 +23,12 @@ export class AlertRulesController {
   }
 
   @Post()
-  create(
-    @CurrentUser() user: AuthContext,
-    @Body() body: {
-      name: string;
-      ruleKind: AlertRuleKind;
-      threshold: string | number;
-      resourceId?: string;
-      cylinderTypeId?: string;
-      severity?: AlertSeverity;
-      notes?: string;
-    },
-  ) {
-    return this.rules.create({ ...body, createdBy: user.userId });
+  create(@CurrentUser() user: AuthContext, @Body(new ZodBody(createAlertRuleSchema)) body: CreateAlertRuleInput) {
+    return this.rules.create(body, user.userId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
+  update(@Param('id') id: string, @Body(new ZodBody(updateAlertRuleSchema)) body: UpdateAlertRuleInput) {
     return this.rules.update(id, body);
   }
 
@@ -40,10 +37,10 @@ export class AlertRulesController {
     return this.rules.remove(id);
   }
 
-  // Manual "evaluate now" trigger — useful when the operator wants to see
-  // what fires right now without waiting for the next page-load.
+  /** "Evaluate now": what fires right now, without opening the alerts list. */
   @Post('evaluate')
-  evaluate() {
-    return this.rules.evaluateAll().then((raised) => ({ raised }));
+  @HttpCode(200)
+  async evaluate() {
+    return { raised: await this.rules.evaluateAll() };
   }
 }

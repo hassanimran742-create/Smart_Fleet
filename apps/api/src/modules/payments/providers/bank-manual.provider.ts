@@ -1,35 +1,50 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InitTopupArgs, InitTopupResult, PaymentProvider } from '../payment-provider.interface';
+import type { TopupAccount } from '@smartfleet/shared-types';
+import { formatRs } from '@smartfleet/shared-utils';
+import { AppError } from '../../../common/errors/app-error';
+import { SettingsService } from '../../settings/settings.service';
+import type { PaymentInstructions, PaymentProvider } from '../payment-provider.interface';
 
+/**
+ * The pilot's manual bank top-up (ADR-09). The company account is setting `topup.account`, set only by
+ * the logged settings CLI; there is no fallback account in code. While it is unset, top-ups are closed
+ * with 503 TOPUP_ACCOUNT_NOT_CONFIGURED.
+ */
 @Injectable()
 export class BankManualProvider implements PaymentProvider {
-  name = 'BANK_MANUAL' as const;
+  readonly name = 'BANK_MANUAL' as const;
+  readonly kind = 'MANUAL_REVIEW' as const;
 
-  constructor(private cfg: ConfigService) {}
+  constructor(private readonly settings: SettingsService) {}
 
-  async init(args: InitTopupArgs): Promise<InitTopupResult> {
-    // Real bank details come from env so they're not hardcoded. Set:
-    //   BANK_NAME, BANK_TITLE, BANK_IBAN  in .env.prod / .env.staging
-    const bankName = this.cfg.get<string>('payments.bank.name') ?? process.env.BANK_NAME ?? 'Bank Al Habib';
-    const title = this.cfg.get<string>('payments.bank.title') ?? process.env.BANK_TITLE ?? 'NIONSSTECH (PRIVATE) LIMITED';
-    const iban = this.cfg.get<string>('payments.bank.iban') ?? process.env.BANK_IBAN ?? 'PK96BAHL0049098101379501';
-    const amountRs = (Number(args.amountPaisa) / 100).toLocaleString();
+  async enabled(): Promise<boolean> {
+    return (await this.settings.get('topup.account')) !== null;
+  }
 
+  /** The company account, or 503 TOPUP_ACCOUNT_NOT_CONFIGURED. */
+  async account(): Promise<TopupAccount> {
+    const account = await this.settings.get('topup.account');
+    if (!account) throw new AppError('TOPUP_ACCOUNT_NOT_CONFIGURED');
     return {
-      formFields: {
-        instructions:
-          `Transfer Rs. ${amountRs} to:\n` +
-          `Bank: ${bankName}\n` +
-          `Title: ${title}\n` +
-          `IBAN: ${iban}\n\n` +
-          `Use reference: ${args.paymentId.slice(0, 8)}\n` +
-          `Then upload your receipt below.`,
-      },
+      accountTitle: account.accountTitle,
+      bankName: account.bankName,
+      iban: account.iban,
+      accountNumber: account.accountNumber,
     };
   }
 
-  async verifyWebhook() {
-    return { providerTxnId: '', success: false, raw: {} };
+  async instructions(ctx: { distributorId: string; amountPaisa?: bigint; reference?: string }): Promise<PaymentInstructions> {
+    const account = await this.account();
+    const lines = [
+      ctx.amountPaisa !== undefined ? `Transfer ${formatRs(ctx.amountPaisa)} to:` : 'Transfer the amount to:',
+      `Bank: ${account.bankName}`,
+      `Account title: ${account.accountTitle}`,
+      `IBAN: ${account.iban}`,
+      `Account number: ${account.accountNumber}`,
+      '',
+      ...(ctx.reference ? [`Use reference: ${ctx.reference}`] : []),
+      'Then upload your receipt below.',
+    ];
+    return { account, text: lines.join('\n') };
   }
 }

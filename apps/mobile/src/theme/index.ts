@@ -1,55 +1,72 @@
-// Shared design tokens used by both distributor and driver variants.
-// Tweak here and every screen picks it up.
+/**
+ * The legacy theme names, pointed at the design tokens (UX_MOBILE §2 Migration). Older screens keep
+ * compiling and get the AA colours and the larger type for free. New code imports from `src/ui`.
+ *
+ * | Old name | Token |
+ * |---|---|
+ * | primary | brand |
+ * | primaryDark | brandPressed |
+ * | primarySoft | brandSoft |
+ * | ok | success |
+ * | okSoft | successSoft |
+ * | warn | warning |
+ * | warnSoft | warningSoft |
+ * | textMuted | textSecondary |
+ * | background | canvas |
+ */
+import {
+  colors as tokens,
+  elevation,
+  radius as tokenRadius,
+  space as tokenSpace,
+  typography,
+} from '../ui/tokens';
 
 export const colors = {
-  primary: '#0F6CF0',
-  primaryDark: '#0A55C4',
-  primarySoft: '#E8F0FE',
-  ok: '#1EA675',
-  okSoft: '#E5F6EE',
-  warn: '#F59E0B',
-  warnSoft: '#FEF3C7',
-  danger: '#D33A3A',
-  dangerSoft: '#FCE7E7',
-  text: '#1F2025',
-  textMuted: '#6B6F76',
-  border: '#E3E4E8',
-  surface: '#FFFFFF',
-  background: '#F4F5F9',
-  shadow: 'rgba(15, 23, 42, 0.08)',
+  primary: tokens.brand,
+  primaryDark: tokens.brandPressed,
+  primarySoft: tokens.brandSoft,
+  ok: tokens.success,
+  okSoft: tokens.successSoft,
+  warn: tokens.warning,
+  warnSoft: tokens.warningSoft,
+  danger: tokens.danger,
+  dangerSoft: tokens.dangerSoft,
+  text: tokens.text,
+  textMuted: tokens.textSecondary,
+  border: tokens.border,
+  surface: tokens.surface,
+  background: tokens.canvas,
+  shadow: tokens.shadow,
 };
 
 export const radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
-  pill: 999,
+  sm: tokenRadius.sm,
+  md: tokenRadius.md,
+  lg: tokenRadius.lg,
+  xl: tokenRadius.sheet,
+  pill: tokenRadius.pill,
 };
 
 export const space = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
+  xs: tokenSpace.xs,
+  sm: tokenSpace.sm,
+  md: tokenSpace.md,
+  lg: tokenSpace.lg,
+  xl: tokenSpace.xl,
+  xxl: tokenSpace.xxl,
 };
 
+/** Shadow only: older screens spread it onto coloured tiles too, which must not gain a grey border. */
 export const shadow = {
-  card: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
+  card: elevation.raised,
 } as const;
 
+/** h1 → title, h2 → heading, h3 → bodyStrong; body and caption keep their names. */
 export const text = {
-  h1: { fontSize: 26, fontWeight: '700' as const, color: colors.text },
-  h2: { fontSize: 20, fontWeight: '600' as const, color: colors.text },
-  h3: { fontSize: 16, fontWeight: '600' as const, color: colors.text },
-  body: { fontSize: 14, color: colors.text },
-  caption: { fontSize: 12, color: colors.textMuted },
+  h1: { ...typography.title, color: tokens.text },
+  h2: { ...typography.heading, color: tokens.text },
+  h3: { ...typography.bodyStrong, color: tokens.text },
+  body: { ...typography.body, color: tokens.text },
+  caption: { ...typography.caption, color: tokens.textSecondary },
 };

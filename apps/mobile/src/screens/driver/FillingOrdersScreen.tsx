@@ -1,177 +1,308 @@
-import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { FillingOrderDto, FillingOrderStatus, RefillStage } from '@smartfleet/shared-types';
+import { deriveRefillStage, legacyRefillCounts } from '@smartfleet/shared-utils';
 import { api } from '../../api/client';
-import { Body, Button, Card, Caption, Heading, Input, Pill, Screen } from '../../components/ui';
-import { space } from '../../theme';
+import type { ApiError } from '../../api/errors';
+import { useFocusedInterval } from '../../hooks/useFocusedInterval';
+import { formatWhenText } from '../../i18n';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  QueryBoundary,
+  SkeletonList,
+  StatusChip,
+  Stepper,
+  Text,
+  layout,
+  space,
+  type ChipTone,
+  type IconName,
+} from '../../ui';
+import { DriverScreen, usePullToRefresh } from './components';
 
-const STATUS_TONE: Record<string, 'ok' | 'warn' | 'primary' | 'neutral' | 'danger'> = {
-  PENDING: 'warn',
-  ASSIGNED: 'primary',
-  EMPTIES_PICKED: 'primary',
-  AT_STATION: 'primary',
-  FILLED: 'primary',
-  RETURNED: 'primary',
-  COMPLETED: 'ok',
-  CANCELLED: 'neutral',
-  FAILED: 'danger',
+/**
+ * A refill on `GET /filling-orders/driver/mine` (API_CONTRACT §7.11). `stage` and `counts` come from
+ * Inc 1 servers on; older servers send only the legacy fields, so both are derived when missing.
+ * `distributor` and `pickupStore` are the legacy includes the installed app reads.
+ */
+type DriverRefill = Pick<FillingOrderDto, 'id' | 'status' | 'requestedCount'> &
+  Partial<Pick<FillingOrderDto, 'stage' | 'counts' | 'sizeLabel' | 'fillingStation' | 'pickedUpEmptyCount' | 'filledCount' | 'createdAt' | 'completedAt'>> & {
+    cylinderType?: { code?: string | null; name?: string | null } | null;
+    distributor?: { businessName?: string | null } | null;
+    pickupStore?: { name?: string | null } | null;
+  };
+
+const REFILLS_QUERY_KEY = ['driver', 'refills'] as const;
+const REFILLS_POLL_MS = 15_000;
+const FINISHED_SHOWN = 10;
+const FINISHED: readonly FillingOrderStatus[] = ['COMPLETED', 'CANCELLED', 'FAILED'];
+
+/** Each refill stage's chip, in the driver's words (`driver.refills.stage.*`). */
+const STAGE_LOOK: Record<RefillStage, { tone: ChipTone; icon: IconName | null }> = {
+  NEEDS_DRIVER: { tone: 'neutral', icon: 'checking' },
+  DRIVER_ASSIGNED: { tone: 'brand', icon: 'store' },
+  PICKING_UP: { tone: 'brand', icon: 'store' },
+  PICKED_UP: { tone: 'brand', icon: 'truck' },
+  AT_STATION: { tone: 'brand', icon: 'cylinder' },
+  COMING_BACK: { tone: 'brand', icon: 'truck' },
+  BACK_AT_STORE: { tone: 'success', icon: 'store' },
+  DONE: { tone: 'success', icon: 'ok' },
+  CANCELLED: { tone: 'neutral', icon: null },
 };
 
+async function fetchDriverRefills(): Promise<DriverRefill[]> {
+  const { data } = await api.get<DriverRefill[]>('/filling-orders/driver/mine');
+  return Array.isArray(data) ? data : [];
+}
+
+function stageOf(refill: DriverRefill): RefillStage {
+  if (refill.stage) return refill.stage;
+  return deriveRefillStage({ status: refill.status, counts: legacyRefillCounts(refill) });
+}
+
+function pickedOf(refill: DriverRefill): number {
+  return refill.counts?.picked ?? refill.pickedUpEmptyCount ?? 0;
+}
+
+function filledOf(refill: DriverRefill): number {
+  return refill.counts?.filled ?? refill.filledCount ?? 0;
+}
+
+/** The driver's refill step: the four PATCH routes of the assigned driver (no money). */
+type RefillStep =
+  | { endpoint: 'picked-empties'; body: { emptyCount: number } }
+  | { endpoint: 'at-station' }
+  | { endpoint: 'filled'; body: { filledCount: number } }
+  | { endpoint: 'returned' };
+
+/**
+ * Refill runs (UX_MOBILE §5 copy fix; RefillRunScreen replaces it in Inc 3): pick up empties at the
+ * shop's store, fill at the station, bring them back. Counts are chosen with a stepper inside the
+ * allowed range. A refusal shows inline on the run's card. No money anywhere.
+ */
 export function DriverFillingOrdersScreen() {
-  const qc = useQueryClient();
-  const { data, refetch } = useQuery({
-    queryKey: ['driver-filling-mine'],
-    queryFn: async () => (await api.get('/filling-orders/driver/mine')).data,
-    refetchInterval: 15000,
+  const { t } = useTranslation();
+  const refills = useQuery<DriverRefill[], ApiError>({
+    queryKey: REFILLS_QUERY_KEY,
+    queryFn: fetchDriverRefills,
+    refetchInterval: useFocusedInterval(REFILLS_POLL_MS),
   });
-
-  const [pickedFor, setPickedFor] = useState<string | null>(null);
-  const [emptyCount, setEmptyCount] = useState('');
-  const [filledFor, setFilledFor] = useState<string | null>(null);
-  const [filledCount, setFilledCount] = useState('');
-
-  const transition = useMutation({
-    mutationFn: (input: { id: string; endpoint: string; body?: any }) =>
-      api.patch(`/filling-orders/${input.id}/${input.endpoint}`, input.body ?? {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['driver-filling-mine'] }),
-    onError: (e: any) => Alert.alert('Failed', e?.response?.data?.message ?? 'Try again'),
-  });
-
-  const open = (data ?? []).filter((o: any) => !['COMPLETED', 'CANCELLED', 'FAILED'].includes(o.status));
-  const done = (data ?? []).filter((o: any) => ['COMPLETED', 'CANCELLED', 'FAILED'].includes(o.status));
+  const pull = usePullToRefresh(refills.refetch);
 
   return (
-    <Screen scroll>
-      <Heading size="h2" style={{ marginBottom: space.md }}>My filling runs</Heading>
-
-      {open.length === 0 && (
-        <Card>
-          <Body muted>No active filling orders. Admin will assign one when needed.</Body>
-        </Card>
-      )}
-
-      {open.map((o: any) => (
-        <Card key={o.id}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <View style={{ flex: 1 }}>
-              <Heading size="h3">{o.distributor?.businessName}</Heading>
-              <Caption style={{ marginTop: 2 }}>
-                {o.requestedCount} × {o.cylinderType?.code} → {o.fillingStation?.name}
-              </Caption>
-              <Caption style={{ marginTop: 2 }}>
-                Pick up from: {o.pickupStore?.name ?? '—'}
-              </Caption>
-            </View>
-            <Pill label={o.status} tone={STATUS_TONE[o.status] ?? 'neutral'} />
-          </View>
-
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            {o.status === 'ASSIGNED' && (
-              <>
-                <Input
-                  label={`Empties picked up from ${o.pickupStore?.name ?? 'store'}`}
-                  value={pickedFor === o.id ? emptyCount : ''}
-                  onChangeText={(v) => { setPickedFor(o.id); setEmptyCount(v); }}
-                  keyboardType="number-pad"
-                  placeholder={`e.g. ${o.requestedCount}`}
-                />
-                <Button
-                  title="Mark empties picked"
-                  onPress={() => {
-                    const n = Number(emptyCount);
-                    if (!Number.isFinite(n) || n <= 0) {
-                      Alert.alert('Enter the count of empty cylinders you picked up');
-                      return;
-                    }
-                    transition.mutate({ id: o.id, endpoint: 'picked-empties', body: { emptyCount: n } });
-                    setPickedFor(null); setEmptyCount('');
-                  }}
-                />
-              </>
-            )}
-
-            {o.status === 'EMPTIES_PICKED' && (
-              <Button
-                title={`Arrived at ${o.fillingStation?.name}`}
-                onPress={() => transition.mutate({ id: o.id, endpoint: 'at-station' })}
-              />
-            )}
-
-            {o.status === 'AT_STATION' && (
-              <>
-                <Caption>
-                  You loaded {o.pickedUpEmptyCount} empties. Once the station has filled them all,
-                  tap the button below to mark the whole load filled in one go.
-                </Caption>
-                <Button
-                  title={`✓ All ${o.pickedUpEmptyCount} filled`}
-                  variant="success"
-                  onPress={() => {
-                    Alert.alert(
-                      'Mark all filled?',
-                      `Confirm all ${o.pickedUpEmptyCount} cylinders were filled at ${o.fillingStation?.name ?? 'the station'}.`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Yes, all filled',
-                          onPress: () =>
-                            transition.mutate({ id: o.id, endpoint: 'filled', body: { filledCount: o.pickedUpEmptyCount } }),
-                        },
-                      ],
-                    );
-                  }}
-                />
-                <Caption muted style={{ marginTop: space.sm }}>
-                  Only some filled? Enter the exact count instead:
-                </Caption>
-                <Input
-                  label="Filled count"
-                  value={filledFor === o.id ? filledCount : ''}
-                  onChangeText={(v) => { setFilledFor(o.id); setFilledCount(v); }}
-                  keyboardType="number-pad"
-                  placeholder={`e.g. ${o.pickedUpEmptyCount}`}
-                />
-                <Button
-                  title="Mark this count filled"
-                  onPress={() => {
-                    const n = Number(filledCount);
-                    if (!Number.isFinite(n) || n < 0) {
-                      Alert.alert('Enter the count of cylinders filled');
-                      return;
-                    }
-                    transition.mutate({ id: o.id, endpoint: 'filled', body: { filledCount: n } });
-                    setFilledFor(null); setFilledCount('');
-                  }}
-                />
-              </>
-            )}
-
-            {o.status === 'FILLED' && (
-              <Button
-                title={`Drop ${o.filledCount} filled back at ${o.pickupStore?.name ?? 'store'}`}
-                variant="success"
-                onPress={() => transition.mutate({ id: o.id, endpoint: 'returned' })}
-              />
-            )}
-
-            {o.status === 'RETURNED' && (
-              <Caption>Awaiting admin to confirm + debit distributor's balance.</Caption>
-            )}
-          </View>
-        </Card>
-      ))}
-
-      {done.length > 0 && (
-        <Card>
-          <Heading size="h3">Completed</Heading>
-          {done.slice(0, 10).map((o: any) => (
-            <View key={o.id} style={{ marginTop: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: '#eee' }}>
-              <Body>{o.distributor?.businessName} · {o.filledCount ?? 0} × {o.cylinderType?.code}</Body>
-              <Caption>{new Date(o.completedAt ?? o.updatedAt).toLocaleString()} · {o.status}</Caption>
-            </View>
-          ))}
-        </Card>
-      )}
-    </Screen>
+    <DriverScreen refreshing={pull.refreshing} onRefresh={pull.onRefresh}>
+      <QueryBoundary
+        query={refills}
+        skeleton={<SkeletonList rows={2} />}
+        isEmpty={(list) => list.length === 0}
+        empty={<EmptyState icon="cylinder" title={t('driver.refills.empty.title')} body={t('driver.refills.empty.body')} />}
+      >
+        {(list) => <RefillLists refills={list} />}
+      </QueryBoundary>
+    </DriverScreen>
   );
 }
+
+function RefillLists({ refills }: { refills: readonly DriverRefill[] }) {
+  const { t } = useTranslation();
+  const open = refills.filter((refill) => !FINISHED.includes(refill.status));
+  const finished = refills.filter((refill) => FINISHED.includes(refill.status)).slice(0, FINISHED_SHOWN);
+
+  return (
+    <View style={styles.stack}>
+      {open.length > 0 ? (
+        <View style={styles.section}>
+          <Text variant="heading">{t('driver.refills.openRuns')}</Text>
+          {open.map((refill, index) => (
+            <OpenRun key={refill.id} refill={refill} main={index === 0} />
+          ))}
+        </View>
+      ) : (
+        <EmptyState icon="cylinder" title={t('driver.refills.empty.title')} body={t('driver.refills.empty.body')} />
+      )}
+      {finished.length > 0 ? (
+        <View style={styles.section}>
+          <Text variant="heading">{t('driver.refills.finishedRuns')}</Text>
+          {finished.map((refill) => (
+            <FinishedRun key={refill.id} refill={refill} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function useRunWords(refill: DriverRefill) {
+  const { t } = useTranslation();
+  const size = refill.sizeLabel ?? refill.cylinderType?.name ?? refill.cylinderType?.code ?? '';
+  const station = refill.fillingStation?.name ?? t('driver.refills.theStation');
+  const store = refill.pickupStore?.name ?? t('driver.refills.theStore');
+  return {
+    title: t('driver.refills.run', { count: refill.requestedCount, size }),
+    station,
+    store,
+    stage: stageOf(refill),
+  };
+}
+
+function StageChip({ stage }: { stage: RefillStage }) {
+  const { t } = useTranslation();
+  const look = STAGE_LOOK[stage];
+  return <StatusChip tone={look.tone} icon={look.icon} label={t(`driver.refills.stage.${stage}`)} />;
+}
+
+/** An open run: its stage and the one action of its step. Only the first run's action is the main button. */
+function OpenRun({ refill, main }: { refill: DriverRefill; main: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const words = useRunWords(refill);
+  const picked = pickedOf(refill);
+  const [pickedCount, setPickedCount] = useState(Math.max(1, refill.requestedCount));
+  // Null until the driver changes it: the count starts at every cylinder picked up.
+  const [filledCount, setFilledCount] = useState<number | null>(null);
+
+  const advance = useMutation<unknown, ApiError, RefillStep>({
+    mutationFn: async (step) => {
+      await api.patch(`/filling-orders/${refill.id}/${step.endpoint}`, 'body' in step ? step.body : {});
+      await queryClient.invalidateQueries({ queryKey: REFILLS_QUERY_KEY });
+    },
+  });
+  const variant = main ? 'primary' : 'secondary';
+  const sending = t('driver.steps.sending');
+
+  let action: ReactNode = null;
+  switch (refill.status) {
+    case 'ASSIGNED':
+      action = (
+        <>
+          <Stepper
+            label={t('driver.refills.picked')}
+            helper={t('driver.refills.pickedHelp', { count: refill.requestedCount })}
+            value={pickedCount}
+            min={1}
+            max={Math.max(1, refill.requestedCount)}
+            onChange={setPickedCount}
+            disabled={advance.isPending}
+          />
+          <Button
+            label={t('driver.refills.markPicked', { count: pickedCount })}
+            loadingLabel={sending}
+            loading={advance.isPending}
+            variant={variant}
+            onPress={() => advance.mutate({ endpoint: 'picked-empties', body: { emptyCount: pickedCount } })}
+          />
+        </>
+      );
+      break;
+    case 'EMPTIES_PICKED':
+      action = (
+        <Button
+          label={t('driver.refills.atStation', { station: words.station })}
+          loadingLabel={sending}
+          loading={advance.isPending}
+          variant={variant}
+          onPress={() => advance.mutate({ endpoint: 'at-station' })}
+        />
+      );
+      break;
+    case 'AT_STATION': {
+      const filled = Math.min(filledCount ?? picked, picked);
+      action = (
+        <>
+          <Stepper
+            label={t('driver.refills.filled')}
+            helper={t('driver.refills.filledHelp', { count: picked })}
+            value={filled}
+            min={0}
+            max={picked}
+            onChange={setFilledCount}
+            disabled={advance.isPending}
+          />
+          <Button
+            label={t('driver.refills.markFilled', { count: filled })}
+            loadingLabel={sending}
+            loading={advance.isPending}
+            variant={variant}
+            onPress={() => advance.mutate({ endpoint: 'filled', body: { filledCount: filled } })}
+          />
+        </>
+      );
+      break;
+    }
+    case 'FILLED':
+      action = (
+        <Button
+          label={t('driver.refills.markReturned')}
+          loadingLabel={sending}
+          loading={advance.isPending}
+          variant={variant}
+          onPress={() => advance.mutate({ endpoint: 'returned' })}
+        />
+      );
+      break;
+    case 'RETURNED':
+      action = <Text tone="secondary">{t('driver.refills.returnedNote')}</Text>;
+      break;
+    default:
+      action = null;
+  }
+
+  return (
+    <Card testID={`refills.run.${refill.id}`}>
+      <View style={styles.card}>
+        <StageChip stage={words.stage} />
+        <Text variant="heading" tabular>
+          {words.title}
+        </Text>
+        {refill.distributor?.businessName ? (
+          <Text tone="secondary">{t('driver.refills.forShop', { shop: refill.distributor.businessName })}</Text>
+        ) : null}
+        <Text tone="secondary">{t('driver.refills.pickupAt', { store: words.store })}</Text>
+        <Text tone="secondary">{t('driver.refills.fillAt', { station: words.station })}</Text>
+        {refill.status === 'FILLED' || refill.status === 'RETURNED' ? (
+          <Text variant="bodyStrong" tabular>
+            {t('driver.refills.filledOf', { filled: filledOf(refill), count: picked })}
+          </Text>
+        ) : null}
+        {advance.error ? (
+          <ErrorBanner error={advance.error} onRetry={advance.variables ? () => advance.mutate(advance.variables) : undefined} />
+        ) : null}
+        {action}
+      </View>
+    </Card>
+  );
+}
+
+function FinishedRun({ refill }: { refill: DriverRefill }) {
+  const { t } = useTranslation();
+  const words = useRunWords(refill);
+  const at = refill.completedAt ?? refill.createdAt;
+  return (
+    <Card testID={`refills.finished.${refill.id}`}>
+      <View style={styles.card}>
+        <StageChip stage={words.stage} />
+        <Text variant="bodyStrong" tabular>
+          {words.title}
+        </Text>
+        <Text tone="secondary">{t('driver.refills.fillAt', { station: words.station })}</Text>
+        {words.stage === 'DONE' ? (
+          <Text tone="secondary" tabular>
+            {t('driver.refills.filledOf', { filled: filledOf(refill), count: pickedOf(refill) })}
+          </Text>
+        ) : null}
+        {at ? <Text variant="caption" tone="secondary">{formatWhenText(at)}</Text> : null}
+      </View>
+    </Card>
+  );
+}
+
+const styles = StyleSheet.create({
+  stack: { gap: layout.sectionGap },
+  section: { gap: layout.cardGap },
+  card: { gap: space.md },
+});

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { AppError } from '../../common/errors/app-error';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccessoryCategory, AccessoryMovementReason } from '@prisma/client';
 
@@ -92,7 +93,7 @@ export class AccessoriesService {
     actorUserId: string;
   }) {
     const acc = await this.prisma.accessory.findUnique({ where: { id: input.accessoryId } });
-    if (!acc) throw new NotFoundException('Accessory not found');
+    if (!acc) throw new AppError('NOT_FOUND');
 
     return this.prisma.$transaction(async (tx) => {
       await tx.accessoryStock.upsert({

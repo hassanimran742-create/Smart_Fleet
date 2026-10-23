@@ -1,235 +1,238 @@
+/*
+ * Styles of the legacy screens (src/legacy), mounted unchanged inside the new shell (UX_ADMIN §1.1).
+ *
+ * Everything is scoped to `.legacy` (app/legacy.tsx and the components/Modal.tsx shim add it), so these
+ * element styles never touch the new design system. The old variable names are aliases of the new
+ * tokens (ui/tokens.css), which also fixes their contrast (UX_ADMIN §0 A7: chips and input borders
+ * now meet AA). Delete this file together with the last legacy screen.
+ */
+
 :root {
-  --bg: #f4f5f9;
-  --surface: #ffffff;
-  --surface-soft: #f9fafc;
-  --border: #e3e4e8;
-  --border-strong: #cbd0d8;
-  --text: #1f2025;
-  --muted: #6b6f76;
-  --primary: #0f6cf0;
-  --primary-soft: #e8f0fe;
-  --primary-hover: #0a55c4;
-  --danger: #d33a3a;
-  --danger-soft: #fce7e7;
-  --ok: #1ea675;
-  --ok-soft: #e5f6ee;
-  --warn: #f59e0b;
-  --warn-soft: #fef3c7;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04);
-  --shadow-md: 0 4px 12px rgba(15, 23, 42, .08);
-  --shadow-lg: 0 12px 32px rgba(15, 23, 42, .15);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-pill: 999px;
+  --surface-soft: var(--surface-2);
+  --border-strong: var(--border-input);
+  --muted: var(--text-muted);
+  --danger: var(--danger-fg);
+  --danger-soft: var(--danger-bg);
+  --ok: var(--success-fg);
+  --ok-soft: var(--success-bg);
+  --warn: var(--warning-fg);
+  --warn-soft: var(--warning-bg);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-pill: var(--r-pill);
 }
 
-* { box-sizing: border-box; }
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-  font-size: 14px;
+.legacy {
   color: var(--text);
-  background: var(--bg);
-  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-h1, h2, h3, h4 { margin: 0 0 12px; font-weight: 600; letter-spacing: -0.01em; }
-h2 { font-size: 22px; }
-h3 { font-size: 16px; color: var(--text); }
-p { margin: 0 0 8px; line-height: 1.5; }
-
-.layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  height: 100vh;
+/* A wide old table scrolls inside its screen; the page itself never scrolls sideways. */
+.legacy--page {
+  min-inline-size: 0;
+  overflow-x: auto;
 }
 
-.sidebar {
-  background: linear-gradient(180deg, #1a1d24 0%, #14171c 100%);
-  color: #c8cbd1;
-  padding: 18px 0;
-  display: flex;
-  flex-direction: column;
-}
-.sidebar h1 {
-  color: white;
-  font-size: 17px;
-  padding: 0 18px 16px;
-  border-bottom: 1px solid #2a2e36;
+.legacy h1,
+.legacy h2,
+.legacy h3,
+.legacy h4 {
+  margin: 0 0 12px;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
-.sidebar nav {
-  margin-top: 12px;
-  padding: 0 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sidebar nav button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 10px 14px;
-  background: transparent;
-  border: 0;
-  color: #b9bdc6;
-  cursor: pointer;
-  border-radius: 8px;
-  font-size: 13.5px;
-  transition: background .15s ease, color .15s ease;
-}
-.sidebar nav button:hover {
-  background: rgba(255, 255, 255, .06);
-  color: white;
-}
-.sidebar nav button.active {
-  background: var(--primary);
-  color: white;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(15, 108, 240, .3);
+
+.legacy h2 {
+  font-size: 22px;
 }
 
-.content {
-  padding: 28px 32px;
-  overflow: auto;
+.legacy h3 {
+  color: var(--text);
+  font-size: 16px;
 }
 
-.card {
-  background: var(--surface);
+.legacy p {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.legacy .card {
+  margin-bottom: 16px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 20px;
-  margin-bottom: 16px;
+  background: var(--surface);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow .2s ease;
+  transition: box-shadow 0.2s ease;
 }
-.card:hover {
+
+.legacy .card:hover {
   box-shadow: var(--shadow-md);
 }
 
-button {
-  font-family: inherit;
-  font-size: 13.5px;
+.legacy button {
   padding: 8px 14px;
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
   cursor: pointer;
-  transition: all .15s ease;
+  transition: all 0.15s ease;
 }
-button:hover:not(:disabled) {
+
+.legacy button:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: var(--surface-soft);
 }
-button:disabled { opacity: .55; cursor: not-allowed; }
-button.primary {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-  font-weight: 500;
-}
-button.primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
-  box-shadow: 0 2px 8px rgba(15, 108, 240, .25);
+
+.legacy button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
-input, select, textarea {
+.legacy button.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-solid);
+  font-weight: 500;
+}
+
+.legacy button.primary:hover:not(:disabled) {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+  box-shadow: 0 2px 8px rgba(11, 95, 214, 0.25);
+}
+
+.legacy input,
+.legacy select,
+.legacy textarea {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-md);
-  font-size: 14px;
-  font-family: inherit;
   background: var(--surface);
   color: var(--text);
-  transition: border-color .15s ease, box-shadow .15s ease;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-input:focus, select:focus, textarea:focus {
-  outline: none;
+
+.legacy input:focus,
+.legacy select:focus,
+.legacy textarea:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
 }
-input::placeholder, textarea::placeholder { color: var(--muted); }
-select { cursor: pointer; }
-label {
-  display: block;
-  font-size: 12.5px;
+
+.legacy input::placeholder,
+.legacy textarea::placeholder {
   color: var(--muted);
-  margin-bottom: 4px;
+}
+
+.legacy select {
+  cursor: pointer;
+}
+
+.legacy label {
+  display: block;
   margin-top: 10px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12.5px;
   font-weight: 500;
 }
 
-table {
+.legacy table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
 }
-th, td {
-  text-align: left;
+
+.legacy th,
+.legacy td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   font-size: 13.5px;
+  text-align: start;
 }
-th {
+
+/* Sentence case, as in the new tables (UX_ADMIN §1.4). */
+.legacy th {
+  background: var(--surface-soft);
   color: var(--muted);
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.legacy tbody tr {
+  transition: background 0.12s ease;
+}
+
+.legacy tbody tr:hover {
   background: var(--surface-soft);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
-tbody tr {
-  transition: background .12s ease;
-}
-tbody tr:hover {
-  background: var(--surface-soft);
-}
-tbody tr:last-child td {
+
+.legacy tbody tr:last-child td {
   border-bottom: none;
 }
 
-.login {
+.legacy .login {
   max-width: 380px;
   margin: 88px auto 0;
 }
-.login h2 {
-  text-align: center;
-  font-size: 26px;
+
+.legacy .login h2 {
   margin-bottom: 24px;
+  font-size: 26px;
+  text-align: center;
 }
 
-.flex { display: flex; gap: 12px; align-items: center; }
-.muted { color: var(--muted); font-size: 13px; }
+.legacy .flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-.kpi {
+.legacy .muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legacy .kpi {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
-.kpi .card {
+
+.legacy .kpi .card {
   margin-bottom: 0;
 }
-.kpi .label {
-  font-size: 12px;
+
+.legacy .kpi .label {
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
-.kpi .value {
+
+.legacy .kpi .value {
+  margin-top: 4px;
   font-size: 26px;
   font-weight: 600;
-  margin-top: 4px;
   letter-spacing: -0.02em;
 }
 
-.pill {
+.legacy .pill {
   display: inline-block;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
@@ -237,17 +240,37 @@ tbody tr:last-child td {
   font-weight: 600;
   letter-spacing: 0.02em;
 }
-.pill-ok { background: var(--ok-soft); color: var(--ok); }
-.pill-warn { background: var(--warn-soft); color: var(--warn); }
-.pill-danger { background: var(--danger-soft); color: var(--danger); }
-.pill-primary { background: var(--primary-soft); color: var(--primary); }
-.pill-neutral { background: #eef0f4; color: var(--muted); }
 
-code {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
+.legacy .pill-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.legacy .pill-warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.legacy .pill-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.legacy .pill-primary {
+  background: var(--info-bg);
+  color: var(--info-fg);
+}
+
+.legacy .pill-neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+
+.legacy code {
   padding: 1px 6px;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  background: var(--surface-soft);
+  font-family: var(--font-mono);
   font-size: 12.5px;
 }

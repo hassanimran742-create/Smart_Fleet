@@ -1,0 +1,36 @@
+# Throwaway database + Redis for automated tests.
+# Uses non-default host ports so it never clashes with a local PostgreSQL/Redis.
+#   docker compose -f infrastructure/docker-compose.test.yml up -d
+#   DATABASE_URL=postgresql://smartfleet:smartfleet_test@localhost:55432/smartfleet_test
+#   REDIS_URL=redis://localhost:56379
+# Data lives in tmpfs, so every `down` + `up` starts clean.
+services:
+  postgres-test:
+    image: postgis/postgis:16-3.4
+    container_name: smartfleet-postgres-test
+    environment:
+      POSTGRES_DB: smartfleet_test
+      POSTGRES_USER: smartfleet
+      POSTGRES_PASSWORD: smartfleet_test
+    ports:
+      - "55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartfleet -d smartfleet_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: smartfleet-redis-test
+    ports:
+      - "56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20

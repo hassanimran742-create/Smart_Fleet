@@ -1,54 +1,98 @@
 import * as ImagePicker from 'expo-image-picker';
-import Constants from 'expo-constants';
-import * as SecureStore from 'expo-secure-store';
+import type { FileUploadResult, StoredFilePurpose } from '@smartfleet/shared-types';
+import { postMultipart, UPLOAD_TIMEOUT_MS } from './client';
 
-const base = Constants.expoConfig?.extra?.apiBaseUrl ?? 'http://localhost:3000/api/v1';
+/** A picked picture, ready to upload. */
+export interface PickedImage {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+}
+
+export type PickImageResult =
+  | { status: 'picked'; image: PickedImage }
+  | { status: 'cancelled' }
+  | { status: 'denied'; permission: 'camera' | 'library' };
+
+export interface PickImageOptions {
+  /** Take a photo instead of choosing one. */
+  camera?: boolean;
+  /** JPEG quality 0–1; 0.5 by default (UX_MOBILE §4 S5). */
+  quality?: number;
+}
 
 /**
- * Let the user pick an image from the gallery (or take a photo) and upload it
- * to POST /files/upload. Returns the public S3 URL, or null if cancelled.
- *
- * We use fetch + FormData directly rather than the axios client because React
- * Native's multipart handling is finicky through axios; fetch with a
- * { uri, name, type } file object is the reliable path on Android.
+ * Lets the person take or choose a picture. Never throws for a refused permission: it returns
+ * `denied`, so the screen can say how to allow it (`common.upload.cameraDenied` / `libraryDenied`).
  */
-export async function pickAndUploadImage(opts: { camera?: boolean } = {}): Promise<string | null> {
-  // Permissions
-  if (opts.camera) {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) throw new Error('Camera permission denied');
-  } else {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) throw new Error('Photo library permission denied');
-  }
+export async function pickImage({ camera = false, quality = 0.5 }: PickImageOptions = {}): Promise<PickImageResult> {
+  const permission = camera
+    ? await ImagePicker.requestCameraPermissionsAsync()
+    : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) return { status: 'denied', permission: camera ? 'camera' : 'library' };
 
-  const result = opts.camera
-    ? await ImagePicker.launchCameraAsync({ quality: 0.6, mediaTypes: ImagePicker.MediaTypeOptions.Images })
-    : await ImagePicker.launchImageLibraryAsync({ quality: 0.6, mediaTypes: ImagePicker.MediaTypeOptions.Images });
+  const options: ImagePicker.ImagePickerOptions = {
+    quality,
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  };
+  const result = camera
+    ? await ImagePicker.launchCameraAsync(options)
+    : await ImagePicker.launchImageLibraryAsync(options);
+  if (result.canceled || !result.assets?.length) return { status: 'cancelled' };
 
-  if (result.canceled || !result.assets?.length) return null;
   const asset = result.assets[0];
-
-  const token = await SecureStore.getItemAsync('accessToken');
-  const form = new FormData();
-  const name = asset.fileName ?? `upload-${Date.now()}.jpg`;
-  const type = asset.mimeType ?? 'image/jpeg';
-  // @ts-expect-error — RN FormData accepts this shape for file uploads
-  form.append('file', { uri: asset.uri, name, type });
-
-  const res = await fetch(`${base}/files/upload`, {
-    method: 'POST',
-    headers: {
-      // NOTE: do NOT set Content-Type — fetch sets the multipart boundary.
-      Authorization: token ? `Bearer ${token}` : '',
+  return {
+    status: 'picked',
+    image: {
+      uri: asset.uri,
+      fileName: asset.fileName ?? `upload-${Date.now()}.jpg`,
+      mimeType: asset.mimeType ?? 'image/jpeg',
     },
-    body: form,
-  });
+  };
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Upload failed (${res.status}) ${text}`.trim());
+/**
+ * Uploads a picture to `POST /files/upload` (API_CONTRACT §7.10) with its `purpose`: TOPUP_PROOF for
+ * a top-up screenshot. Returns the stored file; send `fileId` with the form (for example
+ * `proofFileId`). Failures are ApiErrors (`FILE_TYPE_NOT_ALLOWED`, `FILE_TOO_LARGE`, network).
+ */
+export function uploadImage(
+  image: PickedImage,
+  { purpose }: { purpose?: StoredFilePurpose } = {},
+): Promise<FileUploadResult> {
+  const form = new FormData();
+  // React Native's FormData takes a { uri, name, type } file part.
+  form.append('file', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
+  if (purpose) form.append('purpose', purpose);
+  return postMultipart<FileUploadResult>('/files/upload', form, { timeoutMs: UPLOAD_TIMEOUT_MS });
+}
+
+export type PickAndUploadResult =
+  | { status: 'uploaded'; file: FileUploadResult; image: PickedImage }
+  | { status: 'cancelled' }
+  | { status: 'denied'; permission: 'camera' | 'library' };
+
+/** Picks a picture and uploads it with `purpose`. Upload failures are thrown as ApiErrors. */
+export async function pickAndUploadFile(
+  options: PickImageOptions & { purpose?: StoredFilePurpose } = {},
+): Promise<PickAndUploadResult> {
+  const picked = await pickImage(options);
+  if (picked.status !== 'picked') return picked;
+  const file = await uploadImage(picked.image, { purpose: options.purpose });
+  return { status: 'uploaded', file, image: picked.image };
+}
+
+/**
+ * @deprecated For the installed top-up screen only: picks and uploads a picture and returns its
+ * signed URL, or null when cancelled. New screens use `pickAndUploadFile` and send `fileId`.
+ */
+export async function pickAndUploadImage(
+  opts: { camera?: boolean; purpose?: StoredFilePurpose } = {},
+): Promise<string | null> {
+  const result = await pickAndUploadFile({ camera: opts.camera, purpose: opts.purpose, quality: 0.6 });
+  if (result.status === 'cancelled') return null;
+  if (result.status === 'denied') {
+    throw new Error(result.permission === 'camera' ? 'Camera permission denied' : 'Photo library permission denied');
   }
-  const data = await res.json();
-  return data.url as string;
+  return result.file.url;
 }

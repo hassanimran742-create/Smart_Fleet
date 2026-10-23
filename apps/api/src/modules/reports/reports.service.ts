@@ -1,30 +1,49 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+/** Only the name of a related user is ever loaded for a report (API_CONTRACT §3.5: explicit selects). */
+const USER_NAME = { select: { name: true } } as const;
+
+/**
+ * Office reports (API_CONTRACT §7.13): kept, office only, hidden on the website. Money comes from the
+ * ledger, never from order columns: revenue is the delivery costs taken net of costs returned.
+ */
 @Injectable()
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Orders by destination zone since `since`, with their revenue: Σ DEBIT_ORDER − Σ CREDIT_ORDER_REVERSAL
+   * of those orders' ledger rows (a cancel before delivery started brings the cost back to 0).
+   */
   async ordersByZone(cityId: string, since: Date) {
+    // Dates bind as timestamptz; the columns are timestamp(3) in UTC, so `since` is compared in UTC.
     return this.prisma.$queryRaw`
-      SELECT z.id AS zone_id, z.name, COUNT(o.id)::int AS order_count,
-             COALESCE(SUM(o.delivery_fee_paisa), 0)::bigint AS revenue_paisa
+      SELECT z.id AS zone_id, z.name,
+             COUNT(o.id)::int AS order_count,
+             COALESCE(SUM(money.net), 0)::bigint AS revenue_paisa
       FROM zones z
-      LEFT JOIN orders o ON o.dest_zone_id = z.id AND o.created_at >= ${since}
+      LEFT JOIN orders o ON o.dest_zone_id = z.id AND o.created_at >= (${since}::timestamptz AT TIME ZONE 'UTC')
+      LEFT JOIN (
+        SELECT l.order_id, -SUM(l.amount_paisa) AS net
+        FROM ledger_entries l
+        WHERE l.entry_type IN ('DEBIT_ORDER', 'CREDIT_ORDER_REVERSAL') AND l.order_id IS NOT NULL
+        GROUP BY l.order_id
+      ) money ON money.order_id = o.id
       WHERE z.city_id = ${cityId}::uuid
       GROUP BY z.id, z.name
-      ORDER BY order_count DESC
+      ORDER BY order_count DESC, z.name
     `;
   }
 
   async driverUtilization(since: Date) {
     return this.prisma.$queryRaw`
       SELECT d.id AS driver_id, u.name,
-             COUNT(t.id)::int AS trips_count,
+             COUNT(DISTINCT t.id)::int AS trips_count,
              COUNT(o.id)::int AS orders_delivered
       FROM drivers d
       JOIN users u ON u.id = d.user_id
-      LEFT JOIN trips t ON t.driver_id = d.id AND t.completed_at >= ${since}
+      LEFT JOIN trips t ON t.driver_id = d.id AND t.completed_at >= (${since}::timestamptz AT TIME ZONE 'UTC')
       LEFT JOIN orders o ON o.trip_id = t.id AND o.status = 'DELIVERED'
       GROUP BY d.id, u.name
     `;
@@ -41,7 +60,7 @@ export class ReportsService {
         startedAt: { lte: until },
         OR: [{ endedAt: null }, { endedAt: { gte: since } }],
       },
-      include: { driver: { include: { user: true } } },
+      include: { driver: { select: { availability: true, user: USER_NAME } } },
     });
 
     type Bucket = {
@@ -80,7 +99,9 @@ export class ReportsService {
       byDriver.set(s.driverId, existing);
     }
 
-    const allDrivers = await this.prisma.driver.findMany({ include: { user: true } });
+    const allDrivers = await this.prisma.driver.findMany({
+      select: { id: true, availability: true, user: USER_NAME },
+    });
     for (const d of allDrivers) {
       if (!byDriver.has(d.id)) {
         byDriver.set(d.id, {
@@ -119,12 +140,20 @@ export class ReportsService {
         tripId: { not: null },
       },
       include: {
-        distributor: true,
-        client: true,
-        destZone: true,
-        originStore: { include: { zone: true } },
-        trip: { include: { driver: { include: { user: true } }, vehicle: true } },
-        lines: { include: { cylinderType: true } },
+        distributor: { select: { businessName: true } },
+        client: { select: { name: true } },
+        destZone: { select: { name: true } },
+        originStore: { select: { name: true, zone: { select: { name: true } } } },
+        trip: {
+          select: {
+            status: true,
+            startedAt: true,
+            completedAt: true,
+            driver: { select: { user: USER_NAME } },
+            vehicle: { select: { plateNo: true } },
+          },
+        },
+        lines: { select: { fullCount: true, cylinderType: { select: { code: true } } } },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -161,8 +190,8 @@ export class ReportsService {
     const refills = await this.prisma.fuelRefill.findMany({
       where: { refillAt: { gte: since } },
       include: {
-        vehicle: true,
-        driver: { include: { user: true } },
+        vehicle: { select: { plateNo: true, capacityUnits: true, currentOdometerKm: true } },
+        driver: { select: { user: USER_NAME } },
       },
       orderBy: { refillAt: 'asc' },
     });
@@ -190,7 +219,7 @@ export class ReportsService {
     };
     const byVehicle = new Map<string, Bucket>();
     for (const r of refills) {
-      const ex = byVehicle.get(r.vehicleId) ?? {
+      const ex: Bucket = byVehicle.get(r.vehicleId) ?? {
         vehicleId: r.vehicleId,
         plateNo: r.vehicle.plateNo,
         capacityUnits: r.vehicle.capacityUnits,
@@ -202,7 +231,7 @@ export class ReportsService {
         refillCount: 0,
         lastDriver: r.driver.user.name,
         lastRefillAt: r.refillAt.toISOString(),
-        refills: [] as any,
+        refills: [],
       };
       ex.totalLitres += Number(r.litres);
       ex.totalCostPaisa += r.costPaisa;
@@ -228,7 +257,7 @@ export class ReportsService {
       kmInWindow: Math.max(0, b.lastOdoKm - b.firstOdoKm),
       totalLitres: Math.round(b.totalLitres * 100) / 100,
       totalCostPaisa: b.totalCostPaisa.toString(),
-      kmPerLitre: b.totalLitres > 0 ? Math.round((b.lastOdoKm - b.firstOdoKm) / b.totalLitres * 100) / 100 : null,
+      kmPerLitre: b.totalLitres > 0 ? Math.round(((b.lastOdoKm - b.firstOdoKm) / b.totalLitres) * 100) / 100 : null,
       refillCount: b.refillCount,
       lastDriver: b.lastDriver,
       lastRefillAt: b.lastRefillAt,
@@ -237,30 +266,37 @@ export class ReportsService {
   }
 
   /**
-   * Driver performance: km driven (sum of refills' km deltas), orders
-   * delivered, filling orders completed, total hours from shifts.
+   * Driver performance: km driven (sum of refills' km deltas), orders delivered (by when they were
+   * delivered, `deliveredAt`), filling orders completed, total hours from shifts.
    */
   async driverPerformance(since: Date) {
     const [refills, deliveredOrders, fillingOrders, shifts] = await Promise.all([
       this.prisma.fuelRefill.findMany({
         where: { refillAt: { gte: since } },
-        include: { driver: { include: { user: true } } },
+        select: { driverId: true, odometerKm: true, litres: true },
         orderBy: { refillAt: 'asc' },
       }),
       this.prisma.order.findMany({
-        where: { status: 'DELIVERED', updatedAt: { gte: since } },
-        include: { trip: true },
+        where: { status: 'DELIVERED', deliveredAt: { gte: since } },
+        select: { trip: { select: { driverId: true } } },
       }),
       this.prisma.fillingOrder.findMany({
         where: { status: 'COMPLETED', completedAt: { gte: since } },
+        select: { assignedDriverId: true },
       }),
       this.prisma.driverShift.findMany({
         where: { startedAt: { gte: since } },
+        select: { driverId: true, startedAt: true, endedAt: true },
       }),
     ]);
 
     const drivers = await this.prisma.driver.findMany({
-      include: { user: true, currentVehicle: true },
+      select: {
+        id: true,
+        availability: true,
+        user: { select: { name: true, phone: true } },
+        currentVehicle: { select: { plateNo: true, currentOdometerKm: true } },
+      },
     });
 
     return drivers.map((d) => {
@@ -271,7 +307,7 @@ export class ReportsService {
       const myFilling = fillingOrders.filter((f) => f.assignedDriverId === d.id);
       const mins = shifts
         .filter((s) => s.driverId === d.id)
-        .reduce((sum, s) => sum + (((s.endedAt ?? new Date()).getTime() - s.startedAt.getTime()) / 60000), 0);
+        .reduce((sum, s) => sum + ((s.endedAt ?? new Date()).getTime() - s.startedAt.getTime()) / 60000, 0);
 
       return {
         driverId: d.id,

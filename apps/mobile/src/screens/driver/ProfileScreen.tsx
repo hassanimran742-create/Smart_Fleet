@@ -1,93 +1,56 @@
-import { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api/client';
-import { Body, Button, Card, Caption, Heading, Input, Screen } from '../../components/ui';
-import { space } from '../../theme';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { formatPkPhone } from '@smartfleet/shared-utils';
+import type { ApiError } from '../../api/errors';
+import { qk } from '../../api/keys';
+import { fetchMe, type MeDto } from '../../api/me';
+import { useOfficeContact } from '../../hooks/useAppConfig';
+import { Button, Card, QueryBoundary, SkeletonCard, Text, ltr, space } from '../../ui';
+import { DriverScreen, InfoRow, usePullToRefresh } from './components';
 
+/**
+ * The driver's profile, read-only (UX_MOBILE §5): name, mobile number, licence and van. No CNIC, role
+ * or ids. Changes go through the office.
+ */
 export function DriverProfileScreen() {
-  const qc = useQueryClient();
-  const me = useQuery({
-    queryKey: ['me'],
-    queryFn: async () => (await api.get('/users/me')).data,
-  });
-
-  const [form, setForm] = useState({ name: '', email: '', phone: '', cnic: '' });
-
-  useEffect(() => {
-    if (me.data) {
-      setForm({
-        name: me.data.name ?? '',
-        email: me.data.email ?? '',
-        phone: me.data.phone ?? '',
-        cnic: me.data.cnic ?? '',
-      });
-    }
-  }, [me.data]);
-
-  const save = useMutation({
-    mutationFn: () => api.patch('/users/me', form),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['me'] });
-      Alert.alert('Saved', 'Your profile has been updated.');
-    },
-    onError: (e: any) => Alert.alert('Failed', e?.response?.data?.message ?? 'Try again'),
-  });
-
-  const driver = me.data?.driverProfile;
-  const vehicle = driver?.currentVehicle;
+  const { t } = useTranslation();
+  const office = useOfficeContact();
+  const me = useQuery<MeDto, ApiError>({ queryKey: qk.me, queryFn: fetchMe });
+  const pull = usePullToRefresh(me.refetch);
 
   return (
-    <Screen scroll>
-      <Card>
-        <Heading size="h3">Your profile</Heading>
-        <Caption style={{ marginTop: 4, marginBottom: space.md }}>
-          Keep your contact details up to date so dispatch can reach you.
-        </Caption>
-
-        <Input label="Your name" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
-        <Input label="Phone" value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} keyboardType="phone-pad" />
-        <Input label="Email" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" placeholder="optional" />
-        <Input label="CNIC" value={form.cnic} onChangeText={(v) => setForm({ ...form, cnic: v })} placeholder="12345-1234567-1" />
-
-        <Button
-          title={save.isPending ? 'Saving…' : 'Save changes'}
-          onPress={() => save.mutate()}
-          disabled={save.isPending}
-          style={{ marginTop: space.md }}
-        />
-      </Card>
-
-      <Card>
-        <Heading size="h3">Driver info</Heading>
-        <Row label="Licence #" value={driver?.licenceNo ?? '—'} />
-        <Row label="Availability" value={driver?.availability ?? '—'} />
-        <Row label="Online" value={driver?.isOnline ? 'Yes' : 'No'} />
-        <Row label="Status" value={me.data?.status ?? '—'} />
-        <Row label="Member since" value={me.data?.createdAt ? new Date(me.data.createdAt).toLocaleDateString() : '—'} />
-      </Card>
-
-      <Card>
-        <Heading size="h3">Assigned vehicle</Heading>
-        {vehicle ? (
-          <>
-            <Row label="Plate" value={vehicle.plateNo ?? '—'} />
-            <Row label="Capacity" value={`${vehicle.capacityUnits ?? '—'} slots`} />
-            <Row label="Status" value={vehicle.status ?? '—'} />
-          </>
-        ) : (
-          <Body muted>No vehicle assigned. Ask admin to assign one.</Body>
-        )}
-      </Card>
-    </Screen>
+    <DriverScreen
+      refreshing={pull.refreshing}
+      onRefresh={pull.onRefresh}
+      footer={
+        office.phone ? (
+          <Button label={t('common.actions.callTheOffice')} icon="call" onPress={office.call} testID="profile.call" />
+        ) : undefined
+      }
+    >
+      <QueryBoundary query={me} skeleton={<SkeletonCard lines={4} />}>
+        {(profile) => {
+          const plate = profile.driverProfile?.currentVehicle?.plateNo;
+          return (
+            <View style={styles.stack}>
+              <Card>
+                <InfoRow label={t('driver.profile.name')} value={profile.name} />
+                <InfoRow label={t('driver.profile.phone')} value={ltr(formatPkPhone(profile.phone))} />
+                {profile.driverProfile?.licenceNo ? (
+                  <InfoRow label={t('driver.profile.licence')} value={ltr(profile.driverProfile.licenceNo)} />
+                ) : null}
+                <InfoRow label={t('driver.profile.van')} value={plate ? ltr(plate) : t('common.menu.vanNone')} />
+              </Card>
+              <Text tone="secondary">{t('driver.profile.note')}</Text>
+            </View>
+          );
+        }}
+      </QueryBoundary>
+    </DriverScreen>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
-      <Caption>{label}</Caption>
-      <Body style={{ fontWeight: '600' }}>{value}</Body>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  stack: { gap: space.md },
+});

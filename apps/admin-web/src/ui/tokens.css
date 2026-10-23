@@ -1,0 +1,87 @@
+/*
+ * Web design tokens (UX_ADMIN §1.4). Every colour pair below meets WCAG AA:
+ * the ratio in each comment is the foreground on its background (or on white).
+ * Components use only these variables; never hard-code a colour or size.
+ */
+:root {
+  --bg: #f5f6f8;
+  --surface: #fff;
+  --surface-2: #f9fafb;
+  --overlay: rgba(15, 18, 27, 0.4);
+  --border: #e3e5e9; /* decorative dividers only */
+  --border-input: #8c939d; /* inputs/checkboxes: 3.1:1 on white */
+  --text: #1f2328;
+  --text-muted: #5f6670; /* muted 5.8:1 on white, 5.4:1 on --bg */
+  --primary: #0b5fd6;
+  --primary-hover: #0a4fb3;
+  --primary-soft: #e6efff;
+  --focus: #0b5fd6; /* white on primary 5.8:1 */
+  --danger-solid: #c42727; /* white text 5.7:1 */
+  --neutral-fg: #4a4f57;
+  --neutral-bg: #eef0f3; /* 7.2:1 */
+  --info-fg: #0b4fb3;
+  --info-bg: #e6efff; /* 6.5:1 */
+  --success-fg: #0b6b47;
+  --success-bg: #e3f5ec; /* 5.8:1 */
+  --warning-fg: #8a4b00;
+  --warning-bg: #fff4d6; /* 6.2:1 */
+  --danger-fg: #a61b1b;
+  --danger-bg: #fde8e8; /* 6.4:1 */
+  --nav-bg: #171a20;
+  --nav-text: #c9cdd4;
+  --nav-muted: #9aa1ab;
+  --nav-active: #0b5fd6; /* 10.9:1 / 6.7:1 */
+  --on-solid: #fff; /* text on --primary, --danger-solid and --nav-bg */
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+  --lh: 1.5;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-2: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --shadow-3: 0 16px 40px rgba(15, 23, 42, 0.18);
+  --control-h: 40px;
+  --row-h: 48px;
+  --nav-w: 232px;
+  --rail-w: 64px;
+  --topbar-h: 56px;
+  --drawer-w: 480px;
+  --drawer-w-wide: 640px;
+  --z-nav: 10;
+  --z-sticky: 20;
+  --z-drawer: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --dur-fast: 120ms;
+  --dur: 200ms;
+}
+
+@media (pointer: coarse) {
+  :root {
+    --control-h: 48px;
+    --row-h: 56px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+  }
+}

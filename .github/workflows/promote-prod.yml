@@ -6,23 +6,52 @@ on:
       confirm:
         description: 'Type "promote" to confirm production deploy'
         required: true
-      ref:
-        description: 'Git ref to deploy (should be the staging-validated commit)'
-        required: false
+      sha:
+        description: 'The full 40-character commit SHA to deploy: one that passed CI and was deployed to staging'
+        required: true
 
 jobs:
   promote:
     name: Deploy production container on EC2
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      checks: read
+      statuses: read
     environment:
       name: production
       url: ${{ vars.PROD_API_URL }}
+    # Inputs reach the shell as environment variables only, never pasted into a script.
+    env:
+      CONFIRM: ${{ inputs.confirm }}
+      SHA: ${{ inputs.sha }}
     steps:
-      - name: Validate confirmation
+      - name: Validate confirmation and commit
         run: |
-          if [ "${{ inputs.confirm }}" != "promote" ]; then
+          if [ "$CONFIRM" != "promote" ]; then
             echo "Confirmation phrase did not match"; exit 1
+          fi
+          if ! printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "Give the full 40-character commit SHA (git rev-parse <ref>), not a branch, a tag or a short SHA"; exit 1
+          fi
+
+      - name: CI passed on this commit
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ inputs.sha }}
+          check-name: 'API — typecheck, lint, test'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+
+      - name: This commit was deployed to staging
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          state=$(gh api "repos/${{ github.repository }}/commits/$SHA/status" \
+            --jq '[.statuses[] | select(.context == "deploy/staging")][0].state // "none"')
+          if [ "$state" != "success" ]; then
+            echo "Commit $SHA has no successful staging deploy (deploy/staging: $state). Deploy it to staging first."; exit 1
           fi
 
       - name: Write SSH key
@@ -34,19 +63,18 @@ jobs:
 
       - name: Run deploy script on EC2
         run: |
-          REF="${{ inputs.ref || github.ref_name }}"
           ssh -i ~/.ssh/ec2.pem \
               -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
               "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
-              "sudo bash /srv/smartfleet/src/infrastructure/aws/deploy.sh prod '$REF'"
+              "sudo bash /srv/smartfleet/src/infrastructure/aws/deploy.sh prod '$SHA'"
 
-      - name: Verify production health (public URL)
+      - name: Verify production runs this commit (public URL)
         if: vars.PROD_API_URL != ''
         run: |
           for i in {1..20}; do
-            if curl -fsSL "${{ vars.PROD_API_URL }}/api/v1/health/live" >/dev/null; then
-              echo "prod live"; exit 0
+            if curl -fsSL "${{ vars.PROD_API_URL }}/api/v1/health" | grep -q "\"version\":\"$SHA\""; then
+              echo "prod live at $SHA"; exit 0
             fi
             sleep 10
           done
-          echo "prod did not come up on public URL"; exit 1
+          echo "prod did not report version $SHA on the public URL"; exit 1

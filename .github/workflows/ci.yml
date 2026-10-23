@@ -3,8 +3,10 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  # Every pushed branch, so any commit can be deployed to staging behind its own green check
+  # (deploy-staging and promote-prod wait for this job on the exact commit they deploy).
   push:
-    branches: [main, claude/**]
+    branches: ['**']
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -43,6 +45,7 @@ jobs:
       JWT_REFRESH_SECRET: ci_refresh_secret_change_me_change_me_x
       ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       BLIND_INDEX_KEY: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+      BULLMQ_PREFIX: sf-ci-test
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
@@ -51,12 +54,25 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      # The API resolves @smartfleet/* through each package's dist (gitignored), for tsc and ts-jest alike.
+      - name: Build shared packages
+        run: npm run build -w @smartfleet/shared-types -w @smartfleet/shared-utils -w @smartfleet/shared-validation
       - name: Prisma generate
         working-directory: apps/api
         run: npx prisma generate
-      - name: Apply schema to test DB
+      - name: Apply migrations to a fresh test DB
         working-directory: apps/api
-        run: npx prisma db push --skip-generate
+        run: npx prisma migrate deploy
+      # Applies every migration to an empty shadow database and diffs it against schema.prisma.
+      # The schema must be the FROM side: with --from-migrations, Prisma 5.22 ignores the
+      # postgresqlExtensions preview feature on the shadow side and reports the three
+      # extensions as missing, so the check would always fail.
+      - name: Migrations match schema.prisma
+        working-directory: apps/api
+        run: |
+          PGPASSWORD=smartfleet_dev psql -h localhost -U smartfleet -d postgres -c 'CREATE DATABASE smartfleet_shadow'
+          npx prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-migrations prisma/migrations \
+            --shadow-database-url postgresql://smartfleet:smartfleet_dev@localhost:5432/smartfleet_shadow --exit-code
       - name: Typecheck
         working-directory: apps/api
         run: npm run typecheck
@@ -66,6 +82,9 @@ jobs:
       - name: Unit tests
         working-directory: apps/api
         run: npm test -- --passWithNoTests
+      - name: DB tests (PostGIS and Redis services)
+        working-directory: apps/api
+        run: npm run test:e2e -- --passWithNoTests
 
   admin-web:
     name: Admin web — typecheck + build

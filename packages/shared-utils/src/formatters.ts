@@ -1,3 +1,4 @@
+/** @deprecated Depends on the device's Intl data and time zone. Use `formatPkDateTime` or `formatWhen`. */
 export function formatIsoShort(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });

@@ -1,71 +1,114 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { DriversService } from './drivers.service';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
+import {
+  createDriverSchema,
+  driverAvailabilitySchema,
+  driverLocationSchema,
+  driverOnlineSchema,
+  driverReasonSchema,
+  driverVehicleSchema,
+  type CreateDriverInput,
+  type DriverAvailabilityInput,
+  type DriverLocationInput,
+  type DriverOnlineInput,
+  type DriverReasonInput,
+  type DriverVehicleInput,
+} from '@smartfleet/shared-validation';
+import type { UserActor } from '../../common/auth/actor';
+import { AuthContext, CurrentActor, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ExactRoles, Roles } from '../../common/decorators/roles.decorator';
+import { ZodBody } from '../../common/pipes/zod-body.pipe';
+import { DriversService } from './drivers.service';
 
+/**
+ * API_CONTRACT §7.2. Office routes are SUPER_ADMIN exact; a driver may read their own profile, change
+ * their own name and photo, and report their own position and online state (DRIVER exact). Any other
+ * role gets 403 before a record is read; a driver naming another driver's id gets 404.
+ */
 @Controller('drivers')
 export class DriversController {
   constructor(private readonly drivers: DriversService) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Get()
   list() {
-    return this.drivers.list();
+    return this.drivers.listForOffice();
   }
 
+  /** The office, or the driver reading themselves. */
+  @Roles(UserRole.DRIVER)
   @Get(':id')
-  byId(@Param('id') id: string) {
-    return this.drivers.findById(id);
+  byId(@CurrentUser() user: AuthContext, @Param('id') id: string) {
+    return this.drivers.view(user, id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Post()
-  create(@Body() body: any) {
-    return this.drivers.create(body);
+  create(@CurrentActor() actor: UserActor, @Body(new ZodBody(createDriverSchema)) body: CreateDriverInput) {
+    return this.drivers.create(actor, body);
   }
 
+  @ExactRoles(UserRole.DRIVER)
   @Patch(':id/location')
-  @Roles(UserRole.DRIVER)
-  updateLocation(@Param('id') id: string, @Body() body: { lat: number; lng: number }) {
-    return this.drivers.updateLocation(id, body.lat, body.lng);
+  updateLocation(
+    @CurrentUser() user: AuthContext,
+    @Param('id') id: string,
+    @Body(new ZodBody(driverLocationSchema)) body: DriverLocationInput,
+  ) {
+    return this.drivers.updateLocation(user, id, body.lat, body.lng);
   }
 
+  @ExactRoles(UserRole.DRIVER)
   @Patch(':id/online')
-  @Roles(UserRole.DRIVER)
-  setOnline(@Param('id') id: string, @Body() body: { isOnline: boolean }) {
-    return this.drivers.setOnline(id, body.isOnline);
+  setOnline(
+    @CurrentUser() user: AuthContext,
+    @Param('id') id: string,
+    @Body(new ZodBody(driverOnlineSchema)) body: DriverOnlineInput,
+  ) {
+    return this.drivers.updateOnline(user, id, body.isOnline);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id/vehicle')
-  assign(@Param('id') id: string, @Body() body: { vehicleId: string | null }) {
-    return this.drivers.assignVehicle(id, body.vehicleId);
+  assignVehicle(
+    @CurrentActor() actor: UserActor,
+    @Param('id') id: string,
+    @Body(new ZodBody(driverVehicleSchema)) body: DriverVehicleInput,
+  ) {
+    return this.drivers.assignVehicle(actor, id, body);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
+  /** The office edits any field; a driver on themselves only name and photo (USER_FIELD_OFFICE_ONLY). */
+  @Roles(UserRole.DRIVER)
   @Patch(':id/profile')
-  updateProfile(@Param('id') id: string, @Body() body: any) {
-    return this.drivers.updateProfile(id, body);
+  updateProfile(@CurrentActor() actor: UserActor, @Param('id') id: string, @Body() body: unknown) {
+    return this.drivers.updateProfile(actor, id, body);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id/availability')
   setAvailability(
+    @CurrentActor() actor: UserActor,
     @Param('id') id: string,
-    @Body() body: { availability: 'AVAILABLE' | 'ON_LEAVE' | 'OFF_DUTY'; leaveStart?: string; leaveEnd?: string; reason?: string },
+    @Body(new ZodBody(driverAvailabilitySchema)) body: DriverAvailabilityInput,
   ) {
-    return this.drivers.setAvailability(id, body.availability as any, body.leaveStart, body.leaveEnd, body.reason);
+    return this.drivers.setAvailability(actor, id, body);
   }
 
-  @Roles(UserRole.SUPER_ADMIN)
+  /** Archive (API_CONTRACT §7.2): needs a reason; ends the driver's sessions. */
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Delete(':id')
-  archive(@Param('id') id: string) {
-    return this.drivers.archive(id);
+  archive(@CurrentActor() actor: UserActor, @Param('id') id: string, @Body(new ZodBody(driverReasonSchema)) body: DriverReasonInput) {
+    return this.drivers.archive(actor, id, body.reason);
   }
 
-  @Roles(UserRole.SUPER_ADMIN)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id/reactivate')
-  reactivate(@Param('id') id: string) {
-    return this.drivers.reactivate(id);
+  reactivate(
+    @CurrentActor() actor: UserActor,
+    @Param('id') id: string,
+    @Body(new ZodBody(driverReasonSchema)) body: DriverReasonInput,
+  ) {
+    return this.drivers.reactivate(actor, id, body.reason);
   }
 }

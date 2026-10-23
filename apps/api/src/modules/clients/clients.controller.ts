@@ -1,34 +1,69 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { ClientsService } from './clients.service';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import type { ClientAddressCreateResult, ClientAddressDto } from '@smartfleet/shared-types';
+import {
+  clientsQuerySchema,
+  createClientAddressSchema,
+  createClientSchema,
+  type ClientsQuery,
+  type CreateClientAddressInput,
+  type CreateClientInput,
+} from '@smartfleet/shared-validation';
+import type { UserActor } from '../../common/auth/actor';
+import { ownDistributorId } from '../../common/auth/own-driver-id';
+import { CurrentActor } from '../../common/decorators/current-user.decorator';
+import { ExactRoles } from '../../common/decorators/roles.decorator';
+import { AppError } from '../../common/errors/app-error';
+import { validationMessage } from '../../common/errors/messages';
+import { IdempotencyKey } from '../../common/idempotency/idempotency';
+import { ZodBody, ZodQuery } from '../../common/pipes/zod-body.pipe';
+import { UuidParam } from '../orders/support/uuid-param.pipe';
+import { ClientsService, type ClientRow } from './clients.service';
 
+/**
+ * Customers (API_CONTRACT §7.4): DISTRIBUTOR exact for its own customers; the office only reads, and
+ * must say whose customers with `?distributorId=`. Distributor-scoped reads always use the token's
+ * distributor, never a query value.
+ */
 @Controller('clients')
 export class ClientsController {
   constructor(private readonly clients: ClientsService) {}
 
-  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DISTRIBUTOR, UserRole.SUPER_ADMIN)
   @Get()
-  list(@CurrentUser() user: AuthContext) {
-    return this.clients.listForDistributor(user.distributorId!);
+  list(@CurrentActor() actor: UserActor, @Query(new ZodQuery(clientsQuerySchema)) query: ClientsQuery): Promise<ClientRow[]> {
+    if (actor.role === UserRole.DISTRIBUTOR) return this.clients.list(ownDistributorId(actor));
+    if (!query.distributorId) {
+      throw new AppError('VALIDATION_FAILED', {
+        fields: [{ path: 'distributorId', code: 'REQUIRED', message: validationMessage('REQUIRED') }],
+      });
+    }
+    return this.clients.list(query.distributorId);
   }
 
-  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN)
+  @ExactRoles(UserRole.DISTRIBUTOR)
   @Post()
-  create(@CurrentUser() user: AuthContext, @Body() body: any) {
-    return this.clients.create(user.distributorId!, body);
+  create(
+    @CurrentActor() actor: UserActor,
+    @IdempotencyKey() key: string | undefined,
+    @Body(new ZodBody(createClientSchema)) body: CreateClientInput,
+  ) {
+    return this.clients.create(ownDistributorId(actor), body, key);
   }
 
-  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DISTRIBUTOR, UserRole.SUPER_ADMIN)
   @Get(':id/addresses')
-  addresses(@Param('id') id: string) {
-    return this.clients.listAddresses(id);
+  addresses(@CurrentActor() actor: UserActor, @Param('id', new UuidParam('CLIENT_NOT_FOUND')) id: string): Promise<ClientAddressDto[]> {
+    return this.clients.listAddresses(actor, id);
   }
 
-  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN)
+  @ExactRoles(UserRole.DISTRIBUTOR)
   @Post(':id/addresses')
-  addAddress(@Param('id') id: string, @Body() body: any) {
-    return this.clients.addAddress(id, body);
+  addAddress(
+    @CurrentActor() actor: UserActor,
+    @Param('id', new UuidParam('CLIENT_NOT_FOUND')) id: string,
+    @Body(new ZodBody(createClientAddressSchema)) body: CreateClientAddressInput,
+  ): Promise<ClientAddressCreateResult> {
+    return this.clients.addAddress(actor, id, body);
   }
 }

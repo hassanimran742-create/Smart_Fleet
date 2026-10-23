@@ -1,92 +1,122 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { FillingOrderStatus, UserRole, type Prisma } from '@prisma/client';
+import {
+  assignDriverSchema,
+  cancelFillingOrderSchema,
+  createFillingOrderSchema,
+  refillFilledSchema,
+  refillPickedEmptiesSchema,
+  type AssignDriverInput,
+  type CancelFillingOrderInput,
+  type CreateFillingOrderInput,
+  type RefillFilledInput,
+  type RefillPickedEmptiesInput,
+} from '@smartfleet/shared-validation';
+import type { UserActor } from '../../common/auth/actor';
+import { ownDistributorId, ownDriverId } from '../../common/auth/own-driver-id';
+import { CurrentActor } from '../../common/decorators/current-user.decorator';
+import { ExactRoles } from '../../common/decorators/roles.decorator';
+import { ZodBody } from '../../common/pipes/zod-body.pipe';
+import { UuidParam } from '../orders/support/uuid-param.pipe';
 import { FillingOrdersService } from './filling-orders.service';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
-import { FillingOrderStatus, UserRole } from '@prisma/client';
+import type { RefillView } from './refill.mapper';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Refills (API_CONTRACT §7.11): exact roles throughout. The distributor requests and cancels its own,
+ * the office assigns and completes, and only the assigned driver moves the steps.
+ */
 @Controller('filling-orders')
 export class FillingOrdersController {
-  constructor(private readonly orders: FillingOrdersService) {}
+  constructor(private readonly refills: FillingOrdersService) {}
 
-  // Distributor places a request, or admin places on their behalf.
-  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DISTRIBUTOR)
   @Post()
-  create(@CurrentUser() user: AuthContext, @Body() body: any) {
-    return this.orders.create({
-      ...body,
-      distributorId: user.distributorId ?? body.distributorId,
-    });
+  create(@CurrentActor() actor: UserActor, @Body(new ZodBody(createFillingOrderSchema)) body: CreateFillingOrderInput): Promise<RefillView> {
+    return this.refills.create(actor, body);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  /** The office list, optionally by status or driver. */
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Get()
-  listAll(@Query('status') status?: FillingOrderStatus, @Query('driverId') driverId?: string) {
-    return this.orders.list({ status, driverId });
+  listAll(@CurrentActor() actor: UserActor, @Query('status') status?: string, @Query('driverId') driverId?: string): Promise<RefillView[]> {
+    const where: Prisma.FillingOrderWhereInput = {};
+    if (status && (Object.values(FillingOrderStatus) as string[]).includes(status)) where.status = status as FillingOrderStatus;
+    if (driverId && UUID.test(driverId)) where.assignedDriverId = driverId;
+    return this.refills.list(actor, where);
   }
 
-  @Roles(UserRole.DISTRIBUTOR, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DISTRIBUTOR)
   @Get('mine')
-  listMine(@CurrentUser() user: AuthContext) {
-    return this.orders.list({ distributorId: user.distributorId });
+  mine(@CurrentActor() actor: UserActor): Promise<RefillView[]> {
+    return this.refills.list(actor, { distributorId: ownDistributorId(actor) });
   }
 
-  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DRIVER)
   @Get('driver/mine')
-  listDriverMine(@CurrentUser() user: AuthContext) {
-    return this.orders.list({ driverId: user.driverId });
+  driverMine(@CurrentActor() actor: UserActor): Promise<RefillView[]> {
+    return this.refills.list(actor, { assignedDriverId: ownDriverId(actor) });
   }
 
+  @ExactRoles(UserRole.DISTRIBUTOR, UserRole.DRIVER, UserRole.SUPER_ADMIN)
   @Get(':id')
-  byId(@Param('id') id: string) {
-    return this.orders.byId(id);
+  byId(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string): Promise<RefillView> {
+    return this.refills.byId(actor, id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Get(':id/batch-candidates')
-  batchCandidates(@Param('id') id: string, @Query('radiusKm') radiusKm?: string) {
-    return this.orders.batchCandidates(id, radiusKm ? Number(radiusKm) : 5);
+  batchCandidates(@Param('id', new UuidParam()) id: string, @Query('radiusKm') radiusKm?: string) {
+    const radius = Number(radiusKm);
+    return this.refills.batchCandidates(id, Number.isFinite(radius) && radius > 0 ? Math.min(radius, 100) : 5);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id/assign')
-  assign(@Param('id') id: string, @Body('driverId') driverId: string) {
-    return this.orders.assign(id, driverId);
+  assign(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string, @Body(new ZodBody(assignDriverSchema)) body: AssignDriverInput) {
+    return this.refills.assign(actor, actor, id, body.driverId);
   }
 
-  // Driver lifecycle transitions
-  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DRIVER)
   @Patch(':id/picked-empties')
-  markPickedEmpties(@Param('id') id: string, @Body('emptyCount') emptyCount: number) {
-    return this.orders.markPickedEmpties(id, emptyCount);
+  pickedEmpties(
+    @CurrentActor() actor: UserActor,
+    @Param('id', new UuidParam()) id: string,
+    @Body(new ZodBody(refillPickedEmptiesSchema)) body: RefillPickedEmptiesInput,
+  ) {
+    return this.refills.step(actor, id, 'picked-empties', body.emptyCount);
   }
 
-  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DRIVER)
   @Patch(':id/at-station')
-  markAtStation(@Param('id') id: string) {
-    return this.orders.markAtStation(id);
+  atStation(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
+    return this.refills.step(actor, id, 'at-station');
   }
 
-  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DRIVER)
   @Patch(':id/filled')
-  markFilled(@Param('id') id: string, @Body('filledCount') filledCount: number) {
-    return this.orders.markFilled(id, filledCount);
+  filled(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string, @Body(new ZodBody(refillFilledSchema)) body: RefillFilledInput) {
+    return this.refills.step(actor, id, 'filled', body.filledCount);
   }
 
-  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.DISPATCHER)
+  @ExactRoles(UserRole.DRIVER)
   @Patch(':id/returned')
-  markReturned(@Param('id') id: string) {
-    return this.orders.markReturned(id);
+  returned(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
+    return this.refills.step(actor, id, 'returned');
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+  /** The office's "Mark complete": no money. */
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id/complete')
-  complete(@Param('id') id: string) {
-    return this.orders.complete(id);
+  complete(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
+    return this.refills.complete(actor, actor, id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DISTRIBUTOR)
+  /** The owning distributor only, before pickup. The office has no cancel. */
+  @ExactRoles(UserRole.DISTRIBUTOR)
   @Patch(':id/cancel')
-  cancel(@Param('id') id: string, @Body('reason') reason: string) {
-    return this.orders.cancel(id, reason);
+  cancel(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string, @Body(new ZodBody(cancelFillingOrderSchema)) body: CancelFillingOrderInput) {
+    return this.refills.cancel(actor, id, body.reason);
   }
 }

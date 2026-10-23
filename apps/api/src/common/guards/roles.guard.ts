@@ -1,33 +1,58 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
-import { ROLES_KEY } from '../decorators/roles.decorator';
+import { SettingsService } from '../../modules/settings/settings.service';
+import { AppError } from '../errors/app-error';
+import { EXACT_ROLES_KEY, ROLES_KEY } from '../decorators/roles.decorator';
+import { assertSettingSwitchOn, settingSwitchOf } from '../features/feature';
 
+interface RoleRule {
+  roles: UserRole[];
+  exact: boolean;
+}
+
+/**
+ * Global (registered by AuthModule after JwtAuthGuard). The nearest rule wins: a handler's
+ * `@ExactRoles`/`@Roles`, else the class's.
+ * - `@Roles(...)`: those roles, and SUPER_ADMIN always passes (the office may use every such route).
+ * - `@ExactRoles(...)`: exactly those roles, no SUPER_ADMIN bypass.
+ * A refusal is 403 PERMISSION_DENIED, without naming the roles.
+ *
+ * A route behind `@SettingSwitch` is checked first: while its setting is off, every caller gets 403
+ * FEATURE_DISABLED before the role check (API_CONTRACT §3.4).
+ */
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    @Optional() private readonly settings?: SettingsService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (!required || required.length === 0) return true;
-    const { user } = context.switchToHttp().getRequest();
-    if (!user) {
-      throw new ForbiddenException('Authentication required');
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
+    const settingSwitch = this.settings ? settingSwitchOf(this.reflector, context) : undefined;
+    if (settingSwitch && this.settings) {
+      return assertSettingSwitchOn(settingSwitch, context, this.settings).then(() => this.checkRoles(context));
     }
+    return this.checkRoles(context);
+  }
 
-    // SUPER_ADMIN is implicitly granted ANY endpoint, including those
-    // tagged explicitly only for SUPER_ADMIN. This keeps the @Roles()
-    // decorators readable across the codebase: callers list the
-    // operational roles (ADMIN, DISPATCHER, etc.) and SUPER_ADMIN
-    // never needs to be enumerated.
-    if (user.role === UserRole.SUPER_ADMIN) return true;
+  private checkRoles(context: ExecutionContext): boolean {
+    const rule = this.ruleFor(context.getHandler()) ?? this.ruleFor(context.getClass());
+    if (!rule) return true;
 
-    if (!required.includes(user.role)) {
-      throw new ForbiddenException(`Requires one of: ${required.join(', ')}`);
-    }
+    const { user } = context.switchToHttp().getRequest<{ user?: { role?: string } }>();
+    if (!user?.role) throw new AppError('AUTH_TOKEN_INVALID');
+
+    if (!rule.exact && user.role === UserRole.SUPER_ADMIN) return true;
+    if (!rule.roles.includes(user.role as UserRole)) throw new AppError('PERMISSION_DENIED');
     return true;
+  }
+
+  private ruleFor(target: object): RoleRule | null {
+    const exact = this.reflector.get<UserRole[] | undefined>(EXACT_ROLES_KEY, target as never);
+    if (exact && exact.length > 0) return { roles: exact, exact: true };
+    const roles = this.reflector.get<UserRole[] | undefined>(ROLES_KEY, target as never);
+    if (roles && roles.length > 0) return { roles, exact: false };
+    return null;
   }
 }

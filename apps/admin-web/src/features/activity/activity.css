@@ -1,0 +1,19 @@
+/*
+ * The Activity log page (UX_ADMIN §2.9). Tokens only (src/ui/tokens.css) and logical properties, so the
+ * page works at 1024×768 and 768×1024 and a right-to-left language later is a `dir` switch.
+ */
+
+.sf-activity-log__when {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-activity-log__why {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.sf-activity-log__muted {
+  color: var(--text-muted);
+}

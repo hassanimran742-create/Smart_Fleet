@@ -1,0 +1,221 @@
+/*
+ * Top-up requests and the review drawer (UX_ADMIN §2.2). Tokens only (src/ui/tokens.css) and logical
+ * properties, so the screens work at 1024×768 and 768×1024 and right-to-left later is a `dir` switch.
+ */
+
+.sf-topups__muted {
+  color: var(--text-muted);
+}
+
+.sf-topups__mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.sf-topups__thumb {
+  display: block;
+  inline-size: 32px;
+  block-size: 32px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+/* ---- Drawer ---- */
+
+.sf-topups__section {
+  margin-block-end: var(--sp-6);
+}
+
+.sf-topups__section-title {
+  margin-block-end: var(--sp-3);
+  font-size: var(--fs-16);
+}
+
+.sf-topups__amount {
+  font-size: var(--fs-16);
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-topups__copy-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sf-topups__proof-button {
+  display: inline-block;
+  padding: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  cursor: zoom-in;
+}
+
+.sf-topups__proof-thumb {
+  display: block;
+  inline-size: 96px;
+  block-size: 96px;
+  object-fit: cover;
+  border-radius: var(--r-md);
+}
+
+.sf-topups__bank-form {
+  margin-block-start: var(--sp-3);
+}
+
+.sf-topups__bank-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--sp-4);
+}
+
+@media (max-width: 599px) {
+  .sf-topups__bank-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.sf-topups__section .sf-alert + .sf-alert {
+  margin-block-start: var(--sp-2);
+}
+
+.sf-topups__rule {
+  margin-block-end: var(--sp-6);
+}
+
+/* ---- Reject preview ---- */
+
+.sf-topups__preview {
+  margin-block: var(--sp-2) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.sf-topups__preview-title {
+  margin-block-end: var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-topups__preview-line + .sf-topups__preview-line {
+  margin-block-start: var(--sp-1);
+}
+
+.sf-topups__preview-empty {
+  color: var(--text-muted);
+}
+
+/* ---- Screenshot viewer: fits the window; a click zooms to 2x ---- */
+
+.sf-proof {
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+}
+
+.sf-proof__frame {
+  display: flex;
+  flex-direction: column;
+  inline-size: min(1100px, 100%);
+  max-block-size: 100%;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+
+.sf-proof__frame:focus {
+  outline: none;
+}
+
+.sf-proof__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+  border-block-end: 1px solid var(--border);
+}
+
+.sf-proof__title {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--fs-16);
+}
+
+.sf-proof__hint {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-proof__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 240px;
+  max-block-size: calc(100vh - 140px);
+  overflow: auto;
+  background: var(--surface-2);
+}
+
+.sf-proof__stage.is-zoomed {
+  display: block;
+}
+
+.sf-proof__toggle {
+  display: block;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.sf-proof__stage.is-zoomed .sf-proof__toggle {
+  cursor: zoom-out;
+}
+
+.sf-proof__image {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: calc(100vh - 140px);
+  object-fit: contain;
+}
+
+.sf-proof__stage.is-zoomed .sf-proof__image {
+  max-inline-size: none;
+  max-block-size: none;
+  inline-size: 200%;
+}
+
+.sf-proof__image.is-hidden {
+  visibility: hidden;
+}
+
+.sf-proof__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sf-proof__failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  max-inline-size: 360px;
+  padding: var(--sp-8) var(--sp-4);
+  color: var(--text-muted);
+  text-align: center;
+}

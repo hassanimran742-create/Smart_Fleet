@@ -1,312 +1,343 @@
-import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api/client';
-import { Body, Button, Card, Caption, Heading, Input, Pill, Screen } from '../../components/ui';
-import { colors, radius, space } from '../../theme';
+import type { FillingOrderDto, RefillStage } from '@smartfleet/shared-types';
+import { deriveRefillStage } from '@smartfleet/shared-utils';
+import { useIdempotencyKey } from '../../api/client';
+import { toApiError, type ApiError } from '../../api/errors';
+import { POLL_MS, qk } from '../../api/keys';
+import { useAppConfig } from '../../hooks/useAppConfig';
+import { useFocusedInterval } from '../../hooks/useFocusedInterval';
+import { formatWhenText } from '../../i18n';
+import {
+  Button,
+  Card,
+  colors,
+  ConfirmSheet,
+  EmptyState,
+  ErrorBanner,
+  Icon,
+  layout,
+  radius,
+  Screen,
+  SkeletonList,
+  sizes,
+  space,
+  StatusChip,
+  Stepper,
+  Text,
+  useToast,
+} from '../../ui';
+import {
+  cancelRefill,
+  fetchCylinderTypes,
+  fetchMyRefills,
+  fetchStations,
+  requestRefill,
+  type CylinderTypeRow,
+  type FillingStationRow,
+  type NewRefillBody,
+} from './shared/api';
+import { FilterChips } from './shared/FilterChips';
+import { sizeLabelFromWeight, weightSortKey } from './shared/format';
+import { CYLINDER_TYPES_STALE_MS, shopKeys } from './shared/keys';
+import { Notice } from './shared/Notice';
+import { usePullRefresh } from './shared/refresh';
+import { StaleNotice } from './shared/StaleNotice';
 
-const STATUS_TONE: Record<string, 'ok' | 'warn' | 'primary' | 'neutral' | 'danger'> = {
-  PENDING: 'warn',
-  ASSIGNED: 'primary',
-  EMPTIES_PICKED: 'primary',
-  AT_STATION: 'primary',
-  FILLED: 'primary',
-  RETURNED: 'primary',
-  COMPLETED: 'ok',
-  CANCELLED: 'neutral',
-  FAILED: 'danger',
-};
+/** The owner may cancel only before pickup: while it waits for a driver or has one (UX_MOBILE S12b). */
+const CANCELLABLE_STAGES: ReadonlySet<RefillStage> = new Set(['NEEDS_DRIVER', 'DRIVER_ASSIGNED']);
 
-type CartLine = { cylinderTypeId: string; label: string; weightKg: string; count: number };
-type Mode = 'choose' | 'our' | 'diy' | 'placed';
+function stageOf(refill: FillingOrderDto): RefillStage {
+  return refill.stage ?? deriveRefillStage({ status: refill.status, counts: refill.counts });
+}
 
 /**
- * Refill flow. First asks if the distributor wants us to handle it or
- * they'll do it themselves at their own station. The "cart" mirrors the
- * Place Order screen so users have a consistent multi-pick experience.
+ * S12b Refill request, the minimal Inc 1 change: one size per request with the count capped at
+ * `refill.maxCylinders`, a station, and the request list with each refill's stage. No do-it-yourself
+ * mode, no price and no balance: refills carry no money (ADR-16). The owner can cancel while the refill
+ * waits for a driver or has one, after a "Cancel this refill?" sheet.
  */
 export function RequestFillingScreen() {
-  const qc = useQueryClient();
-  const [mode, setMode] = useState<Mode>('choose');
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { config } = useAppConfig();
+  const max = Math.max(1, config.refill.maxCylinders);
 
-  const stations = useQuery({
-    queryKey: ['filling-stations'],
-    queryFn: async () => (await api.get('/filling-stations')).data,
-    enabled: mode === 'our',
+  const types = useQuery<CylinderTypeRow[], ApiError>({
+    queryKey: shopKeys.cylinderTypes,
+    queryFn: fetchCylinderTypes,
+    staleTime: CYLINDER_TYPES_STALE_MS,
   });
-  const types = useQuery({ queryKey: ['cylinder-types'], queryFn: async () => (await api.get('/cylinder-types')).data });
-  const balance = useQuery({ queryKey: ['balance'], queryFn: async () => (await api.get('/ledger/balance')).data });
-  const myOrders = useQuery({
-    queryKey: ['my-filling-orders'],
-    queryFn: async () => (await api.get('/filling-orders/mine')).data,
-    refetchInterval: 15000,
+  const stations = useQuery<FillingStationRow[], ApiError>({ queryKey: qk.stations, queryFn: fetchStations });
+  const poll = useFocusedInterval(POLL_MS.ordersList);
+  const refills = useQuery<FillingOrderDto[], ApiError>({
+    queryKey: qk.refills.mine,
+    queryFn: fetchMyRefills,
+    refetchInterval: poll,
   });
+  const pull = usePullRefresh(() => Promise.all([refills.refetch(), stations.refetch()]));
 
-  const [stationId, setStationId] = useState('');
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [ownStation, setOwnStation] = useState({ name: '', address: '', notes: '' });
+  const [sizeId, setSizeId] = useState<string | null>(null);
+  const [count, setCount] = useState(1);
+  const [stationId, setStationId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<FillingOrderDto | null>(null);
 
-  function addToCart(t: any) {
-    setCart((c) => {
-      const ex = c.find((x) => x.cylinderTypeId === t.id);
-      if (ex) return c.map((x) => x.cylinderTypeId === t.id ? { ...x, count: x.count + 1 } : x);
-      return [...c, { cylinderTypeId: t.id, label: t.name, weightKg: t.weightKg, count: 1 }];
-    });
-  }
-  function changeQty(id: string, delta: number) {
-    setCart((c) => c
-      .map((x) => x.cylinderTypeId === id ? { ...x, count: Math.max(0, x.count + delta) } : x)
-      .filter((x) => x.count > 0));
-  }
+  const sizes = useMemo(
+    () =>
+      [...(types.data ?? [])]
+        .sort((a, b) => weightSortKey(a.weightKg) - weightSortKey(b.weightKg))
+        .map((type) => ({ value: type.id, label: sizeLabelFromWeight(type.weightKg, t) })),
+    [types.data, t],
+  );
+  const stationList = useMemo(() => stations.data ?? [], [stations.data]);
+  // With one station there is nothing to choose; a station that went away is unselected.
+  useEffect(() => {
+    if (stationList.length === 1) setStationId(stationList[0].id);
+    else if (stationId && !stationList.some((s) => s.id === stationId)) setStationId(null);
+  }, [stationList, stationId]);
+  // The cap can come down in the settings while the screen is open.
+  useEffect(() => {
+    if (count > max) setCount(max);
+  }, [count, max]);
 
-  const pickedStation = (stations.data ?? []).find((s: any) => s.id === stationId);
-  const pricePerCyl = pickedStation ? Number(pickedStation.price_per_cylinder_paisa) / 100 : 0;
-  const cartTotal = cart.reduce((s, x) => s + x.count, 0);
-  const estimatedCost = mode === 'our' ? pricePerCyl * cartTotal : 0;
-  const myBalance = Number(balance.data?.balancePaisa ?? 0) / 100;
-  const sufficient = myBalance >= estimatedCost;
-
-  const create = useMutation({
-    mutationFn: async () => {
-      // The API accepts one cylinder type per filling order; place one per cart line.
-      const results = [];
-      for (const line of cart) {
-        if (mode === 'our') {
-          const r = await api.post('/filling-orders', {
-            fillingStationId: stationId,
-            cylinderTypeId: line.cylinderTypeId,
-            requestedCount: line.count,
-            serviceType: 'OUR_SERVICE',
-          });
-          results.push(r.data);
-        } else {
-          const r = await api.post('/filling-orders', {
-            cylinderTypeId: line.cylinderTypeId,
-            requestedCount: line.count,
-            serviceType: 'DIY',
-            ownStationName: ownStation.name,
-            ownStationAddress: ownStation.address,
-            ownStationNotes: ownStation.notes,
-          });
-          results.push(r.data);
-        }
-      }
-      return results;
-    },
+  const idem = useIdempotencyKey([sizeId, count, stationId]);
+  const request = useMutation<FillingOrderDto, ApiError, NewRefillBody>({
+    mutationFn: (body) => requestRefill(body, idem.key),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my-filling-orders'] });
-      qc.invalidateQueries({ queryKey: ['balance'] });
-      setCart([]); setStationId('');
-      setMode('placed');
+      toast.show({ message: t('refill.request.requested'), tone: 'success' });
+      void queryClient.invalidateQueries({ queryKey: qk.refills.mine });
+      setCount(1);
+      idem.renew();
     },
-    onError: (e: any) => Alert.alert('Failed', e?.response?.data?.message ?? 'Try again'),
   });
 
-  function submitOur() {
-    if (!stationId) { Alert.alert('Pick a filling station'); return; }
-    if (cartTotal === 0) { Alert.alert('Add at least one cylinder'); return; }
-    if (!sufficient) {
-      Alert.alert('Insufficient balance', `You need Rs. ${estimatedCost.toLocaleString()} but only have Rs. ${myBalance.toLocaleString()}. Top up first.`);
-      return;
-    }
-    create.mutate();
-  }
-  function submitDiy() {
-    if (!ownStation.name.trim()) { Alert.alert('Name your filling station first'); return; }
-    if (cartTotal === 0) { Alert.alert('Add at least one cylinder'); return; }
-    create.mutate();
-  }
+  const canRequest = !!sizeId && !!stationId && count >= 1 && count <= max && !request.isPending;
+  const submit = () => {
+    if (!canRequest || !sizeId || !stationId) return;
+    request.mutate({ fillingStationId: stationId, cylinderTypeId: sizeId, requestedCount: count });
+  };
 
   return (
-    <Screen scroll>
-      {mode === 'choose' && (
+    <Screen
+      refreshing={pull.refreshing}
+      onRefresh={pull.onRefresh}
+      footer={
+        <Button
+          label={t('refill.request.submit')}
+          onPress={submit}
+          size="lg"
+          loading={request.isPending}
+          loadingLabel={t('refill.request.sending')}
+          disabled={!canRequest}
+        />
+      }
+    >
+      <View style={styles.stack}>
         <Card>
-          <Heading size="h3">How do you want to refill?</Heading>
-          <Caption style={{ marginTop: 4, marginBottom: space.md }}>
-            We can pick up your empties, refill at our station, and return — or you can handle it on your own and we'll just track it.
-          </Caption>
-          <Pressable
-            onPress={() => setMode('our')}
-            style={({ pressed }: any) => ({
-              padding: space.lg, borderRadius: radius.lg, marginBottom: space.sm,
-              backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Heading size="h3" style={{ color: 'white' }}>🚚 Use our service</Heading>
-            <Caption style={{ color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>
-              We pick up empties from your store, take them to our station, and return filled. Charged to your advance balance.
-            </Caption>
-          </Pressable>
-          <Pressable
-            onPress={() => setMode('diy')}
-            style={({ pressed }: any) => ({
-              padding: space.lg, borderRadius: radius.lg,
-              backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border,
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Heading size="h3">🛠️ Do it yourself</Heading>
-            <Caption style={{ marginTop: 4 }}>
-              You handle pickup and refill at your own station. We just record the refill for your inventory.
-            </Caption>
-          </Pressable>
-        </Card>
-      )}
+          <Text variant="heading">{t('refill.request.title')}</Text>
 
-      {mode === 'our' && (
-        <>
-          <Card style={{ backgroundColor: sufficient ? undefined : '#FEF3C7' }}>
-            <Caption>Advance balance</Caption>
-            <Heading size="h2" style={{ marginTop: 2 }}>Rs. {myBalance.toLocaleString()}</Heading>
-            {!sufficient && estimatedCost > 0 && (
-              <Body style={{ color: '#92400E', marginTop: 4 }}>
-                Estimated Rs. {estimatedCost.toLocaleString()} — top up before placing.
-              </Body>
-            )}
-          </Card>
+          <Text variant="label" style={styles.label}>
+            {t('refill.request.size')}
+          </Text>
+          {!types.data ? (
+            types.isError ? (
+              <ErrorBanner error={types.error} onRetry={() => void types.refetch()} />
+            ) : (
+              <SkeletonList rows={1} />
+            )
+          ) : sizes.length === 0 ? (
+            <Notice tone="warning" text={t('refill.request.noSizes')} />
+          ) : (
+            <FilterChips<string>
+              accessibilityLabel={t('refill.request.size')}
+              options={sizes}
+              value={sizeId ?? ''}
+              onChange={setSizeId}
+            />
+          )}
+          <Text variant="caption" tone="secondary" style={styles.helper}>
+            {t('refill.request.sizeHelp')}
+          </Text>
 
-          <Card>
-            <Heading size="h3">Pick filling station</Heading>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginTop: space.sm }}>
-              {(stations.data ?? []).map((s: any) => (
-                <Button
-                  key={s.id}
-                  title={`${s.name} · Rs.${Number(s.price_per_cylinder_paisa)/100}/cyl`}
-                  variant={stationId === s.id ? 'primary' : 'ghost'}
-                  fullWidth={false}
-                  onPress={() => setStationId(s.id)}
+          <Stepper
+            label={t('refill.request.count')}
+            helper={t('refill.request.countHelp', { max })}
+            value={count}
+            min={1}
+            max={max}
+            onChange={setCount}
+            style={styles.stepper}
+          />
+
+          <Text variant="label" style={styles.label}>
+            {t('refill.request.station')}
+          </Text>
+          {!stations.data ? (
+            stations.isError ? (
+              <ErrorBanner error={stations.error} onRetry={() => void stations.refetch()} />
+            ) : (
+              <SkeletonList rows={1} />
+            )
+          ) : stationList.length === 0 ? (
+            <Notice tone="warning" text={t('refill.request.noStation')} />
+          ) : stationList.length === 1 ? (
+            <Text>{stationList[0].name}</Text>
+          ) : (
+            <View accessibilityRole="radiogroup" style={styles.stations}>
+              {stationList.map((station) => (
+                <StationOption
+                  key={station.id}
+                  station={station}
+                  selected={station.id === stationId}
+                  onPress={() => setStationId(station.id)}
                 />
               ))}
             </View>
-          </Card>
-
-          <CartCard
-            types={types.data ?? []}
-            cart={cart}
-            onAdd={addToCart}
-            onChange={changeQty}
-          />
-
-          {estimatedCost > 0 && (
-            <Card>
-              <Body>Estimated cost: <Body style={{ fontWeight: '700' }}>Rs. {estimatedCost.toLocaleString()}</Body></Body>
-            </Card>
           )}
-
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <Button title="← Back" variant="ghost" onPress={() => setMode('choose')} fullWidth={false} />
-            <Button title={create.isPending ? 'Placing…' : 'Place filling order'} onPress={submitOur} disabled={create.isPending} />
-          </View>
-        </>
-      )}
-
-      {mode === 'diy' && (
-        <>
-          <Card>
-            <Heading size="h3">Your filling station</Heading>
-            <Caption style={{ marginBottom: space.sm }}>
-              Tell us about the station you're using so we can record the refill against it.
-            </Caption>
-            <Input label="Station name *" value={ownStation.name} onChangeText={(v) => setOwnStation({ ...ownStation, name: v })} />
-            <Input label="Station address" value={ownStation.address} onChangeText={(v) => setOwnStation({ ...ownStation, address: v })} />
-            <Input label="Notes" value={ownStation.notes} onChangeText={(v) => setOwnStation({ ...ownStation, notes: v })}
-              placeholder='e.g. "Owner: Ali Khan · Receipt #4523"' />
-          </Card>
-
-          <CartCard
-            types={types.data ?? []}
-            cart={cart}
-            onAdd={addToCart}
-            onChange={changeQty}
-          />
-
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <Button title="← Back" variant="ghost" onPress={() => setMode('choose')} fullWidth={false} />
-            <Button title={create.isPending ? 'Recording…' : 'Record DIY refill'} variant="success" onPress={submitDiy} disabled={create.isPending} />
-          </View>
-        </>
-      )}
-
-      {mode === 'placed' && (
-        <Card>
-          <Heading size="h3">✓ Done</Heading>
-          <Caption style={{ marginTop: 4 }}>Order(s) saved. You'll see them below.</Caption>
-          <Button title="Place another" onPress={() => setMode('choose')} style={{ marginTop: space.md }} />
         </Card>
-      )}
 
-      <Card>
-        <Heading size="h3">My filling orders</Heading>
-        {(myOrders.data ?? []).length === 0 && <Caption>No filling orders yet.</Caption>}
-        {(myOrders.data ?? []).slice(0, 20).map((o: any) => (
-          <View key={o.id} style={{ marginTop: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Body>{o.requestedCount} × {o.cylinderType?.code} → {o.serviceType === 'DIY' ? (o.ownStationName ?? 'DIY') : o.fillingStation?.name}</Body>
-              <Caption>
-                {o.filledCount != null ? `${o.filledCount} filled · ` : ''}
-                {o.serviceType === 'DIY' ? 'DIY' : `Rs. ${Number(o.totalCostPaisa)/100}`} · {new Date(o.createdAt).toLocaleDateString()}
-              </Caption>
-            </View>
-            <Pill label={o.status} tone={STATUS_TONE[o.status] ?? 'neutral'} />
-          </View>
-        ))}
-      </Card>
+        {request.error ? <ErrorBanner error={request.error} /> : null}
+
+        <View style={styles.listHead}>
+          <Text variant="heading">{t('refill.list.title')}</Text>
+        </View>
+        {refills.isError && refills.data ? (
+          <StaleNotice updatedAt={refills.dataUpdatedAt} onRetry={() => void refills.refetch()} />
+        ) : null}
+        {!refills.data ? (
+          refills.isError ? (
+            <ErrorBanner error={refills.error} onRetry={() => void refills.refetch()} />
+          ) : (
+            <SkeletonList rows={2} />
+          )
+        ) : refills.data.length === 0 ? (
+          <EmptyState icon="cylinder" title={t('refill.list.empty')} />
+        ) : (
+          <Card padding={0}>
+            {refills.data.map((refill, index) => (
+              <RefillRow
+                key={refill.id}
+                refill={refill}
+                first={index === 0}
+                onCancel={CANCELLABLE_STAGES.has(stageOf(refill)) ? () => setCancelling(refill) : undefined}
+              />
+            ))}
+          </Card>
+        )}
+      </View>
+
+      <ConfirmSheet
+        visible={cancelling !== null}
+        title={t('refill.cancel.title')}
+        body={t('refill.cancel.body')}
+        confirmLabel={t('refill.cancel.confirm')}
+        confirmTone="danger"
+        confirmLoadingLabel={t('refill.cancel.cancelling')}
+        cancelLabel={t('refill.cancel.keep')}
+        onClose={() => setCancelling(null)}
+        onConfirm={async () => {
+          if (!cancelling) return;
+          try {
+            await cancelRefill(cancelling.id, t('refill.cancel.reasonSent'));
+            toast.show({ message: t('refill.cancel.done'), tone: 'success' });
+            void queryClient.invalidateQueries({ queryKey: qk.refills.mine });
+          } catch (thrown) {
+            // Picked up meanwhile: the list shows the new stage, and the sheet says why.
+            if (toApiError(thrown).code === 'REFILL_NOT_CANCELLABLE') void refills.refetch();
+            throw thrown;
+          }
+        }}
+      />
     </Screen>
   );
 }
 
-function CartCard({
-  types, cart, onAdd, onChange,
-}: {
-  types: any[];
-  cart: CartLine[];
-  onAdd: (t: any) => void;
-  onChange: (id: string, delta: number) => void;
-}) {
+/** One station to choose (radio row, 56 dp). */
+function StationOption({ station, selected, onPress }: { station: FillingStationRow; selected: boolean; onPress: () => void }) {
   return (
-    <>
-      <Card>
-        <Heading size="h3">Pick cylinders to refill</Heading>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm }}>
-          {types.map((t) => (
-            <Pressable
-              key={t.id}
-              onPress={() => onAdd(t)}
-              style={({ pressed }: any) => ({
-                flexBasis: '47%',
-                padding: space.md, borderRadius: radius.md,
-                borderWidth: 2, borderColor: colors.border,
-                backgroundColor: colors.surface,
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <Body style={{ fontSize: 22, marginBottom: 4 }}>🛢️</Body>
-              <Heading size="h3">{Number(t.weightKg)} kg</Heading>
-              <Caption>{t.name}</Caption>
-              <Caption style={{ color: colors.primary, marginTop: 4 }}>+ Add to cart</Caption>
-            </Pressable>
-          ))}
-        </View>
-      </Card>
-
-      <Card>
-        <Heading size="h3">Cart ({cart.reduce((s, x) => s + x.count, 0)})</Heading>
-        {cart.length === 0 && <Caption style={{ marginTop: 4 }}>Empty — pick cylinders above.</Caption>}
-        {cart.map((x) => (
-          <View key={x.cylinderTypeId} style={{ marginTop: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Body style={{ fontWeight: '600' }}>{x.label} ({Number(x.weightKg)} kg)</Body>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Pressable onPress={() => onChange(x.cylinderTypeId, -1)} style={({ pressed }: any) => ({ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
-                <Body style={{ color: 'white', fontWeight: '700' }}>−</Body>
-              </Pressable>
-              <Body style={{ minWidth: 24, textAlign: 'center', fontWeight: '700' }}>{x.count}</Body>
-              <Pressable onPress={() => onChange(x.cylinderTypeId, 1)} style={({ pressed }: any) => ({ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
-                <Body style={{ color: 'white', fontWeight: '700' }}>+</Body>
-              </Pressable>
-            </View>
-          </View>
-        ))}
-      </Card>
-    </>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={station.name}
+      android_ripple={{ color: colors.ripple }}
+      style={[styles.station, selected ? styles.stationSelected : null]}
+    >
+      <Icon name={selected ? 'radioOn' : 'radioOff'} size={24} tone={selected ? 'brand' : 'secondary'} />
+      <View style={styles.flex}>
+        <Text>{station.name}</Text>
+        {station.address ? (
+          <Text variant="caption" tone="secondary">
+            {station.address}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
+
+/** A refill: "2 × 11.8 kg · Lahore Filling Station", when it was asked for, its stage and maybe Cancel. */
+function RefillRow({ refill, first, onCancel }: { refill: FillingOrderDto; first: boolean; onCancel?: () => void }) {
+  const { t } = useTranslation();
+  const title = refill.fillingStation?.name
+    ? t('refill.list.row', { count: refill.requestedCount, size: refill.sizeLabel, station: refill.fillingStation.name })
+    : t('refill.list.rowNoStation', { count: refill.requestedCount, size: refill.sizeLabel });
+  return (
+    <View style={[styles.refill, first ? null : styles.refillDivider]}>
+      <View style={styles.flex}>
+        <Text variant="bodyStrong">{title}</Text>
+        <Text variant="caption" tone="secondary">
+          {t('refill.list.requestedAt', { when: formatWhenText(refill.createdAt) })}
+        </Text>
+        <View style={styles.chip}>
+          <StatusChip kind="refill" value={stageOf(refill)} />
+        </View>
+      </View>
+      {onCancel ? (
+        <Button
+          label={t('refill.list.cancel')}
+          onPress={onCancel}
+          variant="ghost"
+          fullWidth={false}
+          accessibilityHint={t('refill.list.cancelA11y')}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  stack: { gap: space.lg },
+  flex: { flex: 1 },
+  label: { marginTop: space.lg, marginBottom: space.xs },
+  helper: { marginTop: space.xs },
+  stepper: { marginTop: space.lg },
+  stations: { gap: space.xs },
+  station: {
+    minHeight: sizes.menuRow,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  stationSelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  listHead: { marginTop: space.sm },
+  refill: {
+    minHeight: sizes.listRow,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: layout.gutter,
+    paddingVertical: space.md,
+  },
+  refillDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  chip: { marginTop: space.xs },
+});

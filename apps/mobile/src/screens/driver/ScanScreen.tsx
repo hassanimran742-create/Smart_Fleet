@@ -1,118 +1,104 @@
-import { useState } from 'react';
-import { Alert, Button, Text, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRoute } from '@react-navigation/native';
-import { useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api/client';
+import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ApiError } from '../../api/errors';
+import { qk } from '../../api/keys';
+import type { DriverStackParams } from '../../navigation/DriverStack';
+import { Button, EmptyState } from '../../ui';
+import { ScanPanel, type ScanOutcome, type ScanRead, type ScanStep } from '../../ui/scan';
+import { DriverScreen } from './components';
+import { fetchTrip, refreshAfterScan, scanCylinder, type LegacyScanEvent } from './tripApi';
+import type { TripView } from './tripModel';
 
-type EventType =
-  | 'SCAN_IN'
-  | 'SCAN_OUT'
-  | 'DELIVERED'
-  | 'PICKED_UP_EMPTY'
-  | 'RETURNED_TO_DISTRIBUTOR'
-  | 'TRANSFER';
+/** The step each legacy scan event serves (UX_MOBILE §0: Load, Deliver, Take back, Hand back). */
+const STEP_OF: Record<LegacyScanEvent, ScanStep> = {
+  SCAN_OUT: 'LOAD',
+  DELIVERED: 'HANDOVER',
+  PICKED_UP_EMPTY: 'TAKE_BACK',
+  SCAN_IN: 'HAND_BACK',
+};
 
-const FLOWS: { key: EventType; label: string; desc: string }[] = [
-  { key: 'SCAN_IN', label: 'Receive (SCAN_IN)', desc: 'Cylinders arriving at this store from a distributor or vehicle.' },
-  { key: 'SCAN_OUT', label: 'Load on vehicle', desc: 'Loading cylinders from store onto a vehicle for delivery.' },
-  { key: 'DELIVERED', label: 'Deliver to client', desc: 'Cylinder handed to end customer.' },
-  { key: 'PICKED_UP_EMPTY', label: 'Pick up empty', desc: 'Empty cylinder collected from client.' },
-  { key: 'RETURNED_TO_DISTRIBUTOR', label: 'Return to distributor', desc: 'Empty cylinder going back to distributor for refill.' },
-];
+type Nav = NativeStackNavigationProp<DriverStackParams, 'Scan'>;
 
+/**
+ * The scan screen for one trip step (UX_MOBILE §5). A step opens it with a fixed event, the trip and,
+ * for a customer, the order; there is no list of scan types to choose from. Every scan goes to
+ * `POST /custody/scan` and its result shows in the panel's strip.
+ */
 export function ScanScreen() {
-  const route = useRoute<any>();
-  const qc = useQueryClient();
-  const initialEvent: EventType = route.params?.eventType ?? 'SCAN_OUT';
-  const tripId = route.params?.tripId;
-  const orderId = route.params?.orderId;
+  const { t } = useTranslation();
+  const navigation = useNavigation<Nav>();
+  const { params } = useRoute<RouteProp<DriverStackParams, 'Scan'>>();
+  const focused = useIsFocused();
+  const queryClient = useQueryClient();
+  const [cameraAllowed, setCameraAllowed] = useState(true);
 
-  const [permission, requestPermission] = useCameraPermissions();
-  const [eventType, setEventType] = useState<EventType>(initialEvent);
-  const [scanned, setScanned] = useState(false);
-  const [count, setCount] = useState(0);
+  const tripId = params?.tripId ?? '';
+  const orderId = params?.orderId;
+  const eventType = params?.eventType;
 
-  if (!permission) return <Text>Loading…</Text>;
-  if (!permission.granted) {
+  // The step's store or customer, from the trip the step screen already loaded.
+  const trip = useQuery<TripView, ApiError>({
+    queryKey: qk.trip(tripId),
+    queryFn: () => fetchTrip(tripId),
+    enabled: tripId !== '',
+  });
+
+  const onScan = useCallback(
+    async (read: ScanRead): Promise<ScanOutcome> => {
+      if (!eventType) throw new Error('scan step missing');
+      const result = await scanCylinder({
+        qrCode: read.code,
+        eventType,
+        tripId,
+        orderId: eventType === 'DELIVERED' || eventType === 'PICKED_UP_EMPTY' ? orderId : undefined,
+        lat: read.lat,
+        lng: read.lng,
+      });
+      refreshAfterScan(queryClient, tripId);
+      return result.alreadyRecorded ? 'already' : 'recorded';
+    },
+    [eventType, orderId, queryClient, tripId],
+  );
+
+  if (!eventType || tripId === '') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ marginBottom: 12 }}>Camera permission is required</Text>
-        <Button title="Grant" onPress={requestPermission} />
-      </View>
+      <DriverScreen
+        footer={<Button label={t('driver.steps.backToTrip')} onPress={() => navigation.goBack()} />}
+      >
+        <EmptyState icon="scan" title={t('driver.steps.missing.title')} body={t('driver.steps.missing.body')} />
+      </DriverScreen>
     );
   }
 
-  async function onScanned(data: string) {
-    if (scanned) return;
-    setScanned(true);
-    // Trim accidental whitespace / newlines some scanners append. The DB
-    // stores qrCode exactly as registered, so anything extra breaks lookup.
-    const qr = (data ?? '').trim();
-    if (!qr) {
-      Alert.alert('Empty scan', 'The QR did not return any value. Try again.');
-      setTimeout(() => setScanned(false), 800);
-      return;
-    }
-    try {
-      const { data: result } = await api.post('/custody/scan', {
-        qrCode: qr,
-        eventType,
-        tripId,
-        orderId,
-      });
-      setCount((c) => c + 1);
-      // Refresh the vehicle-load card so counts move immediately.
-      qc.invalidateQueries({ queryKey: ['my-vehicle-load'] });
-      Alert.alert('Scan recorded', `Cylinder now: ${result.newState} → ${result.toType}`);
-    } catch (e: any) {
-      const msg = e?.response?.data?.message ?? '';
-      const status = e?.response?.status;
-      let title = 'Scan failed';
-      let body = msg || 'Try again.';
-      if (status === 404) {
-        title = 'Cylinder not registered';
-        body = 'This QR is not in the system yet. Ask admin to generate it from QR generator first.';
-      } else if (/illegal transition/i.test(msg)) {
-        title = 'Wrong event for this cylinder';
-        body = msg + ' Check the event type above.';
-      } else if (/vehicle/i.test(msg)) {
-        title = 'No vehicle assigned';
-        body = 'Admin must assign you a vehicle (Vehicles → Assign drivers) before vehicle-bound scans.';
-      } else if (/orderId/i.test(msg)) {
-        title = 'Use the trip flow for delivery';
-        body = 'For Delivered, open the trip → tap the stop → Mark delivered. That carries the order context.';
-      }
-      Alert.alert(title, body);
-    } finally {
-      setTimeout(() => setScanned(false), 1500);
-    }
-  }
+  const step = STEP_OF[eventType];
+  const customer = (trip.data?.orders ?? []).find((order) => order.id === orderId)?.client?.name;
+  const place =
+    step === 'HANDOVER' || step === 'TAKE_BACK'
+      ? customer ?? t('scan.theCustomer')
+      : trip.data?.originStore?.name ?? t('scan.theStore');
 
   return (
-    <View style={{ flex: 1 }}>
-      <View style={{ padding: 12, gap: 8, backgroundColor: '#fafafa' }}>
-        <Text style={{ fontWeight: '600' }}>Event type</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {FLOWS.map((f) => (
-            <Button
-              key={f.key}
-              title={f.label}
-              onPress={() => setEventType(f.key)}
-              color={eventType === f.key ? '#0f6cf0' : '#888'}
-            />
-          ))}
-        </View>
-        <Text style={{ color: '#666', fontSize: 12 }}>
-          {FLOWS.find((f) => f.key === eventType)?.desc}
-        </Text>
-        <Text style={{ color: '#1ea675' }}>Scanned this session: {count}</Text>
-      </View>
-      <CameraView
-        style={{ flex: 1 }}
-        barcodeScannerSettings={{ barcodeTypes: ['qr', 'code128', 'ean13'] }}
-        onBarcodeScanned={scanned ? undefined : (r) => onScanned(r.data)}
+    <DriverScreen
+      footer={
+        <Button
+          label={t('scan.done')}
+          variant={cameraAllowed ? 'primary' : 'secondary'}
+          onPress={() => navigation.goBack()}
+          testID="scan.done"
+        />
+      }
+    >
+      <ScanPanel
+        step={step}
+        place={place}
+        onScan={onScan}
+        active={focused}
+        onCameraAllowedChange={setCameraAllowed}
+        testID="scan.panel"
       />
-    </View>
+    </DriverScreen>
   );
 }

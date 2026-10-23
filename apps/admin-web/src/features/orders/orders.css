@@ -1,0 +1,214 @@
+/*
+ * The Orders board, the order drawer and its dialogs (UX_ADMIN §2.5), plus the small "More" menu the
+ * distributor page reuses. Tokens only and logical properties: the page works at 1024×768 and
+ * 768×1024 and a right-to-left language later is a `dir` switch.
+ */
+
+/* ---------- "More" menu ---------- */
+.sf-more {
+  position: relative;
+  display: inline-flex;
+}
+
+.sf-more__menu {
+  position: absolute;
+  inset-inline-end: 0;
+  z-index: var(--z-sticky);
+  display: grid;
+  min-inline-size: 240px;
+  max-inline-size: min(360px, calc(100vw - 2 * var(--sp-4)));
+  padding: var(--sp-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  animation: sf-fade-in var(--dur-fast) ease-out;
+}
+
+.sf-more__menu:focus {
+  outline: none;
+}
+
+.sf-more__menu--down {
+  inset-block-start: calc(100% + var(--sp-1));
+}
+
+.sf-more__menu--up {
+  inset-block-end: calc(100% + var(--sp-1));
+}
+
+.sf-drawer__footer-start .sf-more__menu {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+}
+
+.sf-more__item {
+  display: grid;
+  gap: 2px;
+  min-block-size: var(--control-h);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: start;
+}
+
+.sf-more__item:hover,
+.sf-more__item:focus-visible {
+  background: var(--surface-2);
+}
+
+.sf-more__item:focus-visible {
+  outline-offset: -2px;
+}
+
+.sf-more__item.is-danger .sf-more__label {
+  color: var(--danger-fg);
+}
+
+.sf-more__label {
+  font-weight: 600;
+}
+
+.sf-more__description {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+/* ---------- Board ---------- */
+.sf-orders .sf-tabs {
+  overflow-y: hidden;
+}
+
+.sf-orders__filters .sf-field {
+  min-inline-size: 200px;
+}
+
+.sf-orders__filters .sf-search {
+  flex: 1 1 280px;
+  max-inline-size: 420px;
+}
+
+.sf-orders__no {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sf-orders__two-line {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.sf-orders__muted {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-orders__nowrap {
+  white-space: nowrap;
+}
+
+.sf-orders__more {
+  display: flex;
+  justify-content: center;
+}
+
+/* ---------- Drawer ---------- */
+.sf-order__section {
+  display: grid;
+  gap: var(--sp-2);
+  padding-block: var(--sp-4);
+  border-block-end: 1px solid var(--border);
+}
+
+.sf-order__section:first-child {
+  padding-block-start: 0;
+}
+
+.sf-order__section:last-child {
+  border-block-end: 0;
+}
+
+.sf-order__section-title {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-order__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sf-order__strong {
+  font-weight: 600;
+}
+
+.sf-order__lines {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-order__warning {
+  color: var(--danger-fg);
+  font-weight: 600;
+}
+
+.sf-order__skeleton {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+/* ---------- Dialogs ---------- */
+.sf-order-dialog {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.sf-order-dialog__body {
+  font-size: var(--fs-14);
+}
+
+.sf-order-dialog__body.is-danger {
+  color: var(--danger-fg);
+  font-weight: 600;
+}
+
+.sf-order-dialog__summary {
+  color: var(--text-muted);
+}
+
+.sf-order-dialog__start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.sf-order-dialog__start-hint {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-order-dialog__drivers {
+  padding: 2px;
+}
+
+.sf-order-dialog__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+}

@@ -1,0 +1,141 @@
+/*
+ * Wallets, the wallet page and the correction dialog (UX_ADMIN §2.6). Tokens only (src/ui/tokens.css)
+ * and logical properties, so the screens work at 1024×768 and 768×1024 and right-to-left later is a
+ * `dir` switch. The print rules at the end print the history clearly.
+ */
+
+.sf-wallets__name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.sf-wallets__muted {
+  color: var(--text-muted);
+}
+
+/* ---- Wallet page ---- */
+
+.sf-wallet__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  max-inline-size: 560px;
+  margin-block-end: var(--sp-4);
+  padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sf-wallet__card-label {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-wallet__balance {
+  font-size: var(--fs-28);
+  line-height: 1.2;
+}
+
+.sf-wallet__checking {
+  color: var(--text-muted);
+}
+
+.sf-wallet__integrity-ok {
+  margin-block-start: var(--sp-2);
+  color: var(--success-fg);
+  font-weight: 600;
+}
+
+.sf-wallet__mismatch,
+.sf-wallet__below-zero {
+  max-inline-size: 760px;
+  margin-block-end: var(--sp-4);
+}
+
+.sf-wallet__history {
+  margin-block-start: var(--sp-6);
+}
+
+.sf-wallet__section-title {
+  margin-block-end: var(--sp-3);
+  font-size: var(--fs-16);
+}
+
+.sf-wallet__statement-alert {
+  margin-block-end: var(--sp-3);
+}
+
+.sf-wallet__when {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Correction dialog ---- */
+
+.sf-correction__preview {
+  margin-block: calc(-1 * var(--sp-2)) var(--sp-4);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-correction__related {
+  min-block-size: 0;
+  margin-block: calc(-1 * var(--sp-3)) var(--sp-4);
+  font-size: var(--fs-13);
+}
+
+.sf-correction__related:empty {
+  margin: 0;
+}
+
+.sf-correction__muted {
+  color: var(--text-muted);
+}
+
+.sf-correction__found {
+  color: var(--success-fg);
+}
+
+.sf-correction .sf-alert {
+  margin-block-end: var(--sp-4);
+}
+
+/* ---- Print: the balance and the history, without controls ---- */
+
+@media print {
+  .sf-wallet .sf-filter-bar,
+  .sf-wallet .sf-table__footer,
+  .sf-wallet .sf-alert__action,
+  .sf-wallet .sf-btn {
+    display: none !important;
+  }
+
+  .sf-wallet__card {
+    box-shadow: none;
+    border-color: var(--border-input);
+  }
+
+  .sf-wallet .sf-table-scroll {
+    overflow: visible;
+  }
+
+  .sf-wallet .sf-table {
+    inline-size: 100%;
+  }
+
+  /* Print every column, including those hidden on narrow screens. */
+  .sf-wallet .sf-col-p2,
+  .sf-wallet .sf-col-p3 {
+    display: table-cell !important;
+  }
+
+  .sf-wallet .sf-table__row {
+    break-inside: avoid;
+  }
+}

@@ -1,0 +1,79 @@
+/*
+ * The design system's buttons inside the legacy screens (UX_ADMIN §2.11 touch-ups). The old stylesheet
+ * (src/styles.css) styles every `.legacy button`, which would give an IconButton or a Button its old
+ * padding, border and background. These rules, one level more specific, put the design system's look back.
+ */
+
+.legacy button.sf-icon-btn {
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.legacy button.sf-icon-btn:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--neutral-bg);
+  color: var(--text);
+}
+
+.legacy button.sf-icon-btn--ghost-danger {
+  color: var(--danger-fg);
+}
+
+.legacy button.sf-icon-btn--ghost-danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+.legacy button.sf-btn {
+  padding: 0 var(--sp-4);
+  border: 1px solid transparent;
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.legacy button.sf-btn--sm {
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-13);
+}
+
+.legacy button.sf-btn--primary {
+  background: var(--primary);
+  color: var(--on-solid);
+}
+
+.legacy button.sf-btn--primary:hover:not([aria-disabled='true']):not(:disabled) {
+  border-color: transparent;
+  background: var(--primary-hover);
+  box-shadow: none;
+}
+
+.legacy button.sf-btn--secondary {
+  border-color: var(--border-input);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.legacy button.sf-btn--secondary:hover:not([aria-disabled='true']):not(:disabled) {
+  border-color: var(--border-input);
+  background: var(--surface-2);
+}
+
+.legacy button.sf-btn--ghost {
+  background: transparent;
+  color: var(--primary);
+}
+
+.legacy button.sf-btn--ghost:hover:not([aria-disabled='true']):not(:disabled) {
+  border-color: transparent;
+  background: var(--primary-soft);
+}
+
+/* A row of icon actions stays on one line; a wide table scrolls inside its screen. */
+.legacy .sf-legacy-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--sp-1);
+  white-space: nowrap;
+}

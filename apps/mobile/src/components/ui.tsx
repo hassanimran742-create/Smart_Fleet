@@ -1,82 +1,143 @@
-import { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, ViewStyle, TextStyle } from 'react-native';
-import { colors, radius, shadow, space, text } from '../theme';
+/**
+ * Legacy components, now thin wrappers over the design system in `src/ui` (UX_MOBILE §2 Migration).
+ * They accept the props older screens pass (including `muted` on text), so those screens keep working
+ * and get the AA colours, the 48 / 56 dp targets and the larger type. New screens import `src/ui`.
+ */
+import type { ReactNode } from 'react';
+import { View, type KeyboardTypeOptions, type TextStyle, type ViewStyle } from 'react-native';
+import {
+  Button as UiButton,
+  Card as UiCard,
+  Field,
+  Screen as UiScreen,
+  StatusChip,
+  Text,
+  layout,
+  space,
+  type ButtonVariant,
+  type ChipTone,
+} from '../ui';
 
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return <UiCard style={[{ marginBottom: layout.cardGap }, style]}>{children}</UiCard>;
 }
 
-export function Heading({ children, size = 'h2', style, numberOfLines }: { children: ReactNode; size?: 'h1' | 'h2' | 'h3'; style?: TextStyle; numberOfLines?: number }) {
-  return <Text style={[text[size], style]} numberOfLines={numberOfLines}>{children}</Text>;
+const HEADING_VARIANT = { h1: 'title', h2: 'heading', h3: 'bodyStrong' } as const;
+
+export function Heading({
+  children,
+  size = 'h2',
+  style,
+  numberOfLines,
+}: {
+  children: ReactNode;
+  size?: 'h1' | 'h2' | 'h3';
+  style?: TextStyle;
+  numberOfLines?: number;
+}) {
+  return (
+    <Text variant={HEADING_VARIANT[size]} accessibilityRole="header" style={style} numberOfLines={numberOfLines}>
+      {children}
+    </Text>
+  );
 }
 
-export function Body({ children, muted = false, style, numberOfLines }: { children: ReactNode; muted?: boolean; style?: TextStyle; numberOfLines?: number }) {
-  return <Text style={[text.body, muted && { color: colors.textMuted }, style]} numberOfLines={numberOfLines}>{children}</Text>;
+export function Body({
+  children,
+  muted = false,
+  style,
+  numberOfLines,
+}: {
+  children: ReactNode;
+  muted?: boolean;
+  style?: TextStyle;
+  numberOfLines?: number;
+}) {
+  return (
+    <Text variant="body" tone={muted ? 'secondary' : 'default'} style={style} numberOfLines={numberOfLines}>
+      {children}
+    </Text>
+  );
 }
 
-export function Caption({ children, style, numberOfLines }: { children: ReactNode; style?: TextStyle; numberOfLines?: number }) {
-  return <Text style={[text.caption, style]} numberOfLines={numberOfLines}>{children}</Text>;
+/** Captions are secondary text already; `muted` is accepted for older screens and changes nothing. */
+export function Caption({
+  children,
+  style,
+  numberOfLines,
+}: {
+  children: ReactNode;
+  muted?: boolean;
+  style?: TextStyle;
+  numberOfLines?: number;
+}) {
+  return (
+    <Text variant="caption" tone="secondary" style={style} numberOfLines={numberOfLines}>
+      {children}
+    </Text>
+  );
 }
+
+type LegacyButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
+
+/** Legacy "success" (green, 3.10:1) becomes primary; legacy "ghost" (outlined) becomes secondary. */
+const BUTTON_VARIANT: Record<LegacyButtonVariant, ButtonVariant> = {
+  primary: 'primary',
+  secondary: 'secondary',
+  ghost: 'secondary',
+  danger: 'danger',
+  success: 'primary',
+};
 
 type ButtonProps = {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
+  variant?: LegacyButtonVariant;
   disabled?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
 };
 
 export function Button({ title, onPress, variant = 'primary', disabled, fullWidth = true, style }: ButtonProps) {
-  const palette = {
-    primary:   { bg: colors.primary, fg: '#fff' },
-    secondary: { bg: colors.primarySoft, fg: colors.primary },
-    ghost:     { bg: 'transparent', fg: colors.text },
-    danger:    { bg: colors.danger, fg: '#fff' },
-    success:   { bg: colors.ok, fg: '#fff' },
-  }[variant];
   return (
-    <Pressable
-      onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [
-        styles.button,
-        fullWidth && { alignSelf: 'stretch' },
-        { backgroundColor: palette.bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
-        variant === 'ghost' && { borderWidth: 1, borderColor: colors.border },
-        style,
-      ]}
-    >
-      <Text style={[styles.buttonText, { color: palette.fg }]}>{title}</Text>
-    </Pressable>
+    <UiButton
+      label={title}
+      onPress={onPress}
+      variant={BUTTON_VARIANT[variant]}
+      disabled={disabled}
+      fullWidth={fullWidth}
+      style={[{ marginVertical: space.xs }, style]}
+    />
   );
 }
 
+type PillTone = 'ok' | 'warn' | 'danger' | 'primary' | 'neutral';
+
+const PILL_TONE: Record<PillTone, ChipTone> = {
+  ok: 'success',
+  warn: 'warning',
+  danger: 'danger',
+  primary: 'brand',
+  neutral: 'neutral',
+};
+
 type PillProps = {
   label: string;
-  tone?: 'ok' | 'warn' | 'danger' | 'primary' | 'neutral';
+  tone?: PillTone;
   style?: ViewStyle;
 };
 
 export function Pill({ label, tone = 'neutral', style }: PillProps) {
-  const palette = {
-    ok: { bg: colors.okSoft, fg: colors.ok },
-    warn: { bg: colors.warnSoft, fg: colors.warn },
-    danger: { bg: colors.dangerSoft, fg: colors.danger },
-    primary: { bg: colors.primarySoft, fg: colors.primary },
-    neutral: { bg: '#EEF0F4', fg: colors.textMuted },
-  }[tone];
-  return (
-    <View style={[{ alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: palette.bg }, style]}>
-      <Text style={{ color: palette.fg, fontWeight: '600', fontSize: 12 }}>{label}</Text>
-    </View>
-  );
+  return <StatusChip tone={PILL_TONE[tone] ?? 'neutral'} label={label} style={style} />;
 }
 
 export function StatBlock({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ paddingVertical: space.sm }}>
       <Caption>{label}</Caption>
-      <Text style={{ ...text.h2, marginTop: 2 }}>{value}</Text>
+      <Text variant="heading" tabular style={{ marginTop: 2 }}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -96,74 +157,29 @@ export function Input({
   value: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
-  keyboardType?: 'default' | 'phone-pad' | 'email-address' | 'numeric' | 'number-pad' | 'decimal-pad';
+  keyboardType?: KeyboardTypeOptions;
   maxLength?: number;
   secureTextEntry?: boolean;
   autoFocus?: boolean;
   multiline?: boolean;
 }) {
-  // Importing TextInput here to keep usage local
-  const { TextInput } = require('react-native');
   return (
-    <View style={{ marginBottom: space.md }}>
-      {label && <Text style={[text.caption, { marginBottom: space.xs }]}>{label}</Text>}
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        keyboardType={keyboardType}
-        maxLength={maxLength}
-        secureTextEntry={secureTextEntry}
-        autoFocus={autoFocus}
-        multiline={multiline}
-        style={{
-          backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: radius.md,
-          paddingVertical: 12,
-          paddingHorizontal: 14,
-          fontSize: 15,
-          color: colors.text,
-          minHeight: multiline ? 80 : undefined,
-        }}
-      />
-    </View>
+    <Field
+      label={label ?? ''}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      keyboardType={keyboardType}
+      maxLength={maxLength}
+      secure={secureTextEntry}
+      autoFocus={autoFocus}
+      multiline={multiline}
+      style={{ marginBottom: space.md }}
+    />
   );
 }
 
+/** Legacy screens default to no scrolling (some hold their own FlatList). */
 export function Screen({ children, scroll = false }: { children: ReactNode; scroll?: boolean }) {
-  const Wrapper = scroll
-    ? require('react-native').ScrollView
-    : View;
-  return (
-    <Wrapper
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={scroll ? { padding: space.lg, paddingBottom: space.xxl } : undefined}
-    >
-      {!scroll ? <View style={{ flex: 1, padding: space.lg }}>{children}</View> : children}
-    </Wrapper>
-  );
+  return <UiScreen scroll={scroll}>{children}</UiScreen>;
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: space.lg,
-    marginBottom: space.md,
-    ...shadow.card,
-  },
-  button: {
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    marginVertical: space.xs,
-  },
-  buttonText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});

@@ -1,84 +1,60 @@
-import { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api/client';
-import { Body, Button, Card, Caption, Heading, Input, Screen } from '../../components/ui';
-import { space } from '../../theme';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import type { DistributorDto } from '@smartfleet/shared-types';
+import type { ApiError } from '../../api/errors';
+import { useOfficeContact } from '../../hooks/useAppConfig';
+import { Button, Card, ltr, QueryBoundary, Screen, SkeletonCard, space } from '../../ui';
+import { fetchDistributorMe } from './shared/api';
+import { phoneText } from './shared/format';
+import { InfoRow } from './shared/InfoRow';
+import { shopKeys } from './shared/keys';
+import { Notice } from './shared/Notice';
+import { usePullRefresh } from './shared/refresh';
 
+/**
+ * S12 Profile, read-only (UX_MOBILE §4): name, business name, shop code, mobile, store name and
+ * address, with "To change these, call the office." No CNIC, role or IDs, and nothing to edit.
+ */
 export function ProfileScreen() {
-  const qc = useQueryClient();
-  const me = useQuery({
-    queryKey: ['me'],
-    queryFn: async () => (await api.get('/users/me')).data,
-  });
-
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    cnic: '',
-    businessName: '',
-  });
-
-  useEffect(() => {
-    if (me.data) {
-      setForm({
-        name: me.data.name ?? '',
-        email: me.data.email ?? '',
-        phone: me.data.phone ?? '',
-        cnic: me.data.cnic ?? '',
-        businessName: me.data.distributorProfile?.businessName ?? '',
-      });
-    }
-  }, [me.data]);
-
-  const save = useMutation({
-    mutationFn: () => api.patch('/users/me', form),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['me'] });
-      Alert.alert('Saved', 'Your profile has been updated.');
-    },
-    onError: (e: any) => Alert.alert('Failed', e?.response?.data?.message ?? 'Try again'),
-  });
+  const { t } = useTranslation();
+  const office = useOfficeContact();
+  const me = useQuery<DistributorDto, ApiError>({ queryKey: shopKeys.distributorMe, queryFn: fetchDistributorMe });
+  const pull = usePullRefresh(me.refetch);
 
   return (
-    <Screen scroll>
-      <Card>
-        <Heading size="h3">Your profile</Heading>
-        <Caption style={{ marginTop: 4, marginBottom: space.md }}>
-          These details show up on every order placed from your account.
-        </Caption>
-
-        <Input label="Your name" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
-        <Input label="Business name" value={form.businessName} onChangeText={(v) => setForm({ ...form, businessName: v })} />
-        <Input label="Phone" value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} keyboardType="phone-pad" />
-        <Input label="Email" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" placeholder="optional" />
-        <Input label="CNIC" value={form.cnic} onChangeText={(v) => setForm({ ...form, cnic: v })} placeholder="12345-1234567-1" />
-
-        <Button
-          title={save.isPending ? 'Saving…' : 'Save changes'}
-          onPress={() => save.mutate()}
-          disabled={save.isPending}
-          style={{ marginTop: space.md }}
-        />
-      </Card>
-
-      <Card>
-        <Heading size="h3">Account info</Heading>
-        <Row label="Role" value={me.data?.role ?? '—'} />
-        <Row label="Status" value={me.data?.status ?? '—'} />
-        <Row label="Distributor ID" value={me.data?.distributorProfile?.id?.slice(0, 8) ?? '—'} />
-        <Row label="Member since" value={me.data?.createdAt ? new Date(me.data.createdAt).toLocaleDateString() : '—'} />
-      </Card>
+    <Screen refreshing={pull.refreshing} onRefresh={pull.onRefresh}>
+      <QueryBoundary query={me} skeleton={<SkeletonCard lines={5} />}>
+        {(shop) => (
+          <View style={styles.stack}>
+            <Card>
+              <InfoRow label={t('home.profile.name')} divider={false}>
+                {shop.contact.name}
+              </InfoRow>
+              <InfoRow label={t('home.profile.businessName')}>{shop.businessName}</InfoRow>
+              <InfoRow label={t('home.profile.shopCode')}>{ltr(shop.code)}</InfoRow>
+              <InfoRow label={t('home.profile.mobile')}>{ltr(phoneText(shop.contact.phone))}</InfoRow>
+              <InfoRow label={t('home.profile.store')}>{shop.store?.name ?? t('home.profile.storeNotSet')}</InfoRow>
+              {shop.store?.address ? <InfoRow label={t('home.profile.storeAddress')}>{shop.store.address}</InfoRow> : null}
+            </Card>
+            <Notice tone="neutral" text={t('home.profile.changeNote')}>
+              {office.phone ? (
+                <Button
+                  label={t('common.actions.callTheOffice')}
+                  onPress={office.call}
+                  icon="call"
+                  variant="secondary"
+                  fullWidth={false}
+                />
+              ) : null}
+            </Notice>
+          </View>
+        )}
+      </QueryBoundary>
     </Screen>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
-      <Caption>{label}</Caption>
-      <Body style={{ fontWeight: '600' }}>{value}</Body>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  stack: { gap: space.lg },
+});

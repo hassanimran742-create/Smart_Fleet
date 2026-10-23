@@ -1,29 +1,30 @@
 import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
-import { AlertsService } from './alerts.service';
+import { UserRole } from '@prisma/client';
+import { alertsQuerySchema, type AlertsQuery } from '@smartfleet/shared-validation';
+import { ExactRoles } from '../../common/decorators/roles.decorator';
+import { ZodQuery } from '../../common/pipes/zod-body.pipe';
 import { AlertRulesService } from './alert-rules.service';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { AlertSeverity, AlertStatus, UserRole } from '@prisma/client';
+import { AlertsService } from './alerts.service';
 
+/** The legacy office alerts (API_CONTRACT §7.2: office exact). Customer-problem cases are never shown here. */
 @Controller('alerts')
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.DISPATCHER)
+@ExactRoles(UserRole.SUPER_ADMIN)
 export class AlertsController {
   constructor(
     private readonly alerts: AlertsService,
     private readonly rules: AlertRulesService,
   ) {}
 
-  // Re-evaluate user-defined rules every time the list is loaded so the operator
-  // sees current state without needing a separate worker. The evaluation is dedup-ed
-  // and bounded by the (small) number of rules, so cost is low for v1.
+  /** Re-evaluates the rules first, so the office always sees the current state (deduplicated). */
   @Get()
-  async list(@Query('status') status?: AlertStatus, @Query('severity') severity?: AlertSeverity) {
+  async list(@Query(new ZodQuery(alertsQuerySchema)) query: AlertsQuery) {
     await this.rules.evaluateAll();
-    return this.alerts.list({ status, severity });
+    return this.alerts.list(query);
   }
 
   @Get('unread-count')
-  unread() {
-    return this.alerts.unreadCount().then((count) => ({ count }));
+  async unread() {
+    return { count: await this.alerts.unreadCount() };
   }
 
   @Patch(':id/acknowledge')

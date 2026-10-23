@@ -1,0 +1,19 @@
+{
+  "displayName": "e2e",
+  "rootDir": "..",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "testRegex": ".*\\.e2e-spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "testEnvironment": "node",
+  "setupFiles": ["<rootDir>/test/jest.setup.ts"],
+  "setupFilesAfterEnv": ["<rootDir>/test/helpers/e2e-setup.ts"],
+  "globalSetup": "<rootDir>/test/helpers/global-setup.ts",
+  "globalTeardown": "<rootDir>/test/money/wallet-check.teardown.ts",
+  "moduleNameMapper": {
+    "^@smartfleet/(.*)$": "<rootDir>/../../packages/$1/src"
+  },
+  "maxWorkers": 1,
+  "testTimeout": 30000
+}

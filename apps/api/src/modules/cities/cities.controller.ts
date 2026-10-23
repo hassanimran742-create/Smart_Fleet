@@ -1,8 +1,11 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { CitiesService } from './cities.service';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
+import { createCitySchema, type CreateCityInput } from '@smartfleet/shared-validation';
+import { ExactRoles } from '../../common/decorators/roles.decorator';
+import { ZodBody } from '../../common/pipes/zod-body.pipe';
+import { CitiesService } from './cities.service';
 
+/** Cities: any signed-in user reads them; only the office adds one (API_CONTRACT §7.2). */
 @Controller('cities')
 export class CitiesController {
   constructor(private readonly cities: CitiesService) {}
@@ -17,9 +20,9 @@ export class CitiesController {
     return this.cities.areasForCity(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Post()
-  create(@Body() body: { name: string; countryCode?: string }) {
+  create(@Body(new ZodBody(createCitySchema)) body: CreateCityInput) {
     return this.cities.createCity(body);
   }
 }

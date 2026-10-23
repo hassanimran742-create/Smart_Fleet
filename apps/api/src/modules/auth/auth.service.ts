@@ -1,244 +1,233 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
-import { SmsService } from '../sms/sms.service';
-import { OtpPurpose, UserRole, UserStatus } from '@prisma/client';
-import * as crypto from 'crypto';
+import { Prisma, UserRole, UserStatus } from '@prisma/client';
+import { APP_DISPLAY_NAME, type LoginResponse } from '@smartfleet/shared-types';
+import { normalizePkPhone } from '@smartfleet/shared-utils';
+import type { ChangePasswordInput, LoginInput } from '@smartfleet/shared-validation';
 import * as argon2 from 'argon2';
+import { createHash, randomBytes, randomUUID } from 'crypto';
+import { RequestContext } from '../../common/context/request-context';
+import { AppError } from '../../common/errors/app-error';
+import { validationMessage } from '../../common/errors/messages';
+import { PrismaService } from '../../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
+import { SessionCheckService } from './session-check.service';
+import { appForRole, lacksRoleProfile, readTokenClaims, type TokenClaims } from './token-claims';
 
-const OTP_TTL_MS = 5 * 60 * 1000;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_RATE_WINDOW_MS = 60 * 1000;
-const OTP_RATE_MAX = 3;
+/** API_CONTRACT §7.1: access tokens last 12 hours and refresh tokens 30 days unless env says otherwise. */
+const DEFAULT_ACCESS_TTL_SECONDS = 12 * 60 * 60;
+const DEFAULT_REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+/** What a token is built from: the user, their token version and their profile ids. */
+const TOKEN_USER_SELECT = {
+  id: true,
+  role: true,
+  status: true,
+  tokenVersion: true,
+  distributorProfile: { select: { id: true } },
+  driverProfile: { select: { id: true } },
+  clientProfile: { select: { id: true } },
+} satisfies Prisma.UserSelect;
+
+type TokenUser = Prisma.UserGetPayload<{ select: typeof TOKEN_USER_SELECT }>;
+
+/** A DISTRIBUTOR or DRIVER user without its shop or driver row (legacy data): it gets no tokens (§3.2). */
+function lacksProfile(user: TokenUser): boolean {
+  return lacksRoleProfile({ role: user.role, distributorId: user.distributorProfile?.id, driverId: user.driverProfile?.id });
+}
+
+/** The profile a signed-in user reads at `GET /auth/me`. */
+const ME_SELECT = { id: true, phone: true, email: true, name: true, role: true, status: true } satisfies Prisma.UserSelect;
+
+function sha256(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+/**
+ * Sign-in, refresh and password change (API_CONTRACT §3.3, §7.1). Every refusal is an AppError with
+ * a stable code, and no message ever mentions a one-time code: the installed app's sign-in screen
+ * jumps to its code screen when one does (§2.1).
+ */
 @Injectable()
 export class AuthService {
-  private logger = new Logger(AuthService.name);
+  private dummyHash: Promise<string> | null = null;
 
   constructor(
-    private prisma: PrismaService,
-    private sms: SmsService,
-    private jwt: JwtService,
-    private cfg: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+    private readonly cfg: ConfigService,
+    private readonly settings: SettingsService,
+    private readonly sessions: SessionCheckService,
   ) {}
 
-  async sendOtp(phone: string, purpose: OtpPurpose) {
-    const since = new Date(Date.now() - OTP_RATE_WINDOW_MS);
-    const recent = await this.prisma.otpCode.count({
-      where: { phone, createdAt: { gte: since } },
-    });
-    if (recent >= OTP_RATE_MAX) {
-      throw new BadRequestException('Too many OTP requests, please wait.');
-    }
-
-    const code = String(crypto.randomInt(100000, 999999));
-    const codeHash = await argon2.hash(code);
-    await this.prisma.otpCode.create({
-      data: {
-        phone,
-        codeHash,
-        purpose,
-        expiresAt: new Date(Date.now() + OTP_TTL_MS),
-      },
-    });
-    await this.sms.sendOtp(phone, code);
-
-    // Mock-mode convenience: in non-production environments, return the OTP in
-    // the API response so the mobile/admin app can auto-fill it for testing.
-    // Guarded by NODE_ENV so production builds never leak OTPs over the wire.
-    const isMock = (this.cfg.get<string>('sms.provider') ?? 'mock') === 'mock';
-    const isProd = process.env.NODE_ENV === 'production';
-    if (isMock && !isProd) {
-      return { ok: true, devCode: code } as const;
-    }
-    return { ok: true } as const;
+  /** Code (OTP) sign-in isn't built in the pilot (ADR-03): both routes refuse before any lookup or write. */
+  otpDisabled(): never {
+    throw new AppError('AUTH_OTP_DISABLED');
   }
 
-  async verifyOtp(phone: string, code: string) {
-    const otp = await this.prisma.otpCode.findFirst({
-      where: { phone, consumedAt: null, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!otp) throw new UnauthorizedException('OTP expired or not found');
+  /**
+   * `POST /auth/login`. After the rate limits and the body check (both before this runs), the first
+   * failing rule answers: (3) AUTH_INVALID_CREDENTIALS for a phone that isn't a Pakistani mobile, an
+   * unknown phone, a user without a password or a wrong password; (4) AUTH_ROLE_LOCKED; (5)
+   * AUTH_ACCOUNT_NOT_ACTIVE, also for a DISTRIBUTOR or DRIVER without its shop or driver row; (6)
+   * AUTH_WRONG_APP. Nothing about an account shows without its password.
+   */
+  async login(body: LoginInput): Promise<LoginResponse> {
+    const phone = normalizePkPhone(body.phone);
+    const user = phone
+      ? await this.prisma.user.findUnique({ where: { phone }, select: { ...TOKEN_USER_SELECT, passwordHash: true } })
+      : null;
+    // Unknown phones and users without a password still verify a hash, so timing reveals nothing.
+    const matches = await this.verifyPassword(user?.passwordHash ?? null, body.password);
+    if (!user || !matches) throw new AppError('AUTH_INVALID_CREDENTIALS');
 
-    if (otp.attempts >= OTP_MAX_ATTEMPTS) {
-      throw new UnauthorizedException('Too many attempts');
+    const lockedRoles = await this.settings.get('auth.lockedRoles');
+    if (lockedRoles.includes(user.role)) throw new AppError('AUTH_ROLE_LOCKED');
+    // A shop or driver login without its row can't be scoped to anything: it isn't a working account.
+    if (user.status !== UserStatus.ACTIVE || lacksProfile(user)) throw new AppError('AUTH_ACCOUNT_NOT_ACTIVE');
+
+    // Installed 0.1.0 apps send no X-App-Variant; then there is no app check.
+    const variant = RequestContext.current()?.appVariant;
+    const app = appForRole(user.role);
+    if (variant && variant !== app) {
+      throw new AppError('AUTH_WRONG_APP', { role: user.role, app: APP_DISPLAY_NAME[app] });
     }
-
-    const ok = await argon2.verify(otp.codeHash, code);
-    if (!ok) {
-      await this.prisma.otpCode.update({
-        where: { id: otp.id },
-        data: { attempts: { increment: 1 } },
-      });
-      throw new UnauthorizedException('Invalid code');
-    }
-    await this.prisma.otpCode.update({
-      where: { id: otp.id },
-      data: { consumedAt: new Date() },
-    });
-
-    let user = await this.prisma.user.findUnique({
-      where: { phone },
-      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
-    });
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: { phone, name: phone, role: UserRole.CLIENT, status: UserStatus.ACTIVE },
-        include: { distributorProfile: true, driverProfile: true, clientProfile: true },
-      });
-    }
-
-    // Auto-link: if this is a CLIENT user and a distributor already added
-    // this phone as a client, bind the User → Client row so JWT carries clientId.
-    if (user.role === UserRole.CLIENT && !user.clientProfile) {
-      const match = await this.prisma.client.findFirst({
-        where: { phone: user.phone, userId: null },
-      });
-      if (match) {
-        await this.prisma.client.update({
-          where: { id: match.id },
-          data: { userId: user.id },
-        });
-        user = await this.prisma.user.findUnique({
-          where: { id: user.id },
-          include: { distributorProfile: true, driverProfile: true, clientProfile: true },
-        }) as any;
-      }
-    }
-
     return this.issueTokens(user);
   }
 
-  // Roles allowed to authenticate via password. CLIENT is the only role that
-  // still uses OTP — they're end customers who shouldn't manage a credential.
-  // Field roles (DISTRIBUTOR, DRIVER) use password from the mobile app; admin
-  // operates the password reset for them.
-  private static readonly PASSWORD_LOGIN_ROLES: UserRole[] = [
-    UserRole.SUPER_ADMIN,
-    UserRole.ADMIN,
-    UserRole.DISPATCHER,
-    UserRole.STORE_KEEPER,
-    UserRole.DISTRIBUTOR,
-    UserRole.DRIVER,
-  ];
-
-  async loginWithPassword(phone: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { phone },
-      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
-    });
-
-    // Same generic message for every "no user / wrong password / wrong role"
-    // case so we don't leak which step failed.
-    const reject = () => new UnauthorizedException('Invalid phone or password');
-
-    if (!user) throw reject();
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Account not active');
+  /**
+   * `POST /auth/refresh`: rotates the refresh token, with reuse detection. A malformed, forged,
+   * expired, unknown or already-used token is AUTH_REFRESH_INVALID (a reused one also revokes every
+   * live refresh token of its user). A valid one whose user isn't ACTIVE, whose role is locked, whose
+   * `tv` is old or who is a DISTRIBUTOR or DRIVER without its shop or driver row is
+   * AUTH_SESSION_REVOKED, and the token is revoked by the rotation.
+   */
+  async refresh(rawToken: string): Promise<LoginResponse> {
+    const claims = await this.verifyRefreshToken(rawToken);
+    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(rawToken) } });
+    if (!stored || stored.userId !== claims.sub || stored.expiresAt.getTime() <= Date.now()) {
+      throw new AppError('AUTH_REFRESH_INVALID');
     }
-    if (!AuthService.PASSWORD_LOGIN_ROLES.includes(user.role)) {
-      throw new UnauthorizedException(
-        'This account must sign in with a one-time code, not a password.',
-      );
+    if (stored.revokedAt) {
+      await this.revokeAllRefreshTokens(stored.userId);
+      throw new AppError('AUTH_REFRESH_INVALID');
     }
-    if (!user.passwordHash) throw reject();
-
-    const ok = await argon2.verify(user.passwordHash, password);
-    if (!ok) throw reject();
-
-    return this.issueTokens(user);
-  }
-
-  async changeOwnPassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException('User not found');
-    if (!user.passwordHash) {
-      throw new UnauthorizedException(
-        'No password is set on this account. Ask an admin to set one for you.',
-      );
-    }
-    const ok = await argon2.verify(user.passwordHash, currentPassword);
-    if (!ok) throw new UnauthorizedException('Current password is incorrect');
-    if (currentPassword === newPassword) {
-      throw new BadRequestException('New password must differ from current password');
-    }
-    const hash = await argon2.hash(newPassword);
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } });
-    return { ok: true };
-  }
-
-  async refresh(refreshToken: string) {
-    let payload: any;
-    try {
-      payload = await this.jwt.verifyAsync(refreshToken, {
-        secret: this.cfg.get<string>('jwt.refreshSecret'),
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
-    if (!stored || stored.revokedAt) {
-      // Reuse detection: revoke entire chain
-      if (stored?.userId) {
-        await this.prisma.refreshToken.updateMany({
-          where: { userId: stored.userId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-      }
-      throw new UnauthorizedException('Refresh token reuse detected');
-    }
-
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
+    // A guarded rotation: of two refreshes racing with one token, only one wins; the other is a reuse.
+    const rotated = await this.prisma.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    if (rotated.count !== 1) {
+      await this.revokeAllRefreshTokens(stored.userId);
+      throw new AppError('AUTH_REFRESH_INVALID');
+    }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: { distributorProfile: true, driverProfile: true, clientProfile: true },
-    });
-    if (!user) throw new UnauthorizedException();
+    await this.sessions.assertLiveNow(claims);
+    const user = await this.prisma.user.findUnique({ where: { id: claims.sub }, select: TOKEN_USER_SELECT });
+    if (!user || lacksProfile(user)) throw new AppError('AUTH_SESSION_REVOKED');
     return this.issueTokens(user, stored.id);
   }
 
-  private async issueTokens(user: any, parentRefreshId?: string) {
+  /**
+   * `POST /auth/change-password`: checks the current password, stores the new one and bumps `tv`,
+   * which ends every other session of the user; returns new tokens for this one. A wrong current
+   * password is a field problem (400), not a 401, so the apps don't sign the person out for a typo.
+   */
+  async changePassword(userId: string, body: ChangePasswordInput): Promise<LoginResponse> {
+    const current = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+    const matches = await this.verifyPassword(current?.passwordHash ?? null, body.currentPassword);
+    if (!current || !matches) {
+      throw new AppError('VALIDATION_FAILED', {
+        fields: [{ path: 'currentPassword', code: 'INVALID_VALUE', message: validationMessage('INVALID_VALUE') }],
+      });
+    }
+    const passwordHash = await argon2.hash(body.newPassword);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+      select: TOKEN_USER_SELECT,
+    });
+    this.sessions.forget(userId);
+    return this.issueTokens(user);
+  }
+
+  /** `GET /auth/me`: the signed-in user, without secrets. */
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: ME_SELECT });
+    if (!user) throw new AppError('AUTH_SESSION_REVOKED');
+    return user;
+  }
+
+  private async verifyRefreshToken(rawToken: string): Promise<TokenClaims> {
+    let payload: unknown;
+    try {
+      payload = await this.jwt.verifyAsync(rawToken, { secret: this.cfg.get<string>('jwt.refreshSecret') });
+    } catch (cause) {
+      throw new AppError('AUTH_REFRESH_INVALID', undefined, { cause });
+    }
+    const claims = readTokenClaims(payload);
+    if (!claims) throw new AppError('AUTH_REFRESH_INVALID');
+    return claims;
+  }
+
+  private async revokeAllRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+  }
+
+  /** True only for a stored hash that matches; with no hash a throwaway one is verified for equal timing. */
+  private async verifyPassword(hash: string | null, password: string): Promise<boolean> {
+    const target = hash ?? (await this.throwawayHash());
+    try {
+      const ok = await argon2.verify(target, password);
+      return hash !== null && ok;
+    } catch {
+      // A stored value that isn't an argon2 hash never matches.
+      return false;
+    }
+  }
+
+  private throwawayHash(): Promise<string> {
+    this.dummyHash ??= argon2.hash(randomBytes(32).toString('hex'));
+    return this.dummyHash;
+  }
+
+  private ttl(key: 'jwt.accessTtl' | 'jwt.refreshTtl', fallback: number): number {
+    const value = Number(this.cfg.get<number>(key));
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+  }
+
+  private async issueTokens(user: TokenUser, parentRefreshId?: string): Promise<LoginResponse> {
+    // Login and refresh refuse such a user first; this keeps every other caller from signing one.
+    if (lacksProfile(user)) throw new AppError('AUTH_SESSION_REVOKED');
     const claims = {
       sub: user.id,
       role: user.role,
       distributorId: user.distributorProfile?.id,
       driverId: user.driverProfile?.id,
-      clientId: user.clientProfile?.id,
+      ...(user.role === UserRole.CLIENT && user.clientProfile ? { clientId: user.clientProfile.id } : {}),
+      tv: user.tokenVersion,
     };
-    const accessTtl = this.cfg.get<number>('jwt.accessTtl') ?? 900;
-    const refreshTtl = this.cfg.get<number>('jwt.refreshTtl') ?? 2_592_000;
+    const accessTtl = this.ttl('jwt.accessTtl', DEFAULT_ACCESS_TTL_SECONDS);
+    const refreshTtl = this.ttl('jwt.refreshTtl', DEFAULT_REFRESH_TTL_SECONDS);
 
     const accessToken = await this.jwt.signAsync(claims, {
       secret: this.cfg.get<string>('jwt.accessSecret'),
       expiresIn: accessTtl,
     });
-    const refreshToken = await this.jwt.signAsync(claims, {
-      secret: this.cfg.get<string>('jwt.refreshSecret'),
-      expiresIn: refreshTtl,
-    });
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    // jti makes every refresh token unique, even two issued to one user in the same second.
+    const refreshToken = await this.jwt.signAsync(
+      { ...claims, jti: randomUUID() },
+      { secret: this.cfg.get<string>('jwt.refreshSecret'), expiresIn: refreshTtl },
+    );
     await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
-        tokenHash,
+        tokenHash: sha256(refreshToken),
         parentId: parentRefreshId,
         expiresAt: new Date(Date.now() + refreshTtl * 1000),
       },
     });
-
     return { accessToken, refreshToken, expiresIn: accessTtl, role: user.role };
   }
 }

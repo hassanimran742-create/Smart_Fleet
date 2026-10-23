@@ -1,5 +1,17 @@
 import { PrismaClient, UserRole, UserStatus, DistributorStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { deploymentName } from '../src/common/bootstrap/boot-guards';
+
+/** The one line printed when the seed refuses to run on production (DATA_MODEL §2.5, G11-13). */
+export const SEED_REFUSED_MESSAGE = 'seed.ts is for development and test servers';
+
+// Refuse production before anything connects or writes: its upserts would re-activate the seeded
+// logins suspended at the switch-over. The deployment's name follows the boot-guards rule: APP_ENV
+// when set, else NODE_ENV (staging and training servers set APP_ENV).
+if (deploymentName(process.env) === 'production') {
+  console.error(SEED_REFUSED_MESSAGE);
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
@@ -11,6 +23,13 @@ const DEFAULT_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe!Now1
 // Default password for the seeded test driver + distributor. Admin can reset
 // these from the Drivers / Distributors screens any time.
 const DEFAULT_MOBILE_PASSWORD = process.env.SEED_MOBILE_PASSWORD ?? 'Driver!Now123';
+
+// Fixed ids keep the seed idempotent. ISLAMABAD_CITY_ID is the first entry of `cities` below.
+const ISLAMABAD_CITY_ID = '00000000-0000-0000-0000-000000000001';
+const SEED_ZONE_ID = '00000000-0000-0000-0000-00000000a001';
+const SEED_STORE_ID = '00000000-0000-0000-0000-00000000b001';
+// The test distributor's human-number code (orders TST-0001, top-ups TST-T001).
+const TEST_DISTRIBUTOR_CODE = 'TST';
 
 async function main() {
   const adminPhone = '+923000000000';
@@ -53,6 +72,17 @@ async function main() {
     await prisma.user.update({ where: { id: branchAdmin.id }, data: { passwordHash } });
   }
 
+  // Cities first: the test distributor's store needs a zone, and a zone needs a city.
+  const cities = [
+    { id: ISLAMABAD_CITY_ID,                      name: 'Islamabad', countryCode: 'PK' },
+    { id: '00000000-0000-0000-0000-000000000002', name: 'Rawalpindi', countryCode: 'PK' },
+    { id: '00000000-0000-0000-0000-000000000003', name: 'Lahore',    countryCode: 'PK' },
+    { id: '00000000-0000-0000-0000-000000000004', name: 'Karachi',   countryCode: 'PK' },
+  ];
+  for (const c of cities) {
+    await prisma.city.upsert({ where: { id: c.id }, update: {}, create: c });
+  }
+
   // ───── Test mobile users (distributor + driver) for end-to-end testing ─────
   //
   // We seed these so that a fresh deployment can verify mobile login + the
@@ -75,11 +105,7 @@ async function main() {
   if (!distrUser.passwordHash) {
     await prisma.user.update({ where: { id: distrUser.id }, data: { passwordHash: mobileHash } });
   }
-  await prisma.distributor.upsert({
-    where: { userId: distrUser.id },
-    update: { status: DistributorStatus.ACTIVE },
-    create: { userId: distrUser.id, businessName: 'Test LPG Shop', status: DistributorStatus.ACTIVE },
-  });
+  const testDistributor = await seedTestDistributor(distrUser.id);
 
   const drvUser = await prisma.user.upsert({
     where: { phone: '+923002222222' },
@@ -126,16 +152,6 @@ async function main() {
     });
   }
 
-  const cities = [
-    { id: '00000000-0000-0000-0000-000000000001', name: 'Islamabad', countryCode: 'PK' },
-    { id: '00000000-0000-0000-0000-000000000002', name: 'Rawalpindi', countryCode: 'PK' },
-    { id: '00000000-0000-0000-0000-000000000003', name: 'Lahore',    countryCode: 'PK' },
-    { id: '00000000-0000-0000-0000-000000000004', name: 'Karachi',   countryCode: 'PK' },
-  ];
-  for (const c of cities) {
-    await prisma.city.upsert({ where: { id: c.id }, update: {}, create: c });
-  }
-
   const accessories = [
     { code: 'PIPE_HALF_INCH', name: '1/2 inch LPG pipe', category: 'PIPE' as const, unit: 'meter', defaultPricePaisa: 50_000n },
     { code: 'PIPE_QUARTER_INCH', name: '1/4 inch LPG pipe', category: 'PIPE' as const, unit: 'meter', defaultPricePaisa: 35_000n },
@@ -157,8 +173,75 @@ async function main() {
   }
 
   console.log('Seeded admin user:', admin.phone);
+  console.log(
+    'Seeded test distributor:',
+    testDistributor.businessName,
+    `(code ${testDistributor.code ?? 'not set'}, store ${testDistributor.homeStoreId ?? 'not set'})`,
+  );
   console.log('Seeded cities:', cities.map((c) => c.name).join(', '));
   console.log('Seeded accessories:', accessories.length);
+}
+
+/**
+ * The test distributor with its one store (ADR-01) and its code (ADR-22).
+ *
+ * Re-seeding only fills gaps: a code or store already set (by the office, or the D01... codes the
+ * inc1a migration gave old rows) is never overwritten, and a code or store owned by another
+ * distributor is left alone.
+ */
+async function seedTestDistributor(userId: string) {
+  // Zones and stores have geometry columns, so they are written with raw SQL. The zone is INACTIVE:
+  // it exists only because stores.zone_id is required, and zone lookups use active zones only, so it
+  // can never change which zone a real customer's pin falls in.
+  await prisma.$executeRaw`
+    INSERT INTO zones (id, city_id, name, polygon, centroid, is_active, created_at, updated_at)
+    VALUES (
+      ${SEED_ZONE_ID}::uuid, ${ISLAMABAD_CITY_ID}::uuid, 'Seed test zone (inactive)',
+      ST_SetSRID(ST_GeomFromText('MULTIPOLYGON(((73.050 33.715, 73.057 33.715, 73.057 33.720, 73.050 33.720, 73.050 33.715)))'), 4326),
+      ST_SetSRID(ST_MakePoint(73.0535, 33.7175), 4326),
+      FALSE, NOW(), NOW()
+    )
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await prisma.$executeRaw`
+    INSERT INTO stores (id, name, zone_id, address, location, is_active, created_at, updated_at)
+    VALUES (
+      ${SEED_STORE_ID}::uuid, 'Test LPG Shop', ${SEED_ZONE_ID}::uuid, 'F-7 Markaz, Islamabad',
+      ST_SetSRID(ST_MakePoint(73.0535, 33.7177), 4326),
+      TRUE, NOW(), NOW()
+    )
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  const existing = await prisma.distributor.findUnique({ where: { userId } });
+  const [codeOwner, storeOwner] = await Promise.all([
+    prisma.distributor.findUnique({ where: { code: TEST_DISTRIBUTOR_CODE }, select: { id: true } }),
+    prisma.distributor.findUnique({ where: { homeStoreId: SEED_STORE_ID }, select: { id: true } }),
+  ]);
+  const code = codeOwner && codeOwner.id !== existing?.id ? null : TEST_DISTRIBUTOR_CODE;
+  const homeStoreId = storeOwner && storeOwner.id !== existing?.id ? null : SEED_STORE_ID;
+
+  const distributor = existing
+    ? await prisma.distributor.update({
+        where: { id: existing.id },
+        data: {
+          status: DistributorStatus.ACTIVE,
+          ...(existing.code === null && code !== null ? { code } : {}),
+          ...(existing.homeStoreId === null && homeStoreId !== null ? { homeStoreId } : {}),
+        },
+      })
+    : await prisma.distributor.create({
+        data: { userId, businessName: 'Test LPG Shop', status: DistributorStatus.ACTIVE, code, homeStoreId },
+      });
+
+  const missing = [
+    !distributor.code && `its code (${TEST_DISTRIBUTOR_CODE} belongs to another distributor)`,
+    !distributor.homeStoreId && "its store (the seed store is another distributor's home store)",
+  ].filter(Boolean);
+  if (missing.length) {
+    console.warn(`Test distributor is missing ${missing.join(' and ')}. Set it in the office website.`);
+  }
+  return distributor;
 }
 
 main()

@@ -2,7 +2,9 @@
 	email admin@smart-fleet.com
 }
 
-api.smart-fleet.com {
+# The hosts the apps call: eas.json and the website build use https://api.smartfleetpk.com (prod)
+# and https://staging.smartfleetpk.com (staging).
+api.smartfleetpk.com {
 	reverse_proxy api-prod:3001 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
@@ -24,7 +26,7 @@ api.smart-fleet.com {
 	}
 }
 
-staging.smart-fleet.com {
+staging.smartfleetpk.com {
 	reverse_proxy api-staging:3002 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
