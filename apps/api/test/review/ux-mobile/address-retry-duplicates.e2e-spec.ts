@@ -1,7 +1,7 @@
 /**
- * REVIEW (ux-mobile): the shop app's "Change address → Add a new address → Save address" retry.
+ * REVIEW (ux-mobile): the shop app's "Change → New address → Save address" retry.
  *
- * apps/mobile/src/screens/distributor/PickAddressScreen.tsx keeps one Idempotency-Key per intent
+ * apps/mobile/src/screens/distributor/NewAddressScreen.tsx keeps one Idempotency-Key per intent
  * (`useIdempotencyKey([clientId, label, pin])`) and sends it with `POST /clients/:id/addresses`
  * (shared/api.ts `addClientAddress`), exactly like the customer, order and top-up creates. UX_MOBILE
  * §3.1 says every create sends the key "and retries reuse it", so the phone treats "Save address"

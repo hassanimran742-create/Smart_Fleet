@@ -1,22 +1,27 @@
 /*
- * The Expenses page (UX_ADMIN §2.7). Tokens only (src/ui/tokens.css) and logical properties, so the
- * page works at 1024×768 and 768×1024 and a right-to-left language later is a `dir` switch.
+ * The Expenses page (UX_ADMIN §2.7, website spec W33–W37). Tokens only (src/ui/tokens.css) and logical
+ * properties, so the page works at 1024×768 and 768×1024 and a right-to-left language later is a `dir`
+ * switch.
  */
+
+/* Two rows of filters: the date chips, then Type, Van, Driver and "Show removed". */
+.sf-expenses__filters {
+  display: grid;
+  gap: var(--sp-2);
+  margin-block-end: var(--sp-4);
+}
+
+.sf-expenses__filters .sf-filter-bar {
+  margin: 0;
+}
 
 .sf-expenses__filters .sf-field {
   min-inline-size: 150px;
 }
 
-.sf-expenses__switch-field {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-block-size: var(--control-h);
-}
-
-.sf-expenses__switch-label {
-  color: var(--text);
-  font-size: var(--fs-14);
+.sf-expenses__pick {
+  flex: 0 1 220px;
+  min-inline-size: 180px;
 }
 
 .sf-expenses__section {
@@ -92,7 +97,6 @@
 }
 
 .sf-expenses__include-hint {
-  flex-basis: 100%;
   color: var(--text-muted);
   font-size: var(--fs-13);
 }
@@ -111,27 +115,26 @@
   white-space: nowrap;
 }
 
+.sf-expenses__note-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
 .sf-expenses__note-cell {
   display: block;
-  max-inline-size: 260px;
+  max-inline-size: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sf-expenses__thumb-link {
+/* A receipt is attached: a paperclip after the note. */
+.sf-expenses__clip {
   display: inline-flex;
-  border-radius: var(--r-sm);
-}
-
-.sf-expenses__thumb {
-  display: block;
-  inline-size: 40px;
-  block-size: 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface-2);
-  object-fit: cover;
+  flex: none;
+  color: var(--text-muted);
 }
 
 .sf-expenses__muted {
@@ -142,7 +145,11 @@
 .sf-expenses__form {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-1);
+}
+
+.sf-expenses__amount .sf-input-group {
+  max-inline-size: 240px;
 }
 
 .sf-expenses__form-row {
@@ -213,7 +220,7 @@
 
 .sf-expenses__type-main {
   display: flex;
-  flex: 1 1 200px;
+  flex: 1 1 140px;
   flex-direction: column;
   min-inline-size: 0;
 }
@@ -233,6 +240,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2);
+  margin-inline-start: auto;
 }
 
 .sf-expenses__lock {
@@ -263,18 +271,7 @@
 }
 
 .sf-expenses__add-type {
-  margin-block-end: var(--sp-3);
-}
-
-/* Driver fuel logs */
-.sf-expenses__van-link {
-  border: 0;
-  background: none;
-  color: var(--primary);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  margin-block: var(--sp-3) 0;
 }
 
 @media (max-width: 767.98px) {

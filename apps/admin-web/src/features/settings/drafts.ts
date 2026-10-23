@@ -6,11 +6,13 @@ import type { FieldDef } from './fields';
 /**
  * What a Settings row holds while it is being edited, and how it becomes the value `PATCH /settings/:key`
  * sends. The server checks every value again (SETTING_INVALID_VALUE); these checks only say early what it
- * would refuse, in the same words.
+ * would refuse, and an empty box says what to type (website spec §1.8).
  */
 export type Draft =
   /** A rupee box: what was typed (to tell blank from not-an-amount) and its paisa value. */
   | { kind: 'money'; text: string; paisa: string | null }
+  /** "No limit" (`on` false) or "Set a limit" with its rupee box. */
+  | { kind: 'limit'; on: boolean; text: string; paisa: string | null }
   | { kind: 'text'; text: string }
   | { kind: 'flag'; value: boolean }
   | { kind: 'choice'; value: string }
@@ -20,15 +22,21 @@ export type Parsed = { ok: true; value: unknown } | { ok: false; error: string }
 
 const LOCAL_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const SEMVER = /^\d{1,4}\.\d{1,4}\.\d{1,4}$/;
-/** The registry's rule for support numbers: digits, spaces, dashes and brackets, an optional "+". */
-const DIALABLE = /^\+?[0-9][0-9 ()-]{5,22}$/;
+/** A Pakistani number as PhoneInput hands it over: "+92" and 10 digits (E.164). */
+const PK_PHONE = /^\+92\d{10}$/;
 const WHOLE = /^\d{1,9}$/;
+
+function moneyDraft(value: unknown): { text: string; paisa: string | null } {
+  return typeof value === 'number' ? { text: String(value / 100), paisa: String(value) } : { text: '', paisa: null };
+}
 
 /** The draft of a row that hasn't been touched: its stored value. */
 export function draftFromValue(field: FieldDef, value: unknown): Draft {
   switch (field.control.kind) {
     case 'money':
-      return typeof value === 'number' ? { kind: 'money', text: String(value / 100), paisa: String(value) } : { kind: 'money', text: '', paisa: null };
+      return { kind: 'money', ...moneyDraft(value) };
+    case 'limit':
+      return { kind: 'limit', on: typeof value === 'number', ...moneyDraft(value) };
     case 'switch':
       return { kind: 'flag', value: value === true };
     case 'deliveryStartedAt':
@@ -43,32 +51,47 @@ export function draftFromValue(field: FieldDef, value: unknown): Draft {
   }
 }
 
+/** A rupee box's value in paisa, within the row's bounds. */
+function parseMoney(text: string, paisa: string | null, row: AnySettingRow, allowZero: boolean, missing: string): Parsed {
+  const t = i18n.t;
+  if (text.trim() === '') return { ok: false, error: missing };
+  if (paisa === null || !WHOLE.test(paisa)) return { ok: false, error: t('validation:AMOUNT_NOT_WHOLE_RUPEES') };
+  const amount = Number(paisa);
+  const floor = row.min ?? (allowZero ? 0 : 100);
+  if (amount < floor) return { ok: false, error: t('validation:AMOUNT_TOO_SMALL', { min: formatRs(floor) }) };
+  if (row.max !== undefined && amount > row.max) return { ok: false, error: t('validation:AMOUNT_TOO_LARGE', { max: formatRs(row.max) }) };
+  return { ok: true, value: amount };
+}
+
 /** The value a draft stands for, or the reason it isn't one yet. */
 export function parseDraft(field: FieldDef, draft: Draft, row: AnySettingRow): Parsed {
   const t = i18n.t;
   const control = field.control;
   if (control.kind === 'money' && draft.kind === 'money') {
-    if (draft.text.trim() === '') return control.nullable ? { ok: true, value: null } : { ok: false, error: t('validation:REQUIRED') };
-    if (draft.paisa === null || !WHOLE.test(draft.paisa)) return { ok: false, error: t('validation:AMOUNT_NOT_WHOLE_RUPEES') };
-    const paisa = Number(draft.paisa);
-    const floor = row.min ?? (control.allowZero ? 0 : 100);
-    if (paisa < floor) return { ok: false, error: t('validation:AMOUNT_TOO_SMALL', { min: formatRs(floor) }) };
-    if (row.max !== undefined && paisa > row.max) return { ok: false, error: t('validation:AMOUNT_TOO_LARGE', { max: formatRs(row.max) }) };
-    return { ok: true, value: paisa };
+    return parseMoney(draft.text, draft.paisa, row, control.allowZero === true, t('settings:errors.amountMissing'));
+  }
+  if (control.kind === 'limit' && draft.kind === 'limit') {
+    if (!draft.on) return { ok: true, value: null };
+    return parseMoney(draft.text, draft.paisa, row, false, t('settings:errors.limitMissing'));
   }
   if (control.kind === 'integer' && draft.kind === 'text') {
     const text = draft.text.trim();
+    if (text === '') return { ok: false, error: t('settings:errors.numberMissing') };
     if (!WHOLE.test(text)) return { ok: false, error: t('validation:NOT_INTEGER') };
     const value = Number(text);
     if (row.min !== undefined && value < row.min) return { ok: false, error: t('validation:TOO_SMALL', { min: row.min }) };
     if (row.max !== undefined && value > row.max) return { ok: false, error: t('validation:TOO_LARGE', { max: row.max }) };
     return { ok: true, value };
   }
+  if (control.kind === 'phone' && draft.kind === 'text') {
+    const text = draft.text.trim();
+    if (text === '') return { ok: true, value: null };
+    return PK_PHONE.test(text) ? { ok: true, value: text } : { ok: false, error: t('settings:errors.phone') };
+  }
   if (control.kind === 'text' && draft.kind === 'text') {
     const text = draft.text.trim();
     if (text === '') return { ok: true, value: null };
     if (text.length > control.maxLength) return { ok: false, error: t('validation:TOO_LONG', { max: control.maxLength }) };
-    if (control.phone && !DIALABLE.test(text)) return { ok: false, error: t('validation:INVALID_FORMAT') };
     return { ok: true, value: text };
   }
   if (control.kind === 'version' && draft.kind === 'text') {

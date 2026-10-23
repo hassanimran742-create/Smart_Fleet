@@ -254,7 +254,12 @@ export function ConfirmSheet({
         style={styles.scroll}
         contentContainerStyle={styles.content}
         onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
-        onContentSizeChange={(_width, height) => setContentHeight(height)}
+        onContentSizeChange={(_width, height) => {
+          setContentHeight(height);
+          // The note's error line renders after the press that asked for it: scroll again once it has,
+          // so the line ends up in view above the pinned buttons, not under them.
+          if (attempted && needsNote && !noteOk) scrollRef.current?.scrollToEnd({ animated: true });
+        }}
       >
         <Text variant="title">{title}</Text>
         {body ? <Text tone="secondary">{body}</Text> : null}

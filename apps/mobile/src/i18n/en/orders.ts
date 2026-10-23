@@ -1,10 +1,10 @@
 /**
- * `orders.*` copy: New order, My orders and Order detail with cancel (UX_MOBILE §4 S9 to S11).
- * Owned by the mobile-distributor lane.
+ * `orders.*` copy: New order, My orders and Order detail with cancel (UX_MOBILE §4 S9 to S11; shop spec
+ * §N to §U). Owned by the mobile-distributor lane.
  *
  * Money words come from the order's own cost and cancel terms (G01-08): the cancel sheet never names
  * the refund rule. Every counted string has a `_plural` form (G16-04), even where English doesn't
- * change, so a translation can.
+ * change, so a translation can. No zone names (shop spec §3.5).
  */
 export const orders = {
   /** A cylinder size label when the server didn't send one ("11.8 kg"). */
@@ -14,69 +14,59 @@ export const orders = {
   new: {
     title: 'New order',
     who: 'Who is it for?',
-    search: 'Search customers',
-    searchPlaceholder: 'Name, mobile or area',
-    addCustomer: 'Add new customer',
+    /** Chips on a customer or address that can't take an order. */
     noPrice: 'No price yet',
     outside: 'Outside delivery area',
     noAddress: 'No address yet',
+    /** Read after the customer chosen on step 1. */
     selected: 'Chosen',
     customerRow: '{{phone}} · {{area}}',
-    customersLabel: 'Customers',
-    noCustomers: 'No customers yet.',
-    noCustomersBody: 'Add your first customer to place an order.',
-    noMatch: 'No customer matches “{{query}}”.',
-    priceNotSet: "No delivery price is set for zone {{zoneName}} yet. You can't place an order there until the office sets it.",
-    outsideCard: 'This location is outside our delivery area. Move the pin or call the office.',
-    needsAddress: 'This customer has no delivery address yet. Add one to place an order.',
-    addAddress: 'Add address',
-    changeAddress: 'Change address',
 
-    cylinders: 'Cylinders',
-    deliver: 'Deliver',
+    cylinders: 'Cylinders to deliver',
+    forCustomer: 'For {{name}} · {{address}}',
+    /** The one-tap chip that fills the customer's last order (DECIDED: counts start at 0). */
+    sameAsLast: 'Same as last time',
     takeBack: 'Take back',
     costAbout: 'Delivery cost about {{fee}}',
-    capReached: 'An order can have at most {{count}} cylinder.',
-    capReached_plural: 'An order can have at most {{count}} cylinders.',
-    noSizes: "There are no cylinder sizes to order yet. Call the office.",
+    pickSome: 'Add at least 1 cylinder.',
+    capReached: 'Up to {{count}} cylinder per order.',
+    capReached_plural: 'Up to {{count}} cylinders per order.',
+    noSizes: 'No cylinder sizes yet. Call the office.',
 
     review: 'Check and place',
-    customer: 'Customer',
     customerValue: '{{name}} · {{phone}}',
-    deliverTo: 'Deliver to',
-    deliverToValue: '{{label}} (Zone {{zone}})',
-    cylindersRow: 'Cylinders',
+    change: 'Change',
     line: '{{count}} × {{size}} · take back {{back}}',
     line_plural: '{{count}} × {{size}} · take back {{back}}',
+    lineNoBack: '{{count}} × {{size}}',
+    lineNoBack_plural: '{{count}} × {{size}}',
     deliveryCost: 'Delivery cost',
-    costBase: '{{amount}} per order',
-    costLine: '{{count}} × {{amount}} ({{size}})',
-    costLine_plural: '{{count}} × {{amount}} ({{size}})',
+    /** The cost's parts under the total: "Rs 250 + 2 × Rs 40" (data only). */
+    costBase: '{{amount}}',
+    costLine: '{{count}} × {{amount}}',
+    costLine_plural: '{{count}} × {{amount}}',
     costJoin: ' + ',
-    costTotal: '{{parts}} = {{total}}',
     costNone: 'No delivery cost',
-    yourWallet: 'Your wallet',
+    costError: "Couldn't get the cost.",
     balanceNow: 'Balance now',
     balanceAfter: 'After this order',
+    /** The refund rule in one line, worded by `orders.deliveryStartedAt` (also on Help). */
     refundRule: {
-      FIRST_LOAD_SCAN:
-        "{{fee}} is taken from your wallet now. If you cancel before the driver starts loading, you get it back. After loading starts, it isn't returned, even if the customer refuses.",
-      DRIVER_ASSIGNED:
-        "{{fee}} is taken from your wallet now. If you cancel before a driver is assigned, you get it back. After that, it isn't returned, even if the customer refuses.",
-      LEFT_STORE:
-        "{{fee}} is taken from your wallet now. If you cancel before the van leaves your store, you get it back. After that, it isn't returned, even if the customer refuses.",
+      FIRST_LOAD_SCAN: 'Refund only if cancelled before loading.',
+      DRIVER_ASSIGNED: 'Refund only if cancelled before a driver is assigned.',
+      LEFT_STORE: 'Refund only if cancelled before the van leaves.',
     },
-    notEnough: 'You need {{required}} but have {{balance}}. Add money to place this order.',
+    notEnough: 'You need {{required}}. You have {{balance}}.',
     addMoney: 'Add money',
-    priceChanged: 'The delivery cost changed to {{total}}. Check it and tap Place order again.',
+    priceChanged: 'The delivery cost is now {{total}}. Check it, then tap again.',
     place: 'Place order · pay {{fee}}',
     placeFree: 'Place order',
     placing: 'Placing order…',
     placed: 'Order placed · {{fee}} paid',
     placedFree: 'Order placed',
+    /** The footer line when "Place order" got no answer (UX_MOBILE S9, ORD-004). */
+    notSent: "Not sent. Tap again. It won't be sent twice.",
     officeAssigns: 'The office will assign a driver.',
-    back: 'Back',
-    change: 'Change',
   },
 
   /** S10 My orders. */
@@ -87,10 +77,12 @@ export const orders = {
     active_plural: 'Active ({{count}})',
     activeNoCount: 'Active',
     done: 'Done',
-    subtitle: '{{code}} · {{items}} · {{when}}',
+    subtitle: '{{items}} · {{code}}',
     item: '{{count}} × {{size}}',
     item_plural: '{{count}} × {{size}}',
     itemsJoin: ', ',
+    /** A cancelled order whose cost was kept (Done rows only). */
+    noRefund: 'No refund',
     emptyActive: 'No active orders.',
     emptyDone: 'No finished orders yet.',
     newOrder: 'New order',
@@ -107,31 +99,34 @@ export const orders = {
       placed: 'Placed · {{fee}} paid',
       placedFree: 'Placed',
       assigned: 'Driver assigned',
-      loading: 'Loading at your store',
+      loading: 'Loading',
       onTheWay: 'On the way',
       delivered: 'Delivered',
-      notDelivered: 'Could not deliver',
+      notDelivered: 'Not delivered',
       cancelledReturned: 'Cancelled · {{fee}} returned',
       cancelledNoRefund: 'Cancelled · no refund',
       cancelled: 'Cancelled',
     },
-    costTitle: 'Delivery cost',
-    cost: 'Delivery cost {{fee}}',
-    costNone: 'No delivery cost',
-    itemsTitle: 'Cylinders',
+    /** The call button beside the customer (screen readers). */
+    callCustomer: 'Call {{name}}',
+    van: 'Van {{plate}}',
+    driverLine: '{{name}} · {{van}}',
     itemLine: 'Deliver {{count}} × {{size}} · take back {{back}}',
     itemLine_plural: 'Deliver {{count}} × {{size}} · take back {{back}}',
-    customerTitle: 'Customer',
-    deliverTo: 'Deliver to',
-    driverTitle: 'Driver',
-    van: 'Van {{plate}}',
-    callDriver: 'Call driver',
+    itemLineNoBack: 'Deliver {{count}} × {{size}}',
+    itemLineNoBack_plural: 'Deliver {{count}} × {{size}}',
+    costTitle: 'Delivery cost',
+    noRefund: 'No refund. Delivery had started.',
+    /** A finished order's caption: "Today, 10:30 am · Customer cancelled". */
+    statusLine: '{{when}} · {{reason}}',
+    allSteps: 'All steps',
     trackingTitle: 'Where the driver is',
-    trackingWaiting: "The driver's position shows here once their phone shares it.",
     trackingMapA11y: 'Map with the driver and the delivery spot',
     driverPin: 'Driver',
     deliveryPin: 'Delivery spot',
     cancel: 'Cancel order',
+    cancelNoRefund: 'Cancel · no refund',
+    callDriver: 'Call driver',
     failureReason: {
       CUSTOMER_NOT_HOME: 'Customer not home',
       CUSTOMER_REFUSED: 'Customer refused',
@@ -145,13 +140,14 @@ export const orders = {
   /** S11 cancel sheet: its words come from the order's `cancel` terms. */
   cancel: {
     titleRefund: 'Cancel order {{code}}?',
-    bodyRefund: '{{fee}} comes back to your wallet.',
-    confirmRefund: 'Yes, cancel and get {{fee}} back',
+    backToWallet: 'Back to your wallet',
+    confirmRefund: 'Cancel · get {{fee}} back',
     titleNoRefund: 'Cancel without refund?',
-    bodyNoRefund: 'Delivery has started. If you cancel now, the {{fee}} is not returned.',
+    bodyNoRefund: 'Delivery has started.',
+    notReturned: 'Not returned',
     confirmNoRefund: 'Cancel without refund',
     title: 'Cancel order {{code}}?',
-    confirm: 'Yes, cancel order',
+    confirm: 'Cancel order',
     keep: 'Keep order',
     cancelling: 'Cancelling…',
     noteLabel: 'What happened?',
@@ -159,9 +155,10 @@ export const orders = {
       CUSTOMER_CANCELLED: 'Customer cancelled',
       WRONG_ORDER: 'Wrong order',
       DUPLICATE: 'Duplicate order',
-      OUT_OF_STOCK: 'Out of stock at the store',
+      OUT_OF_STOCK: 'Out of stock',
       OTHER: 'Other',
     },
+    /** The same words as the shared catalogue's ORDER_CANCEL_TERMS_CHANGED. */
     termsChanged: 'Delivery has just started. The refund is now {{refund}}.',
     doneReturned: 'Order cancelled · {{fee}} returned',
     doneNoRefund: 'Order cancelled · no refund',

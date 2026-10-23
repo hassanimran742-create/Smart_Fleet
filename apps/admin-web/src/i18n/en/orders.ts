@@ -1,18 +1,22 @@
 /**
- * `orders`: copy for the Orders board, the order drawer and its dialogs (UX_ADMIN §2.5). Owned by the
- * admin-web-ops lane. Stage words are `status:order.*` and fee chips `status:fee.*` (foundation).
+ * `orders`: copy for the Orders board, the order drawer and its dialogs (UX_ADMIN §2.5, website spec
+ * W27–W32). Owned by the admin-web-ops lane. Stage words are `status:order.*` and fee chips
+ * `status:fee.*` (foundation).
  *
  * Keep `as const` and the export name: i18n/index.ts imports it by name, and `t('orders:…')` is
  * type-checked. Money copy never names the refund rule: refund words come from the order's own cancel
- * terms (G01-08). No text here says "on hold" (ADR-06).
+ * terms (G01-08). No text here says "on hold" (ADR-06), and an order is "not delivered", never "failed".
  */
 export const orders = {
   page: {
     title: 'Orders',
-    subtitle: 'Orders come from the distributor app. Assign a driver to each new order.',
     tabsLabel: 'Order lists',
     search: 'Order number, customer or phone',
+    /** The distributor filter's name for screen readers. */
     distributor: 'Distributor',
+    /** The first chip of the distributor filter. */
+    allChip: 'All',
+    /** The distributor filter as a search box (more than 5 distributors). */
     allDistributors: 'All distributors',
     caption: 'Orders',
     loadFailed: "Couldn't load the orders",
@@ -21,47 +25,39 @@ export const orders = {
     needsDriver: 'Needs a driver',
     inProgress: 'In progress',
     doneToday: 'Done today',
-    cancelledFailed: 'Cancelled & failed',
+    cancelledFailed: 'Cancelled or not delivered',
     all: 'All',
   },
   columns: {
     order: 'Order',
-    stage: 'Stage',
+    status: 'Status',
     customer: 'Customer',
     cylinders: 'Cylinders',
     cost: 'Delivery cost',
     driver: 'Driver',
-    distributor: 'Distributor',
-    placed: 'Placed',
   },
   row: {
     assign: 'Assign driver',
     noDriver: '—',
+    /** The muted line under the order number, by tab. */
+    when: {
+      placed: 'Placed {{ago}}',
+      delivered: 'Delivered {{time}}',
+      cancelled: 'Cancelled {{time}}',
+      notDelivered: 'Not delivered {{time}}',
+    },
+    /** The muted line under the customer while every distributor's orders show. */
+    zoneDistributor: '{{zone}} · {{distributor}}',
   },
   empty: {
-    needsDriver: {
-      title: 'No orders need a driver',
-      body: 'New orders from distributors show up here. This list refreshes every 15 seconds.',
-    },
-    inProgress: {
-      title: 'No orders in progress',
-      body: 'Orders show here from the moment a driver is assigned until they are delivered.',
-    },
-    doneToday: {
-      title: 'Nothing delivered yet today',
-      body: 'Orders delivered during this business day show here.',
-    },
-    cancelledFailed: {
-      title: 'No cancelled or failed orders',
-      body: 'Orders cancelled or not delivered in the last 7 days show here.',
-    },
-    all: {
-      title: 'No orders yet',
-      body: 'Orders placed in the distributor app show up here.',
-    },
+    needsDriver: { title: 'No orders need a driver' },
+    inProgress: { title: 'No orders in progress' },
+    doneToday: { title: 'Nothing delivered yet today' },
+    cancelledFailed: { title: 'None in the last 7 days' },
+    all: { title: 'No orders yet' },
     search: {
       title: 'No orders match “{{q}}”',
-      body: 'Check the order number, name or phone number, or clear the search.',
+      tab: 'Only {{tab}} was searched.',
     },
   },
   format: {
@@ -71,17 +67,31 @@ export const orders = {
   },
   drawer: {
     title: 'Order {{no}}',
-    titleLoading: 'Order',
     subtitle: '{{distributor}} · placed {{when}}',
     subtitleNoDistributor: 'Placed {{when}}',
+    subtitleDelivered: '{{distributor}} · delivered {{when}}',
+    subtitleDeliveredNoDistributor: 'Delivered {{when}}',
+    subtitleCancelled: '{{distributor}} · cancelled {{when}}',
+    subtitleCancelledNoDistributor: 'Cancelled {{when}}',
+    subtitleNotDelivered: '{{distributor}} · not delivered {{when}}',
+    subtitleNotDeliveredNoDistributor: 'Not delivered {{when}}',
     loadFailed: "Couldn't load this order",
     notFound: "We couldn't find this order. It may have been removed, or the link is old.",
     sections: {
       customer: 'Customer',
       cylinders: 'Cylinders',
       cost: 'Delivery cost',
-      driver: 'Driver and van',
+      driver: 'Driver',
       timeline: 'Timeline',
+    },
+    /** The outcome line at the top of a finished order: what happened to the money, and why. */
+    outcome: {
+      returned: '{{amount}} returned to the wallet · {{reason}}',
+      returnedNoReason: '{{amount}} returned to the wallet',
+      noRefund: 'No refund: delivery had started · {{reason}}',
+      noRefundNoReason: 'No refund: delivery had started',
+      notDelivered: '{{reason}} · The driver brings the cylinders back to the store.',
+      notDeliveredNoReason: 'The driver brings the cylinders back to the store.',
     },
     customerZone: 'Zone {{zone}}',
     callCustomer: 'Call {{name}} on {{phone}}',
@@ -90,14 +100,12 @@ export const orders = {
     driverNone: 'No driver yet.',
     callDriver: 'Call {{name}} on {{phone}}',
     startsAt: 'Starts at {{store}}',
-    costBase: 'Base {{amount}}',
-    costLine: '{{n}} × {{amount}} ({{size}})',
-    costSum: '{{parts}} = {{total}}',
-    costTaken: '{{cost}} · taken from the wallet when the order was placed',
-    costLegacy: '{{cost}} · charged by the old system before the pilot',
+    /** The cost breakdown: "Base · Rs 250", then "11.8 kg · 2 × Rs 40" (the size is the label). */
+    costBase: 'Base',
+    costLine: '{{n}} × {{amount}}',
+    costLegacy: 'No breakdown for this older order.',
     costNone: 'No delivery cost for this order.',
     noRefund: 'Cancelling now returns nothing: delivery has started.',
-    changedNotice: 'This order changed while you were looking. The details below are up to date.',
   },
   timeline: {
     placedPaid: 'Placed · {{amount}} taken from wallet',
@@ -112,32 +120,29 @@ export const orders = {
     cancelledReturned: 'Cancelled · {{amount}} returned',
     cancelledNoRefund: 'Cancelled · no refund',
     cancelled: 'Cancelled',
-    failed: 'Could not deliver',
+    failed: 'Not delivered',
     reason: 'Reason: {{reason}}',
   },
   actions: {
     assign: 'Assign driver',
     reassign: 'Change driver',
-    more: 'More',
-    moreLabel: 'More actions for {{no}}',
     cancel: 'Cancel order…',
-    cancelBeforeStart: "Delivery hasn't started, so cancel the order instead of marking it could not deliver.",
     fail: 'Could not deliver…',
-    manualDelivery: 'Mark delivered by office…',
+    manualDelivery: 'Mark delivered…',
   },
   assign: {
     title: 'Assign a driver to {{no}}',
     titleChange: 'Change driver for {{no}}',
     summary: '{{customer}} · {{cylinders}} · {{zone}}',
     startsAt: 'Starts at: {{store}}',
-    startsAtHint: "Every trip starts at the distributor's own store.",
     noStoreTitle: 'This distributor has no store set up',
     noStoreBody: "No trip can start until the store is set up on the distributor's page.",
     changeWarning: "{{driver}}'s stop will be cancelled. Only the new driver can deliver this order.",
     driversLabel: 'Driver',
+    search: 'Find a driver',
     van: 'Van {{plate}}',
+    vanTrip: 'Van {{plate}} · on a trip',
     noVan: 'No van',
-    anotherRun: 'On another run',
     unavailable: {
       noVan: 'No van — give one in Vans',
       onLeaveUntil: 'On leave until {{date}}',
@@ -152,10 +157,11 @@ export const orders = {
       body: 'Add drivers in Drivers and give each one a van.',
     },
     driversFailed: "Couldn't load the drivers",
+    offlineNote: '{{driver}} is offline. He sees it when he opens the app.',
     confirm: 'Assign to {{driver}}',
     confirmNone: 'Assign driver',
-    pickFirst: 'Pick a driver first',
-    toast: '{{no}} assigned to {{driver}}. He sees it in his app now.',
+    pickFirst: 'Pick a driver.',
+    toast: '{{no}} assigned to {{driver}}',
   },
   cancel: {
     title: 'Cancel {{no}}?',
@@ -168,10 +174,11 @@ export const orders = {
     confirmNothing: 'Cancel order',
     reasonLabel: 'Reason',
     noteLabel: 'Note',
-    noteHint: 'At least 5 characters. Saved with the order and in the activity log.',
+    notePlaceholder: 'Who asked, and why?',
     needReason: 'Pick a reason first.',
     needNote: 'Write a note of at least 5 characters.',
-    handoverStarted: "Cylinders were already handed over. Use 'Could not deliver' or mark it delivered.",
+    /** `ORDER_HANDOVER_STARTED`, in the office's own words and button names. */
+    handoverStarted: "The driver has started delivering. Use 'Could not deliver…' or 'Mark delivered…'.",
     toastReturned: '{{no}} cancelled · {{amount}} returned',
     toastNoRefund: '{{no}} cancelled · no refund',
     toastDone: '{{no}} cancelled',
@@ -184,25 +191,27 @@ export const orders = {
     },
   },
   fail: {
-    title: 'Mark {{no}} as could not deliver?',
-    body: 'No money moves; the {{amount}} was taken when the order was placed. The driver must bring the cylinders back to the store.',
-    bodyNoCost: 'No money moves. The driver must bring the cylinders back to the store.',
-    confirm: 'Mark could not deliver',
-    toast: '{{no}} marked as could not deliver.',
+    title: 'Mark {{no}} not delivered?',
+    facts: {
+      money: 'No refund: {{amount}} stays paid.',
+      driver: 'The driver brings the cylinders back to the store.',
+    },
+    notePlaceholder: 'What happened?',
+    confirm: 'Mark not delivered',
+    toast: '{{no}} marked not delivered.',
     reason: {
       CUSTOMER_NOT_HOME: 'Customer not home',
       CUSTOMER_REFUSED: 'Customer refused',
       WRONG_ADDRESS: 'Wrong address',
       NOT_REACHABLE: "Couldn't reach the customer",
       VAN_PROBLEM: 'Van problem',
-      OTHER: 'Other reason',
+      OTHER: 'Other',
     },
   },
   manual: {
-    title: 'Mark {{no}} delivered by office?',
-    body: "Use this only when the driver can't mark it in the app. It's logged with your name. No money moves.",
-    reasonLabel: 'Reason',
-    reasonHint: 'At least 10 characters: what happened, and who confirmed the delivery.',
+    title: 'Mark {{no}} delivered?',
+    body: "Only when the driver can't do it in the app. No money moves.",
+    reasonLabel: 'Who confirmed the delivery?',
     needReason: 'Write a reason of at least 10 characters.',
     confirm: 'Mark delivered',
     toast: '{{no}} marked delivered by the office.',

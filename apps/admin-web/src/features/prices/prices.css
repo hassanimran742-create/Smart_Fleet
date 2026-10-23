@@ -1,97 +1,33 @@
 /*
- * Delivery prices and the price drawer (UX_ADMIN §2.3). Tokens only (src/ui/tokens.css) and logical
- * properties, so the screens work at 1024×768 and 768×1024 and right-to-left later is a `dir` switch.
+ * Delivery prices and the price drawer (website spec W15–W17). Tokens only (src/ui/tokens.css) and
+ * logical properties, so the screens work at 1024×768 and 768×1024 and right-to-left later is a `dir`
+ * switch.
  */
 
 .sf-prices__muted {
   color: var(--text-muted);
 }
 
-/* ---- Distributor switcher: a segmented control for up to 4 distributors ---- */
+/* ---- The distributor chips: name, then a red "1 missing" or a green tick and "All set" ---- */
 
 .sf-prices__switcher {
   margin-block-end: var(--sp-4);
 }
 
-.sf-prices__segments {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1);
-  margin: 0;
-  padding: var(--sp-1);
-  list-style: none;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-}
-
-.sf-prices__segment {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-block-size: var(--control-h);
-  padding-inline: var(--sp-3);
-  border-radius: var(--r-sm);
-  color: var(--text);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.sf-prices__segment:hover {
-  background: var(--neutral-bg);
-  color: var(--text);
-}
-
-.sf-prices__segment.is-current {
-  background: var(--surface);
-  box-shadow: var(--shadow-1);
-  outline: 1px solid var(--border-input);
-}
-
-.sf-prices__coverage {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding-inline: 6px;
-  border-radius: var(--r-pill);
-  font-size: var(--fs-12);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.sf-prices__coverage.is-missing {
-  background: var(--warning-bg);
-  color: var(--warning-fg);
-}
-
-.sf-prices__coverage.is-complete {
-  background: var(--success-bg);
-  color: var(--success-fg);
-}
-
-.sf-prices__switcher-select {
+.sf-prices__switcher--search {
   max-inline-size: 360px;
 }
 
-/* ---- Alert, filters and grid ---- */
-
-.sf-prices__missing {
-  margin-block-end: var(--sp-4);
-}
-
-.sf-prices__switch {
+.sf-prices__state {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
-  white-space: nowrap;
+  gap: 4px;
 }
 
-.sf-prices__filters {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--sp-4);
-  margin-block-end: var(--sp-3);
+/* ---- Alerts, filters and grid ---- */
+
+.sf-prices__alert {
+  margin-block-end: var(--sp-4);
 }
 
 .sf-prices__zone {
@@ -105,11 +41,15 @@
   font-weight: 600;
 }
 
-.sf-prices__size-head {
+/* The per-cylinder amounts wrap between sizes, never inside "45.4 kg Rs 150". */
+.sf-prices__sizes-cell {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.25;
+  flex-wrap: wrap;
+  column-gap: var(--sp-1);
+}
+
+.sf-prices__size-amount {
+  white-space: nowrap;
 }
 
 /* ---- Drawer ---- */
@@ -118,28 +58,22 @@
   margin-block-end: var(--sp-4);
 }
 
-.sf-prices__last-changed {
-  margin-block-end: var(--sp-4);
-  font-size: var(--fs-13);
+.sf-prices__copy {
+  max-inline-size: 320px;
 }
 
 .sf-prices__sizes {
-  margin: 0 0 var(--sp-2);
+  margin: 0;
   padding: 0;
   border: 0;
   min-inline-size: 0;
 }
 
 .sf-prices__sizes-title {
-  margin-block-end: var(--sp-1);
+  margin-block-end: var(--sp-2);
   padding: 0;
   font-size: var(--fs-14);
   font-weight: 600;
-}
-
-.sf-prices__sizes-hint {
-  margin-block-end: var(--sp-3);
-  font-size: var(--fs-13);
 }
 
 .sf-prices__sizes-grid {
@@ -152,6 +86,11 @@
   .sf-prices__sizes-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.sf-prices__sizes-hint {
+  margin-block-start: calc(-1 * var(--sp-2));
+  font-size: var(--fs-13);
 }
 
 .sf-prices__example {
@@ -168,4 +107,8 @@
   color: var(--text-muted);
   font-size: var(--fs-13);
   font-weight: 600;
+}
+
+.sf-prices__note {
+  font-size: var(--fs-13);
 }

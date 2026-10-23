@@ -28,7 +28,7 @@ Driver words map to scan codes like this (the code names read backwards from the
 | Load (IN at the store) | `SCAN_OUT` | store → van |
 | Deliver (OUT to the customer) | `DELIVERED` | van → customer |
 | Take back (IN from the customer) | `PICKED_UP_EMPTY` | customer → van |
-| Hand back (the store scans IN) | `SCAN_IN` | van → the owner's one store |
+| Unload (the store scans IN; the shop app says Receive) | `SCAN_IN` | van → the owner's one store |
 
 ## The three increments
 
@@ -72,13 +72,14 @@ Exit: the rehearsal day passes its go / no-go rules. The test server's company a
 | [DECISIONS.md](DECISIONS.md) | Owner decisions, the defaults that are settings, what was superseded |
 | [DATA_MODEL.md](DATA_MODEL.md) | Every **table, column, enum, constraint and migration**, and the SQL write patterns |
 | [API_CONTRACT.md](API_CONTRACT.md) | Every **route, payload, state machine, error code, settings key and service interface** |
+| [UX_PRINCIPLES.md](UX_PRINCIPLES.md) | The simplicity rulebook for every screen of the four surfaces: look, feel, layout, choice of control, copy, word budgets and screen states, and the "Definition of simple" checklist. It ranks **above** UX_MOBILE, UX_ADMIN and CUSTOMER_PAGE on those, and below them on behaviour, money and safety |
 | [UX_MOBILE.md](UX_MOBILE.md) | Shop and driver app screens, states, copy keys, mobile design tokens and components |
 | [UX_ADMIN.md](UX_ADMIN.md) | Super-admin website screens, states, copy, web design tokens and components |
 | [CUSTOMER_PAGE.md](CUSTOMER_PAGE.md) | The public confirmation link page, the SMS text and messaging (Inc 2, optional) |
 | [CHANGELOG.md](CHANGELOG.md) | The record of spec changes, one line per gap id, with the defaults the owner may still change |
 
 Rules when the docs and the code disagree:
-1. **Precedence:** DECISIONS beats DATA_MODEL for names, which beats API_CONTRACT, which beats the UX docs. Between CUSTOMER_PAGE and API_CONTRACT, API_CONTRACT wins on routes, status codes and error codes, and CUSTOMER_PAGE wins on page content, copy and layout. Fix the lower doc in the same pull request.
+1. **Precedence:** DECISIONS beats DATA_MODEL for names, which beats API_CONTRACT, which beats the UX docs. Between CUSTOMER_PAGE and API_CONTRACT, API_CONTRACT wins on routes, status codes and error codes, and CUSTOMER_PAGE wins on page content, copy and layout. On look, feel, layout, controls, copy and screen states, UX_PRINCIPLES beats UX_MOBILE, UX_ADMIN and CUSTOMER_PAGE; it never changes a behaviour, money or safety rule. Fix the lower doc in the same pull request.
 2. **Shared code is the contract.** Error codes, enums, settings keys and DTO types live in `packages/shared-types`. Request schemas live in `packages/shared-validation`, and formatters in `packages/shared-utils`. Apps never redefine them.
 3. **Every money or state change is atomic and idempotent** (API_CONTRACT §4). No pull request moves money outside `WalletService`.
 4. **Every user-facing string** goes through an i18n key. The server returns `{ code, message, details }`, and apps translate `errors.<CODE>`.

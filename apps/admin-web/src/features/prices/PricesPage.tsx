@@ -1,7 +1,7 @@
-import { useCallback, useId, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { getRouteApi, useParams } from '@tanstack/react-router';
-import type { PriceGridDto, PriceGridZone } from '@smartfleet/shared-types';
-import { formatPkDay } from '@smartfleet/shared-utils';
+import { CircleCheck } from 'lucide-react';
+import type { PriceGridDto, PriceGridSize, PriceGridZone } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
 import type { PricesSearch } from '../../app/search';
 import {
@@ -9,26 +9,32 @@ import {
   Chip,
   EmptyState,
   ErrorState,
+  FilterBar,
+  FilterChips,
   InlineAlert,
   MoneyText,
   PageHeader,
-  SkeletonText,
+  Skeleton,
   StaleBanner,
   StatusChip,
-  Switch,
   Table,
+  ToggleChip,
+  useFlashedRow,
   type TableColumn,
 } from '../../ui';
-import { useDistributorDirectory, usePriceGrid } from './api';
+import { PRICES_FLASH, useDistributorDirectory, usePriceGrid } from './api';
 import { DistributorSwitcher, switcherOptions } from './DistributorSwitcher';
+import { sizeAmounts } from './example';
 import './prices.css';
 
 const route = getRouteApi('/prices/$distributorId');
 
+type ZoneFilter = 'all' | 'missing';
+
 /**
- * Delivery prices (`/prices/$distributorId?missing&archived`, UX_ADMIN §2.3): one row per zone with the
- * base per order and the per-size amounts ("—" for 0), and "Set" or "Not set" in words. A missing price
- * is flagged by an alert that counts the zones. A row opens the price drawer.
+ * Delivery prices (`/prices/$distributorId?missing&archived`, website spec W15): the distributor chips
+ * with their missing count, one red line when a zone has no price, the All zones / Missing chips, and a
+ * 5-column grid (zone, base per order, per cylinder, status, a button). A row opens the price drawer.
  */
 export function PricesPage() {
   const { t } = useTranslation(['prices', 'common']);
@@ -38,8 +44,7 @@ export function PricesPage() {
   const params = useParams({ strict: false }) as { zoneId?: string };
   const grid = usePriceGrid(distributorId);
   const directory = useDistributorDirectory();
-  const missingSwitchId = useId();
-  const archivedSwitchId = useId();
+  const flashed = useFlashedRow(PRICES_FLASH);
 
   const data = grid.data;
   const options = useMemo(
@@ -50,6 +55,7 @@ export function PricesPage() {
       ),
     [directory.data, data],
   );
+  const name = data?.distributor.businessName ?? options.find((option) => option.id === distributorId)?.name ?? null;
 
   const setSearch = (patch: Partial<PricesSearch>) => {
     void navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
@@ -62,78 +68,107 @@ export function PricesPage() {
   );
 
   const rows = useMemo(() => visibleRows(data, search), [data, search]);
-  const columns = usePriceColumns(data, open);
-  const missing = data ? data.coverage.total - data.coverage.priced : 0;
+  const columns = usePriceColumns(data?.sizes, open);
+  const missing = data ? Math.max(0, data.coverage.total - data.coverage.priced) : 0;
   const hasArchived = Boolean(data?.zones.some((row) => !row.zone.isActive));
-  const missingSwitch = (
-    <span className="sf-prices__switch">
-      <Switch id={missingSwitchId} checked={search.missing === true} onChange={(on) => setSearch({ missing: on ? true : undefined })} />
-      <label htmlFor={missingSwitchId}>{t('showMissing')}</label>
-    </span>
-  );
+  const zoneFilter: ZoneFilter = search.missing ? 'missing' : 'all';
+
+  const empty =
+    data && data.zones.some((row) => row.zone.isActive) && search.missing ? (
+      <EmptyState
+        compact
+        icon={CircleCheck}
+        title={t('empty.missingTitle')}
+        action={
+          <Button size="sm" onClick={() => setSearch({ missing: undefined })}>
+            {t('empty.showAll')}
+          </Button>
+        }
+      />
+    ) : (
+      <EmptyState compact title={t('empty.zonesTitle')} />
+    );
 
   return (
     <div className="sf-prices">
-      <PageHeader
-        title={t('page.title')}
-        subtitle={t('page.subtitle')}
-        updatedAt={grid.dataUpdatedAt || null}
-        onRefresh={() => void Promise.all([grid.refetch(), directory.refetch()])}
-        refreshing={grid.isFetching}
-      />
+      <PageHeader title={t('page.title')} subtitle={t('page.subtitle')} />
+      <StaleBanner query={grid} />
 
-      <DistributorSwitcher options={options} currentId={distributorId} />
-
-      {grid.isPending ? (
-        <SkeletonText lines={2} />
-      ) : data && missing > 0 ? (
-        <InlineAlert tone="warning" className="sf-prices__missing" action={missingSwitch}>
-          {t('missing', { count: missing, total: data.coverage.total, distributor: data.distributor.businessName })}
+      {directory.isPending && !data ? (
+        <div className="sf-chips sf-prices__switcher" aria-hidden>
+          <Skeleton width="10rem" height="var(--control-h)" radius="pill" />
+          <Skeleton width="10rem" height="var(--control-h)" radius="pill" />
+        </div>
+      ) : (
+        <DistributorSwitcher options={options} currentId={distributorId} />
+      )}
+      {directory.isError && !directory.data ? (
+        <InlineAlert
+          tone="warning"
+          className="sf-prices__alert"
+          action={
+            <Button size="sm" onClick={() => void directory.refetch()} loading={directory.isFetching}>
+              {t('common:actions.tryAgain')}
+            </Button>
+          }
+        >
+          {t('index.loadFailed')}
         </InlineAlert>
       ) : null}
 
-      {hasArchived || (search.missing && missing === 0) ? (
-        <div className="sf-prices__filters">
-          {search.missing && missing === 0 ? missingSwitch : null}
-          {hasArchived ? (
-            <span className="sf-prices__switch">
-              <Switch
-                id={archivedSwitchId}
-                checked={search.archived === true}
-                onChange={(on) => setSearch({ archived: on ? true : undefined })}
-              />
-              <label htmlFor={archivedSwitchId}>{t('showArchived')}</label>
-            </span>
-          ) : null}
-        </div>
+      {missing > 0 ? (
+        <InlineAlert tone="danger" className="sf-prices__alert">
+          {t('missing', { count: missing })}
+        </InlineAlert>
       ) : null}
 
-      <StaleBanner query={grid} />
+      {data && data.zones.length > 0 ? (
+        <FilterBar className="sf-prices__filters">
+          <FilterChips<ZoneFilter>
+            label={t('filters.label')}
+            options={[
+              { value: 'all', label: t('filters.all') },
+              { value: 'missing', label: t('filters.missing', { count: missing }) },
+            ]}
+            value={zoneFilter}
+            onChange={(next) => setSearch({ missing: next === 'missing' ? true : undefined })}
+          />
+          {hasArchived ? (
+            <ToggleChip
+              label={t('showArchived')}
+              pressed={search.archived === true}
+              onChange={(on) => setSearch({ archived: on ? true : undefined })}
+            />
+          ) : null}
+        </FilterBar>
+      ) : null}
 
       <Table
-        caption={t('grid.caption', { distributor: data?.distributor.businessName ?? '' })}
+        caption={t('grid.caption', { distributor: name ?? '' })}
         className="sf-prices__grid"
         columns={columns}
         rows={rows}
         rowKey={(row) => row.zone.id}
         onRowClick={open}
         selectedKey={params.zoneId ?? null}
-        rowTone={(row) => (row.zone.isActive && row.price === null ? 'warning' : null)}
+        highlightKey={flashed}
+        rowTone={(row) => (row.zone.isActive && row.price === null ? 'danger' : null)}
         state={grid.isPending ? 'loading' : grid.isError && !data ? 'error' : 'ready'}
-        error={<ErrorState error={grid.error} onRetry={() => void grid.refetch()} retrying={grid.isFetching} title={t('page.loadFailed')} />}
-        empty={
-          data && data.zones.length > 0 && search.missing ? (
-            <EmptyState compact title={t('empty.missingTitle')} body={t('empty.missingBody')} />
-          ) : (
-            <EmptyState compact title={t('empty.zonesTitle')} body={t('empty.zonesBody')} />
-          )
+        error={
+          <ErrorState
+            error={grid.error}
+            onRetry={() => void grid.refetch()}
+            retrying={grid.isFetching}
+            title={name ? t('page.loadFailedFor', { distributor: name }) : t('index.loadFailed')}
+          />
         }
+        empty={empty}
       />
     </div>
   );
 }
 
-/** Active zones (and archived ones when asked); "Show only missing" keeps active zones without a price. */
+/** Active zones (and archived ones when asked); Missing keeps the active zones without a price. */
 function visibleRows(data: PriceGridDto | undefined, search: PricesSearch): PriceGridZone[] | undefined {
   if (!data) return undefined;
   return data.zones.filter((row) => {
@@ -142,12 +177,11 @@ function visibleRows(data: PriceGridDto | undefined, search: PricesSearch): Pric
   });
 }
 
-function usePriceColumns(data: PriceGridDto | undefined, open: (row: PriceGridZone) => void): TableColumn<PriceGridZone>[] {
+function usePriceColumns(sizes: readonly PriceGridSize[] | undefined, open: (row: PriceGridZone) => void): TableColumn<PriceGridZone>[] {
   const { t } = useTranslation('prices');
-  return useMemo(() => {
+  return useMemo<TableColumn<PriceGridZone>[]>(() => {
     const none = <span className="sf-prices__muted">{t('grid.none')}</span>;
-    const sizes = data?.sizes ?? [];
-    const columns: TableColumn<PriceGridZone>[] = [
+    return [
       {
         id: 'zone',
         header: t('grid.zone'),
@@ -166,60 +200,43 @@ function usePriceColumns(data: PriceGridDto | undefined, open: (row: PriceGridZo
         align: 'end',
         cell: (row) => (row.price ? <MoneyText paisa={row.price.basePaisa} /> : none),
       },
-      ...sizes.map(
-        (size): TableColumn<PriceGridZone> => ({
-          id: `size-${size.cylinderTypeId}`,
-          header: (
-            <span className="sf-prices__size-head">
-              <span>{size.label}</span>
-              <span className="sf-prices__muted">{t('grid.perCylinder')}</span>
+      {
+        id: 'perCylinder',
+        header: t('grid.perCylinder'),
+        cell: (row) => {
+          const parts = sizeAmounts(row.price, sizes ?? []);
+          if (parts.length === 0) return none;
+          // "11.8 kg Rs 40 · 45.4 kg Rs 150": each size with its amount stays on one line.
+          return (
+            <span className="sf-prices__sizes-cell">
+              {parts.map((part, index) => (
+                <span key={part} className="sf-prices__size-amount">
+                  {index > 0 ? <span aria-hidden>· </span> : null}
+                  {part}
+                </span>
+              ))}
             </span>
-          ),
-          align: 'end',
-          cell: (row) => {
-            const amount = row.price?.sizes.find((entry) => entry.cylinderTypeId === size.cylinderTypeId)?.perCylinderPaisa;
-            return amount && amount !== '0' ? <MoneyText paisa={amount} /> : none;
-          },
-        }),
-      ),
+          );
+        },
+      },
       {
         id: 'status',
         header: t('grid.status'),
-        // Hidden under 1024 px (UX_ADMIN §2.3); the row's edge, its "Set price" button and the drawer say it.
+        // Hidden under 1024 px (UX_ADMIN §2.3); the row's red edge, its "Set price" button and the drawer say it.
         priority: 2,
         cell: (row) => <StatusChip kind="price" value={row.price ? 'SET' : 'NOT_SET'} />,
-      },
-      {
-        id: 'changed',
-        header: t('grid.changed'),
-        priority: 3,
-        cell: (row) =>
-          row.price ? (
-            row.price.updatedBy?.name ? (
-              t('grid.changedBy', { date: formatPkDay(row.price.updatedAt, { weekday: false }), name: row.price.updatedBy.name })
-            ) : (
-              formatPkDay(row.price.updatedAt, { weekday: false })
-            )
-          ) : (
-            none
-          ),
       },
       {
         id: 'action',
         header: <span className="sr-only">{t('grid.action')}</span>,
         align: 'end',
         cell: (row) =>
-          row.zone.isActive ? (
-            <Button size="sm" variant={row.price ? 'ghost' : 'secondary'} onClick={() => open(row)}>
-              {row.price ? t('grid.edit') : t('grid.set')}
-            </Button>
-          ) : row.price ? (
-            <Button size="sm" variant="ghost" onClick={() => open(row)}>
-              {t('grid.view')}
+          row.zone.isActive || row.price ? (
+            <Button size="sm" variant="secondary" onClick={() => open(row)}>
+              {!row.zone.isActive ? t('grid.view') : row.price ? t('grid.edit') : t('grid.set')}
             </Button>
           ) : null,
       },
     ];
-    return columns;
-  }, [data?.sizes, open, t]);
+  }, [open, sizes, t]);
 }

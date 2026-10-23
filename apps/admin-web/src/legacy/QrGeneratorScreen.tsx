@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { QRCodeCanvas } from 'qrcode.react';
-import { FileDown, Printer } from 'lucide-react';
+import { FileDown, Minus, Plus, Printer } from 'lucide-react';
 import type { DistributorDto } from '@smartfleet/shared-types';
 import { BULK_REGISTER_MAX } from '@smartfleet/shared-validation';
 import { api } from '../api/client';
 import { messageFor } from '../api/errors';
-import { Button } from '../ui';
+import { formatNumber } from '../i18n/format';
+import { Button, Field, IconButton, InlineAlert, Select, Table, TextInput, type TableColumn } from '../ui';
+import { sizeLabelOf, useLegacyT } from './i18n';
 import './legacy.css';
 
-interface CylinderType { id: string; code: string; name: string; weightKg: string }
+interface CylinderType {
+  id: string;
+  code: string;
+  name: string;
+  weightKg: string;
+}
 interface GeneratedCylinder {
   id: string;
   serial: string;
@@ -19,56 +26,64 @@ interface GeneratedCylinder {
 }
 
 interface Batch {
+  key: number;
   cylinderTypeId: string;
-  cylinderTypeLabel: string;
+  size: string;
   quantity: number;
 }
 
+type Label = GeneratedCylinder & { size: string; distributorName: string };
+
 /**
- * Bulk QR generation: pick a distributor, queue one or more batches (cylinder size × quantity),
- * generate them in one go, preview the QR grid, print or export to CSV.
- *
- * Every new cylinder starts in the distributor's one store (API_CONTRACT §7.2 bulk-register, ADR-01), so
- * there is no store picker: the store is shown, and sent as the first holder. A batch is at most 500
- * cylinders (G05-12). Touched for UX_ADMIN §2.11: labelled icons instead of emoji.
+ * QR labels (Cylinders & labels → QR labels). Light pass (website spec W47): three steps, "1
+ * Distributor · 2 What to print · 3 Print"; batches go on a print list (size and a − / + count, up to
+ * 500 each); "Add 12 cylinders" registers them and shows their labels to print or export. Every new
+ * cylinder starts in the distributor's one store (API_CONTRACT §7.2 bulk-register, ADR-01), so there is
+ * no store picker: the store is shown, and sent as the first holder (G05-12).
  */
 export function QrGeneratorScreen() {
+  const lt = useLegacyT();
   const distributors = useQuery({ queryKey: ['distributors'], queryFn: async () => (await api.get<DistributorDto[]>('/distributors')).data });
   const types = useQuery({ queryKey: ['cylinder-types'], queryFn: async () => (await api.get<CylinderType[]>('/cylinder-types')).data });
 
   const [distributorId, setDistributorId] = useState('');
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [draft, setDraft] = useState<{ typeId: string; qty: string }>({ typeId: '', qty: '10' });
-  const [generated, setGenerated] = useState<Array<GeneratedCylinder & { typeLabel: string; weight: string; distributorName: string }>>([]);
+  const [typeId, setTypeId] = useState('');
+  const [quantity, setQuantity] = useState('10');
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [generated, setGenerated] = useState<Label[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const distributor = (distributors.data ?? []).find((d) => d.id === distributorId) ?? null;
   const store = distributor?.store ?? null;
+  const totalQueued = batches.reduce((sum, b) => sum + b.quantity, 0);
+
+  const step = (delta: number) => {
+    const next = Math.min(BULK_REGISTER_MAX, Math.max(1, (Math.floor(Number(quantity)) || 0) + delta));
+    setQuantity(String(next));
+  };
 
   function addBatch() {
-    setErr(null);
-    const qty = Number(draft.qty);
-    if (!draft.typeId || !draft.qty || !Number.isInteger(qty) || qty <= 0) {
-      setErr('Pick a cylinder size and a whole number of cylinders.');
+    const qty = Number(quantity);
+    const type = types.data?.find((t) => t.id === typeId);
+    if (!type) {
+      setBatchError(lt('labels.sizeMissing'));
       return;
     }
-    if (qty > BULK_REGISTER_MAX) {
-      setErr(`Maximum ${BULK_REGISTER_MAX} cylinders per registration.`);
+    if (!Number.isInteger(qty) || qty <= 0 || qty > BULK_REGISTER_MAX) {
+      setBatchError(lt('labels.max', { max: BULK_REGISTER_MAX }));
       return;
     }
-    const type = types.data?.find((t) => t.id === draft.typeId);
-    if (!type) return;
-    setBatches((b) => [...b, { cylinderTypeId: type.id, cylinderTypeLabel: type.name, quantity: qty }]);
-    setDraft({ typeId: '', qty: '10' });
+    setBatchError(null);
+    setBatches((list) => [...list, { key: Date.now(), cylinderTypeId: type.id, size: sizeLabelOf(type), quantity: qty }]);
+    setTypeId('');
+    setQuantity('10');
   }
 
   const generate = useMutation({
     mutationFn: async () => {
-      if (!distributor) throw new Error('Pick a distributor first.');
-      if (!store) throw new Error('This distributor has no store yet. Set it up on their page first.');
-      if (batches.length === 0) throw new Error('Add at least one batch.');
-      const distName = distributor.businessName;
-      const out: typeof generated = [];
+      if (!distributor || !store) throw new Error(lt('labels.noStore', { name: distributor?.businessName ?? '' }));
+      const out: Label[] = [];
       for (const b of batches) {
         const res = await api.post<GeneratedCylinder[]>('/cylinders/bulk-register', {
           distributorId: distributor.id,
@@ -77,13 +92,7 @@ export function QrGeneratorScreen() {
           initialCustodyType: 'STORE',
           initialCustodyId: store.id,
         });
-        const type = types.data?.find((t) => t.id === b.cylinderTypeId);
-        out.push(...res.data.map((c) => ({
-          ...c,
-          typeLabel: type?.name ?? '',
-          weight: type ? `${Number(type.weightKg)} kg` : '',
-          distributorName: distName,
-        })));
+        out.push(...res.data.map((c) => ({ ...c, size: b.size, distributorName: distributor.businessName })));
       }
       return out;
     },
@@ -97,8 +106,8 @@ export function QrGeneratorScreen() {
 
   function exportCsv() {
     const rows = [
-      ['serial', 'qrCode', 'type', 'weight', 'distributor', 'cylinderId'],
-      ...generated.map((c) => [c.serial, c.qrCode, c.typeLabel, c.weight, c.distributorName, c.id]),
+      ['serial', 'qrCode', 'size', 'distributor', 'cylinderId'],
+      ...generated.map((c) => [c.serial, c.qrCode, c.size, c.distributorName, c.id]),
     ];
     const csv = rows.map((r) => r.map((v) => `"${(v ?? '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -110,189 +119,141 @@ export function QrGeneratorScreen() {
     URL.revokeObjectURL(url);
   }
 
-  function printLabels() {
-    window.print();
-  }
+  const batchColumns: TableColumn<Batch>[] = [
+    { id: 'size', header: lt('labels.columns.size'), cell: (b) => b.size },
+    { id: 'quantity', header: lt('labels.columns.quantity'), align: 'end', cell: (b) => <strong>{formatNumber(b.quantity)}</strong> },
+    {
+      id: 'remove',
+      header: <span className="sr-only">{lt('labels.columns.remove')}</span>,
+      align: 'end',
+      cell: (b) => (
+        <Button size="sm" variant="ghost-danger" onClick={() => setBatches((list) => list.filter((x) => x.key !== b.key))}>
+          {lt('labels.remove')}
+        </Button>
+      ),
+    },
+  ];
 
-  const totalQueued = batches.reduce((s, b) => s + b.quantity, 0);
+  const blockedReason = !store ? lt('labels.pickDistributorFirst') : batches.length === 0 ? lt('labels.addBatchFirst') : undefined;
 
   return (
-    <>
-      <h2>Cylinder QR labels</h2>
-      <p className="muted">
-        Register cylinders in bulk and print their labels. Each cylinder gets its own serial and QR code, which the driver and shop
-        apps scan.
-      </p>
-
-      <div className="card no-print">
-        <h3>1. Pick distributor</h3>
-        <label htmlFor="qr-distributor">Distributor *</label>
-        <select
-          id="qr-distributor"
-          value={distributorId}
-          onChange={(e) => {
-            setDistributorId(e.target.value);
-            setBatches([]);
-            setErr(null);
-          }}
-        >
-          <option value="">Pick a distributor</option>
-          {(distributors.data ?? []).map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.businessName}
-            </option>
-          ))}
-        </select>
-        {distributor &&
-          (store ? (
-            <p className="muted" style={{ marginTop: 8 }}>
-              New cylinders start in <strong>{store.name}</strong>, the store of {distributor.businessName}.
-            </p>
+    <div className="sf-legacy-page">
+      <section className="sf-legacy-card no-print">
+        <h3 className="sf-legacy-card__title">{lt('labels.step1')}</h3>
+        <Field label={lt('labels.distributor')} labelHidden>
+          <Select
+            value={distributorId}
+            placeholder={lt('labels.pickDistributor')}
+            options={(distributors.data ?? []).map((d) => ({ value: d.id, label: d.businessName }))}
+            onChange={(e) => {
+              setDistributorId(e.target.value);
+              setBatches([]);
+              setErr(null);
+            }}
+          />
+        </Field>
+        {distributor ? (
+          store ? (
+            <p className="sf-legacy__muted">{lt('labels.startsIn', { store: store.name })}</p>
           ) : (
-            <p style={{ marginTop: 8, color: 'var(--danger-fg)' }}>
-              {distributor.businessName} has no store yet. Set it up on their page first.
-            </p>
-          ))}
-      </div>
+            <InlineAlert tone="danger">{lt('labels.noStore', { name: distributor.businessName })}</InlineAlert>
+          )
+        ) : null}
+      </section>
 
-      <div className="card no-print">
-        <h3>2. Queue batches</h3>
-        <p className="muted">Add one or more rows. Each becomes its own block of cylinders, at most {BULK_REGISTER_MAX} per row.</p>
-        <div className="flex" style={{ gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <label htmlFor="qr-size">Cylinder size</label>
-            <select id="qr-size" value={draft.typeId} onChange={(e) => setDraft({ ...draft, typeId: e.target.value })}>
-              <option value="">Pick a size</option>
-              {(types.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({Number(t.weightKg)} kg)
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ width: 140 }}>
-            <label htmlFor="qr-qty">Quantity</label>
-            <input
-              id="qr-qty"
-              type="number"
-              min={1}
-              max={BULK_REGISTER_MAX}
-              value={draft.qty}
-              onChange={(e) => setDraft({ ...draft, qty: e.target.value })}
+      <section className="sf-legacy-card no-print">
+        <h3 className="sf-legacy-card__title">{lt('labels.step2')}</h3>
+        <div className="sf-legacy-batch">
+          <Field label={lt('labels.size')}>
+            <Select
+              value={typeId}
+              placeholder={lt('labels.pickSize')}
+              options={(types.data ?? []).map((t) => ({ value: t.id, label: sizeLabelOf(t) }))}
+              onChange={(e) => setTypeId(e.target.value)}
             />
-          </div>
-          <div style={{ alignSelf: 'flex-end' }}>
-            <button className="primary" onClick={addBatch} disabled={!store}>
-              Add batch
-            </button>
-          </div>
-        </div>
-        {batches.length > 0 && (
-          <table style={{ marginTop: 16 }}>
-            <thead>
-              <tr>
-                <th>Size</th>
-                <th>Store</th>
-                <th>Quantity</th>
-                <th aria-label="Actions"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {batches.map((b, i) => (
-                <tr key={i}>
-                  <td>{b.cylinderTypeLabel}</td>
-                  <td>{store?.name ?? '—'}</td>
-                  <td>
-                    <strong>{b.quantity}</strong>
-                  </td>
-                  <td>
-                    <button style={{ color: 'var(--danger-fg)' }} onClick={() => setBatches((bs) => bs.filter((_, j) => j !== i))}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              <tr style={{ background: 'var(--surface-2)' }}>
-                <td colSpan={2}>
-                  <strong>Total cylinders to register</strong>
-                </td>
-                <td colSpan={2}>
-                  <strong>{totalQueued}</strong>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="card no-print">
-        <h3>3. Register</h3>
-        {err && <p style={{ color: 'var(--danger-fg)' }}>{err}</p>}
-        <button className="primary" onClick={() => generate.mutate()} disabled={!store || batches.length === 0 || generate.isPending}>
-          {generate.isPending ? 'Registering…' : `Register ${totalQueued} cylinder${totalQueued === 1 ? '' : 's'}`}
-        </button>
-      </div>
-
-      {generated.length > 0 && (
-        <>
-          <div className="card no-print">
-            <div className="flex" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <div>
-                <h3 style={{ margin: 0 }}>4. Print or export {generated.length} labels</h3>
-                <p className="muted" style={{ margin: 0 }}>
-                  Each label shows the QR code, the serial, the size and the distributor.
-                </p>
-              </div>
-              <div className="flex" style={{ gap: 8 }}>
-                <Button icon={FileDown} onClick={exportCsv}>
-                  Export CSV
-                </Button>
-                <Button variant="primary" icon={Printer} onClick={printLabels}>
-                  Print labels
-                </Button>
-              </div>
+          </Field>
+          <Field label={lt('labels.quantity')} hint={lt('labels.max', { max: BULK_REGISTER_MAX })}>
+            <div className="sf-legacy-stepper">
+              <IconButton icon={Minus} variant="secondary" label={lt('labels.less')} onClick={() => step(-1)} />
+              <TextInput
+                type="number"
+                min={1}
+                max={BULK_REGISTER_MAX}
+                inputMode="numeric"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+              <IconButton icon={Plus} variant="secondary" label={lt('labels.more')} onClick={() => step(1)} />
             </div>
-          </div>
+          </Field>
+          <Button onClick={addBatch} disabled={!store} disabledReason={store ? undefined : lt('labels.pickDistributorFirst')} icon={Plus}>
+            {lt('labels.addToList')}
+          </Button>
+        </div>
+        {batchError ? (
+          <InlineAlert tone="danger" live>
+            {batchError}
+          </InlineAlert>
+        ) : null}
+        {batches.length > 0 ? (
+          <>
+            <Table<Batch> caption={lt('labels.step2')} columns={batchColumns} rows={batches} rowKey={(b) => String(b.key)} state="ready" empty={null} />
+            <p className="sf-legacy__strong">{lt('labels.total', { count: totalQueued })}</p>
+          </>
+        ) : null}
+      </section>
+
+      <section className="sf-legacy-card no-print">
+        <h3 className="sf-legacy-card__title">{lt('labels.step3')}</h3>
+        {err ? (
+          <InlineAlert tone="danger" live>
+            {err}
+          </InlineAlert>
+        ) : null}
+        <div>
+          <Button
+            variant="primary"
+            onClick={() => generate.mutate()}
+            loading={generate.isPending}
+            disabled={Boolean(blockedReason)}
+            disabledReason={blockedReason}
+            reasonVisible
+          >
+            {lt('labels.addCylinders', { count: totalQueued })}
+          </Button>
+        </div>
+      </section>
+
+      {generated.length > 0 ? (
+        <>
+          <section className="sf-legacy-card no-print">
+            <div className="sf-legacy-card__row">
+              <h3 className="sf-legacy-card__title">{lt('labels.ready', { count: generated.length })}</h3>
+              <span className="sf-legacy__actions">
+                <Button icon={FileDown} onClick={exportCsv}>
+                  {lt('labels.exportCsv')}
+                </Button>
+                <Button variant="primary" icon={Printer} onClick={() => window.print()}>
+                  {lt('labels.print')}
+                </Button>
+              </span>
+            </div>
+          </section>
 
           <div className="qr-grid">
             {generated.map((c) => (
               <div className="qr-label" key={c.id}>
                 <QRCodeCanvas value={c.qrCode} size={120} includeMargin />
-                <div style={{ marginTop: 8, textAlign: 'center', fontSize: 11 }}>
-                  <div style={{ fontWeight: 700 }}>{c.weight}</div>
-                  <div className="muted">{c.distributorName}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' }}>{c.serial}</div>
+                <div className="qr-label__text">
+                  <div className="qr-label__size">{c.size}</div>
+                  <div className="qr-label__owner">{c.distributorName}</div>
+                  <div className="qr-label__serial">{c.serial}</div>
                 </div>
               </div>
             ))}
           </div>
-
-          <style>{`
-            .qr-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-              gap: 12px;
-              margin-top: 16px;
-            }
-            .qr-label {
-              background: white;
-              border: 1px solid var(--border);
-              border-radius: 8px;
-              padding: 12px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              page-break-inside: avoid;
-            }
-            @media print {
-              .sidebar, .no-print, .sf-shell__nav, .sf-topbar, .sf-env, .sf-tabs { display: none !important; }
-              .content, .sf-main { padding: 0 !important; }
-              .qr-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-              .layout, .sf-shell { grid-template-columns: 1fr !important; }
-            }
-          `}</style>
         </>
-      )}
-    </>
+      ) : null}
+    </div>
   );
 }

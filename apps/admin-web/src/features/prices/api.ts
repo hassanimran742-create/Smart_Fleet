@@ -19,6 +19,9 @@ export function useDistributorDirectory() {
   });
 }
 
+/** The `flashRow` scope of the grid: a saved or removed price's row is tinted for 2 seconds (ui/highlight.ts). */
+export const PRICES_FLASH = 'prices';
+
 /** An open record drawer re-polls every 10 seconds (UX_ADMIN §1.5). */
 export const PRICE_DRAWER_POLL_MS = 10_000;
 

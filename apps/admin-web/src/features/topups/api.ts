@@ -1,4 +1,5 @@
-import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import type {
   AdminTopupsDto,
   AdminTopupTab,
@@ -25,6 +26,9 @@ import { useSettingRows } from '../settings/api';
 /** UX_ADMIN §1.7: the queue refreshes every 20 seconds, an open drawer every 10 (paused in a background tab). */
 export const TOPUPS_POLL_MS = 20_000;
 export const TOPUP_DRAWER_POLL_MS = 10_000;
+
+/** The `flashRow` scope of the list: a decided top-up's row is tinted for 2 seconds (ui/highlight.ts). */
+export const TOPUPS_FLASH = 'topups';
 
 const PAGE_SIZE = 30;
 
@@ -60,6 +64,22 @@ export function useTopup(paymentId: string) {
     refetchInterval: TOPUP_DRAWER_POLL_MS,
     refetchOnWindowFocus: true,
   });
+}
+
+/**
+ * The request as a list already loaded it, so the drawer's title reads "Ahmed Gas · Rs 3,000" while
+ * the request itself loads (website spec §1.5: never a bare "Top-up"). Undefined when no list has it.
+ */
+export function useCachedTopup(paymentId: string): PaymentDto | undefined {
+  const queryClient = useQueryClient();
+  return useMemo(() => {
+    const lists = queryClient.getQueriesData<InfiniteData<AdminTopupsDto>>({ queryKey: [...qk.topups.all, 'list'] });
+    for (const [, data] of lists) {
+      const found = data?.pages.flatMap((page) => page.items).find((item) => item.id === paymentId);
+      if (found) return found;
+    }
+    return undefined;
+  }, [queryClient, paymentId]);
 }
 
 /** What the review drawer needs from `GET /settings`: the mismatch rule, the limits and the company account. */

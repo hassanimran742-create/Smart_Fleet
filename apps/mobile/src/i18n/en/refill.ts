@@ -1,41 +1,47 @@
 /**
- * `refill.*` copy: the shop app's refill request (UX_MOBILE §4 S12b). Owned by the mobile-distributor
- * lane. Refills carry no money (ADR-16): no price, total or balance appears here. The stage words are
- * the foundation's `stages.refill.*`.
+ * `refill.*` copy: the shop app's Refills list and New refill (UX_MOBILE §4 S12b; shop spec §X1, §X2,
+ * the same screens as the Inc 3 spec's S16 and S17). Owned by the mobile-distributor lane. Refills
+ * carry no money (ADR-16): no price, total or balance appears here. The stage words are the
+ * foundation's `stages.refill.*`.
  */
 export const refill = {
-  title: 'Refill cylinders',
-
+  /** S17 New refill. */
   request: {
     title: 'New refill',
     size: 'Size',
-    sizeHelp: 'One size per refill. For two sizes, make two requests.',
+    sizeHelp: 'One size per refill.',
     count: 'How many',
     countHelp: 'Up to {{max}} per refill.',
     station: 'Filling station',
-    noStation: 'No filling station is taking refills right now. Call the office.',
-    noSizes: 'There are no cylinder sizes to refill yet. Call the office.',
-    submit: 'Request refill',
+    noStation: 'No station is taking refills. Call the office.',
+    noSizes: 'No sizes to refill yet. Call the office.',
+    /** The button names what is asked for. */
+    submit: 'Request refill · {{count}} × {{size}}',
+    submit_plural: 'Request refill · {{count}} × {{size}}',
+    /** The button before a size is picked (disabled, with `needSize` above it). */
+    submitNoSize: 'Request refill',
+    needSize: 'Pick a size first.',
     sending: 'Sending…',
     requested: 'Refill requested',
   },
 
+  /** S16 Refills. */
   list: {
-    title: 'Your refills',
-    empty: 'No refills yet. Send empty cylinders to be filled.',
-    row: '{{count}} × {{size}} · {{station}}',
-    row_plural: '{{count}} × {{size}} · {{station}}',
-    rowNoStation: '{{count}} × {{size}}',
-    rowNoStation_plural: '{{count}} × {{size}}',
-    requestedAt: 'Requested {{when}}',
+    title: 'Refills',
+    row: '{{count}} × {{size}}',
+    row_plural: '{{count}} × {{size}}',
+    /** Inc 1 only: the row's cancel, until refills get a detail screen (Inc 3, S18). */
     cancel: 'Cancel',
     cancelA11y: 'Cancel this refill',
+    /** The Fab, and the empty state's button. */
+    new: 'New refill',
+    empty: 'No refills yet.',
   },
 
   cancel: {
     title: 'Cancel this refill?',
     body: "The driver won't pick up these cylinders.",
-    confirm: 'Yes, cancel refill',
+    confirm: 'Cancel refill',
     keep: 'Keep refill',
     cancelling: 'Cancelling…',
     done: 'Refill cancelled',

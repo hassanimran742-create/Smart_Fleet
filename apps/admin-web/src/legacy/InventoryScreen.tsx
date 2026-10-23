@@ -1,24 +1,42 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { Boxes } from 'lucide-react';
 import type { DistributorDto } from '@smartfleet/shared-types';
 import { BULK_REGISTER_MAX } from '@smartfleet/shared-validation';
 import { api } from '../api/client';
 import { messageFor } from '../api/errors';
 import { useModule } from '../app/modules';
 import { Modal } from '../components/Modal';
-import { formatDateTime, formatRs } from '../i18n/format';
-import { actionInWords, Chip, useConfirm } from '../ui';
+import { formatDateTime, formatNumber, formatRs } from '../i18n/format';
+import {
+  actionInWords,
+  Button,
+  Chip,
+  EmptyState,
+  ErrorState,
+  Field,
+  FilterBar,
+  InlineAlert,
+  Select,
+  Table,
+  Tabs,
+  TextInput,
+  useConfirm,
+  type TableColumn,
+} from '../ui';
+import { sizeLabelOf, useLegacyT } from './i18n';
+import './legacy.css';
 
 /**
  * Legacy inventory screen (Cylinders & labels → Cylinder stock; and `/accessories` while that module is
- * on). Touched in Inc 1 (UX_ADMIN §2.11, G05-12): the accessory tabs and cards show only while
- * `features.accessories` is on; a registration is at most 500 cylinders and always starts in the store's
- * own distributor's store; ConfirmDialog instead of browser pop-ups, no emoji, and plain words instead
- * of raw values.
+ * on). Light pass (website spec W47): it opens on "In stores", the stock of every store; the sub-tabs
+ * read In stores · On vans · Add stock; sizes read "15 kg", never a size code; counts are plain numbers.
+ * A registration is at most 500 cylinders and always starts in the store's own distributor's store
+ * (G05-12). The accessory tabs and cards show only while `features.accessories` is on (their old words
+ * stay until that module is rebuilt).
  */
 
 interface Store { id: string; name: string }
-interface CylinderType { id: string; code: string; name: string }
 interface CylinderTypeFull { id: string; code: string; name: string; weightKg: string; capacityUnits: number }
 interface Accessory {
   id: string; code: string; name: string; category: string; unit: string;
@@ -54,7 +72,7 @@ const REASONS = ['RECEIPT', 'SALE', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT',
 const CATEGORIES = ['PIPE', 'CONNECTOR', 'REGULATOR', 'VALVE', 'BURNER', 'HOSE', 'ADAPTER', 'VAPORISER', 'OTHER'] as const;
 type Category = typeof CATEGORIES[number];
 
-type Tab = 'add' | 'view' | 'vehicles' | 'catalog';
+type Tab = 'stores' | 'vans' | 'add' | 'catalog';
 
 /** A thrown form check keeps its words; anything from the API is shown by its error code. */
 function errMsg(e: unknown): string {
@@ -66,48 +84,37 @@ function words(code: string): string {
   return actionInWords(code);
 }
 
+/** The cylinder sizes, by code ("15 kg"), for the stock lists that carry only the type's code. */
+function useSizeWords(): (code: string) => string {
+  const types = useQuery({
+    queryKey: ['cylinder-types'],
+    queryFn: async () => (await api.get<CylinderTypeFull[]>('/cylinder-types')).data,
+  });
+  const byCode = useMemo(() => new Map((types.data ?? []).map((type) => [type.code, sizeLabelOf(type)])), [types.data]);
+  return (code: string) => byCode.get(code) ?? '';
+}
+
 export function InventoryScreen() {
-  const [tab, setTab] = useState<Tab>('add');
+  const lt = useLegacyT();
+  const [tab, setTab] = useState<Tab>('stores');
   const accessories = useModule('accessories');
   const accessoriesOn = accessories.enabled;
-  const tabs: [Tab, string][] = [
-    ['add', 'Add stock'],
-    ['view', 'Stores (full and empty)'],
-    ['vehicles', 'On vans'],
-    ...(accessoriesOn ? ([['catalog', 'Accessory catalog']] as [Tab, string][]) : []),
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'stores', label: lt('stock.tabs.stores') },
+    { id: 'vans', label: lt('stock.tabs.vans') },
+    { id: 'add', label: lt('stock.tabs.add') },
+    ...(accessoriesOn ? [{ id: 'catalog' as const, label: lt('stock.tabs.catalog') }] : []),
   ];
-  const current: Tab = tab === 'catalog' && !accessoriesOn ? 'add' : tab;
+  const current: Tab = tab === 'catalog' && !accessoriesOn ? 'stores' : tab;
 
   return (
-    <>
-      <h2>Cylinder stock</h2>
-      <div role="tablist" aria-label="Stock views" style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-        {tabs.map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={current === id}
-            onClick={() => setTab(id)}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              background: 'none',
-              borderBottom: current === id ? '3px solid var(--primary)' : '3px solid transparent',
-              fontWeight: current === id ? 600 : 400,
-              color: current === id ? 'var(--primary)' : 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
+    <div className="sf-legacy-page">
+      <Tabs<Tab> label={lt('stock.title')} items={tabs} value={current} onChange={setTab} className="sf-legacy__subtabs" />
+      {current === 'stores' && <ViewTab accessoriesOn={accessoriesOn} />}
+      {current === 'vans' && <VehiclesInventoryTab />}
       {current === 'add' && <AddTab accessoriesOn={accessoriesOn} />}
-      {current === 'view' && <ViewTab accessoriesOn={accessoriesOn} />}
-      {current === 'vehicles' && <VehiclesInventoryTab />}
       {current === 'catalog' && accessoriesOn && <CatalogTab />}
-    </>
+    </div>
   );
 }
 
@@ -119,82 +126,82 @@ interface VehLoad {
   byType: Array<{ cylinderTypeId: string; code: string; name: string; full: number; empty: number }>;
 }
 
+interface VanStockRow {
+  key: string;
+  plateNo: string;
+  first: boolean;
+  size: string;
+  full: number;
+  empty: number;
+}
+
+/** What is on each van now, by size: plain counts, no chips. */
 function VehiclesInventoryTab() {
-  const { data, isLoading } = useQuery<VehLoad[]>({
+  const lt = useLegacyT();
+  const sizeOf = useSizeWords();
+  const query = useQuery<VehLoad[]>({
     queryKey: ['inventory-vehicles-summary'],
     queryFn: async () => (await api.get('/inventory/vehicles-summary')).data,
     refetchInterval: 20000,
   });
 
-  const vehicles = data ?? [];
+  const vehicles = query.data ?? [];
   const fleetFull = vehicles.reduce((s, v) => s + v.totalFull, 0);
   const fleetEmpty = vehicles.reduce((s, v) => s + v.totalEmpty, 0);
+  const rows: VanStockRow[] = vehicles.flatMap((v) =>
+    v.byType.map((t, i) => ({
+      key: `${v.vehicleId}-${t.cylinderTypeId}`,
+      plateNo: v.plateNo,
+      first: i === 0,
+      size: sizeOf(t.code) || t.name,
+      full: t.full,
+      empty: t.empty,
+    })),
+  );
+  const columns: TableColumn<VanStockRow>[] = [
+    { id: 'van', header: lt('stock.columns.van'), cell: (row) => (row.first ? <span className="sf-legacy__strong">{row.plateNo}</span> : null) },
+    { id: 'size', header: lt('stock.columns.size'), cell: (row) => row.size },
+    { id: 'full', header: lt('stock.columns.full'), align: 'end', cell: (row) => formatNumber(row.full) },
+    { id: 'empty', header: lt('stock.columns.empty'), align: 'end', cell: (row) => formatNumber(row.empty) },
+  ];
 
   return (
-    <div className="card">
-      <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div>
-          <h3 style={{ margin: 0 }}>Cylinders on vans now</h3>
-          <p className="muted" style={{ margin: '4px 0 0' }}>
-            Updates as drivers scan cylinders onto and off their vans.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Chip tone="success">{fleetFull} full</Chip>
-          <Chip tone="warning">{fleetEmpty} empty</Chip>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <p className="muted">Loading…</p>
-      ) : vehicles.length === 0 ? (
-        <p className="muted">No cylinders on any van right now.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr><th>Van</th><th>Cylinder size</th><th style={{ textAlign: 'right' }}>Full</th><th style={{ textAlign: 'right' }}>Empty</th></tr>
-          </thead>
-          <tbody>
-            {vehicles.flatMap((v) =>
-              v.byType.map((t, i) => (
-                <tr key={`${v.vehicleId}-${t.cylinderTypeId}`}>
-                  <td>{i === 0 ? <strong>{v.plateNo}</strong> : ''}</td>
-                  <td>{t.name}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--success-fg)' }}>{t.full}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--warning-fg)' }}>{t.empty}</td>
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <>
+      {vehicles.length > 0 ? (
+        <p className="sf-legacy__muted">{lt('stock.vansTotal', { full: formatNumber(fleetFull), empty: formatNumber(fleetEmpty) })}</p>
+      ) : null}
+      <Table<VanStockRow>
+        caption={lt('stock.tabs.vans')}
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.key}
+        state={query.isPending ? 'loading' : query.isError && !query.data ? 'error' : 'ready'}
+        empty={<EmptyState compact icon={Boxes} title={lt('stock.vansEmpty')} />}
+        error={<ErrorState compact error={query.error} title={lt('stock.loadFailed')} onRetry={() => void query.refetch()} retrying={query.isFetching} />}
+      />
+    </>
   );
 }
 
 function AddTab({ accessoriesOn }: { accessoriesOn: boolean }) {
+  const lt = useLegacyT();
   const qc = useQueryClient();
   const stores = useQuery({ queryKey: ['stores'], queryFn: async () => (await api.get<Store[]>('/stores')).data });
   const [storeId, setStoreId] = useState<string>('');
 
   return (
     <>
-      <div className="card">
-        <label>Pick the store to add stock at *</label>
-        <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-          <option value="">Pick a store</option>
-          {(stores.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        {(stores.data ?? []).length === 0 && (
-          <p className="muted" style={{ marginTop: 8 }}>
-            No stores yet. Each distributor's store is set up on their page in Distributors.
-          </p>
-        )}
-        <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-          To print labels for the cylinders you add, use the <strong>QR labels</strong> tab: every cylinder gets its own
-          serial and QR code, which the driver and shop apps scan.
-        </p>
-      </div>
+      <FilterBar>
+        <Field label={lt('stock.store')}>
+          <Select
+            value={storeId}
+            placeholder={lt('stock.pickStore')}
+            options={(stores.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(e) => setStoreId(e.target.value)}
+          />
+        </Field>
+      </FilterBar>
+      {stores.data && stores.data.length === 0 ? <p className="sf-legacy__muted">{lt('stock.noStores')}</p> : null}
 
       {storeId && (
         <>
@@ -207,18 +214,21 @@ function AddTab({ accessoriesOn }: { accessoriesOn: boolean }) {
 }
 
 function ViewTab({ accessoriesOn }: { accessoriesOn: boolean }) {
+  const lt = useLegacyT();
   const stores = useQuery({ queryKey: ['stores'], queryFn: async () => (await api.get<Store[]>('/stores')).data });
   const [storeId, setStoreId] = useState<string>('');
 
   return (
     <>
-      <div className="card">
-        <label>Filter by store (leave blank for all)</label>
-        <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-          <option value="">All stores</option>
-          {(stores.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
+      <FilterBar>
+        <Field label={lt('stock.store')} labelHidden>
+          <Select
+            value={storeId}
+            options={[{ value: '', label: lt('stock.allStores') }, ...(stores.data ?? []).map((s) => ({ value: s.id, label: s.name }))]}
+            onChange={(e) => setStoreId(e.target.value)}
+          />
+        </Field>
+      </FilterBar>
 
       {storeId ? (
         <>
@@ -233,6 +243,7 @@ function ViewTab({ accessoriesOn }: { accessoriesOn: boolean }) {
 }
 
 function AddCylindersCard({ storeId, qc }: { storeId: string; qc: QueryClient }) {
+  const lt = useLegacyT();
   const distributors = useQuery({ queryKey: ['distributors'], queryFn: async () => (await api.get<DistributorDto[]>('/distributors')).data });
   // A distributor has exactly one store, and new cylinders always start there (ADR-01): only the
   // store's own distributor can register cylinders into it.
@@ -242,16 +253,17 @@ function AddCylindersCard({ storeId, qc }: { storeId: string; qc: QueryClient })
   const [form, setForm] = useState({ distributorId: '', cylinderTypeId: '', quantity: '' });
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const distributorId = form.distributorId || (owners.length === 1 ? owners[0].id : '');
 
   const register = useMutation({
     mutationFn: () => {
       const qty = Math.floor(Number(form.quantity));
-      if (!form.distributorId) throw new Error('Pick the distributor.');
-      if (!form.cylinderTypeId) throw new Error('Pick a cylinder size.');
-      if (!Number.isFinite(qty) || qty <= 0) throw new Error('Enter how many cylinders, 1 or more.');
-      if (qty > BULK_REGISTER_MAX) throw new Error(`Maximum ${BULK_REGISTER_MAX} cylinders per registration.`);
+      if (!distributorId) throw new Error(lt('stock.addCard.distributorMissing'));
+      if (!form.cylinderTypeId) throw new Error(lt('stock.addCard.sizeMissing'));
+      if (!Number.isFinite(qty) || qty <= 0) throw new Error(lt('stock.addCard.countMissing'));
+      if (qty > BULK_REGISTER_MAX) throw new Error(lt('stock.addCard.tooMany', { max: BULK_REGISTER_MAX }));
       return api.post('/cylinders/bulk-register', {
-        distributorId: form.distributorId,
+        distributorId,
         cylinderTypeId: form.cylinderTypeId,
         quantity: qty,
         initialCustodyType: 'STORE',
@@ -262,7 +274,7 @@ function AddCylindersCard({ storeId, qc }: { storeId: string; qc: QueryClient })
       qc.invalidateQueries({ queryKey: ['inventory-by-store-all'] });
       qc.invalidateQueries({ queryKey: ['inventory-by-store-filtered'] });
       const count = Array.isArray(r.data) ? r.data.length : 0;
-      setResult(`${count} ${count === 1 ? 'cylinder' : 'cylinders'} added to this store.`);
+      setResult(lt('stock.addCard.added', { count }));
       setErr(null);
       setForm({ ...form, quantity: '' });
     },
@@ -273,43 +285,54 @@ function AddCylindersCard({ storeId, qc }: { storeId: string; qc: QueryClient })
   });
 
   return (
-    <div className="card">
-      <h3>Add cylinders</h3>
-      <p className="muted">
-        Register cylinders by quantity, at most {BULK_REGISTER_MAX} at a time. Each one gets its own serial and QR code, which you
-        can print from the QR labels tab. They start full in this store, owned by its distributor.
-      </p>
-      <div className="flex" style={{ gap: 12 }}>
-        <div style={{ flex: 2 }}>
-          <label>Distributor *</label>
-          <select value={form.distributorId} onChange={(e) => setForm({ ...form, distributorId: e.target.value })}>
-            <option value="">Pick the distributor</option>
-            {owners.map((d) => <option key={d.id} value={d.id}>{d.businessName}</option>)}
-          </select>
-          {distributors.data && owners.length === 0 && (
-            <p className="muted" style={{ marginTop: 4 }}>No distributor uses this store, so cylinders can't be added here.</p>
-          )}
-        </div>
-        <div style={{ flex: 2 }}>
-          <label>Cylinder size *</label>
-          <select value={form.cylinderTypeId} onChange={(e) => setForm({ ...form, cylinderTypeId: e.target.value })}>
-            <option value="">Pick a size</option>
-            {(types.data ?? []).map((t) => (
-              <option key={t.id} value={t.id}>{t.name} · {Number(t.weightKg).toString()} kg</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ flex: 1 }}>
-          <label>Quantity *</label>
-          <input type="number" min={1} max={BULK_REGISTER_MAX} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} placeholder="For example 100" />
-        </div>
+    <section className="sf-legacy-card">
+      <h3 className="sf-legacy-card__title">{lt('stock.addCard.title')}</h3>
+      <p className="sf-legacy__muted">{lt('stock.addCard.hint')}</p>
+      <div className="sf-legacy-form__grid sf-legacy-form__grid--three">
+        <Field label={lt('stock.addCard.distributor')}>
+          <Select
+            value={distributorId}
+            placeholder={lt('stock.addCard.pickDistributor')}
+            options={owners.map((d) => ({ value: d.id, label: d.businessName }))}
+            onChange={(e) => setForm({ ...form, distributorId: e.target.value })}
+          />
+        </Field>
+        <Field label={lt('stock.addCard.size')}>
+          <Select
+            value={form.cylinderTypeId}
+            placeholder={lt('stock.addCard.pickSize')}
+            options={(types.data ?? []).map((t) => ({ value: t.id, label: sizeLabelOf(t) }))}
+            onChange={(e) => setForm({ ...form, cylinderTypeId: e.target.value })}
+          />
+        </Field>
+        <Field label={lt('stock.addCard.count')} hint={lt('stock.addCard.max', { max: BULK_REGISTER_MAX })}>
+          <TextInput
+            type="number"
+            min={1}
+            max={BULK_REGISTER_MAX}
+            inputMode="numeric"
+            value={form.quantity}
+            onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+          />
+        </Field>
       </div>
-      {err && <p style={{ color: 'var(--danger-fg)' }}>{err}</p>}
-      {result && <p style={{ color: 'var(--success-fg)' }}>{result}</p>}
-      <button className="primary" style={{ marginTop: 12 }} onClick={() => register.mutate()} disabled={register.isPending}>
-        {register.isPending ? 'Adding…' : 'Add cylinders'}
-      </button>
-    </div>
+      {distributors.data && owners.length === 0 ? <p className="sf-legacy__muted">{lt('stock.addCard.noOwner')}</p> : null}
+      {err ? (
+        <InlineAlert tone="danger" live>
+          {err}
+        </InlineAlert>
+      ) : null}
+      {result ? (
+        <InlineAlert tone="success" live>
+          {result}
+        </InlineAlert>
+      ) : null}
+      <div>
+        <Button variant="primary" onClick={() => register.mutate()} loading={register.isPending}>
+          {lt('stock.addCard.submit')}
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -404,7 +427,60 @@ function AddAccessoriesCard({ storeId, qc }: { storeId: string; qc: QueryClient 
   );
 }
 
+
+interface StockRow {
+  key: string;
+  distributor: string;
+  first: boolean;
+  size: string;
+  full: number;
+  empty: number;
+}
+
+/** Store rows by distributor and size, with full and empty counts (the API sends one row per state). */
+function stockRows(rows: readonly ByStoreRow[], sizeOf: (code: string) => string): StockRow[] {
+  const pivot = new Map<string, Map<string, { full: number; empty: number }>>();
+  for (const r of rows) {
+    const byType = pivot.get(r.distributor_name) ?? new Map<string, { full: number; empty: number }>();
+    const counts = byType.get(r.cylinder_type_code) ?? { full: 0, empty: 0 };
+    counts[r.state === 'FULL' ? 'full' : 'empty'] += r.count;
+    byType.set(r.cylinder_type_code, counts);
+    pivot.set(r.distributor_name, byType);
+  }
+  const out: StockRow[] = [];
+  for (const [distributor, byType] of pivot) {
+    let first = true;
+    for (const [code, counts] of byType) {
+      out.push({ key: `${distributor}-${code}`, distributor, first, size: sizeOf(code) || code, full: counts.full, empty: counts.empty });
+      first = false;
+    }
+  }
+  return out;
+}
+
+function StockTable({ rows, caption }: { rows: StockRow[]; caption: string }) {
+  const lt = useLegacyT();
+  const columns: TableColumn<StockRow>[] = [
+    { id: 'distributor', header: lt('stock.columns.distributor'), cell: (row) => (row.first ? row.distributor : null) },
+    { id: 'size', header: lt('stock.columns.size'), cell: (row) => row.size },
+    { id: 'full', header: lt('stock.columns.full'), align: 'end', cell: (row) => formatNumber(row.full) },
+    { id: 'empty', header: lt('stock.columns.empty'), align: 'end', cell: (row) => formatNumber(row.empty) },
+  ];
+  return (
+    <Table<StockRow>
+      caption={caption}
+      columns={columns}
+      rows={rows}
+      rowKey={(row) => row.key}
+      state="ready"
+      empty={<EmptyState compact icon={Boxes} title={lt('stock.storeEmpty')} />}
+    />
+  );
+}
+
 function CylindersAtStore({ storeId }: { storeId: string }) {
+  const lt = useLegacyT();
+  const sizeOf = useSizeWords();
   const cylinderInv = useQuery({
     queryKey: ['inventory-by-store-filtered', storeId],
     queryFn: async () => {
@@ -413,34 +489,18 @@ function CylindersAtStore({ storeId }: { storeId: string }) {
     },
     refetchInterval: 30000,
   });
-
-  const pivot: Record<string, Record<string, { full: number; empty: number }>> = {};
-  for (const r of cylinderInv.data ?? []) {
-    pivot[r.distributor_name] ??= {};
-    pivot[r.distributor_name][r.cylinder_type_code] ??= { full: 0, empty: 0 };
-    pivot[r.distributor_name][r.cylinder_type_code][r.state === 'FULL' ? 'full' : 'empty'] += r.count;
+  if (cylinderInv.isError && !cylinderInv.data) {
+    return (
+      <ErrorState
+        compact
+        error={cylinderInv.error}
+        title={lt('stock.loadFailed')}
+        onRetry={() => void cylinderInv.refetch()}
+        retrying={cylinderInv.isFetching}
+      />
+    );
   }
-
-  return (
-    <div className="card">
-      <h3>Cylinders at this store</h3>
-      {Object.keys(pivot).length === 0 && <p className="muted">No cylinders yet at this store.</p>}
-      {Object.keys(pivot).length > 0 && (
-        <table>
-          <thead><tr><th>Distributor</th><th>Type</th><th>Full</th><th>Empty</th></tr></thead>
-          <tbody>
-            {Object.entries(pivot).map(([d, types]) =>
-              Object.entries(types).map(([t, c], i) => (
-                <tr key={`${d}-${t}`}>
-                  <td>{i === 0 ? d : ''}</td><td>{t}</td><td>{c.full}</td><td>{c.empty}</td>
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+  return <StockTable rows={stockRows(cylinderInv.data ?? [], sizeOf)} caption={lt('stock.tabs.stores')} />;
 }
 
 function AccessoryStockAtStore({ storeId }: { storeId: string }) {
@@ -506,46 +566,42 @@ function AccessoryStockAtStore({ storeId }: { storeId: string }) {
   );
 }
 
+
+/** "In stores": every store's stock, one table per store. */
 function AllStoresOverview() {
-  const { data } = useQuery({
+  const lt = useLegacyT();
+  const sizeOf = useSizeWords();
+  const query = useQuery({
     queryKey: ['inventory-by-store-all'],
     queryFn: async () => (await api.get<ByStoreRow[]>('/inventory/by-store')).data,
     refetchInterval: 30000,
   });
-  const grouped: Record<string, ByStoreRow[]> = {};
-  for (const r of data ?? []) (grouped[r.store_name] ??= []).push(r);
-
-  if ((data ?? []).length === 0) {
-    return <div className="card"><p className="muted">No cylinder inventory across any store yet.</p></div>;
+  if (query.isError && !query.data) {
+    return <ErrorState compact error={query.error} title={lt('stock.loadFailed')} onRetry={() => void query.refetch()} retrying={query.isFetching} />;
   }
+  if (query.isPending) {
+    return (
+      <Table<StockRow>
+        caption={lt('stock.tabs.stores')}
+        columns={[]}
+        rows={undefined}
+        rowKey={(row) => row.key}
+        state="loading"
+        empty={null}
+      />
+    );
+  }
+  const grouped = new Map<string, ByStoreRow[]>();
+  for (const r of query.data ?? []) grouped.set(r.store_name, [...(grouped.get(r.store_name) ?? []), r]);
+  if (grouped.size === 0) return <EmptyState icon={Boxes} title={lt('stock.allEmpty')} />;
   return (
     <>
-      <h3>All stores — cylinder summary</h3>
-      {Object.entries(grouped).map(([store, rows]) => {
-        const pivot: Record<string, Record<string, { full: number; empty: number }>> = {};
-        for (const r of rows) {
-          pivot[r.distributor_name] ??= {};
-          pivot[r.distributor_name][r.cylinder_type_code] ??= { full: 0, empty: 0 };
-          pivot[r.distributor_name][r.cylinder_type_code][r.state === 'FULL' ? 'full' : 'empty'] += r.count;
-        }
-        return (
-          <div className="card" key={store}>
-            <h3>{store}</h3>
-            <table>
-              <thead><tr><th>Distributor</th><th>Type</th><th>Full</th><th>Empty</th></tr></thead>
-              <tbody>
-                {Object.entries(pivot).map(([d, types]) =>
-                  Object.entries(types).map(([t, c], i) => (
-                    <tr key={`${d}-${t}`}>
-                      <td>{i === 0 ? d : ''}</td><td>{t}</td><td>{c.full}</td><td>{c.empty}</td>
-                    </tr>
-                  )),
-                )}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
+      {[...grouped.entries()].map(([store, rows]) => (
+        <section key={store} className="sf-legacy-stock">
+          <h3 className="sf-legacy-stock__store">{store}</h3>
+          <StockTable rows={stockRows(rows, sizeOf)} caption={store} />
+        </section>
+      ))}
     </>
   );
 }

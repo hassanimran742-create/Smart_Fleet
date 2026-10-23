@@ -1,18 +1,26 @@
 import type { TFunction } from 'i18next';
 import type { ClientAddressDto, ClientDto, OrderDto, OrderListTab } from '@smartfleet/shared-types';
 import {
+  formatDayLabel,
   formatPkPhone,
+  formatPkTime,
   formatRs,
+  localDate,
   PK_TIME_ZONE,
   toAsciiDigits,
   toPaisa,
   wallClock,
   type PaisaLike,
+  type TimeInput,
+  type WhenTranslate,
 } from '@smartfleet/shared-utils';
 
 /**
  * Small formatting rules shared by the shop screens. Money stays integer paisa: amounts are compared
  * and subtracted with `toPaisa` (which asserts a safe integer) and printed only by `formatRs`.
+ *
+ * This module imports only the shared packages (no React Native, no i18n), so the API's unit tests
+ * can load it on its own (apps/api/test/unit/ui/mobile-logic.spec.ts).
  */
 
 /** The amount in paisa, or 0 when it is missing or malformed. */
@@ -59,6 +67,15 @@ export function weightSortKey(weightKg: string | number): number {
   return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
 }
 
+/**
+ * A list row's time (shop spec §3.4): "10:46 am" when it is today, otherwise "Yesterday" or
+ * "Mon 19 Oct", in Asia/Karachi. Detail screens keep `formatWhen` ("Today, 10:46 am"). Pass the app's
+ * `whenTranslate` (i18n) for the day words.
+ */
+export function rowTime(at: TimeInput, t?: WhenTranslate, now: TimeInput = Date.now()): string {
+  return localDate(at) === localDate(now) ? formatPkTime(at) : formatDayLabel(at, now, t);
+}
+
 /** The parts of a delivery cost: a quote, a price applied to counts, or an order's stored copy. */
 export interface CostLike {
   basePaisa: PaisaLike;
@@ -67,21 +84,20 @@ export interface CostLike {
 }
 
 /**
- * The cost in words (UX_MOBILE S9): "Rs 250 per order + 2 × Rs 40 (11.8 kg) = Rs 330", with the
- * sizes that cost nothing left out; a flat cost is just "Rs 250"; Rs 0 is "No delivery cost".
+ * The cost's parts as a data-only caption under the big total (shop spec §3.5, §P): "Rs 250 + 2 ×
+ * Rs 40 + 1 × Rs 150", with the sizes that cost nothing left out. Null when no size adds to the cost
+ * (the total says it all) or the cost is Rs 0. Never "=", brackets or zone names.
  */
-export function costBreakdownText(cost: CostLike, t: TFunction): string {
-  if (!isPositivePaisa(cost.totalPaisa)) return t('orders.new.costNone');
+export function costParts(cost: CostLike, t: TFunction): string | null {
+  if (!isPositivePaisa(cost.totalPaisa)) return null;
   const lineParts = cost.lines
     .filter((line) => line.count > 0 && isPositivePaisa(line.perCylinderPaisa))
-    .map((line) =>
-      t('orders.new.costLine', { count: line.count, amount: formatRs(line.perCylinderPaisa), size: line.sizeLabel }),
-    );
-  if (lineParts.length === 0) return formatRs(cost.totalPaisa);
+    .map((line) => t('orders.new.costLine', { count: line.count, amount: formatRs(line.perCylinderPaisa) }));
+  if (lineParts.length === 0) return null;
   const parts = isPositivePaisa(cost.basePaisa)
     ? [t('orders.new.costBase', { amount: formatRs(cost.basePaisa) }), ...lineParts]
     : lineParts;
-  return t('orders.new.costTotal', { parts: parts.join(t('orders.new.costJoin')), total: formatRs(cost.totalPaisa) });
+  return parts.join(t('orders.new.costJoin'));
 }
 
 /** An order's stored cost as a {@link CostLike}, or null for a legacy order without a breakdown. */
@@ -141,6 +157,19 @@ export function defaultAddress(client: ClientDto): ClientAddressDto | null {
 }
 
 /**
+ * Why an address can't take an order now (shop spec §K): no address, no delivery price in its zone,
+ * or outside every zone. `none` means it can be ordered to.
+ */
+export type AddressBlock = 'none' | 'noAddress' | 'noPrice' | 'outside';
+
+export function addressBlock(address: ClientAddressDto | null | undefined): AddressBlock {
+  if (!address) return 'noAddress';
+  if (address.priceStatus === 'SET') return 'none';
+  if (address.priceStatus === 'NOT_SET') return 'noPrice';
+  return 'outside';
+}
+
+/**
  * Customer search on the phone (GET /clients has no search): part of the name or area in any letter
  * case, or 3+ digits of the mobile in either form ("1234567", "0300", "+92300").
  */
@@ -154,6 +183,36 @@ export function matchesCustomer(client: ClientDto, query: string): boolean {
   const stored = client.phone.replace(/\D/g, '');
   const local = formatPkPhone(client.phone, 'compact').replace(/\D/g, '');
   return stored.includes(digits) || local.includes(digits);
+}
+
+/** Customers by name, A–Z, ignoring letter case. */
+export function byName(a: ClientDto, b: ClientDto): number {
+  return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+}
+
+function newestFirst(orders: readonly (readonly OrderDto[] | undefined)[]): OrderDto[] {
+  return orders
+    .flatMap((list) => list ?? [])
+    .slice()
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+
+/**
+ * "Recent" on Customers and New order step 1 (shop spec §K): the customers of the newest orders,
+ * newest first, each once, at most `limit`. Takes the first pages of the Active and Done lists.
+ */
+export function recentCustomerIds(orders: readonly (readonly OrderDto[] | undefined)[], limit = 5): string[] {
+  const ids: string[] = [];
+  for (const order of newestFirst(orders)) {
+    if (!ids.includes(order.client.id)) ids.push(order.client.id);
+    if (ids.length >= limit) break;
+  }
+  return ids;
+}
+
+/** This customer's newest order in the given lists (New order's "Same as last time"), or null. */
+export function lastOrderOf(clientId: string, orders: readonly (readonly OrderDto[] | undefined)[]): OrderDto | null {
+  return newestFirst(orders).find((order) => order.client.id === clientId) ?? null;
 }
 
 /**

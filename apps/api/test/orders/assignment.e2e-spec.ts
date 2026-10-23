@@ -109,7 +109,7 @@ describeDb('api-orders: assignment and trips', () => {
     // Step 3.
     await db.driver.update({ where: { id: std.DR2.id }, data: { availability: 'ON_LEAVE' } });
     const unavailable = await assign(std.SA1, O1.id, std.DR2.id).expect(409);
-    expect(unavailable.body).toMatchObject({ code: 'ASSIGN_DRIVER_NOT_AVAILABLE', message: "Imran can't take jobs right now." });
+    expect(unavailable.body).toMatchObject({ code: 'ASSIGN_DRIVER_NOT_AVAILABLE', message: "Imran can't take trips right now." });
     // Step 4.
     await db.driver.update({ where: { id: std.DR2.id }, data: { availability: 'AVAILABLE', currentVehicleId: null } });
     const noVan = await assign(std.SA1, O1.id, std.DR2.id).expect(409);

@@ -1,7 +1,42 @@
 /*
- * The Activity log page (UX_ADMIN §2.9). Tokens only (src/ui/tokens.css) and logical properties, so the
- * page works at 1024×768 and 768×1024 and a right-to-left language later is a `dir` switch.
+ * The Activity log page (website spec W40). Tokens only (src/ui/tokens.css) and logical properties, so
+ * the page works at 1024×768 and 768×1024 and a right-to-left language later is a `dir` switch.
  */
+
+/* Two rows of filters: What; then Who, the date chips and, for Custom, From and To. */
+.sf-activity-log__filters {
+  display: grid;
+  gap: var(--sp-3);
+  margin-block-end: var(--sp-4);
+}
+
+.sf-activity-log__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.sf-field.sf-activity-log__who {
+  inline-size: 240px;
+  max-inline-size: 100%;
+  margin-block-end: 0;
+}
+
+/* The field keeps an empty error line; the filter row has none to show. */
+.sf-activity-log__who .sf-field__error:empty {
+  display: none;
+}
+
+.sf-activity-log__range {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.sf-activity-log__range .sf-input {
+  inline-size: 160px;
+}
 
 .sf-activity-log__when {
   white-space: nowrap;
@@ -12,8 +47,4 @@
 .sf-activity-log__why {
   color: var(--text);
   overflow-wrap: anywhere;
-}
-
-.sf-activity-log__muted {
-  color: var(--text-muted);
 }

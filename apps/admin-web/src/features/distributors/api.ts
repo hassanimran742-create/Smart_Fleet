@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { DistributorDto, IdName, OrderBoardDto } from '@smartfleet/shared-types';
+import { useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { DistributorDto, IdName, OrderBoardDto, ZoneListRow } from '@smartfleet/shared-types';
 import type {
   ApproveDistributorInput,
   CreateDistributorInput,
@@ -86,26 +86,60 @@ export interface AreaOption {
   lng: number;
 }
 
-/** `GET /cities`, for "Jump to area". */
+/** Cities, zones and reference areas change rarely. */
+const PLACES_STALE_MS = 10 * 60_000;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** `GET /cities`: the saved cities, or the built-in list (with made-up ids) before any is saved. */
 export function useCities() {
   return useQuery({
     queryKey: [...qk.zones.all, 'cities'] as const,
     queryFn: async ({ signal }) => (await api.get<CityOption[]>('/cities', { signal })).data,
-    staleTime: 10 * 60_000,
+    staleTime: PLACES_STALE_MS,
   });
 }
 
+/** One reference area of one city, for "Find area": "DHA Phase 1 · Lahore". */
+export interface CityArea extends AreaOption {
+  city: string;
+}
+
 /**
- * `GET /cities/:city/areas` (the reference areas, by the city's name, which the API also accepts, so
- * the built-in city list works before any city is saved).
+ * Every city's reference areas (`GET /cities/:city/areas`, by the city's name, which the API also
+ * accepts, so the built-in city list works before any city is saved), for the one "Find area" box.
  */
-export function useCityAreas(cityName: string | null) {
+export function useAllAreas(): { areas: CityArea[]; loading: boolean } {
+  const cities = useCities();
+  const names = (cities.data ?? []).map((city) => city.name);
+  const results = useQueries({
+    queries: names.map((name) => ({
+      queryKey: [...qk.zones.all, 'areas', name] as const,
+      queryFn: async ({ signal }: { signal: AbortSignal }) =>
+        (await api.get<AreaOption[]>(`/cities/${encodeURIComponent(name)}/areas`, { signal })).data,
+      staleTime: PLACES_STALE_MS,
+    })),
+  });
+  const areas = results.flatMap((result, index) => (result.data ?? []).map((area) => ({ ...area, city: names[index] ?? '' })));
+  return { areas, loading: cities.isPending || results.some((result) => result.isPending) };
+}
+
+/**
+ * The active zones of every saved city (`GET /zones/city/:cityId`), with their outlines (`polygon`,
+ * GeoJSON `[lng, lat]`) and centres, so the store maps can fit themselves to the zones and shade them.
+ */
+export function useZoneOutlines() {
+  const cities = useCities();
+  const ids = (cities.data ?? []).map((city) => city.id).filter((id) => UUID.test(id));
   return useQuery({
-    queryKey: [...qk.zones.all, 'areas', cityName] as const,
-    queryFn: async ({ signal }) =>
-      (await api.get<AreaOption[]>(`/cities/${encodeURIComponent(cityName as string)}/areas`, { signal })).data,
-    enabled: Boolean(cityName),
-    staleTime: 10 * 60_000,
+    queryKey: [...qk.zones.all, 'outlines', ids] as const,
+    queryFn: async ({ signal }) => {
+      const lists = await Promise.all(
+        ids.map(async (id) => (await api.get<ZoneListRow[]>(`/zones/city/${encodeURIComponent(id)}`, { signal })).data),
+      );
+      return lists.flat().filter((zone) => zone.is_active);
+    },
+    enabled: cities.isSuccess,
+    staleTime: PLACES_STALE_MS,
   });
 }
 

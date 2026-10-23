@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Archive, ArchiveRestore, Lock, Pencil, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, Lock, Pencil } from 'lucide-react';
 import type { ExpenseTypeDto } from '@smartfleet/shared-types';
 import {
   createExpenseTypeSchema,
@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { messageFor, toApiError } from '../../api/errors';
 import { useCloseDrawer } from '../../app/drawer';
 import {
+  AddMore,
   Button,
   cx,
   Drawer,
@@ -25,9 +26,11 @@ import {
 import { useArchiveExpenseType, useCreateExpenseType, useExpenseTypes, useInvalidateExpenses, useRenameExpenseType } from './api';
 
 /**
- * Manage types (UX_ADMIN §2.7, route `/expenses/types`): add, rename, archive and restore. Petrol and
- * Other show the lock "Can't be archived". A name taken by an archived type points at that type's
- * Restore button instead of only saying the name is taken (G13-02).
+ * Expense types (UX_ADMIN §2.7, website spec W37, route `/expenses/types`): rename, archive and
+ * restore, and "+ Add type" at the end. Each row is the name and its count; Petrol and Other show the
+ * lock "Can't be archived"; archived types sit under "Archived" with their chip and Restore. A name taken
+ * by an archived type points at that type's Restore button instead of only saying the name is taken
+ * (G13-02).
  */
 export function ExpenseTypesDrawer() {
   const { t } = useTranslation(['expenses', 'common']);
@@ -83,9 +86,10 @@ export function ExpenseTypesDrawer() {
   }
 
   return (
-    <Drawer title={t('types.title')} subtitle={t('types.subtitle')} onClose={close}>
-      <div className="sf-expenses__add-type">
-        {adding ? (
+    <Drawer title={t('types.title')} onClose={close}>
+      {body}
+      {types.data ? (
+        <AddMore label={t('types.add')} open={adding} onOpenChange={setAdding} className="sf-expenses__add-type">
           <AddTypeForm
             archivedNamed={archivedNamed}
             onHighlight={setHighlight}
@@ -94,13 +98,8 @@ export function ExpenseTypesDrawer() {
               setHighlight(null);
             }}
           />
-        ) : (
-          <Button variant="primary" icon={Plus} onClick={() => setAdding(true)} disabled={types.isPending}>
-            {t('types.add')}
-          </Button>
-        )}
-      </div>
-      {body}
+        </AddMore>
+      ) : null}
     </Drawer>
   );
 }
@@ -149,7 +148,7 @@ function AddTypeForm({ archivedNamed, onHighlight, onDone }: NameHelpers & { onD
 
   return (
     <form className="sf-expenses__inline-form" onSubmit={form.handleSubmit(submit)} noValidate>
-      <Field label={t('types.newName')} hint={t('types.nameHint')} error={serverError ?? form.errorFor('name')}>
+      <Field label={t('types.newName')} error={serverError ?? form.errorFor('name')}>
         <TextInput
           name="name"
           autoFocus
@@ -163,11 +162,11 @@ function AddTypeForm({ archivedNamed, onHighlight, onDone }: NameHelpers & { onD
         />
       </Field>
       <div className="sf-expenses__inline-actions">
-        <Button onClick={onDone} disabled={create.isPending}>
-          {t('types.cancel')}
-        </Button>
         <Button variant="primary" type="submit" loading={create.isPending}>
           {t('types.save')}
+        </Button>
+        <Button variant="ghost" onClick={onDone} disabled={create.isPending}>
+          {t('types.cancel')}
         </Button>
       </div>
     </form>
@@ -202,7 +201,7 @@ function TypeRow({ type, highlighted, archivedNamed, onHighlight }: NameHelpers 
             <span className="sf-expenses__type-name">{type.name}</span>
             <span className="sf-expenses__type-meta">{t('types.count', { count: type.expenseCount })}</span>
           </div>
-          <StatusChip kind="expenseType" value={type.archived ? 'ARCHIVED' : 'ACTIVE'} />
+          {type.archived ? <StatusChip kind="expenseType" value="ARCHIVED" /> : null}
           <div className="sf-expenses__type-actions">
             <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setRenaming(true)} disabled={toggle.isPending}>
               {t('types.rename')}
@@ -261,7 +260,7 @@ function RenameForm({ type, archivedNamed, onHighlight, onDone }: NameHelpers & 
 
   return (
     <form className="sf-expenses__inline-form" onSubmit={form.handleSubmit(submit)} noValidate>
-      <Field label={t('types.renameLabel', { name: type.name })} hint={t('types.nameHint')} error={serverError ?? form.errorFor('name')}>
+      <Field label={t('types.renameLabel', { name: type.name })} error={serverError ?? form.errorFor('name')}>
         <TextInput
           name="name"
           autoFocus
@@ -275,12 +274,11 @@ function RenameForm({ type, archivedNamed, onHighlight, onDone }: NameHelpers & 
         />
       </Field>
       <div className="sf-expenses__inline-actions">
-        <Button size="sm" onClick={onDone} disabled={rename.isPending}>
-          {t('types.cancel')}
-        </Button>
-        {/* The drawer's one primary action is "Add type"; a row's save is secondary. */}
         <Button size="sm" variant="secondary" type="submit" loading={rename.isPending}>
           {t('types.saveName')}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDone} disabled={rename.isPending}>
+          {t('types.cancel')}
         </Button>
       </div>
     </form>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CheckingHours, DistributorHomeDto, PaymentDto, TopupInfoDto } from '@smartfleet/shared-types';
-import { formatRs } from '@smartfleet/shared-utils';
+import { formatClock, formatRs } from '@smartfleet/shared-utils';
 import { isApiError, type ApiError } from '../../../api/errors';
 import { POLL_MS, qk } from '../../../api/keys';
 import { useAppConfig, useOfficeContact } from '../../../hooks/useAppConfig';
@@ -26,19 +26,32 @@ import {
 } from '../../../ui';
 import { fetchHome, fetchTopup, fetchTopupInfo } from '../shared/api';
 import { isWithinCheckingHours, paisaOrZero } from '../shared/format';
-import { useShopNavigation, useShopRoute } from '../shared/navigation';
+import { tellUsAgain, useShopNavigation, useShopRoute } from '../shared/navigation';
 import { usePullRefresh } from '../shared/refresh';
 
+/** The money that counts: what was added once added, otherwise what the shop said it paid. */
+function shownAmount(payment: PaymentDto): string {
+  return payment.stage === 'ADDED' && payment.creditedPaisa ? payment.creditedPaisa : payment.amountPaisa;
+}
+
+/** True when the office added a different amount than the shop said it paid. */
+function addedDifferent(payment: PaymentDto): boolean {
+  return (
+    payment.stage === 'ADDED' && !!payment.creditedPaisa && paisaOrZero(payment.creditedPaisa) !== paisaOrZero(payment.amountPaisa)
+  );
+}
+
 /**
- * S6 Add money: Status (agreed sample screen 5). The amount, a timeline Sent → Being checked → Added
- * to your balance, the credited amount when the bank's differed, or the reason it wasn't added with
- * "Call office" and "Try again" (a new request, prefilled). Polls every 30 seconds while it is being
- * checked and the screen is open.
+ * S6 Top-up status (shop spec §I): the amount big, the chip (Being checked, Added, Not added), then
+ * by stage: the timeline while it is being checked; "Balance now" once added; the reason and the
+ * office's note when it wasn't. "Tell us again" opens Tell us you paid, prefilled, so nothing asks
+ * the shop to pay twice. Polls every 30 seconds while it is being checked and the screen is open.
  */
 export function TopupStatusScreen() {
   const { t } = useTranslation();
   const navigation = useShopNavigation();
   const queryClient = useQueryClient();
+  const office = useOfficeContact();
   const { params } = useShopRoute<'TopupStatus'>();
   const id = params.id;
 
@@ -90,15 +103,19 @@ export function TopupStatusScreen() {
   // order left under this screen (Add money from "Check and place") closes without "Leave without
   // saving?". Its draft is dropped, which is fine: it can't be placed until this top-up is added.
   const backHome = () => navigation.navigate('Home');
-  const tryAgain = () => {
+  const tellAgain = () => {
     const p = topup.data;
     if (!p) return;
-    navigation.replace('TopupAmount', {
+    tellUsAgain(navigation, {
       amountPaisa: p.amountPaisa,
       payerName: p.payerName ?? undefined,
-      payerChannel: p.payerChannel ?? undefined,
+      // "Other" is no longer offered (DECIDED): such a request comes back as Easypaisa.
+      payerChannel: p.payerChannel === 'BANK_APP' ? 'BANK_APP' : 'EASYPAISA_APP',
     });
   };
+  const callOffice = office.phone ? (
+    <Button label={t('common.actions.callOffice')} onPress={office.call} size="lg" icon="call" variant="secondary" />
+  ) : null;
 
   return (
     <Screen
@@ -106,9 +123,15 @@ export function TopupStatusScreen() {
       onRefresh={pull.onRefresh}
       footer={
         stage === 'NOT_ADDED' ? (
-          <Button label={t('topup.status.tryAgain')} onPress={tryAgain} size="lg" />
+          <>
+            {callOffice}
+            <Button label={t('topup.status.tellAgain')} onPress={tellAgain} size="lg" />
+          </>
         ) : (
-          <Button label={t('topup.status.backHome')} onPress={backHome} size="lg" />
+          <>
+            {topup.data && addedDifferent(topup.data) ? callOffice : null}
+            <Button label={t('topup.status.backHome')} onPress={backHome} size="lg" />
+          </>
         )
       }
     >
@@ -139,84 +162,60 @@ function StatusBody({
   checkingHours: CheckingHours | null;
 }) {
   const { t } = useTranslation();
-  const office = useOfficeContact();
   const { config } = useAppConfig();
   const hours = checkingHours ?? config.topup.checkingHours;
   const { stage } = payment;
-
-  const checkingDetail = isWithinCheckingHours(hours, config.day.timezone)
-    ? t('topup.status.usually', { from: hours.from, to: hours.to })
-    : t('topup.status.startsAt', { from: hours.from });
-
-  const items: TimelineItem[] = [
+  const steps: TimelineItem[] = [
     { key: 'sent', label: t('topup.status.sent'), time: formatWhenText(payment.createdAt), state: 'done' },
-    stage === 'NOT_ADDED'
-      ? {
-          key: 'checked',
-          label: t('topup.status.notAdded'),
-          time: payment.reviewedAt ? formatWhenText(payment.reviewedAt) : undefined,
-          state: 'problem',
-        }
-      : {
-          key: 'checked',
-          label: t('topup.status.beingChecked'),
-          detail: stage === 'BEING_CHECKED' ? checkingDetail : undefined,
-          state: stage === 'BEING_CHECKED' ? 'current' : 'done',
-        },
+    {
+      key: 'checking',
+      label: t('topup.status.beingChecked'),
+      detail: isWithinCheckingHours(hours, config.day.timezone)
+        ? t('topup.status.usually', { from: formatClock(hours.from), to: formatClock(hours.to) })
+        : t('topup.status.startsAt', { from: formatClock(hours.from) }),
+      state: 'current',
+    },
+    { key: 'added', label: t('topup.status.addedStep'), state: 'todo' },
   ];
-  if (stage !== 'NOT_ADDED') {
-    items.push({
-      key: 'added',
-      label: t('topup.status.addedStep'),
-      time: stage === 'ADDED' && payment.reviewedAt ? formatWhenText(payment.reviewedAt) : undefined,
-      state: stage === 'ADDED' ? 'done' : 'todo',
-    });
-  }
-
-  const credited = payment.creditedPaisa ?? payment.amountPaisa;
-  const differs = stage === 'ADDED' && paisaOrZero(credited) !== paisaOrZero(payment.amountPaisa);
 
   return (
     <View style={styles.stack}>
       <View style={styles.header}>
-        <MoneyText paisa={payment.amountPaisa} variant="display" />
-        <View style={styles.headerRow}>
-          <Text tone="secondary">{payment.shortCode}</Text>
-          <StatusChip kind="topup" value={stage} />
-        </View>
+        <MoneyText paisa={shownAmount(payment)} variant="display" numberOfLines={1} />
+        <StatusChip kind="topup" value={stage} />
       </View>
+
+      {stage === 'BEING_CHECKED' ? (
+        <Card>
+          <Timeline items={steps} />
+        </Card>
+      ) : null}
 
       {stage === 'ADDED' ? (
         <Card tone="success">
-          <View style={styles.row} accessibilityLiveRegion="polite">
-            <Icon name="ok" size={24} tone="success" />
-            <View style={styles.flex}>
-              {differs ? (
-                <>
-                  <Text variant="bodyStrong">
-                    {t('topup.status.addedDifferent', { credited: formatRs(credited), amount: formatRs(payment.amountPaisa) })}
-                  </Text>
-                  {balancePaisa !== null ? <Text>{t('topup.status.balanceNow', { balance: formatRs(balancePaisa) })}</Text> : null}
-                </>
-              ) : balancePaisa !== null ? (
-                <Text variant="bodyStrong">
-                  {t('topup.status.added', { amount: formatRs(credited), balance: formatRs(balancePaisa) })}
+          <View style={styles.added} accessibilityLiveRegion="polite">
+            {balancePaisa !== null ? (
+              <>
+                <Text variant="label" tone="secondary">
+                  {t('topup.status.balanceNow')}
                 </Text>
-              ) : (
-                <Text variant="bodyStrong">{t('topup.status.addedNoBalance', { amount: formatRs(credited) })}</Text>
-              )}
-            </View>
+                <MoneyText paisa={balancePaisa} variant="title" numberOfLines={1} />
+              </>
+            ) : null}
+            {payment.reviewedAt ? (
+              <Text variant="caption" tone="secondary">
+                {t('topup.status.addedAt', { when: formatWhenText(payment.reviewedAt) })}
+              </Text>
+            ) : null}
+            {addedDifferent(payment) ? (
+              <View style={styles.row}>
+                <Icon name="warn" size={20} tone="warning" />
+                <Text tone="warning" style={styles.flex}>
+                  {t('topup.status.addedDifferent', { amount: formatRs(payment.amountPaisa) })}
+                </Text>
+              </View>
+            ) : null}
           </View>
-          {differs && office.phone ? (
-            <Button
-              label={t('common.actions.callOffice')}
-              onPress={office.call}
-              icon="call"
-              variant="secondary"
-              fullWidth={false}
-              style={styles.cardAction}
-            />
-          ) : null}
         </Card>
       ) : null}
 
@@ -224,36 +223,22 @@ function StatusBody({
         <Card tone="danger">
           <View style={styles.row} accessibilityRole="alert">
             <Icon name="error" size={24} tone="danger" />
-            <View style={styles.flex}>
+            <View style={styles.reason}>
               <Text variant="bodyStrong">{t(`topup.reason.${payment.rejectReasonCode ?? 'OTHER'}`)}</Text>
               {payment.rejectNote ? <Text>{t('topup.status.officeNote', { note: payment.rejectNote })}</Text> : null}
             </View>
           </View>
-          {office.phone ? (
-            <Button
-              label={t('common.actions.callOffice')}
-              onPress={office.call}
-              icon="call"
-              variant="secondary"
-              fullWidth={false}
-              style={styles.cardAction}
-            />
-          ) : null}
         </Card>
       ) : null}
-
-      <Card>
-        <Timeline items={items} />
-      </Card>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   stack: { gap: space.lg },
-  header: { gap: space.xs },
-  headerRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.sm },
+  header: { gap: space.sm, alignItems: 'flex-start' },
+  added: { gap: space.xs },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
-  flex: { flex: 1, gap: space.xs },
-  cardAction: { marginTop: space.md },
+  reason: { flex: 1, gap: space.xs },
+  flex: { flex: 1 },
 });

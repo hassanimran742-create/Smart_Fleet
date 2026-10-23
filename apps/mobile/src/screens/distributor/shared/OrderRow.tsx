@@ -1,62 +1,63 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
 import type { OrderDto } from '@smartfleet/shared-types';
-import { formatWhenText } from '../../../i18n';
-import { colors, Icon, layout, resolveStatus, sizes, space, StatusChip, Text } from '../../../ui';
-import { feeText, itemsText } from './format';
+import { whenTranslate } from '../../../i18n';
+import { ListRow, resolveStatus, StatusChip, Text } from '../../../ui';
+import { feeText, isPositivePaisa, itemsText, rowTime } from './format';
 
 /**
- * One order in My orders (UX_MOBILE S10): the customer's name, "AG-0142 · 2 × 11.8 kg · Today,
- * 4:12 pm", the stage chip and the fee chip ("Rs 330 paid"). At least 64 dp; the chips wrap under the
- * text at large font sizes.
+ * The money chip of a cancelled order (shop spec §S): "Rs 400 returned" when the cost came back, "No
+ * refund" when it was taken and kept. Active and delivered rows have none: the cost is on the order.
+ */
+function cancelMoney(order: OrderDto): 'returned' | 'noRefund' | null {
+  if (order.stage !== 'CANCELLED') return null;
+  if (order.fee.status === 'REVERSED') return 'returned';
+  if (order.fee.status === 'DEDUCTED' && isPositivePaisa(order.fee.totalPaisa)) return 'noRefund';
+  return null;
+}
+
+/**
+ * One order (UX_MOBILE S10; shop spec §S), WhatsApp-like: the customer's name in bold, the grey line
+ * "2 × 11.8 kg · AG-0142", the time on the right, and the stage chip under the grey line (with the
+ * money chip on a cancelled order). Used by My orders and Home's active rows.
  */
 export function OrderRow({ order, onPress }: { order: OrderDto; onPress: () => void }) {
   const { t } = useTranslation();
-  const subtitle = t('orders.list.subtitle', {
-    code: order.shortCode,
-    items: itemsText(order.lines, t),
-    when: formatWhenText(order.createdAt),
-  });
+  const subtitle = t('orders.list.subtitle', { items: itemsText(order.lines, t), code: order.shortCode });
+  const time = rowTime(order.createdAt, whenTranslate);
   const stage = resolveStatus('order', order.stage, t);
-  const fee = resolveStatus('fee', order.fee.status, t, { fee: feeText(order.fee.totalPaisa) });
-  const spoken = [order.client.name, subtitle, stage?.label, fee?.label].filter(Boolean).join(', ');
+  const money = cancelMoney(order);
+  const moneyLabel =
+    money === 'returned'
+      ? resolveStatus('fee', 'REVERSED', t, { fee: feeText(order.fee.totalPaisa) })?.label
+      : money === 'noRefund'
+        ? t('orders.list.noRefund')
+        : undefined;
+  const spoken = [order.client.name, subtitle, time, stage?.label ?? t('stages.unknown'), moneyLabel]
+    .filter(Boolean)
+    .join(', ');
 
   return (
-    <Pressable
+    <ListRow
+      title={order.client.name}
+      subtitle={subtitle}
       onPress={onPress}
-      accessibilityRole="button"
+      chevron
       accessibilityLabel={spoken}
-      android_ripple={{ color: colors.ripple }}
-      style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
-    >
-      <View style={styles.texts}>
-        <Text variant="bodyStrong" numberOfLines={2}>
-          {order.client.name}
+      trailing={
+        <Text variant="caption" tone="secondary" numberOfLines={1}>
+          {time}
         </Text>
-        <Text variant="caption" tone="secondary">
-          {subtitle}
-        </Text>
-        <View style={styles.chips}>
+      }
+      below={
+        <>
           <StatusChip kind="order" value={order.stage} />
-          <StatusChip kind="fee" value={order.fee.status} amountPaisa={order.fee.totalPaisa} />
-        </View>
-      </View>
-      <Icon name="chevron" size={24} tone="secondary" />
-    </Pressable>
+          {money === 'returned' ? (
+            <StatusChip kind="fee" value="REVERSED" amountPaisa={order.fee.totalPaisa} />
+          ) : money === 'noRefund' ? (
+            <StatusChip tone="neutral" label={t('orders.list.noRefund')} />
+          ) : null}
+        </>
+      }
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    minHeight: sizes.listRow,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: layout.gutter,
-    paddingVertical: space.md,
-    backgroundColor: colors.surface,
-  },
-  pressed: { backgroundColor: colors.canvas },
-  texts: { flex: 1, gap: space.xs },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
-});

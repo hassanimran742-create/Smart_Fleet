@@ -1,6 +1,6 @@
 /*
- * Sign-in (UX_ADMIN §2.10). Tokens only and logical properties. The page has no shell: the
- * environment strip, then one centred card.
+ * Sign-in (UX_ADMIN §2.10, website spec W01). Tokens only and logical properties. The page has no
+ * shell: the environment strip, then one centred card with the product mark (the sidebar's Cylinder).
  */
 
 .sf-signin {
@@ -53,9 +53,21 @@
   font-size: var(--fs-20);
 }
 
-.sf-signin__subtitle {
+.sf-signin__card .sf-field {
+  margin-block-end: 0;
+}
+
+.sf-signin__error-hint {
+  display: block;
+  margin-block-start: 2px;
+  font-weight: 400;
+}
+
+.sf-signin__forgot {
   margin-block-start: calc(var(--sp-2) * -1);
   color: var(--text-muted);
+  font-size: var(--fs-13);
+  text-align: center;
 }
 
 .sf-signin__reveal {

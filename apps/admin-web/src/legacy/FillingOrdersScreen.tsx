@@ -1,37 +1,48 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { RefreshCw } from 'lucide-react';
 import type { FillingOrderDto, RefillStage } from '@smartfleet/shared-types';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { messageFor } from '../api/errors';
-import { Modal } from '../components/Modal';
 import { formatDateTime } from '../i18n/format';
-import { StatusChip, useConfirm, useToast } from '../ui';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  FilterBar,
+  FilterChips,
+  InlineAlert,
+  Modal,
+  PageHeader,
+  Select,
+  StaleBanner,
+  StatusChip,
+  Table,
+  useConfirm,
+  useToast,
+  type TableColumn,
+} from '../ui';
+import { useLegacyT } from './i18n';
+import './legacy.css';
 
 /**
- * Legacy refill screen, kept for Inc 1 (UX_ADMIN §2.11, ADR-16: refills carry no money). Cleaned up:
- * no "Place a filling order" form (only the distributor asks for a refill), no cost column, no cancel
- * (only the owning distributor cancels, before pickup), "Mark complete" with no money, and chips with the
- * refill's stage words (from the DTO's `stage`, without counts) instead of raw statuses. Rebuilt in Inc 3.
+ * Legacy refill screen, kept for Inc 1 (UX_ADMIN §2.11, ADR-16: refills carry no money) and rebuilt in
+ * Inc 3. Light pass (website spec W41): the title "Refills" with one line, Active · Done · All as chips,
+ * the refill status words of UX_PRINCIPLES §4.2 and a one-line empty state. No "Place a filling order"
+ * form (only the distributor asks for a refill), no cost, no cancel (only the owning distributor cancels,
+ * before pickup), and "Mark complete" moves no money.
  */
 
-/** What the office list sends: the refill DTO plus the names the old screen reads. */
+/** What the office list sends: the refill DTO plus the names the screen reads. */
 type RefillRow = FillingOrderDto & {
   distributor?: { id: string; businessName: string; code: string };
-  cylinderType?: { id: string; code: string; name: string };
 };
 
-const STAGE_FILTERS: { value: RefillStage | ''; label: string }[] = [
-  { value: '', label: 'All refills' },
-  { value: 'NEEDS_DRIVER', label: 'Needs a driver' },
-  { value: 'DRIVER_ASSIGNED', label: 'Driver assigned' },
-  { value: 'PICKING_UP', label: 'Picking up empties' },
-  { value: 'PICKED_UP', label: 'Empties picked up' },
-  { value: 'AT_STATION', label: 'At the station' },
-  { value: 'COMING_BACK', label: 'Filled' },
-  { value: 'BACK_AT_STORE', label: 'Back at store' },
-  { value: 'DONE', label: 'Done' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
+type Show = 'active' | 'done' | 'all';
+
+const FINISHED: readonly RefillStage[] = ['DONE', 'CANCELLED'];
 
 interface DriverOption {
   id: string;
@@ -41,195 +52,249 @@ interface DriverOption {
   currentVehicle: { plateNo: string } | null;
 }
 
+/** The office may act on a refill: assign a waiting one, complete one that is back. */
+function actionsOf(row: RefillRow): string[] {
+  // An older API without `allowedActions`: the office assigns a waiting refill and completes a returned one.
+  return row.allowedActions ?? (row.status === 'PENDING' ? ['ASSIGN'] : row.status === 'RETURNED' ? ['COMPLETE'] : []);
+}
+
 export function FillingOrdersScreen() {
+  const lt = useLegacyT();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const toast = useToast();
-  const [stageFilter, setStageFilter] = useState<RefillStage | ''>('');
-  const { data, isPending, isError, error, refetch } = useQuery({
+  const [show, setShow] = useState<Show>('active');
+  const [assignFor, setAssignFor] = useState<RefillRow | null>(null);
+  const query = useQuery({
     queryKey: ['filling-orders'],
     queryFn: async () => (await api.get<RefillRow[]>('/filling-orders')).data,
     refetchInterval: 15000,
   });
-  const drivers = useQuery({ queryKey: ['drivers'], queryFn: async () => (await api.get<DriverOption[]>('/drivers')).data });
-
-  const [assignFor, setAssignFor] = useState<RefillRow | null>(null);
-  const [assignDriverId, setAssignDriverId] = useState('');
-  const [assignErr, setAssignErr] = useState<string | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['filling-orders'] });
 
-  const assign = useMutation({
-    mutationFn: () => api.patch(`/filling-orders/${assignFor!.id}/assign`, { driverId: assignDriverId }),
-    onSuccess: () => {
-      void invalidate();
-      toast.success('Driver assigned to the refill.');
-      setAssignFor(null);
-      setAssignDriverId('');
-      setAssignErr(null);
-    },
-    onError: (e) => setAssignErr(messageFor(e)),
-  });
-
-  async function markComplete(o: RefillRow) {
-    const what = `${o.requestedCount} × ${o.sizeLabel}`;
+  async function markComplete(row: RefillRow) {
     const { ok } = await confirm({
-      title: 'Mark this refill complete?',
-      body: `${o.distributor?.businessName ?? 'The distributor'}'s refill (${what}) is back at the store. No money moves.`,
-      confirmLabel: 'Mark complete',
-      action: () => api.patch(`/filling-orders/${o.id}/complete`),
+      title: lt('refills.complete.title'),
+      facts: [
+        { label: lt('refills.columns.refill'), value: row.distributor?.businessName ?? '—' },
+        { label: lt('refills.columns.cylinders'), value: lt('refills.cylinders', { count: row.requestedCount, size: row.sizeLabel }) },
+      ],
+      body: lt('refills.complete.body'),
+      confirmLabel: lt('refills.complete.confirm'),
+      action: () => api.patch(`/filling-orders/${row.id}/complete`),
     });
     if (!ok) return;
-    toast.success('Refill marked complete.');
+    toast.success(lt('refills.complete.toast'));
     void invalidate();
   }
 
-  const availableDrivers = (drivers.data ?? []).filter(
-    (d) => d.availability === 'AVAILABLE' && d.user.status === 'ACTIVE' && d.currentVehicle !== null,
-  );
-  const rows = (data ?? []).filter((o) => !stageFilter || o.stage === stageFilter);
+  const all = query.data ?? [];
+  const rows = useMemo(() => {
+    const list = query.data ?? [];
+    if (show === 'active') return list.filter((row) => !FINISHED.includes(row.stage));
+    if (show === 'done') return list.filter((row) => FINISHED.includes(row.stage));
+    return list;
+  }, [query.data, show]);
+
+  const columns: TableColumn<RefillRow>[] = [
+      {
+        id: 'refill',
+        header: lt('refills.columns.refill'),
+        sticky: true,
+        cell: (row) => (
+          <span className="sf-legacy__two-line">
+            <span className="sf-legacy__strong">{row.distributor?.businessName ?? '—'}</span>
+            <span className="sf-legacy__muted">{lt('refills.requested', { when: formatDateTime(row.createdAt) })}</span>
+          </span>
+        ),
+      },
+      { id: 'station', header: lt('refills.columns.station'), priority: 2, cell: (row) => row.fillingStation?.name ?? '—' },
+      {
+        id: 'cylinders',
+        header: lt('refills.columns.cylinders'),
+        cell: (row) => (
+          <span className="sf-legacy__two-line">
+            <span className="sf-legacy__nowrap">{lt('refills.cylinders', { count: row.requestedCount, size: row.sizeLabel })}</span>
+            {row.filledCount != null && row.stage !== 'NEEDS_DRIVER' ? (
+              <span className="sf-legacy__muted">{lt('refills.filled', { count: row.filledCount })}</span>
+            ) : null}
+          </span>
+        ),
+      },
+      {
+        id: 'driver',
+        header: lt('refills.columns.driver'),
+        priority: 2,
+        cell: (row) =>
+          row.assignedDriver ? (
+            <span className="sf-legacy__two-line">
+              <span>{row.assignedDriver.name}</span>
+              {row.assignedVehicle ? <span className="sf-legacy__muted">{row.assignedVehicle.plateNo}</span> : null}
+            </span>
+          ) : (
+            <span className="sf-legacy__muted">—</span>
+          ),
+      },
+      { id: 'status', header: lt('refills.columns.status'), cell: (row) => <StatusChip kind="refillStage" value={row.stage} /> },
+      {
+        id: 'action',
+        header: <span className="sr-only">{lt('refills.columns.action')}</span>,
+        align: 'end',
+        cell: (row) => {
+          const actions = actionsOf(row);
+          if (actions.includes('ASSIGN')) {
+            return (
+              <Button size="sm" onClick={() => setAssignFor(row)}>
+                {lt('refills.assign')}
+              </Button>
+            );
+          }
+          if (actions.includes('COMPLETE')) {
+            return (
+              <Button size="sm" onClick={() => void markComplete(row)}>
+                {lt('refills.complete.button')}
+              </Button>
+            );
+          }
+          return null;
+        },
+      },
+  ];
+
+  const emptyTitle = all.length === 0 ? lt('refills.empty.all') : show === 'active' ? lt('refills.empty.active') : lt('refills.empty.done');
 
   return (
-    <>
-      <div className="flex" style={{ justifyContent: 'space-between' }}>
-        <h2>Refill requests</h2>
-        <select
-          aria-label="Show refills"
-          value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value as RefillStage | '')}
-          style={{ width: 220 }}
-        >
-          {STAGE_FILTERS.map((s) => (
-            <option key={s.value || 'all'} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <p className="muted">
-        Distributors ask for refills in the shop app. A driver picks up the empties at the distributor's store, takes them to the
-        refill station and brings them back. Refills carry no money.
-      </p>
+    <div className="sf-legacy-page">
+      <PageHeader title={lt('refills.title')} subtitle={lt('refills.subtitle')} />
+      <StaleBanner query={query} />
+      <FilterBar>
+        <FilterChips<Show>
+          label={lt('refills.show')}
+          options={[
+            { value: 'active', label: lt('refills.filters.active') },
+            { value: 'done', label: lt('refills.filters.done') },
+            { value: 'all', label: lt('refills.filters.all') },
+          ]}
+          value={show}
+          onChange={setShow}
+        />
+      </FilterBar>
+      <Table<RefillRow>
+        caption={lt('refills.title')}
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        state={query.isPending ? 'loading' : query.isError && !query.data ? 'error' : 'ready'}
+        empty={<EmptyState compact icon={RefreshCw} title={emptyTitle} />}
+        error={
+          <ErrorState
+            compact
+            error={query.error}
+            title={lt('refills.loadFailed')}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+          />
+        }
+      />
+      {assignFor ? (
+        <AssignRefillDialog
+          refill={assignFor}
+          onClose={() => setAssignFor(null)}
+          onDone={() => {
+            setAssignFor(null);
+            void invalidate();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Requested</th>
-              <th>Distributor</th>
-              <th>Station</th>
-              <th>Cylinders</th>
-              <th>Driver</th>
-              <th>Stage</th>
-              <th aria-label="Actions"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((o) => {
-              // An older API without `allowedActions`: the office assigns a waiting refill and completes a returned one.
-              const actions = o.allowedActions ?? (o.status === 'PENDING' ? ['ASSIGN'] : o.status === 'RETURNED' ? ['COMPLETE'] : []);
-              return (
-                <tr key={o.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(o.createdAt)}</td>
-                  <td>{o.distributor?.businessName ?? '—'}</td>
-                  <td>{o.fillingStation?.name ?? '—'}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    {o.requestedCount} × {o.sizeLabel}
-                    {o.filledCount != null && o.stage !== 'NEEDS_DRIVER' ? (
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {o.filledCount} filled
-                      </div>
-                    ) : null}
-                  </td>
-                  <td>
-                    {o.assignedDriver ? (
-                      <>
-                        {o.assignedDriver.name}
-                        {o.assignedVehicle ? <div className="muted">{o.assignedVehicle.plateNo}</div> : null}
-                      </>
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </td>
-                  <td>
-                    <StatusChip kind="refillStage" value={o.stage} />
-                  </td>
-                  <td>
-                    {actions.includes('ASSIGN') && (
-                      <button
-                        className="primary"
-                        onClick={() => {
-                          setAssignFor(o);
-                          setAssignDriverId('');
-                          setAssignErr(null);
-                        }}
-                      >
-                        Assign driver
-                      </button>
-                    )}
-                    {actions.includes('COMPLETE') && (
-                      <button className="primary" onClick={() => void markComplete(o)}>
-                        Mark complete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {isPending && (
-              <tr>
-                <td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 24 }}>
-                  Loading refills…
-                </td>
-              </tr>
-            )}
-            {isError && (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 24 }}>
-                  <p style={{ color: 'var(--danger-fg)' }}>{messageFor(error)}</p>
-                  <button onClick={() => void refetch()}>Try again</button>
-                </td>
-              </tr>
-            )}
-            {!isPending && !isError && rows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 24 }}>
-                  {stageFilter ? 'No refills at this stage.' : 'No refill requests yet. They show up here when a distributor asks for one.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+/** Assign a driver with a van to a waiting refill (one tap on a name, then the button). */
+function AssignRefillDialog({ refill, onClose, onDone }: { refill: RefillRow; onClose: () => void; onDone: () => void }) {
+  const lt = useLegacyT();
+  const { t } = useTranslation();
+  const toast = useToast();
+  const goBackRef = useRef<HTMLButtonElement>(null);
+  const drivers = useQuery({ queryKey: ['drivers'], queryFn: async () => (await api.get<DriverOption[]>('/drivers')).data });
+  const [driverId, setDriverId] = useState('');
+  const [pressed, setPressed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-      <Modal title="Assign a driver to the refill" open={!!assignFor} onClose={() => setAssignFor(null)} width={480}>
-        {assignFor && (
-          <>
-            <p className="muted">
-              <strong>
-                {assignFor.requestedCount} × {assignFor.sizeLabel}
-              </strong>{' '}
-              for <strong>{assignFor.distributor?.businessName}</strong>, station <strong>{assignFor.fillingStation?.name}</strong>.
-            </p>
-            <label htmlFor="refill-driver">Driver (available drivers with a van)</label>
-            <select id="refill-driver" value={assignDriverId} onChange={(e) => setAssignDriverId(e.target.value)}>
-              <option value="">Pick a driver</option>
-              {availableDrivers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.user.name} · {d.currentVehicle?.plateNo} · {d.isOnline ? 'on duty' : 'offline'}
-                </option>
-              ))}
-            </select>
-            {assignErr && <p style={{ color: 'var(--danger-fg)' }}>{assignErr}</p>}
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <button onClick={() => setAssignFor(null)}>Go back</button>{' '}
-              <button className="primary" disabled={!assignDriverId || assign.isPending} onClick={() => assign.mutate()}>
-                {assign.isPending ? 'Assigning…' : 'Assign driver'}
-              </button>
-            </div>
-          </>
-        )}
-      </Modal>
-    </>
+  const available = (drivers.data ?? []).filter(
+    (d) => d.availability === 'AVAILABLE' && d.user.status === 'ACTIVE' && d.currentVehicle !== null,
+  );
+
+  const assign = useMutation({
+    mutationFn: () => api.patch(`/filling-orders/${refill.id}/assign`, { driverId }),
+    onSuccess: () => {
+      toast.success(lt('refills.assignDialog.toast'));
+      onDone();
+    },
+    onError: (e) => setError(messageFor(e)),
+  });
+
+  const confirm = () => {
+    if (assign.isPending) return;
+    if (!driverId) {
+      setPressed(true);
+      return;
+    }
+    setError(null);
+    assign.mutate();
+  };
+
+  return (
+    <Modal
+      open
+      size="sm"
+      title={lt('refills.assignDialog.title')}
+      onClose={() => {
+        if (!assign.isPending) onClose();
+      }}
+      dismissible={!assign.isPending}
+      initialFocusRef={goBackRef}
+      footer={
+        <>
+          <Button ref={goBackRef} onClick={onClose} disabled={assign.isPending}>
+            {t('actions.goBack')}
+          </Button>
+          <Button variant="primary" loading={assign.isPending} onClick={confirm}>
+            {lt('refills.assign')}
+          </Button>
+        </>
+      }
+    >
+      <div className="sf-legacy-form">
+        <p className="sf-legacy__muted">
+          {lt('refills.assignDialog.summary', {
+            cylinders: lt('refills.cylinders', { count: refill.requestedCount, size: refill.sizeLabel }),
+            distributor: refill.distributor?.businessName ?? '—',
+            station: refill.fillingStation?.name ?? '—',
+          })}
+        </p>
+        <Field label={lt('refills.columns.driver')} error={pressed && !driverId ? lt('refills.assignDialog.pickFirst') : null}>
+          <Select
+            value={driverId}
+            placeholder={lt('refills.assignDialog.pick')}
+            options={available.map((d) => ({
+              value: d.id,
+              label: lt('refills.assignDialog.option', {
+                name: d.user.name,
+                plate: d.currentVehicle?.plateNo ?? '',
+                presence: d.isOnline ? lt('refills.assignDialog.onDuty') : lt('refills.assignDialog.offline'),
+              }),
+            }))}
+            onChange={(event) => setDriverId(event.target.value)}
+          />
+        </Field>
+        {error ? (
+          <InlineAlert tone="danger" live>
+            {error}
+          </InlineAlert>
+        ) : null}
+      </div>
+    </Modal>
   );
 }

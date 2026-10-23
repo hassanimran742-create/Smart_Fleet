@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
+import { Fuel } from 'lucide-react';
 import { addDays } from '@smartfleet/shared-utils';
 import { useTranslation } from 'react-i18next';
 import { useModule } from '../../app/modules';
 import { formatDateTime, formatNumber } from '../../i18n/format';
-import { EmptyState, ErrorState, InlineAlert, MoneyText, Table, type TableColumn } from '../../ui';
+import { EmptyState, ErrorState, MoneyText, Table, type TableColumn } from '../../ui';
 import { useFuelConsumption, type FuelLog } from './api';
 import { karachiDayStartIso } from './filters';
 
@@ -31,10 +32,11 @@ interface LogRow extends FuelLog {
 const decimal = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
 /**
- * The read-only Driver fuel logs tab (UX_ADMIN §2.7): `GET /reports/fuel-consumption` per van (litres,
- * cost, km, km per litre) with the logs inside. The report takes only a start, so the end of the
- * range is applied here, and each van's figures are worked out from the logs in the range, the way
- * the report works them out (km = last odometer − first).
+ * The read-only Driver fuel logs tab (UX_ADMIN §2.7, website spec W34): `GET /reports/fuel-consumption`
+ * per van (litres, cost, km, km per litre) with the logs inside. The report takes only a start, so the
+ * end of the range is applied here, and each van's figures are worked out from the logs in the range,
+ * the way the report works them out (km = last odometer − first). With no logs it is one empty line:
+ * "Drivers can't log fuel yet." while the feature is off.
  */
 export function FuelLogsTab({ range, vanId }: FuelLogsTabProps) {
   const { t } = useTranslation('expenses');
@@ -119,12 +121,7 @@ export function FuelLogsTab({ range, vanId }: FuelLogsTabProps) {
   const selectedVan = vans.find((van) => van.vehicleId === selected);
 
   return (
-    <section className="sf-expenses__section" aria-labelledby="fuel-logs-title">
-      <h2 id="fuel-logs-title" className="sf-expenses__section-title">
-        {t('fuel.heading')}
-      </h2>
-      <p className="sf-expenses__note">{t('fuel.intro')}</p>
-      {!fuelModule.loading && !fuelModule.enabled ? <InlineAlert tone="info">{t('fuel.switchedOff')}</InlineAlert> : null}
+    <section className="sf-expenses__section" aria-label={t('fuel.caption')}>
       <Table
         caption={t('fuel.caption')}
         columns={vanColumns}
@@ -133,7 +130,13 @@ export function FuelLogsTab({ range, vanId }: FuelLogsTabProps) {
         selectedKey={selected}
         onRowClick={(row) => setSelected((current) => (current === row.vehicleId ? null : row.vehicleId))}
         state={state}
-        empty={<EmptyState compact title={t('fuel.emptyTitle')} body={t('fuel.emptyBody')} />}
+        empty={
+          <EmptyState
+            compact
+            icon={Fuel}
+            title={!fuelModule.loading && !fuelModule.enabled ? t('fuel.switchedOff') : t('fuel.emptyTitle')}
+          />
+        }
         error={
           <ErrorState
             compact

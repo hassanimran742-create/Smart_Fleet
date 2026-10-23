@@ -1,11 +1,11 @@
-import { Link, useNavigate } from '@tanstack/react-router';
-import { CircleCheck, TriangleAlert } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { CircleAlert, CircleCheck } from 'lucide-react';
 import type { DistributorDto } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
-import { cx, Field, Select } from '../../ui';
+import { FilterChips, SearchSelect } from '../../ui';
 
-/** Up to this many distributors show as a segmented control; more show as a Select (UX_ADMIN §2.3). */
-const SEGMENTED_MAX = 4;
+/** Up to this many distributors show as chips; more show as a search box (website spec W15, §1.4). */
+const CHIPS_MAX = 6;
 
 export interface SwitcherOption {
   id: string;
@@ -28,66 +28,70 @@ export function switcherOptions(
   return known ? merged : [{ id: current.id, name: current.name, ...current.coverage }, ...merged];
 }
 
-/** "8/10" with a warning icon when a zone has no price, or a check when all do (never colour alone). */
-function Coverage({ priced, total }: { priced: number; total: number }) {
-  const { t } = useTranslation('prices');
-  const missing = priced < total;
-  const Icon = missing ? TriangleAlert : CircleCheck;
-  return (
-    <span className={cx('sf-prices__coverage', missing ? 'is-missing' : 'is-complete')}>
-      <Icon aria-hidden size={14} strokeWidth={2.25} />
-      <span aria-hidden>{t('switcher.coverage', { priced, total })}</span>
-      <span className="sr-only">{t('switcher.coverageLabel', { priced, total })}</span>
-    </span>
-  );
-}
-
 export interface DistributorSwitcherProps {
   options: readonly SwitcherOption[];
   currentId: string;
 }
 
-/** Picks whose prices the grid shows, with each distributor's coverage. */
+/**
+ * Whose prices the grid shows (W15): one chip per distributor with a red "1 missing" or a green tick
+ * and "All set", or a search box when there are more than 6. The choice stays in the URL.
+ */
 export function DistributorSwitcher({ options, currentId }: DistributorSwitcherProps) {
   const { t } = useTranslation('prices');
   const navigate = useNavigate();
   if (options.length === 0) return null;
 
-  if (options.length <= SEGMENTED_MAX) {
+  const go = (distributorId: string) => {
+    if (distributorId !== currentId) void navigate({ to: '/prices/$distributorId', params: { distributorId }, search: true });
+  };
+  const missingOf = (option: SwitcherOption) => Math.max(0, option.total - option.priced);
+  const stateOf = (option: SwitcherOption): string | null => {
+    if (option.total === 0) return null;
+    const missing = missingOf(option);
+    return missing > 0 ? t('switcher.missing', { count: missing }) : t('switcher.complete');
+  };
+
+  if (options.length <= CHIPS_MAX) {
     return (
-      <nav className="sf-prices__switcher" aria-label={t('switcher.label')}>
-        <ul className="sf-prices__segments">
-          {options.map((option) => (
-            <li key={option.id}>
-              <Link
-                to="/prices/$distributorId"
-                params={{ distributorId: option.id }}
-                search={true}
-                className={cx('sf-prices__segment', option.id === currentId && 'is-current')}
-                aria-current={option.id === currentId ? 'page' : undefined}
-              >
-                <span className="sf-prices__segment-name">{option.name}</span>
-                <Coverage priced={option.priced} total={option.total} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <FilterChips
+        label={t('switcher.label')}
+        className="sf-prices__switcher"
+        options={options.map((option) => {
+          const state = stateOf(option);
+          const missing = missingOf(option) > 0;
+          const Icon = missing ? CircleAlert : CircleCheck;
+          return {
+            value: option.id,
+            label: option.name,
+            meta: state ? (
+              <span className="sf-prices__state">
+                <Icon aria-hidden size={14} strokeWidth={2.25} />
+                {state}
+              </span>
+            ) : undefined,
+            metaTone: missing ? ('danger' as const) : ('success' as const),
+          };
+        })}
+        value={currentId}
+        onChange={go}
+      />
     );
   }
 
   return (
-    <Field label={t('switcher.label')} className="sf-prices__switcher-select">
-      <Select
+    <div className="sf-prices__switcher sf-prices__switcher--search">
+      <SearchSelect
+        label={t('switcher.label')}
+        options={options.map((option) => {
+          const state = stateOf(option);
+          return { value: option.id, label: state ? t('switcher.option', { name: option.name, state }) : option.name };
+        })}
         value={currentId}
-        options={options.map((option) => ({
-          value: option.id,
-          label: t('switcher.option', { name: option.name, priced: option.priced, total: option.total }),
-        }))}
-        onChange={(event) =>
-          void navigate({ to: '/prices/$distributorId', params: { distributorId: event.target.value }, search: true })
-        }
+        onChange={(id) => {
+          if (id) go(id);
+        }}
       />
-    </Field>
+    </div>
   );
 }

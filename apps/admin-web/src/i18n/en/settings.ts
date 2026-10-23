@@ -1,29 +1,32 @@
 /**
- * `settings`: copy for the Settings form (UX_ADMIN §2.8). Owned by the admin-web-money lane. Keep
- * `as const` and the export name: i18n/index.ts imports it by name, and `t('settings:…')` is
- * type-checked, so a missing key fails `tsc`.
+ * `settings`: copy for the Settings form and its save review (website spec W38–W39, UX_ADMIN §2.8).
+ * Owned by the admin-web-money lane. Keep `as const` and the export name: i18n/index.ts imports it by
+ * name, and `t('settings:…')` is type-checked, so a missing key fails `tsc`.
  *
  * `labels` names every setting key in plain words (nested by the key's dots, so `t('labels.topup.maxPaisa')`
- * reads `topup.maxPaisa`). The Activity log uses the same labels, so it never shows a key name.
+ * reads `topup.maxPaisa`). The Activity log uses the same labels, so it never shows a key name. Each row
+ * has a label of 5 words or fewer and, only where it is needed, a description of 12 or fewer.
  */
 export const settings = {
   page: {
     title: 'Settings',
-    subtitle: 'How the pilot runs. Every change needs a reason and shows in the Activity log.',
+    subtitle: 'Each change needs a reason and shows in the activity log.',
     menuLabel: 'Settings sections',
     sectionLabel: 'Section',
     loadFailed: "Couldn't load the settings",
   },
 
-  /** The local menu (`?section=`), in page order. */
+  /**
+   * The local menu (`?section=`), in page order. Refills is folded into Orders and delivery
+   * (`?section=refills` opens it); `modules` keeps its URL value, so "Open settings" links still work.
+   */
   sections: {
     money: 'Money',
     orders: 'Orders and delivery',
-    refills: 'Refills',
-    modules: 'Modules',
-    account: 'Company account',
+    modules: 'Features',
     support: 'Support',
-    versions: 'App versions',
+    account: 'Company account',
+    versions: 'Tech team',
   },
 
   labels: {
@@ -36,7 +39,7 @@ export const settings = {
       support: 'Support tickets',
       clientApp: 'Customer app sign-in',
     },
-    app: { minVersion: { driver: 'Lowest driver app version', distributor: 'Lowest shop app version' } },
+    app: { minVersion: { driver: 'Lowest driver app version', distributor: 'Lowest distributor app version' } },
     orders: { deliveryStartedAt: 'When delivery counts as started', maxCylindersPerOrder: 'Max cylinders per order' },
     pricing: { deliveryStrategy: 'How delivery prices are worked out' },
     wallet: { maxBalancePaisa: 'Wallet balance limit', lowBalancePaisa: 'Low-balance warning' },
@@ -44,66 +47,59 @@ export const settings = {
       minPaisa: 'Top-up minimum',
       maxPaisa: 'Top-up maximum',
       quickAmountsPaisa: 'Quick top-up amounts',
-      maxPendingPerDistributor: 'Top-ups being checked per distributor',
-      onAmountMismatch: 'Bank amount differs from the request',
+      maxPendingPerDistributor: 'Top-ups waiting per distributor',
+      onAmountMismatch: 'If the bank amount differs',
       checkingHours: 'Top-up checking hours',
       account: 'Company account',
       secondApproval: 'Second approval for large top-ups',
     },
     refill: { maxCylinders: 'Max cylinders per refill', deliveryCost: 'Refill delivery cost' },
     support: { phone: 'Office phone', whatsApp: 'Office WhatsApp', hours: 'Office hours' },
-    day: { timezone: 'Business day time zone', cutoffLocalTime: 'Business day starts at' },
+    day: { timezone: 'Time zone', cutoffLocalTime: 'New day starts at' },
     confirmation: {
       enabled: 'Customer confirmation',
-      linkTtlHours: 'Confirmation link lifetime',
+      linkTtlHours: 'How long the link works',
       caseOnAnswers: 'Answers that open a problem',
     },
-    messaging: { testMode: 'Texts only to team phones', allowlist: 'Team phones for test texts' },
-    custody: { typedEntry: { enabled: 'Typed cylinder numbers' }, forgottenInPolicy: 'Forgotten scan-in' },
-    trip: { allowFinishWithLeftovers: 'Finish a run with cylinders on the van' },
+    messaging: { testMode: 'Test mode', allowlist: 'Team phones' },
+    custody: { typedEntry: { enabled: 'Typed cylinder numbers' }, forgottenInPolicy: 'Not scanned at the store' },
+    trip: { allowFinishWithLeftovers: 'Finish with cylinders left' },
     walkIn: { counterSwap: { enabled: 'Walk-in counter swaps' } },
-    dayEnd: { enabled: 'Day-end sheets' },
+    dayEnd: { enabled: 'Day-end sheet' },
   },
 
-  /** The descriptions under each row (UX_ADMIN §2.8). Rows the doc gives none have none. */
+  /** The line under a row, only where the label isn't enough (W38). */
   descriptions: {
     topup: {
-      minPaisa: 'The smallest single top-up a distributor can send.',
-      maxPaisa: 'The largest single top-up a distributor can send.',
-      onAmountMismatch: 'What approving does when the bank shows a different amount from the request.',
-      checkingHours: 'When the office checks top-ups. Distributors see these hours in the app.',
+      maxPendingPerDistributor: "A distributor can't send more until these are checked.",
+      checkingHours: 'Distributors see these hours in the app.',
     },
     wallet: {
-      maxBalancePaisa: "Highest balance top-ups may bring a wallet to. Office corrections aren't limited by it.",
-      lowBalancePaisa:
-        'When the balance is below this (not equal to it), distributors see a low-balance warning. Rs 0 turns the warning off.',
+      maxBalancePaisa: "Top-ups can't raise a wallet above this. Corrections can.",
+      lowBalancePaisa: 'Distributors are warned below this. Rs 0 turns it off.',
     },
     orders: {
-      deliveryStartedAt:
-        "After this point, cancelling an order returns nothing. A change applies at once to every order that hasn't started yet, including orders already placed.",
+      deliveryStartedAt: 'After this, cancelling returns nothing. Changes apply to unstarted orders too.',
     },
     dispatch: {
-      autoAssign: { enabled: 'When off, every new order waits for you to assign a driver. Keep off for the pilot.' },
+      autoAssign: { enabled: 'Keep off: the office assigns every order by hand.' },
     },
     features: {
-      transfers: 'Off for the pilot.',
-      fuelRefills:
-        "Not used in the pilot: the driver app has no fuel-log screen. On, it only opens the drivers' own fuel-log routes; older logs always show in Expenses.",
-      accessories: 'Off for the pilot.',
-      support: 'Off for the pilot.',
+      fuelRefills: 'The driver app has no fuel screen yet.',
       clientApp: 'Customers confirm by link instead.',
     },
     support: {
-      phone: "The number the apps call when someone taps “Call office”. Empty hides the button.",
-      whatsApp: 'The number the apps open in WhatsApp.',
-      hours: 'Shown next to the office phone, for example 9am–9pm.',
+      phone: 'The apps call this for “Call office”. Empty hides it.',
+      whatsApp: 'The apps open this in WhatsApp.',
+      hours: 'Shown next to the office phone.',
     },
     app: {
       minVersion: {
-        driver: 'Phones below this version must update. Raise only after the new app is on every phone.',
-        distributor: 'Phones below this version must update. Raise only after the new app is on every phone.',
+        driver: 'Older apps must update. Change only when the tech team asks.',
+        distributor: 'Older apps must update. Change only when the tech team asks.',
       },
     },
+    company: "Only the tech team changes this, on the owner's request.",
   },
 
   /** Choice words, used by the form and by the Activity log. */
@@ -117,7 +113,8 @@ export const settings = {
       DRIVER_ASSIGNED: 'Driver assigned',
       LEFT_STORE: 'Van leaves the store',
     },
-    default: 'Default',
+    noLimit: 'No limit',
+    setLimit: 'Set a limit',
   },
 
   values: {
@@ -125,22 +122,27 @@ export const settings = {
     off: 'Off',
     noLimit: 'No limit',
     notSet: 'Not set',
+    /** "9 am–9 pm" (`formatClock` puts each time in words). */
     hours: '{{from}}–{{to}}',
     from: 'From',
     to: 'To',
   },
 
+  /** The unit after a number box: "30 cylinders", "3 top-ups". */
+  units: {
+    cylinders: 'cylinders',
+    topups: 'top-ups',
+  },
+
   placeholders: {
-    noLimit: 'No limit',
-    phone: '0300 1234567',
-    hours: '9am–9pm',
-    version: '1.2.0',
+    hours: 'For example 9am–9pm',
+    version: 'For example 1.2.0',
   },
 
   meta: {
-    default: 'Default',
     changedBy: 'Changed {{date}} by {{name}}',
     changed: 'Changed {{date}}',
+    unsaved: 'Not saved',
     readOnly: "Can't be changed here",
   },
 
@@ -152,16 +154,8 @@ export const settings = {
     name: 'Account name',
     bank: 'Bank',
     iban: 'IBAN',
-    number: 'Account number',
     copyIban: 'Copy IBAN',
-    note: "Shown to distributors in the app. Changed only on the owner's written request; engineering makes the change and it's logged.",
-    missing: "Not set yet. Distributors can't send top-ups until engineering sets it.",
-  },
-
-  modules: {
-    turnOnTitle: 'Turn on {{module}}?',
-    turnOnBody: '{{module}} is off for the pilot. Once you save, it opens for everyone it covers, and the apps show it within 5 minutes.',
-    turnOnConfirm: 'Turn on',
+    missing: "Not set yet. Distributors can't top up until the tech team sets it.",
   },
 
   bar: {
@@ -173,18 +167,19 @@ export const settings = {
     fixFirst: 'Fix the highlighted values first.',
   },
 
+  /** The save review (W39): the one confirmation, also for turning a feature on. */
   review: {
     title: 'Save these changes?',
     change: '{{from}} → {{to}}',
-    reason: 'Why are you changing this?',
-    reasonHint: 'Saved in the activity log with each change.',
+    reason: 'Why?',
+    turnOn: '{{module}} opens in the apps within 5 minutes.',
     save_one: 'Save {{count}} change',
     save_other: 'Save {{count}} changes',
     discardTitle: 'Discard your changes?',
-    discardBody: "The values go back to what is saved. Nothing has been changed on the server.",
+    discardBody: 'The values go back to what is saved.',
   },
 
-  saved: 'Settings saved. The server uses them now; the apps show them within 5 minutes.',
+  saved: 'Settings saved. Apps update within 5 minutes.',
   offline: "Couldn't reach the server. Your changes are kept — try again.",
   saveFailed: "{{setting}} wasn't saved: {{message}}",
   saveFailedAfterOthers: "{{setting}} wasn't saved: {{message}} The changes before it were saved.",
@@ -192,7 +187,11 @@ export const settings = {
   errors: {
     minAboveMax: "The minimum can't be more than the maximum.",
     version: 'Use a version like 1.2.0.',
-    time: 'Use a time like 09:00.',
+    time: 'Use a time like 9:00 am.',
     sameHours: "The start and the end can't be the same.",
+    phone: 'Enter a number like 300 1234567.',
+    limitMissing: 'Type the limit.',
+    amountMissing: 'Type the amount.',
+    numberMissing: 'Type a number.',
   },
 } as const;

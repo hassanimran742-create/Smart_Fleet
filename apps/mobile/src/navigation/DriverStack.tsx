@@ -4,35 +4,38 @@ import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HamburgerButton, SideMenu } from '../components/SideMenu';
 import { ActiveTripScreen } from '../screens/driver/ActiveTripScreen';
+import { useTodayTitle } from '../screens/driver/components';
 import { DeliveryStepsScreen } from '../screens/driver/DeliveryStepsScreen';
-import { DriverFillingOrdersScreen } from '../screens/driver/FillingOrdersScreen';
 import { DriverHelpScreen } from '../screens/driver/HelpScreen';
 import { DriverHomeScreen } from '../screens/driver/HomeScreen';
-import { DriverProfileScreen } from '../screens/driver/ProfileScreen';
-import { ScanScreen } from '../screens/driver/ScanScreen';
-import type { LegacyScanEvent } from '../screens/driver/tripApi';
+import { RefillRunScreen } from '../screens/driver/RefillRunScreen';
+import { RefillsScreen } from '../screens/driver/RefillsScreen';
+import { UnloadScreen } from '../screens/driver/UnloadScreen';
 import { VehicleInfoScreen } from '../screens/driver/VehicleInfoScreen';
 import { HeaderCallOfficeButton, makeScreenOptions, useReduceMotion } from '../ui';
 
 /**
- * The driver app's routes (UX_MOBILE §3.6 typed routes). Fuel refill, Notifications, Transfers and
- * Reconcile are not in the pilot (UX_MOBILE Appendix A), and every scan opens from a trip step.
+ * The driver app's routes (UX_MOBILE §3.6 typed routes; driver spec §1.9). Today → Trip → a step:
+ * each step holds its own camera, so there is no scan screen; `Unload` is the Inc 1 unload scan
+ * (SCAN_IN). Refills is a list, and each refill opens on its own screen. Profile is merged into Help.
+ * Fuel refill, Notifications, Transfers and Reconcile are not in the pilot (UX_MOBILE Appendix A).
  */
 export type DriverStackParams = {
   Home: undefined;
   ActiveTrip: { tripId: string };
+  /** The store's Load step or a customer's Deliver step. */
   DeliverySteps: { tripId: string; stopId: string };
-  /** One fixed step: the event, the trip and, for a customer's step, the order. */
-  Scan: { eventType: LegacyScanEvent; tripId: string; orderId?: string };
-  FillingRuns: undefined;
-  Profile: undefined;
+  /** The trip's last step: unload at the store. */
+  Unload: { tripId: string };
+  Refills: undefined;
+  RefillRun: { refillId: string };
   VehicleInfo: undefined;
   Help: undefined;
 };
 
 const Stack = createNativeStackNavigator<DriverStackParams>();
 
-/** Home's header: "Call office" (shown on every driver screen once the office's phone is set) and the menu. */
+/** Today's header: "Call office" (on every driver screen, also offline) and the menu. */
 function HomeHeaderActions({ onMenu }: { onMenu: () => void }) {
   return (
     <View style={styles.actions}>
@@ -47,6 +50,7 @@ export function DriverStack() {
   const { t } = useTranslation();
   const reduceMotion = useReduceMotion();
   const [menuOpen, setMenuOpen] = useState(false);
+  const today = useTodayTitle();
 
   return (
     <>
@@ -60,19 +64,16 @@ export function DriverStack() {
           name="Home"
           component={DriverHomeScreen}
           options={{
-            title: t('driver.nav.home'),
+            title: today,
             headerRight: () => <HomeHeaderActions onMenu={() => setMenuOpen(true)} />,
           }}
         />
         <Stack.Screen name="ActiveTrip" component={ActiveTripScreen} options={{ title: t('driver.nav.trip') }} />
-        <Stack.Screen name="DeliverySteps" component={DeliveryStepsScreen} options={{ title: t('driver.nav.stop') }} />
-        <Stack.Screen name="Scan" component={ScanScreen} options={{ title: t('driver.nav.scan') }} />
-        <Stack.Screen
-          name="FillingRuns"
-          component={DriverFillingOrdersScreen}
-          options={{ title: t('common.menu.refillRuns') }}
-        />
-        <Stack.Screen name="Profile" component={DriverProfileScreen} options={{ title: t('common.menu.profile') }} />
+        {/* The step screens set "Step 2 of 3" themselves, from the trip. */}
+        <Stack.Screen name="DeliverySteps" component={DeliveryStepsScreen} options={{ title: '' }} />
+        <Stack.Screen name="Unload" component={UnloadScreen} options={{ title: '' }} />
+        <Stack.Screen name="Refills" component={RefillsScreen} options={{ title: t('driver.menu.refills') }} />
+        <Stack.Screen name="RefillRun" component={RefillRunScreen} options={{ title: t('driver.nav.refill') }} />
         <Stack.Screen name="VehicleInfo" component={VehicleInfoScreen} options={{ title: t('common.menu.van') }} />
         <Stack.Screen name="Help" component={DriverHelpScreen} options={{ title: t('common.menu.help') }} />
       </Stack.Navigator>

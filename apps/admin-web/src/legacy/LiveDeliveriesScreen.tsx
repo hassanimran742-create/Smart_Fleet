@@ -1,23 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { OrderBoardDto } from '@smartfleet/shared-types';
+import type { OrderBoardDto, OrderDto } from '@smartfleet/shared-types';
 import { api } from '../api/client';
-import { messageFor } from '../api/errors';
+import { useZoneOutlines } from '../features/distributors/api';
+import { DEFAULT_MAP_CENTER, FitToZones, OSM_CREDIT, OSM_TILES, ZoneLayer, zonesBounds } from '../features/distributors/StoreMapPicker';
 import { useDriversSocket, type DriverLocation } from '../hooks/useDriversSocket';
 import { formatTime } from '../i18n/format';
-import { StatusChip } from '../ui';
+import { Button, EmptyState, ErrorState, PageHeader, StatusChip, Table, type TableColumn } from '../ui';
+import { useLegacyT } from './i18n';
+import './legacy.css';
 
 /**
- * Legacy Live map, kept inside the shell for Inc 1 (UX_ADMIN §1.2, §2.11): the drivers' last positions
- * from the `/drivers` socket, and the orders in progress (`GET /orders/board?tab=in-progress`, the
- * board's own list). Touched for §2.11: order numbers and stage chips instead of id fragments and raw
- * statuses, no emoji, no developer text, and markers drawn from the design tokens.
+ * Legacy Live map, kept inside the shell for Inc 1 (UX_ADMIN §1.2, §2.11). Light pass (website spec
+ * W42): the map opens fitted to the active zones, outlined with their names; "Orders on the road" sits
+ * beside the map from 1280 px and above it below that, so it is never under the fold; one muted line
+ * says when no driver has sent a position, and a row without one says "No position". The positions come
+ * from the `/drivers` socket and the orders from the board's In progress list.
  */
-
-// Islamabad city centre, until a driver's position is known.
-const ISLAMABAD: [number, number] = [33.6844, 73.0479];
 
 /** Flies the map to the focused driver, once per change (not on every render). */
 function MapFocuser({ focus }: { focus: { lat: number; lng: number } | null }) {
@@ -31,7 +32,9 @@ function MapFocuser({ focus }: { focus: { lat: number; lng: number } | null }) {
 }
 
 export function LiveDeliveriesScreen() {
-  const { drivers, connected } = useDriversSocket();
+  const lt = useLegacyT();
+  const { drivers } = useDriversSocket();
+  const zones = useZoneOutlines();
   const [focusedDriverId, setFocusedDriverId] = useState<string | null>(null);
 
   const orders = useQuery({
@@ -43,144 +46,113 @@ export function LiveDeliveriesScreen() {
   const focused = focusedDriverId ? drivers[focusedDriverId] : null;
   const focusPoint = focused ? { lat: focused.lat, lng: focused.lng } : null;
   const driverList = Object.values(drivers);
+  const bounds = useMemo(() => zonesBounds(zones.data ?? []), [zones.data]);
+  const anyPosition = (orders.data ?? []).some((order) => order.trip && drivers[order.trip.driver.id]);
 
-  // Centre on the focused driver, else the first known driver, else Islamabad.
-  const mapCenter: [number, number] = focused
-    ? [focused.lat, focused.lng]
-    : driverList[0]
-      ? [driverList[0].lat, driverList[0].lng]
-      : ISLAMABAD;
-
-  function focusOnDriver(driverId: string | undefined | null) {
+  const focusOnDriver = (driverId: string | undefined | null) => {
     if (!driverId || !drivers[driverId]) return;
     setFocusedDriverId(driverId);
-  }
+  };
+
+  const columns: TableColumn<OrderDto>[] = [
+    {
+      id: 'order',
+      header: lt('live.columns.order'),
+      cell: (order) => (
+        <span className="sf-legacy__two-line">
+          <span className="sf-legacy__chips">
+            <span className="sf-record-no">{order.shortCode}</span>
+            <StatusChip kind="order" value={order.stage} />
+          </span>
+          <span className="sf-legacy__muted">{order.client.name}</span>
+        </span>
+      ),
+    },
+    {
+      id: 'driver',
+      header: lt('live.columns.driver'),
+      cell: (order) => {
+        if (!order.trip) return <span className="sf-legacy__muted">—</span>;
+        const located = Boolean(drivers[order.trip.driver.id]);
+        return (
+          <span className="sf-legacy__two-line">
+            <span>{lt('live.driverVan', { driver: order.trip.driver.name, plate: order.trip.vehicle.plateNo })}</span>
+            {located ? null : <span className="sf-legacy__muted">{lt('live.noPosition')}</span>}
+          </span>
+        );
+      },
+    },
+  ];
 
   return (
-    <>
-      <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <h2 style={{ marginBottom: 0 }}>Live map</h2>
-        <div className="flex" style={{ gap: 12, alignItems: 'center' }}>
-          <span className="muted" role="status">
-            {connected ? 'Live positions on' : 'Live positions off: reconnecting'} · {driverList.length}{' '}
-            {driverList.length === 1 ? 'driver' : 'drivers'} on the map
-          </span>
-          {focusedDriverId && <button onClick={() => setFocusedDriverId(null)}>Show everyone</button>}
-        </div>
-      </div>
-
-      <div className="card" style={{ padding: 0, overflow: 'hidden', height: 480 }}>
-        <MapContainer center={mapCenter} zoom={12} style={{ height: '100%', width: '100%' }}>
-          <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapFocuser focus={focusPoint} />
-          {driverList.map((d: DriverLocation) => {
-            const isFocused = d.driverId === focusedDriverId;
-            return (
-              // Leaflet sets a marker's class only when it is created, so a change of focus makes a new one.
-              <CircleMarker
-                key={`${d.driverId}-${isFocused ? 'focus' : 'plain'}`}
-                center={[d.lat, d.lng]}
-                radius={isFocused ? 12 : 9}
-                className={isFocused ? 'sf-map__pin sf-map__pin--focus' : 'sf-map__pin'}
-                eventHandlers={{ click: () => setFocusedDriverId(d.driverId) }}
-              >
-                <Popup>
-                  <strong>{d.name ?? 'Driver'}</strong>
-                  <br />
-                  Position at {formatTime(d.at)}
-                  <br />
-                  <button onClick={() => setFocusedDriverId(d.driverId)}>Show on map</button>
-                </Popup>
-              </CircleMarker>
-            );
-          })}
-        </MapContainer>
-      </div>
-
-      <div className="card">
-        <h3>Orders in progress</h3>
-        <p className="muted">Click a row to move the map to that order's driver.</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Stage</th>
-              <th>Distributor</th>
-              <th>Customer</th>
-              <th>Driver</th>
-              <th aria-label="Actions"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(orders.data ?? []).map((o) => {
-              const driverId = o.trip?.driver.id;
-              const driverInMap = driverId ? drivers[driverId] : undefined;
-              const isFocused = Boolean(driverId) && driverId === focusedDriverId;
+    <div className="sf-legacy-page">
+      <PageHeader
+        title={lt('live.title')}
+        secondaryActions={
+          focusedDriverId ? (
+            <Button variant="ghost" onClick={() => setFocusedDriverId(null)}>
+              {lt('live.showEveryone')}
+            </Button>
+          ) : null
+        }
+      />
+      {driverList.length === 0 ? <p className="sf-legacy__muted sf-live__status">{lt('live.noPositions')}</p> : null}
+      <div className="sf-live">
+        <section className="sf-live__list" aria-label={lt('live.listTitle')}>
+          <h2 className="sf-live__heading">{lt('live.listTitle')}</h2>
+          {anyPosition ? <p className="sf-legacy__muted">{lt('live.hint')}</p> : null}
+          <Table<OrderDto>
+            caption={lt('live.listTitle')}
+            columns={columns}
+            rows={orders.data}
+            rowKey={(order) => order.id}
+            onRowClick={(order) => focusOnDriver(order.trip?.driver.id)}
+            canOpenRow={(order) => Boolean(order.trip && drivers[order.trip.driver.id])}
+            selectedKey={
+              focusedDriverId ? ((orders.data ?? []).find((order) => order.trip?.driver.id === focusedDriverId)?.id ?? null) : null
+            }
+            state={orders.isPending ? 'loading' : orders.isError && !orders.data ? 'error' : 'ready'}
+            skeletonRows={3}
+            empty={<EmptyState compact title={lt('live.empty')} />}
+            error={
+              <ErrorState
+                compact
+                error={orders.error}
+                title={lt('live.loadFailed')}
+                onRetry={() => void orders.refetch()}
+                retrying={orders.isFetching}
+              />
+            }
+          />
+        </section>
+        <div className="sf-live__map">
+          <MapContainer center={[DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng]} zoom={12} className="sf-live__canvas">
+            <TileLayer url={OSM_TILES} attribution={OSM_CREDIT} />
+            <ZoneLayer zones={zones.data ?? []} />
+            <FitToZones bounds={bounds} enabled />
+            <MapFocuser focus={focusPoint} />
+            {driverList.map((d: DriverLocation) => {
+              const isFocused = d.driverId === focusedDriverId;
               return (
-                <tr
-                  key={o.id}
-                  onClick={() => focusOnDriver(driverId)}
-                  style={{
-                    cursor: driverInMap ? 'pointer' : 'default',
-                    background: isFocused ? 'var(--primary-soft)' : undefined,
-                  }}
+                // Leaflet sets a marker's class only when it is created, so a change of focus makes a new one.
+                <CircleMarker
+                  key={`${d.driverId}-${isFocused ? 'focus' : 'plain'}`}
+                  center={[d.lat, d.lng]}
+                  radius={isFocused ? 12 : 9}
+                  pathOptions={{ className: isFocused ? 'sf-map__pin sf-map__pin--focus' : 'sf-map__pin' }}
+                  eventHandlers={{ click: () => setFocusedDriverId(d.driverId) }}
                 >
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{o.shortCode}</td>
-                  <td>
-                    <StatusChip kind="order" value={o.stage} />
-                  </td>
-                  <td>{o.distributor?.businessName ?? '—'}</td>
-                  <td>{o.client.name}</td>
-                  <td>
-                    {o.trip ? (
-                      <span>
-                        {o.trip.driver.name} · {o.trip.vehicle.plateNo}
-                        {!driverInMap && <span className="muted"> (no live position)</span>}
-                      </span>
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </td>
-                  <td>
-                    {driverInMap && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          focusOnDriver(driverId);
-                        }}
-                      >
-                        Show on map
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                  <Popup>
+                    <strong>{d.name ?? lt('live.driver')}</strong>
+                    <br />
+                    {lt('live.positionAt', { time: formatTime(d.at) })}
+                  </Popup>
+                </CircleMarker>
               );
             })}
-            {orders.isPending && (
-              <tr>
-                <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 24 }}>
-                  Loading orders…
-                </td>
-              </tr>
-            )}
-            {orders.isError && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>
-                  <p style={{ color: 'var(--danger-fg)' }}>{messageFor(orders.error)}</p>
-                  <button onClick={() => void orders.refetch()}>Try again</button>
-                </td>
-              </tr>
-            )}
-            {!orders.isPending && !orders.isError && (orders.data ?? []).length === 0 && (
-              <tr>
-                <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 24 }}>
-                  No orders in progress. Orders with a driver show here until they are delivered.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </MapContainer>
+        </div>
       </div>
-    </>
+    </div>
   );
 }

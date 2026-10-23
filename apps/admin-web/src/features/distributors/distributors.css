@@ -1,6 +1,7 @@
 /*
- * Distributors and their one store (UX_ADMIN §2.4): the list, the Add drawer, the distributor page,
- * its dialogs, the store map and the app-password dialog. Tokens only and logical properties.
+ * Distributors and their one store (UX_ADMIN §2.4, website spec W18–W26): the list, the Add drawer, the
+ * distributor page, its dialogs, the store map and the app-password dialog. Tokens only and logical
+ * properties.
  */
 
 /* ---------- List ---------- */
@@ -10,6 +11,13 @@
   min-inline-size: 0;
 }
 
+.sf-dist__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+}
+
 .sf-dist__strong {
   font-weight: 600;
 }
@@ -17,17 +25,6 @@
 .sf-dist__muted {
   color: var(--text-muted);
   font-size: var(--fs-13);
-}
-
-.sf-dist__warning {
-  color: var(--warning-fg);
-  font-weight: 600;
-}
-
-.sf-dist__code {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  letter-spacing: 0.02em;
 }
 
 .sf-dist__nowrap {
@@ -40,26 +37,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sf-dist__switch {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-block-size: var(--control-h);
-}
-
-.sf-dist__switch-label {
-  color: var(--text);
-}
-
 /* ---------- Forms (Add drawer and dialogs) ---------- */
 .sf-dist-form {
   display: grid;
-  gap: var(--sp-4);
+  gap: var(--sp-2);
 }
 
 .sf-dist-form__section {
   display: grid;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
 }
 
 .sf-dist-form__section + .sf-dist-form__section {
@@ -71,19 +57,42 @@
   font-size: var(--fs-16);
 }
 
-.sf-dist-form__help {
-  color: var(--text-muted);
-}
-
 .sf-dist-form__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-1) var(--sp-4);
+  gap: 0 var(--sp-4);
+}
+
+/*
+ * Two fields side by side keep their boxes level when one has a longer hint or an error: each field
+ * spans four shared rows (label, hint, box, error). Without subgrid support they simply stack.
+ */
+.sf-dist-form__grid > .sf-field {
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+}
+
+.sf-dist-form__grid > .sf-field > .sf-field__label {
+  grid-row: 1;
+}
+
+.sf-dist-form__grid > .sf-field > .sf-field__hint {
+  grid-row: 2;
+}
+
+.sf-dist-form__grid > .sf-field > :not(.sf-field__label, .sf-field__hint, .sf-field__error) {
+  grid-row: 3;
+}
+
+.sf-dist-form__grid > .sf-field > .sf-field__error {
+  grid-row: 4;
 }
 
 .sf-dist-form__map {
   display: grid;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
 }
 
 @media (max-width: 599px) {
@@ -96,24 +105,12 @@
 .sf-map {
   display: grid;
   gap: var(--sp-2);
+  margin-block-start: var(--sp-1);
 }
 
-.sf-map__jump {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-3);
-}
-
-.sf-map__jump .sf-field {
-  flex: 1 1 160px;
-  margin: 0;
-}
-
-.sf-map__jump-title {
-  color: var(--text-muted);
-  font-size: var(--fs-13);
-  font-weight: 600;
+.sf-map .sf-map__find {
+  max-inline-size: 360px;
+  margin-block-end: 0;
 }
 
 .sf-map__frame {
@@ -140,10 +137,51 @@
   stroke-width: 3;
 }
 
+/* The active zones, shaded, so a valid pin's place shows at a glance (website spec W19). */
+.sf-map__zone {
+  fill: var(--primary-soft);
+  fill-opacity: 0.55;
+  stroke: var(--primary);
+  stroke-opacity: 0.8;
+  stroke-width: 2;
+}
+
+.sf-map__zone-centre {
+  fill: var(--primary);
+  fill-opacity: 1;
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+
+/* The other stores: small grey dots. */
+.sf-map__store {
+  fill: var(--text-muted);
+  fill-opacity: 1;
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+
+/* A zone's name on the map: plain text, not a floating box. */
+.leaflet-tooltip.sf-map__zone-label {
+  padding: 0 var(--sp-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: none;
+  color: var(--info-fg);
+  font-family: var(--font);
+  font-size: var(--fs-12);
+  font-weight: 700;
+}
+
+.leaflet-tooltip.sf-map__zone-label::before {
+  display: none;
+}
+
 .sf-map__below {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
 }
@@ -152,6 +190,7 @@
   display: grid;
   flex: 1 1 260px;
   gap: var(--sp-1);
+  min-block-size: 24px;
 }
 
 .sf-map__status {
@@ -194,11 +233,22 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: var(--sp-4);
-  align-items: start;
+  align-items: stretch;
+}
+
+/* Waiting to start: the checklist, then Contact and Store side by side. */
+.sf-dist-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Active or suspended: four cards of equal height in a row, 2 × 2 under 1280 px. */
+.sf-dist-grid--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .sf-dist-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--sp-3);
   min-inline-size: 0;
   padding: var(--sp-4) var(--sp-5);
@@ -226,14 +276,31 @@
 
 .sf-dist-card__body {
   display: grid;
+  align-content: start;
   gap: var(--sp-2);
   min-inline-size: 0;
+}
+
+.sf-dist-card .sf-kv {
+  margin-block-end: 0;
 }
 
 .sf-dist-card__map {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
+}
+
+.sf-dist-card__empty {
+  padding: var(--sp-4);
+  color: var(--text-muted);
+}
+
+/* The recent orders' table sits inside its card without a second frame. */
+.sf-dist-card--table .sf-table-card {
+  margin: 0;
+  border: 0;
+  box-shadow: none;
 }
 
 .sf-dist-checks {
@@ -249,7 +316,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2) var(--sp-3);
-  min-block-size: 36px;
+  min-block-size: 40px;
 }
 
 .sf-dist-check.is-done .sf-dist-check__icon {
@@ -264,35 +331,27 @@
   font-weight: 600;
 }
 
-.sf-dist-orders {
-  display: grid;
-  gap: var(--sp-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+@media (max-width: 1279px) {
+  .sf-dist-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.sf-dist-orders__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-3);
+@media (max-width: 767px) {
+  .sf-dist-grid--two,
+  .sf-dist-grid--four {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.sf-dist-orders__no {
-  font-family: var(--font-mono);
-  font-weight: 600;
-}
-
-.sf-dist-orders__customer {
-  flex: 1 1 120px;
-  min-inline-size: 0;
-}
-
-/* ---------- App password dialog (components/PasswordResetButton.tsx) ---------- */
+/* ---------- App password dialog ---------- */
 .sf-app-password {
   display: grid;
   gap: var(--sp-3);
+}
+
+.sf-app-password .sf-field {
+  margin-block-end: 0;
 }
 
 .sf-app-password__reveal {
@@ -308,6 +367,24 @@
 
 .sf-app-password__reveal:hover {
   color: var(--primary-hover);
+}
+
+/* A made password is read out letter by letter: even widths help. */
+.sf-app-password__input .sf-input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.sf-app-password__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-inline-start: calc(-1 * var(--sp-3));
+}
+
+.sf-app-password__line {
+  color: var(--text-muted);
 }
 
 /* The focused driver on the Live map (legacy/LiveDeliveriesScreen.tsx reuses the pin). */

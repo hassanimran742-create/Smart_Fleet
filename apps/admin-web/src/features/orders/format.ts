@@ -1,7 +1,7 @@
-import type { OrderDto, OrderStage } from '@smartfleet/shared-types';
+import type { OrderBoardTab, OrderDto, OrderStage } from '@smartfleet/shared-types';
 import { localDate } from '@smartfleet/shared-utils';
 import i18n from '../../i18n';
-import { formatDateTime, formatRs, formatTime } from '../../i18n/format';
+import { formatAgo, formatDateTime, formatRs, formatTime } from '../../i18n/format';
 
 /**
  * Plain words for an order, shared by the board, the drawer and the dialogs (UX_ADMIN §2.5). Every
@@ -26,31 +26,89 @@ export function storeText(store: { name: string; address: string }): string {
   return store.address.trim() ? i18n.t('orders:format.storeAt', { store: store.name, address: store.address }) : store.name;
 }
 
-/** "10:12 am" for an order placed today (Asia/Karachi), "21 Oct, 4:12 pm" otherwise. */
-export function placedWhen(createdAt: string, now: number = Date.now()): string {
-  return localDate(createdAt) === localDate(now) ? formatTime(createdAt) : formatDateTime(createdAt, now);
+/** "10:12 am" for a moment today (Asia/Karachi), "21 Oct, 4:12 pm" otherwise. */
+export function whenText(at: string, now: number = Date.now()): string {
+  return localDate(at) === localDate(now) ? formatTime(at) : formatDateTime(at, now);
 }
 
 /**
- * The cost line of the drawer (UX_ADMIN §2.5): "Base Rs 250 + 2 × Rs 40 (11.8 kg) = Rs 330 · taken from
- * the wallet when the order was placed". Zero parts are left out, so a flat price reads "Rs 250 · …".
- * A legacy order (no breakdown) says it was charged by the old system; a free order says so.
+ * The muted line under an order number on the board (website spec W27): "Placed 29 min ago", on Done
+ * today "Delivered 10:42 am", on Cancelled or not delivered "Cancelled 9:50 am" or "Not delivered
+ * 10:30 am".
  */
-export function costLine(order: Pick<OrderDto, 'fee'>): string {
+export function rowWhen(order: OrderDto, tab: OrderBoardTab, now: number = Date.now()): string {
+  if (tab === 'done-today' && order.deliveredAt) {
+    return i18n.t('orders:row.when.delivered', { time: whenText(order.deliveredAt, now) });
+  }
+  if (tab === 'cancelled-failed') {
+    if (order.cancelledAt) return i18n.t('orders:row.when.cancelled', { time: whenText(order.cancelledAt, now) });
+    if (order.failedAt) return i18n.t('orders:row.when.notDelivered', { time: whenText(order.failedAt, now) });
+  }
+  return i18n.t('orders:row.when.placed', { ago: formatAgo(order.createdAt, now) });
+}
+
+/** The reason of a cancelled or not-delivered order in words ("Customer cancelled"), or null. */
+export function outcomeReason(order: Pick<OrderDto, 'stage' | 'cancelReasonCode' | 'failureReasonCode'>): string | null {
+  if (order.stage === 'CANCELLED' && order.cancelReasonCode) return i18n.t(`orders:cancel.reason.${order.cancelReasonCode}`);
+  if (order.stage === 'NOT_DELIVERED' && order.failureReasonCode) return i18n.t(`orders:fail.reason.${order.failureReasonCode}`);
+  return null;
+}
+
+/** The drawer's subtitle by stage: "Ahmed Gas · placed 10:00 am", "… · delivered 10:42 am", … */
+export function drawerSubtitle(order: OrderDto, now: number = Date.now()): string {
+  const t = i18n.t;
+  const distributor = order.distributor?.businessName;
+  if (order.stage === 'DELIVERED' && order.deliveredAt) {
+    const when = whenText(order.deliveredAt, now);
+    return distributor ? t('orders:drawer.subtitleDelivered', { distributor, when }) : t('orders:drawer.subtitleDeliveredNoDistributor', { when });
+  }
+  if (order.stage === 'CANCELLED' && order.cancelledAt) {
+    const when = whenText(order.cancelledAt, now);
+    return distributor ? t('orders:drawer.subtitleCancelled', { distributor, when }) : t('orders:drawer.subtitleCancelledNoDistributor', { when });
+  }
+  if (order.stage === 'NOT_DELIVERED' && order.failedAt) {
+    const when = whenText(order.failedAt, now);
+    return distributor
+      ? t('orders:drawer.subtitleNotDelivered', { distributor, when })
+      : t('orders:drawer.subtitleNotDeliveredNoDistributor', { when });
+  }
+  const when = whenText(order.createdAt, now);
+  return distributor ? t('orders:drawer.subtitle', { distributor, when }) : t('orders:drawer.subtitleNoDistributor', { when });
+}
+
+/** One row of the drawer's cost breakdown: "Base · Rs 250", "11.8 kg · 2 × Rs 40". */
+export interface CostRow {
+  id: string;
+  label: string;
+  value: string;
+}
+
+/**
+ * The delivery cost as the order stored it (UX_ADMIN §2.5, website spec W28), as rows instead of a
+ * formula: the base, then each size with its count and amount. Parts of Rs 0 are left out, so a flat
+ * price is the base alone. `legacy` is an older order without a breakdown; `none` has no cost.
+ */
+export type CostBreakdown = { kind: 'rows'; rows: CostRow[] } | { kind: 'legacy' } | { kind: 'none' };
+
+export function costBreakdown(order: Pick<OrderDto, 'fee'>): CostBreakdown {
   const { fee } = order;
-  const total = formatRs(fee.totalPaisa);
-  if (fee.status === 'NONE' && (fee.totalPaisa === '0' || !fee.breakdown)) return i18n.t('orders:drawer.costNone');
-  if (!fee.breakdown) return i18n.t('orders:drawer.costLegacy', { cost: total });
-  const parts: string[] = [];
-  if (fee.breakdown.basePaisa !== '0') parts.push(i18n.t('orders:drawer.costBase', { amount: formatRs(fee.breakdown.basePaisa) }));
+  if (fee.status === 'NONE' && (fee.totalPaisa === '0' || !fee.breakdown)) return { kind: 'none' };
+  if (!fee.breakdown) return { kind: 'legacy' };
+  const rows: CostRow[] = [];
+  if (fee.breakdown.basePaisa !== '0') {
+    rows.push({ id: 'base', label: i18n.t('orders:drawer.costBase'), value: formatRs(fee.breakdown.basePaisa) });
+  }
   for (const line of fee.breakdown.lines) {
     if (line.perCylinderPaisa === '0' || line.count === 0) continue;
-    parts.push(i18n.t('orders:drawer.costLine', { n: line.count, amount: formatRs(line.perCylinderPaisa), size: line.sizeLabel }));
+    rows.push({
+      id: line.cylinderTypeId,
+      label: line.sizeLabel,
+      value: i18n.t('orders:drawer.costLine', { n: line.count, amount: formatRs(line.perCylinderPaisa) }),
+    });
   }
-  // A flat price (the base alone) reads "Rs 250"; anything with a per-size part shows its sum.
-  const flat = parts.length <= 1 && fee.breakdown.basePaisa !== '0';
-  const cost = parts.length === 0 || flat ? total : i18n.t('orders:drawer.costSum', { parts: parts.join(' + '), total });
-  return i18n.t('orders:drawer.costTaken', { cost });
+  // A breakdown of only zeros: the base row says Rs 0.
+  if (rows.length === 0) rows.push({ id: 'base', label: i18n.t('orders:drawer.costBase'), value: formatRs(fee.breakdown.basePaisa) });
+  return { kind: 'rows', rows };
 }
 
 /** Stages that can't change any more. */

@@ -10,7 +10,7 @@ import { useAuthStore } from '../store/auth';
 
 /** How often the phone sends its position while on duty (the server keeps one per 5 seconds). */
 export const LOCATION_INTERVAL_MS = 15_000;
-/** "Location paused, no connection" shows after this long without a connection (UX_MOBILE §5). */
+/** "Location paused" shows after this long without live location getting through (driver spec §1.1). */
 export const LOCATION_PAUSED_AFTER_MS = 30_000;
 
 /** Socket refusals a fresh access token can fix (API_CONTRACT §7.14). */
@@ -48,13 +48,13 @@ const INACTIVE: Pick<LiveLocationStatus, 'active' | 'connected' | 'socketDownSin
 };
 
 /**
- * The live-location state, shared by every driver screen: the sharing runs in the Home screen (the
- * root of the driver stack, mounted all day), while the "Location paused" banner shows on top of
- * whatever screen is open.
+ * The live-location state, shared by every driver screen: the sharing runs in the Today screen (the
+ * root of the driver stack, mounted all day), while "Location paused" shows on top of whatever screen
+ * is open (Today says it in its duty row).
  */
 const useLiveLocationStore = create<LiveLocationStatus>(() => ({ ...INACTIVE, permission: 'unknown' }));
 
-/** The live-location state for screens (the duty card on Home). */
+/** The live-location state for screens (Today's duty row). */
 export function useLiveLocationStatus(): LiveLocationStatus {
   return useLiveLocationStore();
 }
@@ -67,8 +67,9 @@ function earliest(a: number | null, b: number | null): number | null {
 
 /**
  * True when sharing is on but nothing has got through for 30 seconds: the socket has been down, or
- * every request has failed with no response, for that long (UX_MOBILE §5). Re-renders by itself when
- * the 30 seconds pass.
+ * every request has failed with no response, for that long (driver spec §1.1). Re-renders by itself
+ * when the 30 seconds pass. The strip that says so hides while the "No connection" banner shows (the
+ * same cause); Today's duty row still says it.
  */
 export function useLocationPaused(): boolean {
   const active = useLiveLocationStore((s) => s.active);
@@ -114,7 +115,7 @@ function bearer(token: string | null): string | null {
  *   ends the sign-in, which stops this hook.
  * - Positions are sent as volatile messages, so a backlog never floods the server after a gap.
  *
- * Foreground only: the trip screens stay on top of Home while a trip runs, so sharing continues.
+ * Foreground only: the trip screens stay on top of Today while a trip runs, so sharing continues.
  */
 export function useLiveLocation(enabled: boolean): void {
   const signedIn = useAuthStore((s) => s.token !== null);
@@ -260,7 +261,7 @@ export function useLiveLocation(enabled: boolean): void {
         watcher = subscription;
         store.setState({ permission: 'granted' });
       } catch {
-        // The phone's location is switched off (or the watch failed): Home says so.
+        // The phone's location is switched off (or the watch failed): Today's duty row says so.
         if (!stopped) store.setState({ permission: 'unavailable' });
       }
     };

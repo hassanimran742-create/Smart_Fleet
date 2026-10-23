@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { getRouteApi } from '@tanstack/react-router';
 import { Plus, Tags } from 'lucide-react';
 import type { ExpenseDto } from '@smartfleet/shared-types';
@@ -8,18 +8,21 @@ import { EXPENSES_TABS, type ExpensesSearch, type ExpensesTab } from '../../app/
 import {
   Button,
   DateRangeFilter,
+  ErrorState,
   Field,
   FilterBar,
   PageHeader,
+  SearchSelect,
   Select,
-  Switch,
   Tabs,
+  ToggleChip,
+  useFlashedRow,
   type DateRange,
   type SelectOption,
 } from '../../ui';
 import { useDrivers, useExpenseList, useExpenseSummary, useExpenseTypes, useVans } from './api';
 import { ExpenseDrawer, type ExpenseDrawerState } from './ExpenseDrawer';
-import { ExpenseTotals } from './ExpenseTotals';
+import { ExpenseTotals, ExpenseTotalsSkeleton } from './ExpenseTotals';
 import { ExpensesTable } from './ExpensesTable';
 import { EXPENSE_DATE_PRESETS, filtersFor, hasListFilters, rangeFromSearch, searchForRange } from './filters';
 import { FuelLogsTab } from './FuelLogsTab';
@@ -27,9 +30,45 @@ import './expenses.css';
 
 const route = getRouteApi('/expenses');
 
+/** Up to this many vans or drivers are a Select; more get a search box (UX_ADMIN §1.4). */
+const SELECT_MAX = 6;
+
+interface PickFilterProps {
+  label: string;
+  allLabel: string;
+  options: readonly SelectOption[];
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+}
+
+/** A van or driver filter: a Select for a short list, a search box for a long one. */
+function PickFilter({ label, allLabel, options, value, onChange }: PickFilterProps) {
+  if (options.length > SELECT_MAX) {
+    return (
+      <div className="sf-expenses__pick">
+        <SearchSelect
+          label={label}
+          placeholder={allLabel}
+          clearLabel={allLabel}
+          options={options}
+          value={value ?? null}
+          onChange={(next) => onChange(next ?? undefined)}
+        />
+      </div>
+    );
+  }
+  return (
+    <Field label={label} labelHidden>
+      <Select value={value ?? ''} placeholder={allLabel} options={options} onChange={(event) => onChange(event.target.value || undefined)} />
+    </Field>
+  );
+}
+
 /**
- * Expenses (UX_ADMIN §2.7): the office's running costs of vans and drivers, which never touch a
- * distributor's wallet. Tabs, dates and filters live in the URL (`?tab&from&to&type&van&driver&removed`).
+ * Expenses (UX_ADMIN §2.7, website spec W33–W34): the office's running costs of vans and drivers, which
+ * never touch a distributor's wallet. The date chips, then Type, Van, Driver and "Show removed"; the
+ * totals (only types with expenses in the dates); the list. Tabs, dates and filters live in the URL
+ * (`?tab&from&to&type&van&driver&removed`). A failed load is one error for the page.
  */
 export function ExpensesPage() {
   const { t } = useTranslation(['expenses', 'common']);
@@ -39,7 +78,7 @@ export function ExpensesPage() {
   const [customDates, setCustomDates] = useState(false);
   const [includeFuel, setIncludeFuel] = useState(false);
   const [drawer, setDrawer] = useState<ExpenseDrawerState | null>(null);
-  const removedSwitchId = useId();
+  const flashed = useFlashedRow('expenses');
 
   const range = rangeFromSearch(search, customDates);
   const filters = filtersFor(range, search);
@@ -60,6 +99,8 @@ export function ExpensesPage() {
     setSearch(next.preset === 'custom' ? { from: next.from || undefined, to: next.to || undefined } : searchForRange(next));
   };
 
+  const clearFilters = () => setSearch({ type: undefined, van: undefined, driver: undefined, removed: undefined });
+
   const typeOptions = useMemo<SelectOption[]>(
     () =>
       (types.data ?? []).map((type) => ({
@@ -78,14 +119,13 @@ export function ExpensesPage() {
   const openAdd = () => setDrawer({ mode: 'add' });
   const openExpense = (expense: ExpenseDto) => setDrawer({ mode: 'edit', expense });
 
+  // One error for the page (website spec W33), not one per block.
+  const failed = (summary.isError && !summary.data) || (list.isError && !list.data);
+
   return (
     <div className="sf-expenses">
       <PageHeader
         title={t('page.title')}
-        subtitle={t('page.subtitle')}
-        updatedAt={tab === 'expenses' ? summary.dataUpdatedAt || null : null}
-        onRefresh={tab === 'expenses' ? () => void Promise.all([summary.refetch(), list.refetch()]) : undefined}
-        refreshing={summary.isFetching || list.isFetching}
         primaryAction={
           <Button variant="primary" icon={Plus} onClick={openAdd} disabled={!types.data}>
             {t('page.add')}
@@ -108,78 +148,82 @@ export function ExpensesPage() {
         onChange={(next) => setSearch({ tab: next === EXPENSES_TABS[0] ? undefined : next })}
       />
 
-      <FilterBar className="sf-expenses__filters">
-        <DateRangeFilter value={range} onChange={onRangeChange} presets={EXPENSE_DATE_PRESETS} />
-        {tab === 'expenses' ? (
-          <Field label={t('filters.type')} labelHidden>
-            <Select
-              value={search.type ?? ''}
-              placeholder={t('filters.allTypes')}
-              options={typeOptions}
-              onChange={(event) => setSearch({ type: event.target.value || undefined })}
-            />
-          </Field>
-        ) : null}
-        <Field label={t('filters.van')} labelHidden>
-          <Select
-            value={search.van ?? ''}
-            placeholder={t('filters.allVans')}
-            options={vanOptions}
-            onChange={(event) => setSearch({ van: event.target.value || undefined })}
-          />
-        </Field>
-        {tab === 'expenses' ? (
-          <>
-            <Field label={t('filters.driver')} labelHidden>
+      <div className="sf-expenses__filters">
+        <FilterBar>
+          <DateRangeFilter value={range} onChange={onRangeChange} presets={EXPENSE_DATE_PRESETS} />
+        </FilterBar>
+        <FilterBar>
+          {tab === 'expenses' ? (
+            <Field label={t('filters.type')} labelHidden>
               <Select
-                value={search.driver ?? ''}
-                placeholder={t('filters.allDrivers')}
-                options={driverOptions}
-                onChange={(event) => setSearch({ driver: event.target.value || undefined })}
+                value={search.type ?? ''}
+                placeholder={t('filters.allTypes')}
+                options={typeOptions}
+                onChange={(event) => setSearch({ type: event.target.value || undefined })}
               />
             </Field>
-            <div className="sf-expenses__switch-field">
-              <Switch
-                id={removedSwitchId}
-                checked={search.removed === true}
+          ) : null}
+          <PickFilter
+            label={t('filters.van')}
+            allLabel={t('filters.allVans')}
+            options={vanOptions}
+            value={search.van}
+            onChange={(van) => setSearch({ van })}
+          />
+          {tab === 'expenses' ? (
+            <>
+              <PickFilter
+                label={t('filters.driver')}
+                allLabel={t('filters.allDrivers')}
+                options={driverOptions}
+                value={search.driver}
+                onChange={(driver) => setSearch({ driver })}
+              />
+              <ToggleChip
+                label={t('filters.showRemoved')}
+                pressed={search.removed === true}
                 onChange={(on) => setSearch({ removed: on ? true : undefined })}
               />
-              <label htmlFor={removedSwitchId} className="sf-expenses__switch-label">
-                {t('filters.showRemoved')}
-              </label>
-            </div>
-          </>
-        ) : null}
-      </FilterBar>
+            </>
+          ) : null}
+        </FilterBar>
+      </div>
 
       {tab === 'expenses' ? (
-        <>
-          <ExpenseTotals
-            summary={summary.data}
-            types={types.data}
-            loading={summary.isPending || types.isPending}
-            error={summary.error ?? types.error}
-            onRetry={() => void Promise.all([summary.refetch(), types.refetch()])}
-            retrying={summary.isFetching || types.isFetching}
-            includeFuel={includeFuel}
-            onIncludeFuelChange={setIncludeFuel}
-            listFiltered={hasListFilters(search)}
-            range={dates}
+        failed ? (
+          <ErrorState
+            error={list.error ?? summary.error}
+            title={t('table.loadFailed')}
+            onRetry={() => void Promise.all([summary.refetch(), list.refetch()])}
+            retrying={summary.isFetching || list.isFetching}
           />
-          <ExpensesTable
-            rows={rows}
-            loading={list.isPending}
-            error={list.error}
-            onRetry={() => void list.refetch()}
-            retrying={list.isFetching}
-            hasMore={list.hasNextPage}
-            loadingMore={list.isFetchingNextPage}
-            onLoadMore={() => void list.fetchNextPage()}
-            onOpen={openExpense}
-            filtered={hasListFilters(search) || search.removed === true}
-            onAdd={openAdd}
-          />
-        </>
+        ) : (
+          <>
+            {summary.data ? (
+              <ExpenseTotals
+                summary={summary.data}
+                includeFuel={includeFuel}
+                onIncludeFuelChange={setIncludeFuel}
+                listFiltered={hasListFilters(search)}
+                range={dates}
+              />
+            ) : (
+              <ExpenseTotalsSkeleton />
+            )}
+            <ExpensesTable
+              rows={rows}
+              loading={list.isPending}
+              hasMore={list.hasNextPage}
+              loadingMore={list.isFetchingNextPage}
+              onLoadMore={() => void list.fetchNextPage()}
+              onOpen={openExpense}
+              filtered={hasListFilters(search) || search.removed === true}
+              onClearFilters={clearFilters}
+              onAdd={openAdd}
+              highlightKey={flashed}
+            />
+          </>
+        )
       ) : (
         <FuelLogsTab range={dates} vanId={search.van} />
       )}

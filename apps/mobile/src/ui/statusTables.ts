@@ -6,9 +6,8 @@ import type { Tone } from './tokens';
 /**
  * Driver step chips (UX_MOBILE §3.4; UX_PRINCIPLES §4.2): a phone-side state derived from the stop
  * status. An order that FAILED is NOT_DELIVERED (red); a stop or order CANCELLED is CANCELLED (grey).
- * SKIPPED is the old single state for both, kept only until the driver screens stop sending it.
  */
-export type DriverStepState = 'TO_DO' | 'NEXT' | 'IN_PROGRESS' | 'DONE' | 'NOT_DELIVERED' | 'CANCELLED' | 'SKIPPED';
+export type DriverStepState = 'TO_DO' | 'NEXT' | 'IN_PROGRESS' | 'DONE' | 'NOT_DELIVERED' | 'CANCELLED';
 /** Customer answer chip [Inc 2]: the four answers plus the two waiting states. */
 export type AnswerChipState = 'YES' | 'PARTLY' | 'NO' | 'OTHER' | 'PENDING' | 'EXPIRED';
 /** Refill stage (UX_MOBILE §8.1): the server's `RefillStage`, sent on every refill from Inc 1. */
@@ -133,7 +132,6 @@ const STEP: KindTable<DriverStepState> = {
     DONE: { tone: 'success', icon: 'ok' },
     NOT_DELIVERED: { tone: 'danger', icon: 'error' },
     CANCELLED: { tone: 'neutral', icon: null },
-    SKIPPED: { tone: 'neutral', icon: null },
   },
   label: (value, t) => t(`stages.step.${value}`),
   look: (value, look, params) => (value === 'IN_PROGRESS' && params.icon ? { ...look, icon: params.icon } : look),

@@ -1,149 +1,172 @@
 /**
- * `driver.*` copy: the driver app's screens (UX_MOBILE §0, §5). Owned by the mobile-driver lane.
+ * `driver.*` copy: the driver app's screens (driver spec D4–D16; UX_MOBILE §0, §5). Owned by the
+ * mobile-driver lane.
  *
- * Driver words: say "trip", and name the four actions Load, Deliver, Take back and Hand back. Keys
- * follow `area.screen.element`. Every string that shows a count has a `_plural` form (i18next v3:
- * `key` is the count of 1, `key_plural` every other count), with the count passed as `count`.
- * Keep `as const`, so a wrong {{param}} fails the typecheck. Error codes are never reworded here:
- * refusals show `errors.<CODE>`.
+ * Driver words (UX_PRINCIPLES §5.2): say "trip", never "job" or "run", and name the four actions Load,
+ * Deliver, Take back and Unload. Keys follow `area.screen.element`. Every string that shows a count has
+ * a `_plural` form (i18next v3: `key` is the count of 1, `key_plural` every other count), with the
+ * count passed as `count`. Keep `as const`, so a wrong {{param}} fails the typecheck. Error codes are
+ * never reworded here: refusals show `errors.<CODE>`.
  */
 export const driver = {
-  /** Header titles (navigation/DriverStack.tsx); the menu's screens use their `common.menu.*` label. */
+  /** Header titles (navigation/DriverStack.tsx); the menu's screens use their menu label. */
   nav: {
-    home: 'My jobs',
+    /** Today's header, with the business date: "Today · Thu 22 Oct". */
+    homeDate: 'Today · {{date}}',
     trip: 'Trip',
-    stop: 'Step',
-    scan: 'Scan',
+    refill: 'Refill',
   },
 
-  /** The side menu (navigation/menus/driverMenu.ts) adds this to the `common.menu.*` labels. */
+  /** The side menu (navigation/menus/driverMenu.ts), beside the shared `common.menu.*` labels. */
   menu: {
-    helpHelp: 'Call the office, app version',
+    refills: 'Refills',
   },
 
   /** A cylinder size from its weight, e.g. "11.8 kg". */
   size: '{{kg}} kg',
 
-  /** Live location and the duty switch (hooks/useLiveLocation.ts). */
+  /** Live location and the duty row (hooks/useLiveLocation.ts, Today). One line, only when something is wrong. */
   location: {
-    paused: 'Location paused, no connection',
+    paused: 'Location paused',
     onDuty: 'On duty',
     offDuty: 'Off duty',
-    sharing: 'The office can see where you are.',
-    notSharing: 'Your location is not shared.',
-    starting: 'Turning on your location…',
-    noPermission: 'Location is off for Smart Fleet. Allow it in your phone settings.',
-    unavailable: "Your phone's location is switched off. Turn it on so the office can see where you are.",
+    noPermission: 'Location blocked. Allow it in settings.',
+    unavailable: 'Phone location is off. Turn it on.',
     openSettings: 'Open settings',
   },
 
-  /** Home: the van and the trips the office gave this driver. */
+  /** Today (D4): the duty row, the van, the open trips and the one next action. */
   home: {
     empty: {
-      title: 'No jobs yet.',
-      body: 'The office will assign your next job.',
+      title: 'Nothing to do.',
+      body: 'New trips appear by themselves.',
     },
-    openTrips: 'Your trips',
-    finishedTrips: 'Finished',
     tripTo: 'Deliver to {{name}}',
-    tripCustomers: '{{count}} customer',
-    tripCustomers_plural: '{{count}} customers',
+    tripCustomers: 'Deliver to {{count}} customer',
+    tripCustomers_plural: 'Deliver to {{count}} customers',
     tripDetail: '{{count}} cylinder · load at {{store}}',
     tripDetail_plural: '{{count}} cylinders · load at {{store}}',
-    assigned: 'Assigned {{when}}',
-    openTrip: 'Open trip',
+    doneToday: 'Done today: {{count}}',
+    doneToday_plural: 'Done today: {{count}}',
     continueTrip: 'Continue trip',
   },
 
-  /** The van card (components/VehicleLoad.tsx) and the My van screen. */
+  /**
+   * The van (components/VehicleLoad.tsx): Today's van row and My van. Counts join with " · " and hide
+   * their zeros ("3 full · 1 empty"); each part is a whole phrase.
+   */
   van: {
-    title: 'Your van',
+    /** Read by screen readers before the plate. */
     plate: 'Van {{plate}}',
-    none: 'No van is assigned to you. Call the office.',
-    counts: '{{full}} full · {{empty}} empty',
-    total: '{{count}} cylinder on the van',
-    total_plural: '{{count}} cylinders on the van',
-    nothing: 'Nothing is on the van right now.',
-    size: 'Size',
-    full: 'Full',
-    empty: 'Empty',
+    none: 'No van yet.',
+    fullCount: '{{count}} full',
+    fullCount_plural: '{{count}} full',
+    emptyCount: '{{count}} empty',
+    emptyCount_plural: '{{count}} empty',
+    noCylinders: 'No cylinders',
+    /** The word beside My van's big number. */
+    total: 'cylinder',
+    total_plural: 'cylinders',
+    /** The word beside the Unload step's big number. */
+    onVan: 'on the van',
+    nothing: 'Nothing on the van.',
   },
 
-  /** The trip: its steps in order, start and finish. */
+  /** The trip (D6): its steps in order, start and finish. */
   trip: {
-    from: 'From {{store}}',
     loadAt: 'Load at {{store}}',
     deliverTo: 'Deliver to {{name}}',
-    handBackAt: 'Hand back at {{store}}',
-    handBackHelp: 'Scan in what you bring back, before you finish the trip.',
-    loadHelp: 'Scan each full cylinder onto the van.',
-    give: 'Give {{count}} cylinder · take back {{back}}',
-    give_plural: 'Give {{count}} cylinders · take back {{back}}',
+    unloadAt: 'Unload at {{store}}',
+    cylinders: '{{count}} cylinder',
+    cylinders_plural: '{{count}} cylinders',
+    cylindersBack: '{{count}} cylinder · take back {{back}}',
+    cylindersBack_plural: '{{count}} cylinders · take back {{back}}',
+    onVan: '{{count}} on the van',
+    onVan_plural: '{{count}} on the van',
+    goLoad: 'Load at store',
+    goUnload: 'Unload at store',
     start: 'Start trip',
     starting: 'Starting…',
-    next: 'Next: {{step}}',
     finish: 'Finish trip',
     finishing: 'Finishing…',
     finishSheet: {
       title: 'Finish this trip?',
-      body: "Hand back the cylinders on your van at {{store}} first. After you finish, you can't scan for this trip.",
+      body: "Unload at {{store}} first. You can't scan for this trip after.",
       confirm: 'Finish trip',
       cancel: 'Not yet',
     },
-    finished: 'Trip finished.',
+    /**
+     * Finishing with cylinders still on the van, when the office allows it (the server answers
+     * TRIP_VAN_NOT_EMPTY with `leftoversAllowed`). The picked reason's English words are what is
+     * sent, whatever the app language.
+     */
+    leftovers: {
+      title: 'Finish with {{count}} on the van?',
+      title_plural: 'Finish with {{count}} on the van?',
+      body: 'The office will see this. Unload them on your next trip.',
+      reason: {
+        STORE_CLOSED: 'Store closed',
+        NO_ONE: 'No one to scan',
+        OTHER: 'Other',
+      },
+      note: 'What happened?',
+      confirm: 'Finish trip',
+    },
+    /** The toast after finishing, and the trip's state card. */
+    finished: 'Trip done',
     aborted: 'The office stopped this trip.',
-    noSteps: 'This trip has no steps yet.',
+    backHome: 'Back to home',
   },
 
-  /** One step of the trip at a time (screens/driver/DeliveryStepsScreen.tsx). */
+  /** One step of the trip at a time, with its camera (screens/driver/DeliverySteps, Unload). */
   steps: {
     load: {
-      body: 'Scan each full cylinder as you put it on the van. Tap Done loading when the van is ready.',
-      scan: 'Scan to load',
       done: 'Done loading',
-      finished: 'Loading done.',
+      finished: 'Loading done',
     },
     drive: {
-      body: "When you reach the customer, tap I've arrived.",
-      map: 'Open in maps',
+      map: 'Maps',
+      /** What screen readers hear for "Maps". */
+      mapA11y: 'Open in maps',
       arrive: "I've arrived",
     },
+    /** On the way to the customer and at the customer (DECIDED: the customer's name on the button). */
+    callCustomer: 'Call {{name}}',
     deliver: {
-      title: 'Hand over',
-      body: 'Scan each cylinder as you give it to the customer.',
-      scan: 'Scan to deliver',
       all: 'All delivered',
+      /** The strip over the take-back phase. */
+      marked: 'All delivered',
       sheet: {
-        title: 'Mark all delivered?',
-        body: 'Only do this after you have handed over every cylinder.',
+        title: 'All delivered?',
+        body: 'Only if the customer has every cylinder.',
         confirm: 'Yes, all delivered',
         cancel: 'Not yet',
       },
-      marked: 'Marked delivered.',
-      already: 'Already marked delivered',
-      done: 'Delivered',
+    },
+    /**
+     * "Done loading" or "All delivered" pressed before the screen's count is reached (DECIDED): the
+     * sheet asks once, and nothing blocks (the Inc 1 server allows it).
+     */
+    early: {
+      title: 'Only {{done}} of {{total}} scanned. Continue?',
+      keep: 'Keep scanning',
     },
     takeBack: {
-      title: 'Take back',
-      expected: 'The customer gives back {{count}} empty cylinder.',
-      expected_plural: 'The customer gives back {{count}} empty cylinders.',
-      body: 'Scan each empty cylinder the customer gives back.',
-      scan: 'Scan to take back',
-      none: 'Nothing to take back on this order.',
-      afterHandover: 'Hand over the cylinders first.',
+      title: 'Take back from {{name}}',
+      count: 'Take back {{count}}',
+      count_plural: 'Take back {{count}}',
     },
     line: '{{count}} × {{size}}',
     line_plural: '{{count}} × {{size}}',
     finishVisit: 'Finish visit',
-    visitDone: 'Visit done.',
-    cancelled: 'This order was cancelled. Bring its cylinders back to the store.',
+    visitDone: 'Visit done',
+    /** Under "Not delivered" and "Cancelled", and the body of "Could not deliver". */
+    bringBack: 'Bring the cylinders back to the store.',
     backToTrip: 'Back to trip',
-    next: 'Next: {{step}}',
     sending: 'Sending…',
     closed: 'This trip is closed.',
     missing: {
       title: 'This step is no longer on your trip.',
-      body: 'The office may have changed the trip.',
     },
   },
 
@@ -151,11 +174,9 @@ export const driver = {
   fail: {
     open: 'Could not deliver',
     title: "Couldn't deliver to {{name}}?",
-    body: 'The cylinders stay on your van. Bring them back to the store today.',
     note: 'What happened?',
-    confirm: 'Mark could not deliver',
+    confirm: 'Mark not delivered',
     cancel: 'Go back',
-    done: 'Marked could not deliver.',
     notStarted: "This order hasn't started. Call the office.",
     /** One word per `DeliveryFailureReason` (API_CONTRACT §1.5). */
     reason: {
@@ -168,66 +189,62 @@ export const driver = {
     },
   },
 
-  /** Refill runs (Inc 1 typed counts; replaced by scans in Inc 3). No money anywhere. */
+  /** Refills (D13 list, D14 one refill; Inc 1 counts by stepper, Inc 3 by scans). No money anywhere. */
   refills: {
     empty: {
-      title: 'No refill runs right now.',
-      body: 'The office will assign one when needed.',
+      title: 'No refills now.',
+      body: 'New ones appear by themselves.',
     },
-    openRuns: 'To do',
-    finishedRuns: 'Finished',
-    run: '{{count}} × {{size}}',
-    run_plural: '{{count}} × {{size}}',
-    forShop: 'For {{shop}}',
-    pickupAt: 'Pick up at {{store}}',
-    fillAt: 'Fill at {{station}}',
+    runTitle: '{{count}} × {{size}} · {{shop}}',
+    runTitle_plural: '{{count}} × {{size}} · {{shop}}',
+    doneToday: 'Done today: {{count}}',
+    doneToday_plural: 'Done today: {{count}}',
     theStation: 'the station',
     theStore: 'the store',
+    /** The title of each step of a refill. */
+    step: {
+      pickUp: 'Pick up empties at {{store}}',
+      goStation: 'Go to {{station}}',
+      fill: 'Fill at {{station}}',
+      bringBack: 'Bring them back to {{store}}',
+      back: 'Back at {{store}}',
+    },
     picked: 'Empties picked up',
-    pickedHelp: 'Up to {{count}} cylinder',
-    pickedHelp_plural: 'Up to {{count}} cylinders',
+    pickedHelp: 'Up to {{count}}',
+    pickedHelp_plural: 'Up to {{count}}',
     markPicked: 'Picked up {{count}} empty',
     markPicked_plural: 'Picked up {{count}} empties',
-    atStation: "I'm at {{station}}",
     filled: 'Cylinders filled',
     filledHelp: 'Out of {{count}} picked up',
     filledHelp_plural: 'Out of {{count}} picked up',
     markFilled: 'Mark {{count}} filled',
     markFilled_plural: 'Mark {{count}} filled',
-    markReturned: 'Brought back to the store',
-    returnedNote: 'Back at the store. The office will mark this refill done.',
     filledOf: 'Filled {{filled}} of {{count}}',
     filledOf_plural: 'Filled {{filled}} of {{count}}',
-    /** The driver's words for each `RefillStage` (API_CONTRACT §1.4). */
+    markReturned: 'Brought back',
+    returnedNote: 'The office will finish this refill.',
+    back: 'Back to refills',
+    /** The driver's next job for each `RefillStage` (API_CONTRACT §1.4); tones from ui/statusTables. */
     stage: {
-      NEEDS_DRIVER: 'Waiting for a driver',
+      NEEDS_DRIVER: 'Waiting for driver',
       DRIVER_ASSIGNED: 'Pick up empties',
       PICKING_UP: 'Picking up empties',
       PICKED_UP: 'Go to the station',
       AT_STATION: 'At the station',
       COMING_BACK: 'Bring them back',
-      BACK_AT_STORE: 'Back at the store',
+      BACK_AT_STORE: 'Back at store',
       DONE: 'Done',
       CANCELLED: 'Cancelled',
     },
   },
 
-  /** The read-only profile (no CNIC, no ids). */
-  profile: {
-    name: 'Name',
-    phone: 'Mobile number',
-    licence: 'Licence number',
-    van: 'Van',
-    note: 'To change these, call the office.',
-  },
-
-  /** Help: the office's numbers and the app version. */
+  /** Help, with the profile merged in (D16): the office, who you are, the app version. */
   help: {
-    title: 'Need help?',
-    body: 'Call the office about your trips, your van or your account.',
-    hours: 'Office hours: {{hours}}',
-    noPhone: "The office's number isn't in the app yet.",
-    whatsApp: 'WhatsApp the office',
+    hours: 'Office hours {{hours}}',
+    noPhone: 'Office number not loaded yet.',
+    name: 'Name',
+    phone: 'Mobile',
+    van: 'Van',
     version: 'App version {{version}}',
     versionUpdate: 'App version {{version}} · update {{id}}',
   },

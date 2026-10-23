@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
@@ -14,54 +14,50 @@ import type {
 import { formatRs } from '@smartfleet/shared-utils';
 import { ORDER_LINE_MAX_COUNT } from '@smartfleet/shared-validation';
 import { useIdempotencyKey } from '../../api/client';
-import type { ApiError } from '../../api/errors';
+import { isNetworkError, type ApiError } from '../../api/errors';
 import { invalidate, qk, STALE_MS } from '../../api/keys';
 import { useAppConfig, useOfficeContact } from '../../hooks/useAppConfig';
 import {
+  ActionLine,
   Button,
   Card,
   colors,
-  EmptyState,
   ErrorBanner,
-  Field,
+  Fab,
   Icon,
-  layout,
   MoneyText,
+  OfflineEmpty,
+  radius,
   Screen,
-  SkeletonCard,
+  Skeleton,
   SkeletonList,
   sizes,
   space,
-  StatusChip,
   StepHeader,
   Stepper,
   Text,
   useToast,
+  type IconName,
 } from '../../ui';
+import { fetchLocationQuote, placeOrder, quoteOrder, type OrderBody } from './shared/api';
+import { AddressPickerSheet } from './shared/AddressPickerSheet';
+import { CustomerList } from './shared/CustomerList';
 import {
-  fetchClients,
-  fetchCylinderTypes,
-  fetchLocationQuote,
-  placeOrder,
-  quoteOrder,
-  type CylinderTypeRow,
-  type OrderBody,
-} from './shared/api';
-import {
-  costBreakdownText,
+  addressBlock,
+  costParts,
   defaultAddress,
   isPositivePaisa,
-  matchesCustomer,
+  lastOrderOf,
   paisaOrZero,
   phoneText,
   sizeLabelFromWeight,
   subtractPaisa,
   weightSortKey,
 } from './shared/format';
-import { InfoRow } from './shared/InfoRow';
-import { CYLINDER_TYPES_STALE_MS, shopKeys } from './shared/keys';
-import { useFormGuard, useShopNavigation, useShopRoute } from './shared/navigation';
+import { shopKeys } from './shared/keys';
+import { useFormGuard, useShopNavigation, useShopRoute, useStepBack } from './shared/navigation';
 import { Notice } from './shared/Notice';
+import { firstPageOf, useClients, useCylinderTypes, useOrderPages } from './shared/queries';
 import { StaleNotice } from './shared/StaleNotice';
 
 type Step = 1 | 2 | 3;
@@ -73,16 +69,6 @@ interface LineChoice {
   backTouched: boolean;
 }
 
-/** What blocks a customer's address from being ordered to. */
-type AddressBlock = { kind: 'none' } | { kind: 'noAddress' } | { kind: 'priceNotSet'; zoneName: string } | { kind: 'outside' };
-
-function blockOf(address: ClientAddressDto | null): AddressBlock {
-  if (!address) return { kind: 'noAddress' };
-  if (address.priceStatus === 'SET') return { kind: 'none' };
-  if (address.priceStatus === 'NOT_SET') return { kind: 'priceNotSet', zoneName: address.zone?.name ?? '' };
-  return { kind: 'outside' };
-}
-
 /** The money the shop is short of: from the quote, or from a refused place (fresher). */
 interface Shortfall {
   requiredPaisa: string;
@@ -90,53 +76,77 @@ interface Shortfall {
   shortByPaisa: string;
 }
 
+/** Lets the address sheet slide away before New address opens. */
+const SHEET_CLOSE_MS = 200;
+
 /**
- * S9 New order (replaces PlaceOrderScreen), three steps: who it is for, the cylinders, and "Check and
- * place" built from `POST /orders/quote`. The cost is taken from the wallet when the order is placed
- * (`POST /orders` with this intent's Idempotency-Key and the quoted total). A changed price shows a
- * warning and the new breakdown; a short balance turns the footer into "Add money", prefilled.
+ * S9 New order (shop spec §N, §O, §P), three steps:
+ * 1. Who is it for? The customer list: a tap goes straight on, "Recent" first, a blocked row opens in
+ *    place with its fix, and "+ Add customer" floats.
+ * 2. Cylinders to deliver: one row per size, starting at 0, with "Same as last time" when the customer
+ *    has ordered before (DECIDED: never prefilled silently), and the cost line above "Next".
+ * 3. Check and place: one summary card from `POST /orders/quote`, the cost as a big total, the refund
+ *    rule in one line, and "Place order · pay Rs 330". The cost is taken when the order is placed
+ *    (`POST /orders` with this intent's Idempotency-Key and the quoted total). A changed price shows
+ *    a line and the new total; a short balance turns the button into "Add money", prefilled.
+ * The header arrow goes back a step; every step opens at the top.
  */
 export function NewOrderScreen() {
   const { t } = useTranslation();
   const navigation = useShopNavigation();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const office = useOfficeContact();
   const { params } = useShopRoute<'NewOrder'>();
   const { config, query: configQuery } = useAppConfig();
 
-  const [step, setStep] = useState<Step>(1);
-  const [search, setSearch] = useState('');
+  // A customer arriving with the route (Customers, Add customer, "Use Sana", New address) opens step 2.
+  const [step, setStep] = useState<Step>(params?.clientId && params?.pickedAt ? 2 : 1);
   const [clientId, setClientId] = useState<string | null>(params?.clientId ?? null);
   const [addressId, setAddressId] = useState<string | null>(params?.addressId ?? null);
   const [lines, setLines] = useState<Record<string, LineChoice>>({});
   const [changedTotal, setChangedTotal] = useState<string | null>(null);
   const [shortfallFromPlace, setShortfallFromPlace] = useState<Shortfall | null>(null);
+  /** The customer whose addresses the "Deliver to" sheet shows (the chosen one, or a blocked row's). */
+  const [sheetClient, setSheetClient] = useState<ClientDto | null>(null);
 
-  // Back from Add customer or Change address: take the customer (and address) chosen there.
+  const clientRef = useRef(clientId);
+  const stepRef = useRef(step);
+  clientRef.current = clientId;
+  stepRef.current = step;
+
+  const choose = useCallback((nextClientId: string, nextAddressId: string | null) => {
+    if (nextClientId !== clientRef.current) setLines({});
+    setClientId(nextClientId);
+    setAddressId(nextAddressId);
+  }, []);
+
+  // Back from Add customer, "Use Sana" or New address: take the customer (and address) chosen there.
+  const seenPick = useRef(params?.pickedAt);
   useEffect(() => {
-    if (!params?.pickedAt) return;
-    if (params.clientId) setClientId(params.clientId);
-    setAddressId(params.addressId ?? null);
-  }, [params?.pickedAt, params?.clientId, params?.addressId]);
+    if (!params?.pickedAt || params.pickedAt === seenPick.current || !params.clientId) return;
+    seenPick.current = params.pickedAt;
+    choose(params.clientId, params.addressId ?? null);
+    if (stepRef.current === 1 || params.clientId !== clientRef.current) setStep(2);
+  }, [params?.pickedAt, params?.clientId, params?.addressId, choose]);
 
-  const clients = useQuery<ClientDto[], ApiError>({ queryKey: qk.clients, queryFn: fetchClients });
-  const types = useQuery<CylinderTypeRow[], ApiError>({
-    queryKey: shopKeys.cylinderTypes,
-    queryFn: fetchCylinderTypes,
-    staleTime: CYLINDER_TYPES_STALE_MS,
-  });
+  const clients = useClients();
+  const types = useCylinderTypes();
+  // "Same as last time" reads the newest orders My orders and "Recent" already loaded.
+  const activeOrders = useOrderPages('active');
+  const doneOrders = useOrderPages('done');
 
   const client = clients.data?.find((c) => c.id === clientId) ?? null;
   const address = client
     ? (addressId ? client.addresses.find((a) => a.id === addressId) : undefined) ?? defaultAddress(client)
     : null;
-  const block = blockOf(address);
+  const block = addressBlock(address);
 
   // The customer's price, for "Delivery cost about …" and the size words (step 2).
   const addressPrice = useQuery<LocationQuote, ApiError>({
     queryKey: address ? qk.pricing.quote(address.lat, address.lng) : [...qk.pricing.all, 'none'],
     queryFn: () => fetchLocationQuote(address!.lat, address!.lng),
-    enabled: !!address && block.kind === 'none' && step >= 2,
+    enabled: !!address && block === 'none' && step >= 2,
     staleTime: STALE_MS.pricingQuote,
   });
 
@@ -159,8 +169,15 @@ export function NewOrderScreen() {
   const total = chosen.reduce((sum, line) => sum + line.choice.deliver, 0);
   const cap = config.orders.maxCylindersPerOrder;
 
+  const lastOrder: OrderDto | null = clientId
+    ? lastOrderOf(clientId, [firstPageOf(activeOrders.data), firstPageOf(doneOrders.data)])
+    : null;
+  const lastLines = (lastOrder?.lines ?? []).filter(
+    (line) => line.fullCount > 0 && sizes.some((size) => size.id === line.cylinderTypeId),
+  );
+
   const body: OrderBody | null =
-    client && address && block.kind === 'none' && chosen.length > 0
+    client && address && block === 'none' && chosen.length > 0
       ? {
           clientId: client.id,
           addressId: address.id,
@@ -184,13 +201,16 @@ export function NewOrderScreen() {
   // One key per intent: the same customer, address and cylinders keep it across retries and a
   // changed price (API_CONTRACT §4.2 compares exactly these).
   const idem = useIdempotencyKey([client?.id, address?.id, body ? JSON.stringify(body.lines) : '']);
-  const guard = useFormGuard(clientId !== null);
+  // On steps 2 and 3 the header arrow goes back a step; only leaving from step 1 asks.
+  const guard = useFormGuard((clientId !== null || total > 0) && step === 1);
+  useStepBack(step, () => setStep((current) => (current > 1 ? ((current - 1) as Step) : current)));
 
   // "Check and place" reads the refund rule fresh, not the 5-minute copy (G04-02), and re-quotes.
+  const refetchConfig = configQuery.refetch;
   useEffect(() => {
     if (step !== 3) return;
-    void configQuery.refetch();
-  }, [step, configQuery.refetch]);
+    void refetchConfig();
+  }, [step, refetchConfig]);
   // Coming back to "Check and place" (e.g. from Add money) quotes again with the balance now.
   const refetchQuote = quote.refetch;
   const hasBody = body !== null;
@@ -200,7 +220,7 @@ export function NewOrderScreen() {
     }, [step, hasBody, refetchQuote]),
   );
 
-  // A different order body means a new quote: forget the old warnings.
+  // A different order body means a new quote: forget the old lines.
   useEffect(() => {
     setChangedTotal(null);
     setShortfallFromPlace(null);
@@ -244,16 +264,6 @@ export function NewOrderScreen() {
     },
   });
 
-  const selectClient = (c: ClientDto) => {
-    setClientId(c.id);
-    setAddressId(defaultAddress(c)?.id ?? null);
-  };
-
-  const changeAddress = () => {
-    if (!client) return;
-    navigation.navigate('PickAddress', { clientId: client.id, selectedAddressId: address?.id });
-  };
-
   const setDeliver = (id: string, deliver: number) =>
     setLines((current) => {
       const previous = current[id] ?? { deliver: 0, back: 0, backTouched: false };
@@ -272,63 +282,63 @@ export function NewOrderScreen() {
       return { ...current, [id]: { ...previous, back, backTouched: true } };
     });
 
+  /** "Same as last time": the sizes and counts of this customer's newest order, in one tap. */
+  const fillLast = () => {
+    const next: Record<string, LineChoice> = {};
+    let room = cap;
+    for (const line of lastLines) {
+      const deliver = Math.min(line.fullCount, ORDER_LINE_MAX_COUNT, room);
+      if (deliver <= 0) continue;
+      room -= deliver;
+      const back = Math.min(line.expectedReturnCount, ORDER_LINE_MAX_COUNT);
+      next[line.cylinderTypeId] = { deliver, back, backTouched: back !== deliver };
+    }
+    setLines(next);
+  };
+
+  const openSheet = (forClient: ClientDto) => setSheetClient(forClient);
+  const sheet = (
+    <AddressPickerSheet
+      visible={sheetClient !== null}
+      client={sheetClient}
+      currentAddressId={sheetClient && sheetClient.id === clientId ? address?.id : null}
+      onClose={() => setSheetClient(null)}
+      onPick={(picked) => {
+        if (!sheetClient) return;
+        choose(sheetClient.id, picked.id);
+        if (step === 1) setStep(2);
+      }}
+      onNewAddress={() => {
+        if (!sheetClient) return;
+        const forClient = sheetClient.id;
+        setTimeout(() => navigation.navigate('NewAddress', { clientId: forClient }), SHEET_CLOSE_MS);
+      }}
+    />
+  );
+
   // ---- Step 1: who is it for? ------------------------------------------------------------------
   if (step === 1) {
-    const filtered = (clients.data ?? []).filter((c) => matchesCustomer(c, search));
     return (
       <Screen
+        key="step-1"
         scroll={false}
         padded={false}
-        footer={<Button label={t('common.actions.next')} onPress={() => setStep(2)} size="lg" disabled={!client || block.kind !== 'none'} />}
+        fab={
+          <Fab label={t('customers.list.add')} onPress={() => navigation.navigate('AddCustomer', { forOrder: true })} />
+        }
       >
-        <FlatList
-          data={clients.data ? filtered : []}
-          keyExtractor={(c) => c.id}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <StepHeader step={1} total={3} title={t('orders.new.who')} />
-              {clients.isError && clients.data ? (
-                <StaleNotice updatedAt={clients.dataUpdatedAt} onRetry={() => void clients.refetch()} />
-              ) : null}
-              <Field
-                label={t('orders.new.search')}
-                value={search}
-                onChangeText={setSearch}
-                placeholder={t('orders.new.searchPlaceholder')}
-                returnKeyType="search"
-                autoCapitalize="none"
-              />
-              <Button
-                label={t('orders.new.addCustomer')}
-                onPress={() => navigation.navigate('AddCustomer', { forOrder: true })}
-                icon="customer"
-                variant="secondary"
-              />
-              {client ? <AddressBlockCard block={block} onChangeAddress={changeAddress} /> : null}
-            </View>
-          }
-          renderItem={({ item }) => (
-            <CustomerRow client={item} selected={item.id === clientId} onPress={() => selectClient(item)} />
-          )}
-          ItemSeparatorComponent={Divider}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              {!clients.data ? (
-                clients.isError ? (
-                  <ErrorBanner error={clients.error} onRetry={() => void clients.refetch()} />
-                ) : (
-                  <SkeletonList rows={4} />
-                )
-              ) : clients.data.length === 0 ? (
-                <EmptyState icon="customer" title={t('orders.new.noCustomers')} body={t('orders.new.noCustomersBody')} />
-              ) : (
-                <EmptyState icon="customer" title={t('orders.new.noMatch', { query: search.trim() })} />
-              )}
-            </View>
-          }
+        <CustomerList
+          variant="order"
+          header={<StepHeader step={1} total={3} title={t('orders.new.who')} style={styles.stepHeader} />}
+          chosenId={clientId}
+          onPick={(picked: ClientDto, pickedAddress: ClientAddressDto) => {
+            choose(picked.id, pickedAddress.id);
+            setStep(2);
+          }}
+          onChangeAddress={openSheet}
+          onAddAddress={(forClient) => navigation.navigate('NewAddress', { clientId: forClient.id })}
         />
+        {sheet}
       </Screen>
     );
   }
@@ -346,56 +356,89 @@ export function NewOrderScreen() {
       : 0;
     return (
       <Screen
-        footer={<Button label={t('common.actions.next')} onPress={() => setStep(3)} size="lg" disabled={total < 1} />}
+        key="step-2"
+        footer={
+          <>
+            {total === 0 ? (
+              <Text tone="secondary" align="center">
+                {t('orders.new.pickSome')}
+              </Text>
+            ) : aboutPaisa > 0 ? (
+              <Text variant="bodyStrong" align="center" accessibilityLiveRegion="polite">
+                {t('orders.new.costAbout', { fee: formatRs(aboutPaisa) })}
+              </Text>
+            ) : null}
+            {total >= cap ? (
+              <Text tone="secondary" align="center">
+                {t('orders.new.capReached', { count: cap })}
+              </Text>
+            ) : null}
+            <Button label={t('common.actions.next')} onPress={() => setStep(3)} size="lg" disabled={total < 1} />
+          </>
+        }
       >
         <StepHeader step={2} total={3} title={t('orders.new.cylinders')} />
         <View style={styles.stack}>
-          <Button label={t('orders.new.back')} onPress={() => setStep(1)} variant="ghost" fullWidth={false} />
+          {client && address ? (
+            <Text tone="secondary">{t('orders.new.forCustomer', { name: client.name, address: address.label })}</Text>
+          ) : null}
+          {total === 0 && lastLines.length > 0 ? (
+            <ActionChip icon="history" label={t('orders.new.sameAsLast')} onPress={fillLast} />
+          ) : null}
           {!types.data ? (
             types.isError ? (
-              <ErrorBanner error={types.error} onRetry={() => void types.refetch()} />
+              isNetworkError(types.error) ? (
+                <OfflineEmpty onRetry={() => void types.refetch()} />
+              ) : (
+                <ErrorBanner error={types.error} onRetry={() => void types.refetch()} />
+              )
             ) : (
               <SkeletonList rows={3} />
             )
           ) : sizes.length === 0 ? (
-            <Notice tone="warning" text={t('orders.new.noSizes')} />
+            <Notice tone="warning" text={t('orders.new.noSizes')}>
+              {office.phone ? (
+                <Button
+                  label={t('common.actions.callOffice')}
+                  onPress={office.call}
+                  icon="call"
+                  variant="secondary"
+                  fullWidth={false}
+                />
+              ) : null}
+            </Notice>
           ) : (
-            sizes.map((size) => {
-              const choice = lines[size.id];
-              const deliver = choice?.deliver ?? 0;
-              const room = Math.max(0, cap - (total - deliver));
-              return (
-                <Card key={size.id}>
-                  <Text variant="heading">{size.label}</Text>
-                  <Stepper
-                    label={t('orders.new.deliver')}
-                    value={deliver}
-                    min={0}
-                    max={Math.min(ORDER_LINE_MAX_COUNT, room)}
-                    onChange={(value) => setDeliver(size.id, value)}
-                    style={styles.stepper}
-                  />
-                  {deliver > 0 ? (
+            <Card padding={0}>
+              {sizes.map((size, index) => {
+                const choice = lines[size.id];
+                const deliver = choice?.deliver ?? 0;
+                const room = Math.max(0, cap - (total - deliver));
+                return (
+                  <View key={size.id} style={[styles.sizeRow, index > 0 ? styles.divided : null]}>
                     <Stepper
-                      label={t('orders.new.takeBack')}
-                      value={choice?.back ?? 0}
+                      label={size.label}
+                      value={deliver}
                       min={0}
-                      max={ORDER_LINE_MAX_COUNT}
-                      onChange={(value) => setBack(size.id, value)}
-                      style={styles.stepper}
+                      max={Math.min(ORDER_LINE_MAX_COUNT, room)}
+                      onChange={(value) => setDeliver(size.id, value)}
                     />
-                  ) : null}
-                </Card>
-              );
-            })
+                    {deliver > 0 ? (
+                      <Stepper
+                        label={t('orders.new.takeBack')}
+                        value={choice?.back ?? 0}
+                        min={0}
+                        max={ORDER_LINE_MAX_COUNT}
+                        onChange={(value) => setBack(size.id, value)}
+                        style={styles.takeBack}
+                      />
+                    ) : null}
+                  </View>
+                );
+              })}
+            </Card>
           )}
-          {total >= cap ? <Notice tone="brand" text={t('orders.new.capReached', { count: cap })} /> : null}
-          {total > 0 && aboutPaisa > 0 ? (
-            <Text variant="bodyStrong" accessibilityLiveRegion="polite">
-              {t('orders.new.costAbout', { fee: formatRs(aboutPaisa) })}
-            </Text>
-          ) : null}
         </View>
+        {sheet}
       </Screen>
     );
   }
@@ -410,7 +453,10 @@ export function NewOrderScreen() {
       ? { requiredPaisa: result.quote.totalPaisa, balancePaisa: result.wallet.balancePaisa, shortByPaisa: result.wallet.shortByPaisa }
       : null);
   const rule = config.orders.deliveryStartedAt;
-  const quoteBlocked = !result && quote.isError;
+  const quoteError = !result && quote.isError ? quote.error : null;
+  const priceBlock =
+    quoteError?.code === 'PRICING_PRICE_NOT_SET' ? 'noPrice' : quoteError?.code === 'PRICING_ZONE_NOT_COVERED' ? 'outside' : null;
+  const parts = result && !free ? costParts(result.quote, t) : null;
 
   const submit = () => {
     if (!body || !result || place.isPending) return;
@@ -422,223 +468,222 @@ export function NewOrderScreen() {
   const placeError =
     place.error && !['PRICING_QUOTE_CHANGED', 'WALLET_INSUFFICIENT_BALANCE'].includes(place.error.code) ? place.error : null;
 
-  const footer = shortfall ? (
-    <Button
-      label={t('orders.new.addMoney')}
-      onPress={() => navigation.navigate('TopupAmount', { shortByPaisa: shortfall.shortByPaisa })}
-      size="lg"
-      icon="addMoney"
+  // At most one line above the button: short of money, a changed price, or the place's own failure.
+  const footerLine = shortfall ? (
+    <FooterLine
+      tone="danger"
+      text={t('orders.new.notEnough', { required: formatRs(shortfall.requiredPaisa), balance: formatRs(shortfall.balancePaisa) })}
     />
+  ) : changedTotal ? (
+    <FooterLine tone="warning" text={t('orders.new.priceChanged', { total: formatRs(changedTotal) })} />
   ) : (
-    <Button
-      label={
-        result && !free ? t('orders.new.place', { fee: formatRs(result.quote.totalPaisa) }) : t('orders.new.placeFree')
-      }
-      onPress={submit}
-      size="lg"
-      loading={place.isPending}
-      loadingLabel={t('orders.new.placing')}
-      disabled={!result || !body}
-    />
+    <ActionLine error={placeError} notSentLabel={t('orders.new.notSent')} />
+  );
+
+  const footer = (
+    <>
+      {footerLine}
+      {shortfall ? (
+        <Button
+          label={t('orders.new.addMoney')}
+          onPress={() => navigation.navigate('TopupAmount', { shortByPaisa: shortfall.shortByPaisa })}
+          size="lg"
+          icon="addMoney"
+        />
+      ) : (
+        <Button
+          label={result && !free ? t('orders.new.place', { fee: formatRs(result.quote.totalPaisa) }) : t('orders.new.placeFree')}
+          onPress={submit}
+          size="lg"
+          loading={place.isPending}
+          loadingLabel={t('orders.new.placing')}
+          disabled={!result || !body}
+        />
+      )}
+    </>
   );
 
   return (
-    <Screen footer={footer}>
+    <Screen key="step-3" footer={footer}>
       <StepHeader step={3} total={3} title={t('orders.new.review')} />
       <View style={styles.stack}>
-        <Button label={t('orders.new.back')} onPress={() => setStep(2)} variant="ghost" fullWidth={false} disabled={place.isPending} />
-        {changedTotal ? (
-          <Notice tone="warning" alert text={t('orders.new.priceChanged', { total: formatRs(changedTotal) })} />
-        ) : null}
         {result && quote.isError ? (
           <StaleNotice updatedAt={quote.dataUpdatedAt} onRetry={() => void quote.refetch()} />
         ) : null}
 
-        <Card>
-          {client ? (
-            <InfoRow label={t('orders.new.customer')} divider={false}>
-              {t('orders.new.customerValue', { name: client.name, phone: phoneText(client.phone) })}
-            </InfoRow>
-          ) : null}
-          {address ? (
-            <InfoRow
-              label={t('orders.new.deliverTo')}
-              action={
+        <Card padding={0}>
+          {client && address ? (
+            <CardSection first>
+              <View style={styles.between}>
+                <View style={styles.flex}>
+                  <Text variant="bodyStrong">
+                    {t('orders.new.customerValue', { name: client.name, phone: phoneText(client.phone) })}
+                  </Text>
+                  <Text tone="secondary">{address.label}</Text>
+                </View>
                 <Button
-                  label={t('orders.new.changeAddress')}
-                  onPress={changeAddress}
+                  label={t('orders.new.change')}
+                  accessibilityLabel={t('customers.block.changeAddress')}
+                  onPress={() => openSheet(client)}
                   variant="ghost"
                   fullWidth={false}
                   disabled={place.isPending}
                 />
-              }
-            >
-              {t('orders.new.deliverToValue', {
-                label: address.label,
-                zone: result?.quote.zone.name ?? address.zone?.name ?? '',
-              })}
-            </InfoRow>
+              </View>
+            </CardSection>
           ) : null}
-          <InfoRow label={t('orders.new.cylindersRow')}>
-            <View style={styles.lines}>
-              {chosen.map((line) => (
-                <Text key={line.id}>
-                  {t('orders.new.line', { count: line.choice.deliver, size: line.label, back: line.choice.back })}
-                </Text>
-              ))}
+
+          <CardSection>
+            {chosen.map((line) => (
+              <Text key={line.id}>
+                {line.choice.back > 0
+                  ? t('orders.new.line', { count: line.choice.deliver, size: line.label, back: line.choice.back })
+                  : t('orders.new.lineNoBack', { count: line.choice.deliver, size: line.label })}
+              </Text>
+            ))}
+          </CardSection>
+
+          <CardSection>
+            <View style={styles.between}>
+              <Text variant="label" tone="secondary" style={styles.flex}>
+                {t('orders.new.deliveryCost')}
+              </Text>
+              {result ? (
+                free ? (
+                  <Text variant="bodyStrong">{t('orders.new.costNone')}</Text>
+                ) : (
+                  <MoneyText paisa={result.quote.totalPaisa} variant="title" numberOfLines={1} />
+                )
+              ) : quoteError ? null : (
+                <Skeleton width={112} height={28} />
+              )}
             </View>
-          </InfoRow>
-          <InfoRow label={t('orders.new.deliveryCost')}>
-            {result ? (
-              <Text variant="bodyStrong">{costBreakdownText(result.quote, t)}</Text>
-            ) : quoteBlocked ? (
-              <Text tone="secondary">{formatRs(null)}</Text>
-            ) : (
-              <SkeletonCard lines={1} />
-            )}
-          </InfoRow>
+            {parts ? (
+              <Text variant="caption" tone="secondary" align="right">
+                {parts}
+              </Text>
+            ) : null}
+            {quoteError && priceBlock && client ? (
+              <BlockedCost block={priceBlock} onChangeAddress={() => openSheet(client)} />
+            ) : quoteError ? (
+              <View style={styles.costError}>
+                <FooterLine tone="danger" text={t('orders.new.costError')} />
+                <Button
+                  label={t('common.actions.tryAgain')}
+                  onPress={() => void quote.refetch()}
+                  variant="secondary"
+                  fullWidth={false}
+                />
+              </View>
+            ) : null}
+          </CardSection>
+
           {result && !free ? (
-            <InfoRow label={t('orders.new.yourWallet')}>
-              <View style={styles.walletRow}>
+            <CardSection>
+              <View style={styles.between}>
                 <Text style={styles.flex}>{t('orders.new.balanceNow')}</Text>
                 <MoneyText paisa={result.wallet.balancePaisa} variant="bodyStrong" />
               </View>
               {shortfall ? null : (
-                <View style={styles.walletRow}>
+                <View style={styles.between}>
                   <Text style={styles.flex}>{t('orders.new.balanceAfter')}</Text>
                   <MoneyText paisa={subtractPaisa(result.wallet.balancePaisa, result.quote.totalPaisa)} variant="bodyStrong" />
                 </View>
               )}
-            </InfoRow>
+            </CardSection>
           ) : null}
         </Card>
 
-        {shortfall ? (
-          <Notice
-            tone="danger"
-            alert
-            text={t('orders.new.notEnough', {
-              required: formatRs(shortfall.requiredPaisa),
-              balance: formatRs(shortfall.balancePaisa),
-            })}
-          />
-        ) : null}
-
         {result && !free && !shortfall ? (
-          <Notice
-            tone="brand"
-            icon="info"
-            text={t(`orders.new.refundRule.${rule}`, { fee: formatRs(result.quote.totalPaisa) })}
-          />
+          <View style={styles.rule}>
+            <Icon name="info" size={20} tone="secondary" />
+            <Text variant="caption" tone="secondary" style={styles.flex}>
+              {t(`orders.new.refundRule.${rule}`)}
+            </Text>
+          </View>
         ) : null}
-
-        {quoteBlocked ? (
-          <ErrorBanner
-            error={quote.error}
-            onRetry={() => void quote.refetch()}
-            extraAction={
-              quote.error?.code === 'PRICING_PRICE_NOT_SET' || quote.error?.code === 'PRICING_ZONE_NOT_COVERED'
-                ? { label: t('orders.new.changeAddress'), onPress: changeAddress, icon: 'map' }
-                : undefined
-            }
-          />
-        ) : null}
-        {placeError ? <ErrorBanner error={placeError} onRetry={submit} /> : null}
       </View>
+      {sheet}
     </Screen>
   );
 }
 
-/** A customer in step 1: name, "0300 1234567 · Model Town", and the zone chip or why it can't be ordered. */
-function CustomerRow({ client, selected, onPress }: { client: ClientDto; selected: boolean; onPress: () => void }) {
-  const { t } = useTranslation();
-  const address = defaultAddress(client);
-  const phone = phoneText(client.phone);
-  const subtitle = client.area ? t('orders.new.customerRow', { phone, area: client.area }) : phone;
-  const chip =
-    !address ? (
-      <StatusChip tone="neutral" label={t('orders.new.noAddress')} icon="map" />
-    ) : address.priceStatus === 'SET' && address.zone ? (
-      <StatusChip tone="neutral" label={address.zone.name} icon="map" />
-    ) : address.priceStatus === 'NOT_SET' ? (
-      <StatusChip tone="danger" label={t('orders.new.noPrice')} icon="error" />
-    ) : address.priceStatus === 'OUTSIDE' ? (
-      <StatusChip tone="danger" label={t('orders.new.outside')} icon="error" />
-    ) : null;
+/** One section of the summary card, under a 1 px line (none above the first). */
+function CardSection({ children, first = false }: { children: ReactNode; first?: boolean }) {
+  return <View style={[styles.section, first ? null : styles.divided]}>{children}</View>;
+}
 
+/** A one-line message with its icon, in the footer or under the cost. */
+function FooterLine({ tone, text }: { tone: 'danger' | 'warning'; text: string }) {
+  return (
+    <View style={styles.footerLine} accessibilityRole="alert" accessibilityLiveRegion="polite">
+      <Icon name={tone === 'danger' ? 'error' : 'warn'} size={20} tone={tone} />
+      <Text variant="caption" tone={tone} style={styles.flex}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+/** The cost can't be worked out for this address: why, then "Change address" and "Call office", stacked. */
+function BlockedCost({ block, onChangeAddress }: { block: 'noPrice' | 'outside'; onChangeAddress: () => void }) {
+  const { t } = useTranslation();
+  const office = useOfficeContact();
+  return (
+    <View style={styles.costError}>
+      <FooterLine tone="danger" text={block === 'noPrice' ? t('customers.block.noPrice') : t('customers.block.outside')} />
+      <Button label={t('customers.block.changeAddress')} onPress={onChangeAddress} icon="map" variant="secondary" />
+      {office.phone ? (
+        <Button label={t('common.actions.callOffice')} onPress={office.call} icon="call" variant="secondary" />
+      ) : null}
+    </View>
+  );
+}
+
+/** A one-tap chip that does something ("Same as last time"), in the ChoiceChips look. */
+function ActionChip({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={[client.name, subtitle].join(', ')}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       android_ripple={{ color: colors.ripple }}
-      style={[styles.customer, selected ? styles.customerSelected : null]}
+      style={styles.chip}
     >
-      <View style={styles.flex}>
-        <Text variant="bodyStrong" numberOfLines={2}>
-          {client.name}
-        </Text>
-        <Text variant="caption" tone="secondary">
-          {subtitle}
-        </Text>
-        {chip ? <View style={styles.chip}>{chip}</View> : null}
-      </View>
-      {selected ? <Icon name="ok" size={24} tone="brand" label={t('orders.new.selected')} /> : null}
+      <Icon name={icon} size={20} tone="brand" />
+      <Text variant="label" tone="brand" style={styles.chipLabel}>
+        {label}
+      </Text>
     </Pressable>
   );
-}
-
-/** Why the chosen customer's address can't take an order yet, with what to do about it. */
-function AddressBlockCard({ block, onChangeAddress }: { block: AddressBlock; onChangeAddress: () => void }) {
-  const { t } = useTranslation();
-  const office = useOfficeContact();
-  if (block.kind === 'none') return null;
-  const text =
-    block.kind === 'noAddress'
-      ? t('orders.new.needsAddress')
-      : block.kind === 'priceNotSet'
-        ? t('orders.new.priceNotSet', { zoneName: block.zoneName })
-        : t('orders.new.outsideCard');
-  return (
-    <Notice tone="danger" alert text={text}>
-      <Button
-        label={block.kind === 'noAddress' ? t('orders.new.addAddress') : t('orders.new.changeAddress')}
-        onPress={onChangeAddress}
-        icon="map"
-        variant="secondary"
-        fullWidth={false}
-      />
-      {block.kind !== 'noAddress' && office.phone ? (
-        <Button label={t('common.actions.callOffice')} onPress={office.call} icon="call" variant="secondary" fullWidth={false} />
-      ) : null}
-    </Notice>
-  );
-}
-
-function Divider() {
-  return <View style={styles.divider} />;
 }
 
 const styles = StyleSheet.create({
   stack: { gap: space.lg },
   flex: { flex: 1 },
-  listContent: { paddingBottom: space.xxl, flexGrow: 1 },
-  listHeader: { padding: layout.gutter, gap: space.md },
-  empty: { paddingHorizontal: layout.gutter },
-  customer: {
-    minHeight: sizes.listRow,
+  stepHeader: { marginBottom: 0 },
+  // At least 64 dp a size (the 48 dp stepper and 8 dp above and below), so 4 sizes fit on a phone.
+  sizeRow: { paddingHorizontal: space.lg, paddingVertical: space.sm },
+  takeBack: { marginStart: space.lg, marginTop: space.sm },
+  divided: { borderTopWidth: 1, borderTopColor: colors.border },
+  section: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
+  between: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  costError: { gap: space.sm, marginTop: space.xs, alignItems: 'stretch' },
+  rule: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  footerLine: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  chip: {
+    alignSelf: 'flex-start',
+    minHeight: sizes.touch,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: layout.gutter,
-    paddingVertical: space.md,
+    gap: space.xs,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
+    overflow: 'hidden',
+    maxWidth: '100%',
   },
-  customerSelected: { backgroundColor: colors.brandSoft },
-  chip: { marginTop: space.xs },
-  divider: { height: 1, backgroundColor: colors.border },
-  stepper: { marginTop: space.md },
-  lines: { gap: space.xs },
-  walletRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  chipLabel: { flexShrink: 1 },
 });

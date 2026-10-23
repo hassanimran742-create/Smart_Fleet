@@ -17,11 +17,6 @@ export const common = {
     tryAgain: 'Try again',
     /** The only label of a button that calls the office, in both apps (UX_PRINCIPLES §5.2). */
     callOffice: 'Call office',
-    /**
-     * @deprecated Use `callOffice`. Kept only until the last call sites (the shop Profile, the driver's
-     * `useCallOfficeAction`, Help and Profile, ScanPanel) switch; then delete it.
-     */
-    callTheOffice: 'Call the office',
     whatsAppOffice: 'WhatsApp office',
     addMoney: 'Add money',
     /** AddMore's default label ("+ Add more"; the plus is the icon). */
@@ -50,8 +45,6 @@ export const common = {
   note: 'Note',
   /** The QueryBoundary strip over saved data, and Home's wallet card stamp. */
   stale: 'Saved {{time}}',
-  /** @deprecated Merged into `stale`. Kept only until the shop Home switches; then delete it. */
-  updated: 'Updated {{time}}',
   /** The one connection banner (OfflineBanner), shown with "Try again". True offline and when the server is down. */
   offline: 'No connection',
   /** No data and no answer: the body under the banner (QueryBoundary). */
@@ -118,16 +111,11 @@ export const common = {
   /** The side menus' first labels. The shop and driver lanes may move their menu copy to their own namespace. */
   menu: {
     open: 'Open menu',
-    profile: 'Profile',
-    driverProfileHelp: 'Name, phone, licence',
     van: 'My van',
     vanNone: 'No van yet',
-    refillRuns: 'Refill runs',
-    refillRunsHelp: 'Fill empties at the station',
     about: 'About',
     help: 'Help',
     deliveries: 'My deliveries',
-    licence: 'Licence {{number}}',
     signOut: 'Sign out',
   },
 

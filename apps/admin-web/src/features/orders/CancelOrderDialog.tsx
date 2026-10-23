@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Wallet } from 'lucide-react';
 import { ORDER_CANCEL_REASONS, type OrderCancelReason, type OrderCancelTerms, type OrderDto } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
 import { ApiError, errorDetails, messageFor } from '../../api/errors';
 import { formatRs } from '../../i18n/format';
-import { InlineAlert, useToast } from '../../ui';
+import { flashRow, InlineAlert, useToast } from '../../ui';
 import { useCancelOrder, useInvalidateOrder } from './api';
 import { ReasonDialog } from './ReasonDialog';
 
@@ -27,10 +28,12 @@ export interface CancelOrderDialogProps {
 }
 
 /**
- * Cancel order (UX_ADMIN §2.5, ADR-07): a reason and a note of 5–300 characters, and the refund the
- * office saw, sent as `confirmRefundPaisa`. If the terms change while the dialog is open (a poll, or
- * the server's `ORDER_CANCEL_TERMS_CHANGED`), it re-renders with the new terms and says so, so nobody
- * confirms a refund that no longer applies. The money rule itself lives only on the server.
+ * Cancel order (UX_ADMIN §2.5, ADR-07, website spec W30): the money line first, then a reason and a note
+ * of 5–300 characters ("Who asked, and why?": the office's note stays required, DECIDED), and the
+ * refund the office saw, sent as `confirmRefundPaisa`. If the terms change while the dialog is open (a
+ * poll, or the server's `ORDER_CANCEL_TERMS_CHANGED`), it re-renders with the new terms and says so in
+ * the catalogue's words, so nobody confirms a refund that no longer applies. The money rule itself
+ * lives only on the server. The drawer stays open on the cancelled order.
  */
 export function CancelOrderDialog({ order, onClose }: CancelOrderDialogProps) {
   const { t } = useTranslation('orders');
@@ -61,14 +64,16 @@ export function CancelOrderDialog({ order, onClose }: CancelOrderDialogProps) {
     [t],
   );
 
-  const body =
-    variant === 'refund'
-      ? distributor
-        ? t('cancel.bodyRefund', { amount, distributor })
-        : t('cancel.bodyRefundNoName', { amount })
-      : variant === 'noRefund'
-        ? t('cancel.bodyNoRefund')
-        : t('cancel.bodyNothing');
+  const moneyLine =
+    variant === 'refund' ? (
+      <InlineAlert tone="success" icon={Wallet}>
+        {distributor ? t('cancel.bodyRefund', { amount, distributor }) : t('cancel.bodyRefundNoName', { amount })}
+      </InlineAlert>
+    ) : variant === 'noRefund' ? (
+      <InlineAlert tone="danger">{t('cancel.bodyNoRefund')}</InlineAlert>
+    ) : (
+      <InlineAlert tone="neutral">{t('cancel.bodyNothing')}</InlineAlert>
+    );
   const confirmLabel =
     variant === 'refund'
       ? t('cancel.confirmRefund', { amount })
@@ -92,6 +97,7 @@ export function CancelOrderDialog({ order, onClose }: CancelOrderDialogProps) {
                 ? t('cancel.toastDone', { no })
                 : t('cancel.toastNoRefund', { no }),
           );
+          flashRow('orders', order.id);
           void invalidate();
           onClose();
         },
@@ -124,8 +130,6 @@ export function CancelOrderDialog({ order, onClose }: CancelOrderDialogProps) {
   return (
     <ReasonDialog<OrderCancelReason>
       title={t('cancel.title', { no: order.shortCode })}
-      body={body}
-      tone={variant === 'noRefund' ? 'danger' : 'default'}
       notice={
         changed ? (
           <InlineAlert tone="warning" live>
@@ -133,12 +137,14 @@ export function CancelOrderDialog({ order, onClose }: CancelOrderDialogProps) {
           </InlineAlert>
         ) : null
       }
+      facts={moneyLine}
       reasons={reasons}
       reasonLabel={t('cancel.reasonLabel')}
       noteLabel={t('cancel.noteLabel')}
-      noteHint={t('cancel.noteHint')}
+      notePlaceholder={t('cancel.notePlaceholder')}
       noteMin={5}
       confirmLabel={confirmLabel}
+      confirmTone={variant === 'noRefund' ? 'danger' : 'primary'}
       needReason={t('cancel.needReason')}
       needNote={t('cancel.needNote')}
       busy={cancel.isPending}
@@ -149,7 +155,7 @@ export function CancelOrderDialog({ order, onClose }: CancelOrderDialogProps) {
   );
 }
 
-/** The catalogue's words for new terms: "Delivery has just started, so the refund is now Rs 0. …". */
+/** The catalogue's words for new terms: "Delivery has just started. The refund is now Rs 0.". */
 function termsChangedMessage(refundPaisa: string): string {
   return messageFor(new ApiError('ORDER_CANCEL_TERMS_CHANGED', 409, { refundPaisa }, null, null));
 }

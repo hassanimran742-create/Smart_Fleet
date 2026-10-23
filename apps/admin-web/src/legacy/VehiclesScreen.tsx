@@ -1,580 +1,492 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Pencil, Plus, Truck } from 'lucide-react';
 import { api } from '../api/client';
 import { messageFor } from '../api/errors';
-import { Modal } from '../components/Modal';
+import { formatPhone } from '../i18n/format';
 import { translateDynamic } from '../i18n';
-import { Chip, StatusChip, useConfirm, useToast } from '../ui';
+import {
+  AddMore,
+  Button,
+  Drawer,
+  EmptyState,
+  ErrorState,
+  Field,
+  FilterBar,
+  flashRow,
+  InlineAlert,
+  PageHeader,
+  Select,
+  StatusChip,
+  Table,
+  Tabs,
+  TextInput,
+  ToggleChip,
+  useConfirm,
+  useFlashedRow,
+  useToast,
+  type TableColumn,
+} from '../ui';
+import { sizeLabelOf, useLegacyT } from './i18n';
+import './legacy.css';
 
 /**
- * Legacy Vans screen, kept inside the shell for Inc 1 (UX_ADMIN §2.11). Touched for the §2.11 clean-up:
- * ConfirmDialog instead of browser pop-ups, no emoji, status chips and plain words instead of raw values
- * and id fragments, and every failure shown.
+ * Legacy Vans screen, kept inside the shell for Inc 1 (UX_ADMIN §2.11). Light pass (website spec W44):
+ * the tabs start with the van list; "Add van" and Edit open drawers; capacity is "cylinders of 11.8 kg"
+ * with one helper line, and the size check ("+ Check what fits") sits in Edit, labelled by size. No raw
+ * size codes, no "slots". Giving a van to a driver acts at once, with a toast.
  */
 
 const VEHICLE_STATUSES = ['ACTIVE', 'MAINTENANCE', 'RETIRED'] as const;
+const PLATE_REGEX = /^[A-Z]{2,3}[- ]?\d{2,4}$/i;
+
+interface City {
+  id: string;
+  name: string;
+}
+interface Zone {
+  id: string;
+  city_id: string;
+  name: string;
+}
+interface CylinderType {
+  id: string;
+  code: string;
+  name: string;
+  capacityUnits: number;
+  weightKg: string;
+}
+interface Van {
+  id: string;
+  plateNo: string;
+  capacityUnits: number;
+  status: string;
+  homeZoneId: string;
+  homeZone?: { name: string; cityId?: string } | null;
+  currentDriver?: { user?: { name?: string } } | null;
+}
+interface DriverRow {
+  id: string;
+  currentVehicleId: string | null;
+  availability: string;
+  user: { name: string; phone: string; status: string };
+}
+
+const VANS_KEY = ['vehicles'] as const;
+type Tab = 'vans' | 'give';
 
 /** "In service", "In the workshop", "Retired" (the website's `status:vehicle` words). */
 function statusWords(status: string): string {
   return translateDynamic(`status:vehicle.${status}`) ?? status;
 }
 
-interface City { id: string; name: string }
-interface Zone { id: string; city_id: string; name: string }
-interface CylinderType { id: string; code: string; name: string; capacityUnits: number; weightKg: string }
-
-const PLATE_REGEX = /^[A-Z]{2,3}[- ]?\d{2,4}$/i;
-
-function CapacityBreakdown({ slots, types }: { slots: number; types: CylinderType[] }) {
-  if (!slots || !types.length) return null;
-  return (
-    <div style={{ marginTop: 8, padding: 12, background: 'var(--surface-soft)', borderRadius: 8, fontSize: 13 }}>
-      <strong>Equivalent capacity</strong>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginTop: 6 }}>
-        {types.map((t) => (
-          <div key={t.id}>
-            <div className="muted" style={{ fontSize: 11 }}>{t.name}</div>
-            <div><strong>{Math.floor(slots / Math.max(t.capacityUnits, 1))}</strong> cylinders</div>
-          </div>
-        ))}
-      </div>
-      <p className="muted" style={{ marginTop: 6, marginBottom: 0, fontSize: 11 }}>
-        Slots are 11kg-cylinder equivalents. 45kg = 4 slots, 15kg = 2, 11.8kg = 1, 6kg = 1.
-        Capacity is fungible — you can mix any types as long as their total slots ≤ {slots}.
-      </p>
-    </div>
-  );
-}
-
-function MixedCapacityCalculator({ slots, types }: { slots: number; types: CylinderType[] }) {
-  const [load, setLoad] = useState<Record<string, string>>({});
-  const usedSlots = types.reduce(
-    (sum, t) => sum + (Number(load[t.id] || 0) * t.capacityUnits),
-    0,
-  );
-  const remaining = Math.max(0, slots - usedSlots);
-  return (
-    <div style={{ marginTop: 8, padding: 12, background: 'var(--warning-bg)', borderRadius: 8, fontSize: 13, border: '1px solid var(--border)' }}>
-      <strong>Mix calculator</strong>
-      <p className="muted" style={{ marginTop: 4, marginBottom: 8, fontSize: 11 }}>
-        Enter the current load of each type to see how many of any type can still fit.
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
-        {types.map((t) => (
-          <div key={t.id}>
-            <label style={{ fontSize: 11 }}>{t.code}</label>
-            <input
-              type="number"
-              min={0}
-              value={load[t.id] ?? ''}
-              onChange={(e) => setLoad((l) => ({ ...l, [t.id]: e.target.value }))}
-              style={{ padding: '4px 8px', fontSize: 12 }}
-            />
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-        <span>Used: <strong>{usedSlots}</strong> / {slots} slots</span>
-        <span>Remaining: <strong style={{ color: remaining > 0 ? 'var(--success-fg)' : 'var(--danger-fg)' }}>{remaining}</strong> slots</span>
-      </div>
-      {remaining > 0 && (
-        <div style={{ marginTop: 6, fontSize: 12 }}>
-          That fits:
-          {types.map((t) => (
-            <span key={t.id} style={{ display: 'inline-block', marginLeft: 8 }}>
-              <strong>{Math.floor(remaining / Math.max(t.capacityUnits, 1))}</strong>× {t.code}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** A thrown form check keeps its words; anything from the API is shown by its error code. */
-function errMsg(e: unknown): string {
-  return e instanceof Error && !('isAxiosError' in e) ? e.message : messageFor(e);
-}
-
-type Tab = 'create' | 'manage' | 'assign';
-
 export function VehiclesScreen() {
-  const [tab, setTab] = useState<Tab>('create');
+  const lt = useLegacyT();
+  const [tab, setTab] = useState<Tab>('vans');
+  const [adding, setAdding] = useState(false);
 
   return (
-    <>
-      <h2>Vans</h2>
-      <div className="tabs" role="tablist" aria-label="Van views" style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-        {([
-          ['create', 'Add van'],
-          ['manage', 'View and edit'],
-          ['assign', 'Give vans to drivers'],
-        ] as [Tab, string][]).map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              background: 'none',
-              borderBottom: tab === id ? '3px solid var(--primary)' : '3px solid transparent',
-              fontWeight: tab === id ? 600 : 400,
-              color: tab === id ? 'var(--primary)' : 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'create' && <CreateTab />}
-      {tab === 'manage' && <ManageTab />}
-      {tab === 'assign' && <AssignTab />}
-    </>
-  );
-}
-
-function CreateTab() {
-  const qc = useQueryClient();
-  const cities = useQuery({ queryKey: ['cities'], queryFn: async () => (await api.get<City[]>('/cities')).data });
-  const cylinderTypes = useQuery({
-    queryKey: ['cylinder-types'],
-    queryFn: async () => (await api.get<CylinderType[]>('/cylinder-types')).data,
-  });
-  const [cityId, setCityId] = useState('');
-  const [form, setForm] = useState({ plateNo: '', capacityUnits: '20', homeZoneId: '' });
-  const [fieldErr, setFieldErr] = useState<Record<string, string>>({});
-  const [createErr, setCreateErr] = useState<string | null>(null);
-
-  const zones = useQuery({
-    queryKey: ['zones', cityId],
-    queryFn: async () => cityId ? (await api.get<Zone[]>(`/zones/city/${cityId}`)).data : [],
-    enabled: !!cityId,
-  });
-
-  function validate(): boolean {
-    const errs: Record<string, string> = {};
-    if (!form.plateNo.trim()) errs.plateNo = 'Plate number is required.';
-    else if (!PLATE_REGEX.test(form.plateNo.trim())) errs.plateNo = 'Use the format LXX-1234 (2–3 letters then digits).';
-    if (!form.capacityUnits || !Number.isFinite(Number(form.capacityUnits)) || Number(form.capacityUnits) <= 0) {
-      errs.capacityUnits = 'Capacity must be a positive number.';
-    }
-    if (!cityId) errs.cityId = 'Pick a city.';
-    if (!form.homeZoneId) errs.homeZoneId = 'Pick a home zone.';
-    setFieldErr(errs);
-    return Object.keys(errs).length === 0;
-  }
-
-  const create = useMutation({
-    mutationFn: () => api.post('/vehicles', {
-      plateNo: form.plateNo.trim().toUpperCase(),
-      capacityUnits: Number(form.capacityUnits),
-      homeZoneId: form.homeZoneId,
-    }).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicles'] });
-      setForm({ plateNo: '', capacityUnits: '20', homeZoneId: '' });
-      setCityId('');
-      setFieldErr({});
-      setCreateErr(null);
-    },
-    onError: (e: unknown) => setCreateErr(errMsg(e)),
-  });
-
-  return (
-    <div className="card">
-      <h3>Add van</h3>
-
-      <label>Plate number *</label>
-      <input
-        value={form.plateNo}
-        onChange={(e) => { setForm({ ...form, plateNo: e.target.value }); setFieldErr((p) => ({ ...p, plateNo: '' })); }}
-        placeholder="LXX-1234"
-        style={fieldErr.plateNo ? { borderColor: 'var(--danger)' } : undefined}
+    <div className="sf-legacy-page">
+      <PageHeader
+        title={lt('vans.title')}
+        primaryAction={
+          <Button variant="primary" icon={Plus} onClick={() => setAdding(true)}>
+            {lt('vans.add')}
+          </Button>
+        }
       />
-      {fieldErr.plateNo && <p style={{ color: 'var(--danger)', fontSize: 12, margin: '4px 0 0' }}>{fieldErr.plateNo}</p>}
-
-      <label style={{ marginTop: 12 }}>Capacity * (in 11kg-cylinder slots)</label>
-      <input
-        type="number"
-        value={form.capacityUnits}
-        onChange={(e) => { setForm({ ...form, capacityUnits: e.target.value }); setFieldErr((p) => ({ ...p, capacityUnits: '' })); }}
-        style={fieldErr.capacityUnits ? { borderColor: 'var(--danger)' } : undefined}
+      <Tabs<Tab>
+        label={lt('vans.title')}
+        items={[
+          { id: 'vans', label: lt('vans.tabs.vans') },
+          { id: 'give', label: lt('vans.tabs.give') },
+        ]}
+        value={tab}
+        onChange={setTab}
       />
-      {fieldErr.capacityUnits && <p style={{ color: 'var(--danger)', fontSize: 12, margin: '4px 0 0' }}>{fieldErr.capacityUnits}</p>}
-      <CapacityBreakdown slots={Number(form.capacityUnits) || 0} types={cylinderTypes.data ?? []} />
-      <MixedCapacityCalculator slots={Number(form.capacityUnits) || 0} types={cylinderTypes.data ?? []} />
-
-      <div className="flex" style={{ gap: 12, marginTop: 12 }}>
-        <div style={{ flex: 1 }}>
-          <label>City *</label>
-          <select
-            value={cityId}
-            onChange={(e) => { setCityId(e.target.value); setForm({ ...form, homeZoneId: '' }); setFieldErr((p) => ({ ...p, cityId: '', homeZoneId: '' })); }}
-            style={fieldErr.cityId ? { borderColor: 'var(--danger)' } : undefined}
-          >
-            <option value="">Pick a city</option>
-            {(cities.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          {fieldErr.cityId && <p style={{ color: 'var(--danger)', fontSize: 12, margin: '4px 0 0' }}>{fieldErr.cityId}</p>}
-        </div>
-        <div style={{ flex: 1 }}>
-          <label>Home zone *</label>
-          <select
-            value={form.homeZoneId}
-            onChange={(e) => { setForm({ ...form, homeZoneId: e.target.value }); setFieldErr((p) => ({ ...p, homeZoneId: '' })); }}
-            disabled={!cityId}
-            style={fieldErr.homeZoneId ? { borderColor: 'var(--danger)' } : undefined}
-          >
-            <option value="">Pick a zone</option>
-            {(zones.data ?? []).map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-          </select>
-          {fieldErr.homeZoneId && <p style={{ color: 'var(--danger)', fontSize: 12, margin: '4px 0 0' }}>{fieldErr.homeZoneId}</p>}
-          {cityId && (zones.data ?? []).length === 0 && (
-            <p className="muted" style={{ marginTop: 4 }}>
-              No zones in this city. Create one on the Zones page first.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {createErr && <p style={{ color: 'var(--danger)' }}>{createErr}</p>}
-      <button
-        className="primary"
-        style={{ marginTop: 16 }}
-        onClick={() => { if (validate()) create.mutate(); }}
-        disabled={create.isPending}
-      >
-        {create.isPending ? 'Saving…' : 'Add van'}
-      </button>
+      {tab === 'vans' ? <VansTab onAdd={() => setAdding(true)} /> : <GiveTab />}
+      {adding ? <VanDrawer onClose={() => setAdding(false)} /> : null}
     </div>
   );
 }
 
-function ManageTab() {
+function VansTab({ onAdd }: { onAdd: () => void }) {
+  const lt = useLegacyT();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const toast = useToast();
-  const { data } = useQuery({ queryKey: ['vehicles'], queryFn: async () => (await api.get('/vehicles')).data });
-  const cities = useQuery({ queryKey: ['cities'], queryFn: async () => (await api.get<City[]>('/cities')).data });
-  const cylinderTypes = useQuery({
-    queryKey: ['cylinder-types'],
-    queryFn: async () => (await api.get<CylinderType[]>('/cylinder-types')).data,
-  });
+  const flashed = useFlashedRow('vans');
+  const query = useQuery({ queryKey: VANS_KEY, queryFn: async () => (await api.get<Van[]>('/vehicles')).data });
+  const types = useQuery({ queryKey: ['cylinder-types'], queryFn: async () => (await api.get<CylinderType[]>('/cylinder-types')).data });
   const [showRetired, setShowRetired] = useState(false);
+  const [editing, setEditing] = useState<Van | null>(null);
 
-  const [editing, setEditing] = useState<any>(null);
-  const [editCityId, setEditCityId] = useState('');
-  const [editForm, setEditForm] = useState<any>({});
-  const [editErr, setEditErr] = useState<string | null>(null);
-  const [loadFor, setLoadFor] = useState<{ id: string; plateNo: string } | null>(null);
-  const editZones = useQuery({
-    queryKey: ['zones', editCityId],
-    queryFn: async () => editCityId ? (await api.get<Zone[]>(`/zones/city/${editCityId}`)).data : [],
-    enabled: !!editCityId,
-  });
+  const base = (types.data ?? []).find((type) => type.capacityUnits === 1 && Number(type.weightKg) > 10) ?? null;
+  const baseSize = base ? sizeLabelOf(base) : lt('vans.baseSize');
+  const all = query.data ?? [];
+  const hasRetired = all.some((v) => v.status === 'RETIRED');
+  const rows = all.filter((v) => showRetired || v.status !== 'RETIRED');
 
-  const setStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch(`/vehicles/${id}/status`, { status }).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicles'] }),
-    onError: (e) => toast.error(e),
-  });
-
-  const update = useMutation({
-    mutationFn: () => {
-      if (!editForm.plateNo?.trim()) throw new Error('Plate number is required');
-      if (!PLATE_REGEX.test(editForm.plateNo.trim())) throw new Error('Plate must match LXX-1234');
-      if (!Number.isFinite(Number(editForm.capacityUnits)) || Number(editForm.capacityUnits) <= 0) {
-        throw new Error('Capacity must be a positive number');
-      }
-      if (!editForm.homeZoneId) throw new Error('Pick a home zone');
-      return api.patch(`/vehicles/${editing.id}`, {
-        plateNo: editForm.plateNo.trim().toUpperCase(),
-        capacityUnits: Number(editForm.capacityUnits),
-        homeZoneId: editForm.homeZoneId,
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicles'] });
-      setEditing(null);
-      setEditErr(null);
-    },
-    onError: (e: unknown) => setEditErr(errMsg(e)),
-  });
-
-  async function archiveVan(v: { id: string; plateNo: string }) {
+  async function retire(v: Van) {
     const { ok } = await confirm({
-      title: `Retire van ${v.plateNo}?`,
-      body: 'It is taken out of service and can no longer be given to a driver.',
+      title: lt('vans.retire.title', { plate: v.plateNo }),
+      body: lt('vans.retire.body'),
       tone: 'danger',
-      confirmLabel: `Retire ${v.plateNo}`,
+      confirmLabel: lt('vans.retire.confirm', { plate: v.plateNo }),
       action: () => api.delete(`/vehicles/${v.id}`),
     });
     if (!ok) return;
-    toast.success(`${v.plateNo} retired.`);
-    void qc.invalidateQueries({ queryKey: ['vehicles'] });
+    toast.success(lt('vans.retire.toast', { plate: v.plateNo }));
+    void qc.invalidateQueries({ queryKey: VANS_KEY });
   }
 
-  const rows = (data ?? []).filter((v: any) => showRetired || v.status !== 'RETIRED');
+  const columns: TableColumn<Van>[] = [
+    { id: 'plate', header: lt('vans.columns.plate'), sticky: true, cell: (v) => <span className="sf-legacy__strong">{v.plateNo}</span> },
+    {
+      id: 'capacity',
+      header: lt('vans.columns.capacity'),
+      cell: (v) => <span className="sf-legacy__nowrap">{lt('vans.capacityValue', { count: v.capacityUnits, size: baseSize })}</span>,
+    },
+    { id: 'status', header: lt('vans.columns.status'), cell: (v) => <StatusChip kind="vehicle" value={v.status} /> },
+    {
+      id: 'driver',
+      header: lt('vans.columns.driver'),
+      priority: 2,
+      cell: (v) => v.currentDriver?.user?.name ?? <span className="sf-legacy__muted">—</span>,
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">{lt('vans.columns.actions')}</span>,
+      align: 'end',
+      cell: (v) => (
+        <span className="sf-legacy__actions">
+          <Button size="sm" icon={Pencil} onClick={() => setEditing(v)}>
+            {lt('vans.edit')}
+          </Button>
+          {v.status !== 'RETIRED' ? (
+            <Button size="sm" variant="ghost-danger" onClick={() => void retire(v)}>
+              {lt('vans.retire.button')}
+            </Button>
+          ) : null}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <>
-      <div className="flex" style={{ justifyContent: 'flex-end', marginBottom: 8 }}>
-        <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} />
-          Show retired
-        </label>
-      </div>
-
-      <div className="card">
-        <table>
-          <thead><tr><th>Plate</th><th>Capacity</th><th>Load</th><th>Zone</th><th>Status</th><th>Current driver</th><th aria-label="Actions"></th></tr></thead>
-          <tbody>
-            {rows.map((v: any) => (
-              <tr key={v.id} style={{ opacity: v.status === 'RETIRED' ? 0.5 : 1 }}>
-                <td>{v.plateNo}</td>
-                <td>{v.capacityUnits} slots</td>
-                <td><button onClick={() => setLoadFor({ id: v.id, plateNo: v.plateNo })}>View load</button></td>
-                <td>{v.homeZone?.name ?? '—'}</td>
-                <td><StatusChip kind="vehicle" value={v.status} /></td>
-                <td>{v.currentDriver?.user?.name ?? '—'}</td>
-                <td>
-                  <select aria-label={`Status of ${v.plateNo}`} value={v.status} onChange={(e) => setStatus.mutate({ id: v.id, status: e.target.value })}>
-                    {VEHICLE_STATUSES.map((s) => <option key={s} value={s}>{statusWords(s)}</option>)}
-                  </select>{' '}
-                  <button onClick={() => {
-                    setEditing(v);
-                    setEditForm({ plateNo: v.plateNo, capacityUnits: String(v.capacityUnits), homeZoneId: v.homeZoneId });
-                    setEditCityId(v.homeZone?.cityId ?? '');
-                    setEditErr(null);
-                  }}>Edit</button>{' '}
-                  {v.status !== 'RETIRED' && (
-                    <button style={{ color: 'var(--danger-fg)' }} onClick={() => void archiveVan(v)}>Retire</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 24 }}>No vans yet. Add one on the Add van tab.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {loadFor && <VehicleLoadModal vehicle={loadFor} onClose={() => setLoadFor(null)} />}
-
-      <Modal title="Edit van" open={!!editing} onClose={() => setEditing(null)} width={560}>
-        {editing && (
-          <>
-            <label>Plate number</label>
-            <input value={editForm.plateNo ?? ''} onChange={(e) => setEditForm({ ...editForm, plateNo: e.target.value })} />
-            <label>Capacity (slots)</label>
-            <input type="number" value={editForm.capacityUnits ?? ''} onChange={(e) => setEditForm({ ...editForm, capacityUnits: e.target.value })} />
-            <CapacityBreakdown slots={Number(editForm.capacityUnits) || 0} types={cylinderTypes.data ?? []} />
-            <div className="flex" style={{ gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <label>City</label>
-                <select value={editCityId} onChange={(e) => setEditCityId(e.target.value)}>
-                  <option value="">Pick a city</option>
-                  {(cities.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label>Home zone</label>
-                <select value={editForm.homeZoneId ?? ''} onChange={(e) => setEditForm({ ...editForm, homeZoneId: e.target.value })} disabled={!editCityId}>
-                  <option value="">Pick a zone</option>
-                  {(editZones.data ?? []).map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-                </select>
-              </div>
-            </div>
-            {editErr && <p style={{ color: 'var(--danger-fg)' }}>{editErr}</p>}
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <button onClick={() => setEditing(null)}>Go back</button>{' '}
-              <button className="primary" onClick={() => update.mutate()} disabled={update.isPending}>
-                {update.isPending ? 'Saving…' : 'Save van'}
-              </button>
-            </div>
-          </>
-        )}
-      </Modal>
+      {hasRetired ? (
+        <FilterBar>
+          <ToggleChip label={lt('vans.showRetired')} pressed={showRetired} onChange={setShowRetired} />
+        </FilterBar>
+      ) : null}
+      <Table<Van>
+        caption={lt('vans.title')}
+        columns={columns}
+        rows={rows}
+        rowKey={(v) => v.id}
+        rowTone={(v) => (v.status === 'RETIRED' ? 'neutral' : null)}
+        highlightKey={flashed}
+        state={query.isPending ? 'loading' : query.isError && !query.data ? 'error' : 'ready'}
+        empty={
+          <EmptyState
+            compact
+            icon={Truck}
+            title={lt('vans.empty')}
+            action={
+              <Button variant="primary" icon={Plus} onClick={onAdd}>
+                {lt('vans.add')}
+              </Button>
+            }
+          />
+        }
+        error={
+          <ErrorState
+            compact
+            error={query.error}
+            title={lt('vans.loadFailed')}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+          />
+        }
+      />
+      {editing ? <VanDrawer van={editing} onClose={() => setEditing(null)} /> : null}
     </>
   );
 }
 
-function AssignTab() {
+/** How many cylinders of each size still fit, from what is on the van now (Edit's "+ Check what fits"). */
+function WhatFits({ places, types }: { places: number; types: readonly CylinderType[] }) {
+  const lt = useLegacyT();
+  const [load, setLoad] = useState<Record<string, string>>({});
+  const used = types.reduce((sum, type) => sum + Number(load[type.id] || 0) * type.capacityUnits, 0);
+  const left = Math.max(0, places - used);
+  return (
+    <div className="sf-legacy-fits">
+      <div className="sf-legacy-form__grid">
+        {types.map((type) => (
+          <Field key={type.id} label={lt('vans.fits.onVan', { size: sizeLabelOf(type) })}>
+            <TextInput
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={load[type.id] ?? ''}
+              onChange={(event) => setLoad((current) => ({ ...current, [type.id]: event.target.value }))}
+            />
+          </Field>
+        ))}
+      </div>
+      <p className="sf-legacy__strong">
+        {lt('vans.fits.room')}{' '}
+        {types
+          .map((type) => lt('vans.fits.count', { count: Math.floor(left / Math.max(type.capacityUnits, 1)), size: sizeLabelOf(type) }))
+          .join(' · ')}
+      </p>
+    </div>
+  );
+}
+
+/** Add van, or Edit van (with its status and the size check). */
+function VanDrawer({ van, onClose }: { van?: Van; onClose: () => void }) {
+  const lt = useLegacyT();
   const qc = useQueryClient();
   const toast = useToast();
-  const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: async () => (await api.get('/vehicles')).data });
-  const drivers = useQuery({ queryKey: ['drivers'], queryFn: async () => (await api.get('/drivers')).data });
+  const formId = van ? 'sf-edit-van' : 'sf-add-van';
+  const cities = useQuery({ queryKey: ['cities'], queryFn: async () => (await api.get<City[]>('/cities')).data });
+  const types = useQuery({ queryKey: ['cylinder-types'], queryFn: async () => (await api.get<CylinderType[]>('/cylinder-types')).data });
+  const [plate, setPlate] = useState(van?.plateNo ?? '');
+  const [capacity, setCapacity] = useState(van ? String(van.capacityUnits) : '20');
+  const [cityId, setCityId] = useState(van?.homeZone?.cityId ?? '');
+  const [zoneId, setZoneId] = useState(van?.homeZoneId ?? '');
+  const [status, setStatus] = useState(van?.status ?? 'ACTIVE');
+  const [pressed, setPressed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const zones = useQuery({
+    queryKey: ['zones', cityId],
+    queryFn: async () => (cityId ? (await api.get<Zone[]>(`/zones/city/${cityId}`)).data : []),
+    enabled: Boolean(cityId),
+  });
 
-  const assign = useMutation({
-    mutationFn: ({ driverId, vehicleId }: { driverId: string; vehicleId: string | null }) =>
+  const places = Number(capacity);
+  const plateError = !plate.trim() ? lt('vans.form.plateMissing') : !PLATE_REGEX.test(plate.trim()) ? lt('vans.form.plateFormat') : null;
+  const capacityError = !Number.isInteger(places) || places <= 0 ? lt('vans.form.capacityMissing') : null;
+  const cityError = !cityId ? lt('vans.form.cityMissing') : null;
+  const zoneError = !zoneId ? lt('vans.form.zoneMissing') : null;
+  const sortedTypes = useMemo(() => [...(types.data ?? [])].sort((a, b) => Number(a.weightKg) - Number(b.weightKg)), [types.data]);
+  const base = sortedTypes.find((type) => type.capacityUnits === 1 && Number(type.weightKg) > 10) ?? null;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = { plateNo: plate.trim().toUpperCase(), capacityUnits: places, homeZoneId: zoneId };
+      if (!van) return (await api.post<Van>('/vehicles', body)).data;
+      await api.patch(`/vehicles/${van.id}`, body);
+      if (status !== van.status) await api.patch(`/vehicles/${van.id}/status`, { status });
+      return van;
+    },
+    onSuccess: (saved) => {
+      toast.success(van ? lt('vans.savedToast', { plate: plate.trim().toUpperCase() }) : lt('vans.addedToast', { plate: plate.trim().toUpperCase() }));
+      if (saved?.id) flashRow('vans', saved.id);
+      void qc.invalidateQueries({ queryKey: VANS_KEY });
+      onClose();
+    },
+    onError: (e) => setError(messageFor(e)),
+  });
+
+  const submit = () => {
+    if (save.isPending) return;
+    if (plateError || capacityError || cityError || zoneError) {
+      setPressed(true);
+      return;
+    }
+    setError(null);
+    save.mutate();
+  };
+
+  const dirty = van
+    ? plate !== van.plateNo || capacity !== String(van.capacityUnits) || zoneId !== van.homeZoneId || status !== van.status
+    : Boolean(plate || cityId || zoneId || capacity !== '20');
+
+  return (
+    <Drawer
+      title={van ? lt('vans.editTitle', { plate: van.plateNo }) : lt('vans.add')}
+      dirty={dirty && !save.isSuccess}
+      dismissible={!save.isPending}
+      onClose={onClose}
+      footer={{
+        end: (
+          <Button type="submit" form={formId} variant="primary" loading={save.isPending}>
+            {van ? lt('vans.save') : lt('vans.add')}
+          </Button>
+        ),
+      }}
+    >
+      <form
+        id={formId}
+        className="sf-legacy-form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        {error ? (
+          <InlineAlert tone="danger" live>
+            {error}
+          </InlineAlert>
+        ) : null}
+        <Field label={lt('vans.form.plate')} error={pressed ? plateError : null}>
+          <TextInput value={plate} autoCapitalize="characters" onChange={(event) => setPlate(event.target.value.toUpperCase())} />
+        </Field>
+        <Field label={lt('vans.form.capacity')} hint={lt('vans.form.capacityHint')} error={pressed ? capacityError : null}>
+          <TextInput
+            type="number"
+            min={1}
+            inputMode="numeric"
+            value={capacity}
+            onChange={(event) => setCapacity(event.target.value)}
+            endAdornment={lt('vans.form.capacityUnit', { size: base ? sizeLabelOf(base) : lt('vans.baseSize') })}
+          />
+        </Field>
+        <div className="sf-legacy-form__row">
+          <Field label={lt('vans.form.city')} error={pressed ? cityError : null}>
+            <Select
+              value={cityId}
+              placeholder={lt('vans.form.pickCity')}
+              options={(cities.data ?? []).map((city) => ({ value: city.id, label: city.name }))}
+              onChange={(event) => {
+                setCityId(event.target.value);
+                setZoneId('');
+              }}
+            />
+          </Field>
+          <Field label={lt('vans.form.zone')} error={pressed ? zoneError : null}>
+            <Select
+              value={zoneId}
+              placeholder={lt('vans.form.pickZone')}
+              disabled={!cityId}
+              options={(zones.data ?? []).map((zone) => ({ value: zone.id, label: zone.name }))}
+              onChange={(event) => setZoneId(event.target.value)}
+            />
+          </Field>
+        </div>
+        {van ? (
+          <>
+            <Field label={lt('vans.columns.status')}>
+              <Select
+                value={status}
+                options={VEHICLE_STATUSES.map((value) => ({ value, label: statusWords(value) }))}
+                onChange={(event) => setStatus(event.target.value)}
+              />
+            </Field>
+            <AddMore label={lt('vans.fits.open')}>
+              <WhatFits places={Number.isFinite(places) ? places : 0} types={sortedTypes} />
+            </AddMore>
+          </>
+        ) : null}
+      </form>
+    </Drawer>
+  );
+}
+
+/** Give vans to drivers: one dropdown per van, acting at once (a driver has at most one van). */
+function GiveTab() {
+  const lt = useLegacyT();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const vans = useQuery({ queryKey: VANS_KEY, queryFn: async () => (await api.get<Van[]>('/vehicles')).data });
+  const drivers = useQuery({ queryKey: ['drivers'], queryFn: async () => (await api.get<DriverRow[]>('/drivers')).data });
+
+  const give = useMutation({
+    mutationFn: ({ driverId, vehicleId }: { driverId: string; vehicleId: string | null; message: string }) =>
       api.patch(`/drivers/${driverId}/vehicle`, { vehicleId }).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['drivers'] });
-      qc.invalidateQueries({ queryKey: ['vehicles'] });
+    onSuccess: (_data, variables) => {
+      toast.success(variables.message);
+      void qc.invalidateQueries({ queryKey: ['drivers'] });
+      void qc.invalidateQueries({ queryKey: VANS_KEY });
     },
     onError: (e) => {
       toast.error(e);
-      qc.invalidateQueries({ queryKey: ['drivers'] });
+      void qc.invalidateQueries({ queryKey: ['drivers'] });
     },
   });
 
-  const activeVehicles = useMemo(
-    () => (vehicles.data ?? []).filter((v: any) => v.status !== 'RETIRED'),
-    [vehicles.data],
-  );
-  const activeDrivers = useMemo(
-    () => (drivers.data ?? []).filter((d: any) => d.user.status !== 'SUSPENDED' && d.availability !== 'ON_LEAVE'),
-    [drivers.data],
-  );
-
-  // Vehicle ID → currently-assigned driver (single, since drivers.currentVehicleId is unique)
-  const driverForVehicle = useMemo(() => {
-    const m: Record<string, any> = {};
-    for (const d of drivers.data ?? []) {
-      if (d.currentVehicleId) m[d.currentVehicleId] = d;
-    }
-    return m;
+  const activeVans = (vans.data ?? []).filter((v) => v.status !== 'RETIRED');
+  const activeDrivers = (drivers.data ?? []).filter((d) => d.user.status !== 'SUSPENDED' && d.availability !== 'ON_LEAVE');
+  const driverForVan = useMemo(() => {
+    const map: Record<string, DriverRow> = {};
+    for (const d of drivers.data ?? []) if (d.currentVehicleId) map[d.currentVehicleId] = d;
+    return map;
   }, [drivers.data]);
 
-  return (
-    <>
-      <p className="muted" style={{ marginTop: -4 }}>
-        Give each van to an available driver. A driver has at most one van; giving a driver a new van releases the old one.
-      </p>
+  const change = (van: Van, nextId: string) => {
+    const current = driverForVan[van.id];
+    if (!nextId) {
+      if (current) give.mutate({ driverId: current.id, vehicleId: null, message: lt('vans.give.takenToast', { plate: van.plateNo, name: current.user.name }) });
+      return;
+    }
+    const next = activeDrivers.find((d) => d.id === nextId);
+    if (!next) return;
+    if (current && current.id !== nextId) give.mutate({ driverId: current.id, vehicleId: null, message: lt('vans.give.takenToast', { plate: van.plateNo, name: current.user.name }) });
+    give.mutate({ driverId: nextId, vehicleId: van.id, message: lt('vans.give.toast', { plate: van.plateNo, name: next.user.name }) });
+  };
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Plate</th>
-              <th>Capacity</th>
-              <th>Home zone</th>
-              <th>Status</th>
-              <th>Assigned driver</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeVehicles.map((v: any) => {
-              const assignedDriver = driverForVehicle[v.id];
-              return (
-                <tr key={v.id}>
-                  <td><strong>{v.plateNo}</strong></td>
-                  <td>{v.capacityUnits} slots</td>
-                  <td>{v.homeZone?.name ?? '—'}</td>
-                  <td><StatusChip kind="vehicle" value={v.status} /></td>
-                  <td>
-                    {assignedDriver ? (
-                      <span>
-                        {assignedDriver.user.name}{' '}
-                        <span className="muted" style={{ fontSize: 11 }}>({assignedDriver.user.phone})</span>
-                      </span>
-                    ) : (
-                      <span className="muted">No driver</span>
-                    )}
-                  </td>
-                  <td>
-                    <select
-                      aria-label={`Driver for ${v.plateNo}`}
-                      value={assignedDriver?.id ?? ''}
-                      disabled={v.status !== 'ACTIVE'}
-                      onChange={(e) => {
-                        const newDriverId = e.target.value;
-                        if (!newDriverId) {
-                          if (assignedDriver) assign.mutate({ driverId: assignedDriver.id, vehicleId: null });
-                          return;
-                        }
-                        if (assignedDriver && assignedDriver.id !== newDriverId) {
-                          assign.mutate({ driverId: assignedDriver.id, vehicleId: null });
-                        }
-                        assign.mutate({ driverId: newDriverId, vehicleId: v.id });
-                      }}
-                    >
-                      <option value="">No driver</option>
-                      {activeDrivers.map((d: any) => (
-                        <option key={d.id} value={d.id} disabled={!!d.currentVehicleId && d.currentVehicleId !== v.id}>
-                          {d.user.name}{' '}
-                          {d.currentVehicleId && d.currentVehicleId !== v.id ? '(has another van)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              );
-            })}
-            {activeVehicles.length === 0 && (
-              <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 24 }}>No vans in service.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
-interface VehicleSummary {
-  vehicleId: string;
-  plateNo: string | null;
-  totalFull: number;
-  totalEmpty: number;
-  byType: Array<{ cylinderTypeId: string; code: string; name: string; full: number; empty: number }>;
-}
-
-function VehicleLoadModal({ vehicle, onClose }: { vehicle: { id: string; plateNo: string }; onClose: () => void }) {
-  const { data, isLoading } = useQuery<VehicleSummary>({
-    queryKey: ['vehicle-summary', vehicle.id],
-    queryFn: async () => (await api.get(`/inventory/vehicle/${vehicle.id}/summary`)).data,
-    refetchInterval: 15000,
-  });
-
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(15,18,27,0.55)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="card" style={{ width: 460, maxWidth: '92vw' }}>
-        <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>Load on {vehicle.plateNo}</h3>
-          <button onClick={onClose}>Close</button>
-        </div>
-
-        {isLoading ? (
-          <p className="muted">Loading…</p>
-        ) : !data || data.byType.length === 0 ? (
-          <p className="muted" style={{ marginTop: 12 }}>
-            This van has no cylinders on it right now.
-          </p>
+  const columns: TableColumn<Van>[] = [
+    {
+      id: 'van',
+      header: lt('vans.columns.plate'),
+      sticky: true,
+      cell: (v) => (
+        <span className="sf-legacy__two-line">
+          <span className="sf-legacy__strong">{v.plateNo}</span>
+          <span className="sf-legacy__muted">{v.homeZone?.name ?? ''}</span>
+        </span>
+      ),
+    },
+    {
+      id: 'driver',
+      header: lt('vans.columns.driver'),
+      cell: (v) => {
+        const d = driverForVan[v.id];
+        return d ? (
+          <span className="sf-legacy__two-line">
+            <span>{d.user.name}</span>
+            <span className="sf-legacy__muted sf-legacy__nowrap">{formatPhone(d.user.phone)}</span>
+          </span>
         ) : (
-          <>
-            <div style={{ display: 'flex', gap: 8, margin: '12px 0' }}>
-              <Chip tone="success">{data.totalFull} full</Chip>
-              <Chip tone="warning">{data.totalEmpty} empty</Chip>
-              <Chip tone="neutral">{data.totalFull + data.totalEmpty} in all</Chip>
-            </div>
-            <table>
-              <thead><tr><th>Cylinder size</th><th style={{ textAlign: 'right' }}>Full</th><th style={{ textAlign: 'right' }}>Empty</th></tr></thead>
-              <tbody>
-                {data.byType.map((r) => (
-                  <tr key={r.cylinderTypeId}>
-                    <td>{r.name}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--success-fg)' }}>{r.full}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--warning-fg)' }}>{r.empty}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-      </div>
-    </div>
+          <span className="sf-legacy__muted">{lt('vans.give.none')}</span>
+        );
+      },
+    },
+    {
+      id: 'give',
+      header: lt('vans.give.column'),
+      cell: (v) => (
+        <Field label={lt('vans.give.label', { plate: v.plateNo })} labelHidden className="sf-legacy__inline-field">
+          <Select
+            value={driverForVan[v.id]?.id ?? ''}
+            disabled={v.status !== 'ACTIVE' || give.isPending}
+            onChange={(event) => change(v, event.target.value)}
+            placeholder={lt('vans.give.none')}
+            options={activeDrivers.map((d) => ({
+              value: d.id,
+              label: d.currentVehicleId && d.currentVehicleId !== v.id ? lt('vans.give.hasVan', { name: d.user.name }) : d.user.name,
+              disabled: Boolean(d.currentVehicleId && d.currentVehicleId !== v.id),
+            }))}
+          />
+        </Field>
+      ),
+    },
+  ];
+
+  return (
+    <Table<Van>
+      caption={lt('vans.tabs.give')}
+      columns={columns}
+      rows={activeVans}
+      rowKey={(v) => v.id}
+      state={vans.isPending ? 'loading' : vans.isError && !vans.data ? 'error' : 'ready'}
+      empty={<EmptyState compact icon={Truck} title={lt('vans.give.empty')} />}
+      error={<ErrorState compact error={vans.error} title={lt('vans.loadFailed')} onRetry={() => void vans.refetch()} retrying={vans.isFetching} />}
+    />
   );
 }

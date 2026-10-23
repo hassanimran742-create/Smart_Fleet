@@ -1,18 +1,49 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import type { Map as LeafletMap } from 'leaflet';
+import { CircleMarker, MapContainer, Polygon, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { latLngBounds, type LatLngBounds, type LatLngExpression, type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Crosshair, LoaderCircle, MapPin } from 'lucide-react';
+import { CircleAlert, CircleCheck, Crosshair, LoaderCircle } from 'lucide-react';
+import type { ZoneListRow } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
-import { Button, cx, Field, InlineAlert, Select } from '../../ui';
-import { useCities, useCityAreas, type GeoPin } from './api';
+import { Button, cx, Field, SearchSelect } from '../../ui';
+import { useAllAreas, useDistributors, useZoneOutlines, type GeoPin } from './api';
 import type { PinZone } from './pinZone';
 import './distributors.css';
 
-/** Where the map opens without a pin (Islamabad, as the zones screen does). */
+/** Where the map opens when no zone and no pin is known (Islamabad). */
 export const DEFAULT_MAP_CENTER: GeoPin = { lat: 33.6844, lng: 73.0479 };
-const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const OSM_CREDIT = '&copy; OpenStreetMap contributors';
+/** Street level: a store's own pin (website spec W20, W22). */
+const PIN_ZOOM = 16;
+export const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const OSM_CREDIT = '&copy; OpenStreetMap contributors';
+
+/** A zone's outline as Leaflet positions (`[lat, lng]`), from its GeoJSON MultiPolygon (`[lng, lat]`). */
+function outlineOf(zone: ZoneListRow): LatLngExpression[][][] {
+  return (zone.polygon?.coordinates ?? []).map((polygon) =>
+    polygon.map((ring) => ring.map(([lng, lat]) => [lat, lng] as LatLngExpression)),
+  );
+}
+
+/** The zone's centre as `[lat, lng]`, or null. */
+function centreOf(zone: ZoneListRow): [number, number] | null {
+  const point = zone.centroid?.coordinates;
+  return point && point.length >= 2 ? [point[1], point[0]] : null;
+}
+
+/** The box around every zone (outlines, else centres), or null when there is no zone. */
+export function zonesBounds(zones: readonly ZoneListRow[]): LatLngBounds | null {
+  const points: [number, number][] = [];
+  for (const zone of zones) {
+    for (const polygon of zone.polygon?.coordinates ?? []) {
+      for (const ring of polygon) for (const [lng, lat] of ring) points.push([lat, lng]);
+    }
+    if (!zone.polygon?.coordinates?.length) {
+      const centre = centreOf(zone);
+      if (centre) points.push(centre);
+    }
+  }
+  return points.length > 0 ? latLngBounds(points) : null;
+}
 
 function ClickToPin({ onPick, disabled }: { onPick: (pin: GeoPin) => void; disabled: boolean }) {
   useMapEvents({
@@ -31,7 +62,22 @@ function FlyTo({ target }: { target: (GeoPin & { key: number }) | null }) {
   return null;
 }
 
-/** Hands the map out (for "Put the pin at the centre") and fixes its size once a drawer has slid in. */
+/**
+ * Opens the map fitted to the active zones (website spec W19: never on a fixed city), once the zones
+ * have loaded, unless a pin already shows where to look.
+ */
+export function FitToZones({ bounds, enabled }: { bounds: LatLngBounds | null; enabled: boolean }) {
+  const map = useMap();
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !enabled || !bounds) return;
+    done.current = true;
+    map.fitBounds(bounds, { padding: [16, 16] });
+  }, [bounds, enabled, map]);
+  return null;
+}
+
+/** Hands the map out (for "Pin at map centre") and fixes its size once a drawer has slid in. */
 function MapHandle({ mapRef }: { mapRef: MutableRefObject<LeafletMap | null> }) {
   const map = useMap();
   useEffect(() => {
@@ -45,46 +91,96 @@ function MapHandle({ mapRef }: { mapRef: MutableRefObject<LeafletMap | null> }) 
   return null;
 }
 
+/** The active zones, shaded with their names, so the office sees where a store pin can go. */
+export function ZoneLayer({ zones, labels = true }: { zones: readonly ZoneListRow[]; labels?: boolean }) {
+  return (
+    <>
+      {zones.map((zone) => {
+        const outline = outlineOf(zone);
+        if (outline.length > 0) {
+          return (
+            <Polygon key={zone.id} positions={outline} pathOptions={{ className: 'sf-map__zone', interactive: false }}>
+              {labels ? (
+                <Tooltip permanent direction="center" className="sf-map__zone-label">
+                  {zone.name}
+                </Tooltip>
+              ) : null}
+            </Polygon>
+          );
+        }
+        // No outline sent: the zone's name at its centre (website spec O4).
+        const centre = centreOf(zone);
+        return centre && labels ? (
+          <CircleMarker key={zone.id} center={centre} radius={3} pathOptions={{ className: 'sf-map__zone-centre', interactive: false }}>
+            <Tooltip permanent direction="top" className="sf-map__zone-label">
+              {zone.name}
+            </Tooltip>
+          </CircleMarker>
+        ) : null;
+      })}
+    </>
+  );
+}
+
 export interface StoreMapPickerProps {
   value: GeoPin | null;
   onChange: (pin: GeoPin) => void;
   zone: PinZone;
   /** An error for the pin (no pin on submit, or `STORE_OUTSIDE_ZONES` from the server). */
   error?: string | null;
+  /** The distributor being edited: its own store isn't drawn as one of the "other stores". */
+  distributorId?: string;
+  /** Draw the stores as grey dots (the store pickers); off for a refill station's pin. */
+  showStores?: boolean;
   disabled?: boolean;
   className?: string;
 }
 
 /**
- * The store's pin (UX_ADMIN §2.4): a 280 px map where a click drops the pin, "Jump to area" (cities and
- * their reference areas) to move the map, and the read-only zone line from `GET /zones/locate`:
- * "Zone: G-9 (from the pin)", or the outside-every-zone warning. Keyboard users pan with the arrow keys
- * and put the pin at the centre with the button.
+ * The store's pin (UX_ADMIN §2.4, website spec W19 and W22): "Find area" (every city's areas in one
+ * search box) moves a 280 px map that opens fitted to the active zones, shaded with their names, with
+ * the other stores as small grey dots; a click drops the pin. Under the map, the zone line from
+ * `GET /zones/locate` ("Zone: North", or the outside-every-zone warning), and "Pin at map centre" for
+ * keyboard users, who pan with the arrow keys.
  */
-export function StoreMapPicker({ value, onChange, zone, error, disabled = false, className }: StoreMapPickerProps) {
+export function StoreMapPicker({
+  value,
+  onChange,
+  zone,
+  error,
+  distributorId,
+  showStores = true,
+  disabled = false,
+  className,
+}: StoreMapPickerProps) {
   const { t } = useTranslation('distributors');
-  const cities = useCities();
-  const [cityName, setCityName] = useState<string | null>(null);
-  const areas = useCityAreas(cityName);
-  const [areaName, setAreaName] = useState('');
+  const { areas, loading: areasLoading } = useAllAreas();
+  const zones = useZoneOutlines();
+  const distributors = useDistributors();
+  const [area, setArea] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<(GeoPin & { key: number }) | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const statusId = useId();
-  const [center] = useState<GeoPin>(() => value ?? DEFAULT_MAP_CENTER);
+  const [start] = useState(() => value);
 
-  const cityOptions = useMemo(
-    () => (cities.data ?? []).map((city) => ({ value: city.name, label: city.name })),
-    [cities.data],
-  );
   const areaOptions = useMemo(
-    () => (areas.data ?? []).map((area) => ({ value: area.name, label: area.name })),
-    [areas.data],
+    () =>
+      areas.map((row) => ({
+        value: `${row.city}|${row.name}`,
+        label: t('map.areaOption', { area: row.name, city: row.city }),
+      })),
+    [areas, t],
+  );
+  const bounds = useMemo(() => zonesBounds(zones.data ?? []), [zones.data]);
+  const otherStores = useMemo(
+    () => (showStores ? (distributors.data ?? []).filter((d) => d.store && d.id !== distributorId).map((d) => d.store!) : []),
+    [distributors.data, distributorId, showStores],
   );
 
-  const jumpToArea = (name: string) => {
-    setAreaName(name);
-    const area = areas.data?.find((row) => row.name === name);
-    if (area) setFlyTarget({ lat: area.lat, lng: area.lng, key: Date.now() });
+  const findArea = (picked: string | null) => {
+    setArea(picked);
+    const row = areas.find((candidate) => `${candidate.city}|${candidate.name}` === picked);
+    if (row) setFlyTarget({ lat: row.lat, lng: row.lng, key: Date.now() });
   };
 
   const pinCentre = () => {
@@ -94,15 +190,20 @@ export function StoreMapPicker({ value, onChange, zone, error, disabled = false,
     onChange({ lat: c.lat, lng: c.lng });
   };
 
-  let status;
+  let status = null;
   switch (zone.status) {
     case 'none':
-      status = <p className={cx('sf-map__status', error && 'is-error')}>{error ?? t('map.noPin')}</p>;
+      status = error ? (
+        <p className="sf-map__status is-error">
+          <CircleAlert aria-hidden size={16} />
+          {error}
+        </p>
+      ) : null;
       break;
     case 'loading':
       status = (
         <p className="sf-map__status">
-          <LoaderCircle aria-hidden size={14} className="sf-map__spin" />
+          <LoaderCircle aria-hidden size={16} className="sf-map__spin" />
           {t('map.locating')}
         </p>
       );
@@ -110,13 +211,18 @@ export function StoreMapPicker({ value, onChange, zone, error, disabled = false,
     case 'found':
       status = (
         <p className="sf-map__status is-found">
-          <MapPin aria-hidden size={14} />
+          <CircleCheck aria-hidden size={16} />
           {t('map.zone', { zone: zone.zone.name })}
         </p>
       );
       break;
     case 'outside':
-      status = <InlineAlert tone="danger">{t('map.outside')}</InlineAlert>;
+      status = (
+        <p className="sf-map__status is-error">
+          <CircleAlert aria-hidden size={16} />
+          {t('map.outside')}
+        </p>
+      );
       break;
     case 'error':
       status = <p className="sf-map__status is-warning">{t('map.locateFailed')}</p>;
@@ -125,43 +231,49 @@ export function StoreMapPicker({ value, onChange, zone, error, disabled = false,
 
   return (
     <div className={cx('sf-map', className)}>
-      <div className="sf-map__jump">
-        <span className="sf-map__jump-title">{t('map.jump')}</span>
-        <Field label={t('map.city')} labelHidden>
-          <Select
-            value={cityName ?? ''}
-            placeholder={t('map.pickCity')}
-            options={cityOptions}
-            disabled={disabled}
-            onChange={(event) => {
-              setCityName(event.target.value || null);
-              setAreaName('');
-            }}
-          />
-        </Field>
-        <Field label={t('map.area')} labelHidden>
-          <Select
-            value={areaName}
-            placeholder={cityName && areas.data?.length === 0 ? t('map.areasNone') : t('map.pickArea')}
-            options={areaOptions}
-            disabled={disabled || !cityName || !areas.data?.length}
-            onChange={(event) => jumpToArea(event.target.value)}
-          />
-        </Field>
-      </div>
+      <Field label={t('map.jump')} className="sf-map__find">
+        <SearchSelect
+          options={areaOptions}
+          value={area}
+          onChange={findArea}
+          placeholder={!areasLoading && areaOptions.length === 0 ? t('map.areasNone') : t('map.findPlaceholder')}
+          loading={areasLoading}
+          disabled={disabled}
+        />
+      </Field>
       <div className="sf-map__frame" role="region" aria-label={t('map.region')} aria-describedby={statusId}>
-        <MapContainer center={[center.lat, center.lng]} zoom={value ? 15 : 12} className="sf-map__canvas" scrollWheelZoom>
+        <MapContainer
+          center={start ? [start.lat, start.lng] : [DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng]}
+          zoom={start ? PIN_ZOOM : 12}
+          className="sf-map__canvas"
+          scrollWheelZoom
+        >
           <TileLayer url={OSM_TILES} attribution={OSM_CREDIT} />
+          <ZoneLayer zones={zones.data ?? []} />
+          {otherStores.map((store) => (
+            <CircleMarker
+              key={store.id}
+              center={[store.lat, store.lng]}
+              radius={4}
+              pathOptions={{ className: 'sf-map__store', interactive: false }}
+            />
+          ))}
           <ClickToPin onPick={onChange} disabled={disabled} />
+          <FitToZones bounds={bounds} enabled={!start} />
           <FlyTo target={flyTarget} />
           <MapHandle mapRef={mapRef} />
-          {value ? <CircleMarker center={[value.lat, value.lng]} radius={9} className="sf-map__pin" /> : null}
+          {value ? <CircleMarker center={[value.lat, value.lng]} radius={9} pathOptions={{ className: 'sf-map__pin' }} /> : null}
         </MapContainer>
       </div>
       <div className="sf-map__below">
         <div id={statusId} className="sf-map__status-wrap" aria-live="polite">
           {status}
-          {error && zone.status !== 'none' ? <p className="sf-map__status is-error">{error}</p> : null}
+          {error && zone.status !== 'none' && zone.status !== 'outside' ? (
+            <p className="sf-map__status is-error">
+              <CircleAlert aria-hidden size={16} />
+              {error}
+            </p>
+          ) : null}
         </div>
         <Button size="sm" variant="ghost" icon={Crosshair} onClick={pinCentre} disabled={disabled}>
           {t('map.pinCentre')}
@@ -178,13 +290,14 @@ export interface StoreThumbnailProps {
   label: string;
 }
 
-/** A small map of the store's pin that doesn't move (the distributor page's Store card). */
+/** A small map of the store's pin at street level, with the zone outline, that doesn't move. */
 export function StoreThumbnail({ lat, lng, label }: StoreThumbnailProps) {
+  const zones = useZoneOutlines();
   return (
     <div className="sf-dist-card__map" role="img" aria-label={label}>
       <MapContainer
         center={[lat, lng]}
-        zoom={15}
+        zoom={PIN_ZOOM}
         className="sf-map__canvas sf-map__canvas--thumb"
         dragging={false}
         zoomControl={false}
@@ -196,7 +309,8 @@ export function StoreThumbnail({ lat, lng, label }: StoreThumbnailProps) {
         attributionControl={false}
       >
         <TileLayer url={OSM_TILES} attribution={OSM_CREDIT} />
-        <CircleMarker center={[lat, lng]} radius={8} className="sf-map__pin" />
+        <ZoneLayer zones={zones.data ?? []} labels={false} />
+        <CircleMarker center={[lat, lng]} radius={8} pathOptions={{ className: 'sf-map__pin', interactive: false }} />
       </MapContainer>
     </div>
   );

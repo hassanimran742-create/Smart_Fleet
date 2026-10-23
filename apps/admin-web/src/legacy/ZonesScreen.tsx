@@ -1,406 +1,335 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MapContainer, Marker, Polygon, TileLayer } from 'react-leaflet';
-import L from 'leaflet';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Map as MapIcon, Pencil, Plus } from 'lucide-react';
+import type { ZoneListRow } from '@smartfleet/shared-types';
 import { api } from '../api/client';
 import { messageFor } from '../api/errors';
-import { Modal } from '../components/Modal';
-import { Chip, useConfirm, useToast } from '../ui';
+import { useAllAreas, useCities } from '../features/distributors/api';
+import { DEFAULT_MAP_CENTER, FitToZones, OSM_CREDIT, OSM_TILES, ZoneLayer, zonesBounds } from '../features/distributors/StoreMapPicker';
+import {
+  AddMore,
+  Button,
+  Chip,
+  Drawer,
+  EmptyState,
+  ErrorState,
+  Field,
+  FilterBar,
+  flashRow,
+  InlineAlert,
+  PageHeader,
+  SearchSelect,
+  Select,
+  Table,
+  TextInput,
+  ToggleChip,
+  useConfirm,
+  useFlashedRow,
+  useToast,
+  type TableColumn,
+} from '../ui';
+import { useLegacyT } from './i18n';
+import './legacy.css';
 
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+/**
+ * Legacy Zones screen, kept inside the shell for Inc 1 (UX_ADMIN §2.11; zones are normally loaded by the
+ * tech team). Light pass (website spec W45): the zones are listed (name, city, status), with a map of
+ * their outlines; "Add zone" opens a drawer with the city, the name and the areas it covers, picked from
+ * one search box. The square size around each area waits behind "Advanced", in km. The API is
+ * unchanged: the shape is still the union of a box around each picked area.
+ */
 
-interface City { id: string; name: string }
-interface Area { name: string; lat: number; lng: number; cityName: string }  // augmented with cityName
-interface ZoneRow {
-  id: string;
-  city_id: string;
-  name: string;
-  centroid: GeoJSON.Point | null;
-  polygon: GeoJSON.MultiPolygon | null;
-  is_active: boolean;
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** The box half-side the shape builder has always used: 0.012° (about 1.3 km). */
+const DEFAULT_HALF_DEG = 0.012;
+const DEFAULT_KM = '1.3';
+/** 0.01° of latitude is about 1.1 km. */
+const KM_PER_DEG = 110;
+const ZONES_KEY = ['zones', 'all-cities'] as const;
+
+type ZoneRow = ZoneListRow & { cityName: string };
 
 function multiBoxAround(areas: { lat: number; lng: number }[], half: number): GeoJSON.MultiPolygon {
   return {
     type: 'MultiPolygon',
-    coordinates: areas.map((a) => [[
-      [a.lng - half, a.lat - half],
-      [a.lng + half, a.lat - half],
-      [a.lng + half, a.lat + half],
-      [a.lng - half, a.lat + half],
-      [a.lng - half, a.lat - half],
-    ]]),
+    coordinates: areas.map((a) => [
+      [
+        [a.lng - half, a.lat - half],
+        [a.lng + half, a.lat - half],
+        [a.lng + half, a.lat + half],
+        [a.lng - half, a.lat + half],
+        [a.lng - half, a.lat - half],
+      ],
+    ]),
   };
 }
 
-/** Compute a unique area key including city, since two cities may share an area name. */
-function areaKey(a: { name: string; cityName: string }) {
-  return `${a.cityName}::${a.name}`;
+/** The half-side in degrees for a size typed in km; the old default when it wasn't changed. */
+function halfDegOf(km: string): number {
+  if (km.trim() === DEFAULT_KM) return DEFAULT_HALF_DEG;
+  const value = Number(km);
+  return Number.isFinite(value) && value > 0 ? value / KM_PER_DEG : DEFAULT_HALF_DEG;
 }
 
-/**
- * Legacy Zones screen, kept inside the shell for Inc 1 (UX_ADMIN §2.11; zones are normally loaded by the
- * setup script). Touched for §2.11: ConfirmDialog instead of browser pop-ups, chips instead of marks,
- * archived zones listed when asked for (so they can be reactivated), and every failure shown.
- */
+/** Every zone of every saved city, archived ones included (the office may see them). */
+function useAllZones() {
+  const cities = useCities();
+  const saved = (cities.data ?? []).filter((city) => UUID.test(city.id));
+  return useQuery({
+    queryKey: [...ZONES_KEY, saved.map((city) => city.id)],
+    queryFn: async () => {
+      const lists = await Promise.all(
+        saved.map(async (city) =>
+          (await api.get<ZoneListRow[]>(`/zones/city/${city.id}`, { params: { includeArchived: true } })).data.map((zone) => ({
+            ...zone,
+            cityName: city.name,
+          })),
+        ),
+      );
+      return lists.flat().sort((a, b) => a.cityName.localeCompare(b.cityName) || a.name.localeCompare(b.name));
+    },
+    enabled: cities.isSuccess,
+  });
+}
+
 export function ZonesScreen() {
+  const lt = useLegacyT();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const toast = useToast();
-  const cities = useQuery({ queryKey: ['cities'], queryFn: async () => (await api.get<City[]>('/cities')).data });
-
-  const [primaryCityId, setPrimaryCityId] = useState<string>('');
-  const [sourceCityIds, setSourceCityIds] = useState<string[]>([]);   // cities to pull areas from
-  const [pickedAreaKeys, setPickedAreaKeys] = useState<string[]>([]);
-  const [zoneName, setZoneName] = useState<string>('');
-  const [halfDeg, setHalfDeg] = useState('0.012');
-  const [createErr, setCreateErr] = useState<string | null>(null);
+  const flashed = useFlashedRow('zones');
+  const zones = useAllZones();
   const [showArchived, setShowArchived] = useState(false);
-
+  const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<ZoneRow | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editSourceCityIds, setEditSourceCityIds] = useState<string[]>([]);
-  const [editPickedAreaKeys, setEditPickedAreaKeys] = useState<string[]>([]);
-  const [editHalfDeg, setEditHalfDeg] = useState('0.012');
 
-  // Areas for the CREATE form: queries for each city in sourceCityIds.
-  const sourceAreaQueries = useQueries({
-    queries: sourceCityIds.map((cid) => ({
-      queryKey: ['areas', cid],
-      queryFn: async () => {
-        const data = (await api.get<{ name: string; lat: number; lng: number }[]>(`/cities/${cid}/areas`)).data;
-        const cityName = cities.data?.find((c) => c.id === cid)?.name ?? '';
-        return data.map((a) => ({ ...a, cityName }));
-      },
-    })),
-  });
-  const allAreas: Area[] = useMemo(
-    () => sourceAreaQueries.flatMap((q) => (q.data ?? []) as Area[]),
-    [sourceAreaQueries],
-  );
-  const pickedAreaData = useMemo(
-    () => allAreas.filter((a) => pickedAreaKeys.includes(areaKey(a))),
-    [allAreas, pickedAreaKeys],
-  );
+  const all = zones.data ?? [];
+  const hasArchived = all.some((zone) => !zone.is_active);
+  const rows = all.filter((zone) => showArchived || zone.is_active);
+  const active = useMemo(() => (zones.data ?? []).filter((zone) => zone.is_active), [zones.data]);
+  const bounds = useMemo(() => zonesBounds(active), [active]);
 
-  // Same for EDIT form
-  const editAreaQueries = useQueries({
-    queries: editSourceCityIds.map((cid) => ({
-      queryKey: ['areas', cid],
-      queryFn: async () => {
-        const data = (await api.get<{ name: string; lat: number; lng: number }[]>(`/cities/${cid}/areas`)).data;
-        const cityName = cities.data?.find((c) => c.id === cid)?.name ?? '';
-        return data.map((a) => ({ ...a, cityName }));
-      },
-    })),
-  });
-  const editAllAreas: Area[] = useMemo(
-    () => editAreaQueries.flatMap((q) => (q.data ?? []) as Area[]),
-    [editAreaQueries],
-  );
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ['zones'] });
+  };
 
-  // Zones list for the chosen primary city
-  const zones = useQuery({
-    queryKey: ['zones', primaryCityId, showArchived],
-    queryFn: async () =>
-      primaryCityId
-        ? (await api.get<ZoneRow[]>(`/zones/city/${primaryCityId}`, { params: showArchived ? { includeArchived: true } : undefined })).data
-        : [],
-    enabled: !!primaryCityId,
-  });
-
-  function toggleSourceCity(id: string) {
-    setSourceCityIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
-  }
-  function toggleEditSourceCity(id: string) {
-    setEditSourceCityIds((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
-  }
-  function toggleArea(key: string) {
-    setPickedAreaKeys((s) => s.includes(key) ? s.filter((x) => x !== key) : [...s, key]);
-  }
-  function toggleEditArea(key: string) {
-    setEditPickedAreaKeys((s) => s.includes(key) ? s.filter((x) => x !== key) : [...s, key]);
-  }
-
-  const create = useMutation({
-    mutationFn: () => {
-      if (!primaryCityId) throw new Error('Pick a primary city');
-      if (!zoneName.trim()) throw new Error('Give the zone a name');
-      if (pickedAreaData.length === 0) throw new Error('Pick at least one area (from any city)');
-      const polygon = multiBoxAround(pickedAreaData, Number(halfDeg));
-      return api.post('/zones', { cityId: primaryCityId, name: zoneName.trim(), polygonGeoJson: polygon }).then((r) => r.data);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['zones', primaryCityId] });
-      setZoneName(''); setPickedAreaKeys([]); setCreateErr(null);
-    },
-    onError: (e: unknown) => setCreateErr(e instanceof Error && !('isAxiosError' in e) ? e.message : messageFor(e)),
-  });
-
-  const update = useMutation({
-    mutationFn: () => {
-      const payload: any = { name: editName };
-      if (editPickedAreaKeys.length > 0) {
-        const picked = editAllAreas.filter((a) => editPickedAreaKeys.includes(areaKey(a)));
-        payload.polygonGeoJson = multiBoxAround(picked, Number(editHalfDeg));
-      }
-      return api.patch(`/zones/${editing!.id}`, payload);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['zones', primaryCityId] });
-      toast.success('Zone saved.');
-      setEditing(null);
-    },
-    onError: (e) => toast.error(e),
-  });
-
-  async function archiveZone(z: ZoneRow) {
+  async function archive(zone: ZoneRow) {
     const { ok } = await confirm({
-      title: `Archive zone ${z.name}?`,
-      body: "Pins inside it stop counting as this zone at once: customers there can't be added and orders there are blocked unless another active zone covers them. Delivery prices are kept for a reactivation.",
+      title: lt('zones.archive.title', { name: zone.name }),
+      body: lt('zones.archive.body'),
       tone: 'danger',
-      confirmLabel: `Archive ${z.name}`,
-      action: () => api.delete(`/zones/${z.id}`),
+      confirmLabel: lt('zones.archive.confirm', { name: zone.name }),
+      action: () => api.delete(`/zones/${zone.id}`),
     });
     if (!ok) return;
-    toast.success(`Zone ${z.name} archived.`);
-    void qc.invalidateQueries({ queryKey: ['zones'] });
+    toast.success(lt('zones.archive.toast', { name: zone.name }));
+    invalidate();
   }
+
   const reactivate = useMutation({
-    mutationFn: (id: string) => api.patch(`/zones/${id}/reactivate`),
-    onSuccess: () => {
-      toast.success('Zone reactivated.');
-      void qc.invalidateQueries({ queryKey: ['zones'] });
+    mutationFn: (zone: ZoneRow) => api.patch(`/zones/${zone.id}/reactivate`).then(() => zone),
+    onSuccess: (zone) => {
+      toast.success(lt('zones.reactivateToast', { name: zone.name }));
+      flashRow('zones', zone.id);
+      invalidate();
     },
     onError: (e) => toast.error(e),
   });
 
-  const mapCenter: [number, number] = pickedAreaData[0]
-    ? [pickedAreaData[0].lat, pickedAreaData[0].lng]
-    : (allAreas[0] ? [allAreas[0].lat, allAreas[0].lng] : [33.6844, 73.0479]);
-
-  const visibleZones = (zones.data ?? []).filter((z) => showArchived || z.is_active);
-
-  // Group areas by city for nicer rendering.
-  function renderAreaChips(areas: Area[], selectedKeys: string[], onToggle: (k: string) => void) {
-    const byCity: Record<string, Area[]> = {};
-    for (const a of areas) (byCity[a.cityName] ??= []).push(a);
-    const cityNames = Object.keys(byCity).sort();
-    if (cityNames.length === 0) return <span className="muted">Pick at least one source city above.</span>;
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {cityNames.map((c) => (
-          <div key={c}>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{c}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {byCity[c].map((a) => {
-                const key = areaKey(a);
-                const checked = selectedKeys.includes(key);
-                return (
-                  <label
-                    key={key}
-                    style={{
-                      padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-                      background: checked ? 'var(--primary)' : 'white',
-                      color: checked ? 'white' : 'inherit',
-                      border: '1px solid', borderColor: checked ? 'var(--primary)' : 'var(--border)',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      style={{ width: 'auto', marginRight: 6 }}
-                      checked={checked}
-                      onChange={() => onToggle(key)}
-                    />
-                    {a.name}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const columns: TableColumn<ZoneRow>[] = [
+    { id: 'name', header: lt('zones.columns.zone'), sticky: true, cell: (zone) => <span className="sf-legacy__strong">{zone.name}</span> },
+    { id: 'city', header: lt('zones.columns.city'), cell: (zone) => zone.cityName },
+    {
+      id: 'status',
+      header: lt('zones.columns.status'),
+      cell: (zone) => (zone.is_active ? <Chip tone="success">{lt('zones.active')}</Chip> : <Chip tone="neutral">{lt('zones.archived')}</Chip>),
+    },
+    {
+      id: 'actions',
+      header: <span className="sr-only">{lt('zones.columns.actions')}</span>,
+      align: 'end',
+      cell: (zone) => (
+        <span className="sf-legacy__actions">
+          <Button size="sm" icon={Pencil} onClick={() => setEditing(zone)}>
+            {lt('zones.edit')}
+          </Button>
+          {zone.is_active ? (
+            <Button size="sm" variant="ghost-danger" onClick={() => void archive(zone)}>
+              {lt('zones.archive.button')}
+            </Button>
+          ) : (
+            <Button size="sm" loading={reactivate.isPending && reactivate.variables?.id === zone.id} onClick={() => reactivate.mutate(zone)}>
+              {lt('zones.reactivate')}
+            </Button>
+          )}
+        </span>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="flex" style={{ justifyContent: 'space-between' }}>
-        <h2>Zones</h2>
-        <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-          Show archived
-        </label>
-      </div>
-
-      <div className="card">
-        <h3>Create a zone</h3>
-        <p className="muted">
-          A zone can span areas from one or more cities. Pick the primary city (used for listing the zone), then tick the cities you want to draw areas from, then pick the specific areas. The zone's polygon will be the union of square boxes around each picked area.
-        </p>
-
-        <div className="flex" style={{ gap: 16 }}>
-          <div style={{ flex: 1 }}>
-            <label>Primary city *</label>
-            <select value={primaryCityId} onChange={(e) => setPrimaryCityId(e.target.value)}>
-              <option value="">— pick a city —</option>
-              {(cities.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: 1 }}>
-            <label>Zone name *</label>
-            <input value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="e.g. Twin-cities North" />
-          </div>
-          <div style={{ width: 160 }}>
-            <label>Half-side (deg)</label>
-            <input value={halfDeg} onChange={(e) => setHalfDeg(e.target.value)} type="number" step="0.001" />
-            <p className="muted" style={{ marginTop: 4 }}>0.01° ≈ 1.1 km.</p>
-          </div>
-        </div>
-
-        <label>Pull areas from these cities (tick any)</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: 6, background: '#fafafa', border: '1px solid var(--border)', borderRadius: 6 }}>
-          {(cities.data ?? []).map((c) => {
-            const checked = sourceCityIds.includes(c.id);
-            return (
-              <label
-                key={c.id}
-                style={{
-                  padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-                  background: checked ? '#1ea675' : 'white',
-                  color: checked ? 'white' : 'inherit',
-                  border: '1px solid', borderColor: checked ? '#1ea675' : 'var(--border)',
-                }}
-              >
-                <input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={checked} onChange={() => toggleSourceCity(c.id)} />
-                {c.name}
-              </label>
-            );
-          })}
-        </div>
-
-        <label style={{ marginTop: 12 }}>Include areas / sectors (pick one or many, from any selected city)</label>
-        <div style={{ padding: 8, background: '#fafafa', border: '1px solid var(--border)', borderRadius: 6, maxHeight: 260, overflow: 'auto' }}>
-          {renderAreaChips(allAreas, pickedAreaKeys, toggleArea)}
-        </div>
-        <p className="muted" style={{ marginTop: 4 }}>{pickedAreaKeys.length} area(s) selected.</p>
-
-        {createErr && <p style={{ color: 'var(--danger)' }}>{createErr}</p>}
-        <button className="primary" style={{ marginTop: 12 }} onClick={() => create.mutate()}>Create zone</button>
-      </div>
-
-      {primaryCityId && (
-        <div className="card" style={{ padding: 0, overflow: 'hidden', height: 420 }}>
-          <MapContainer center={mapCenter} zoom={11} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; OpenStreetMap'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {visibleZones.map((z) => {
-              if (!z.polygon) return null;
-              return z.polygon.coordinates.map((part, idx) => {
-                const positions = part[0].map(([lng, lat]) => [lat, lng]) as [number, number][];
-                return (
-                  <Polygon
-                    key={`${z.id}-${idx}`}
-                    positions={positions}
-                    pathOptions={{ color: z.is_active ? '#0f6cf0' : '#9ca3af', fillOpacity: 0.15 }}
-                  />
-                );
-              });
-            })}
-            {pickedAreaData.map((a) => (
-              <Marker key={areaKey(a)} position={[a.lat, a.lng]} />
-            ))}
+    <div className="sf-legacy-page">
+      <PageHeader
+        title={lt('zones.title')}
+        primaryAction={
+          <Button variant="primary" icon={Plus} onClick={() => setAdding(true)}>
+            {lt('zones.add')}
+          </Button>
+        }
+      />
+      {hasArchived ? (
+        <FilterBar>
+          <ToggleChip label={lt('zones.showArchived')} pressed={showArchived} onChange={setShowArchived} />
+        </FilterBar>
+      ) : null}
+      <Table<ZoneRow>
+        caption={lt('zones.title')}
+        columns={columns}
+        rows={rows}
+        rowKey={(zone) => zone.id}
+        rowTone={(zone) => (zone.is_active ? null : 'neutral')}
+        highlightKey={flashed}
+        state={zones.isPending ? 'loading' : zones.isError && !zones.data ? 'error' : 'ready'}
+        empty={<EmptyState compact icon={MapIcon} title={lt('zones.empty')} />}
+        error={
+          <ErrorState compact error={zones.error} title={lt('zones.loadFailed')} onRetry={() => void zones.refetch()} retrying={zones.isFetching} />
+        }
+      />
+      {active.length > 0 ? (
+        <div className="sf-legacy__map" role="img" aria-label={lt('zones.mapLabel')}>
+          <MapContainer center={[DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng]} zoom={11} className="sf-legacy__map-canvas">
+            <TileLayer url={OSM_TILES} attribution={OSM_CREDIT} />
+            <ZoneLayer zones={active} />
+            <FitToZones bounds={bounds} enabled />
           </MapContainer>
         </div>
-      )}
+      ) : null}
+      {adding ? <ZoneDrawer onClose={() => setAdding(false)} onSaved={invalidate} /> : null}
+      {editing ? <ZoneDrawer zone={editing} onClose={() => setEditing(null)} onSaved={invalidate} /> : null}
+    </div>
+  );
+}
 
-      {primaryCityId && (
-        <div className="card">
-          <h3>Zones filed under this primary city</h3>
-          {visibleZones.length === 0 && <p className="muted">No zones yet.</p>}
-          <table>
-            <thead><tr><th>Name</th><th>Parts</th><th>Centre</th><th>Status</th><th aria-label="Actions"></th></tr></thead>
-            <tbody>
-              {visibleZones.map((z) => (
-                <tr key={z.id} style={{ opacity: z.is_active ? 1 : 0.5 }}>
-                  <td>{z.name}</td>
-                  <td>{z.polygon?.coordinates.length ?? 0}</td>
-                  <td>
-                    {z.centroid
-                      ? `${z.centroid.coordinates[1].toFixed(4)}, ${z.centroid.coordinates[0].toFixed(4)}`
-                      : '—'}
-                  </td>
-                  <td>{z.is_active ? <Chip tone="success">Active</Chip> : <Chip tone="neutral">Archived</Chip>}</td>
-                  <td>
-                    <button onClick={() => {
-                      setEditing(z); setEditName(z.name);
-                      setEditPickedAreaKeys([]); setEditSourceCityIds([]); setEditHalfDeg('0.012');
-                    }}>Edit</button>{' '}
-                    {z.is_active ? (
-                      <button style={{ color: 'var(--danger-fg)' }} onClick={() => void archiveZone(z)}>Archive</button>
-                    ) : (
-                      <button onClick={() => reactivate.mutate(z.id)} disabled={reactivate.isPending}>Reactivate</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+/** Add zone, or Edit zone (a new name, or new areas to redraw it; no areas keeps its shape). */
+function ZoneDrawer({ zone, onClose, onSaved }: { zone?: ZoneRow; onClose: () => void; onSaved: () => void }) {
+  const lt = useLegacyT();
+  const toast = useToast();
+  const cities = useCities();
+  const { areas, loading: areasLoading } = useAllAreas();
+  const formId = zone ? 'sf-edit-zone' : 'sf-add-zone';
+  const [cityId, setCityId] = useState(zone?.city_id ?? '');
+  const [name, setName] = useState(zone?.name ?? '');
+  const [picked, setPicked] = useState<string[]>([]);
+  const [km, setKm] = useState(DEFAULT_KM);
+  const [pressed, setPressed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-      <Modal title="Edit zone" open={!!editing} onClose={() => setEditing(null)} width={720}>
-        {editing && (
-          <>
-            <label>Zone name</label>
-            <input value={editName} onChange={(e) => setEditName(e.target.value)} />
+  const saved = (cities.data ?? []).filter((city) => UUID.test(city.id));
+  const options = useMemo(
+    () => areas.map((area) => ({ value: `${area.city}|${area.name}`, label: lt('zones.form.areaOption', { area: area.name, city: area.city }) })),
+    [areas, lt],
+  );
+  const pickedAreas = areas.filter((area) => picked.includes(`${area.city}|${area.name}`));
 
-            <label style={{ marginTop: 12 }}>Half-side (deg) for any redraw</label>
-            <input value={editHalfDeg} onChange={(e) => setEditHalfDeg(e.target.value)} type="number" step="0.001" />
+  const cityError = !zone && !cityId ? lt('zones.form.cityMissing') : null;
+  const nameError = !name.trim() ? lt('zones.form.nameMissing') : null;
+  const areasError = !zone && picked.length === 0 ? lt('zones.form.areasMissing') : null;
 
-            <label style={{ marginTop: 12 }}>Source cities for areas (only needed if redrawing)</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: 6, background: '#fafafa', border: '1px solid var(--border)', borderRadius: 6 }}>
-              {(cities.data ?? []).map((c) => {
-                const checked = editSourceCityIds.includes(c.id);
-                return (
-                  <label
-                    key={c.id}
-                    style={{
-                      padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-                      background: checked ? '#1ea675' : 'white',
-                      color: checked ? 'white' : 'inherit',
-                      border: '1px solid', borderColor: checked ? '#1ea675' : 'var(--border)',
-                    }}
-                  >
-                    <input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={checked} onChange={() => toggleEditSourceCity(c.id)} />
-                    {c.name}
-                  </label>
-                );
-              })}
-            </div>
+  const save = useMutation({
+    mutationFn: async () => {
+      const polygon = pickedAreas.length > 0 ? multiBoxAround(pickedAreas, halfDegOf(km)) : undefined;
+      if (zone) {
+        await api.patch(`/zones/${zone.id}`, { name: name.trim(), ...(polygon ? { polygonGeoJson: polygon } : {}) });
+        return zone.id;
+      }
+      const created = (await api.post<{ id: string }>('/zones', { cityId, name: name.trim(), polygonGeoJson: polygon })).data;
+      return created.id;
+    },
+    onSuccess: (id) => {
+      toast.success(zone ? lt('zones.savedToast', { name: name.trim() }) : lt('zones.addedToast', { name: name.trim() }));
+      if (id) flashRow('zones', id);
+      onSaved();
+      onClose();
+    },
+    onError: (e) => setError(messageFor(e)),
+  });
 
-            <label style={{ marginTop: 12 }}>Redraw with these areas (leave empty to keep current polygon)</label>
-            <div style={{ padding: 8, background: '#fafafa', border: '1px solid var(--border)', borderRadius: 6, maxHeight: 260, overflow: 'auto' }}>
-              {renderAreaChips(editAllAreas, editPickedAreaKeys, toggleEditArea)}
-            </div>
-            <p className="muted">{editPickedAreaKeys.length} area(s) selected.</p>
+  const submit = () => {
+    if (save.isPending) return;
+    if (cityError || nameError || areasError) {
+      setPressed(true);
+      return;
+    }
+    setError(null);
+    save.mutate();
+  };
 
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <button onClick={() => setEditing(null)}>Go back</button>{' '}
-              <button className="primary" onClick={() => update.mutate()} disabled={update.isPending}>
-                {update.isPending ? 'Saving…' : 'Save zone'}
-              </button>
-            </div>
-          </>
+  const dirty = zone ? name !== zone.name || picked.length > 0 : Boolean(cityId || name || picked.length);
+
+  return (
+    <Drawer
+      title={zone ? lt('zones.editTitle', { name: zone.name }) : lt('zones.add')}
+      subtitle={zone ? zone.cityName : undefined}
+      dirty={dirty && !save.isSuccess}
+      dismissible={!save.isPending}
+      onClose={onClose}
+      footer={{
+        end: (
+          <Button type="submit" form={formId} variant="primary" loading={save.isPending}>
+            {zone ? lt('zones.save') : lt('zones.add')}
+          </Button>
+        ),
+      }}
+    >
+      <form
+        id={formId}
+        className="sf-legacy-form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        {error ? (
+          <InlineAlert tone="danger" live>
+            {error}
+          </InlineAlert>
+        ) : null}
+        {zone ? null : (
+          <Field label={lt('zones.form.city')} error={pressed ? cityError : null}>
+            <Select
+              value={cityId}
+              placeholder={lt('zones.form.pickCity')}
+              options={saved.map((city) => ({ value: city.id, label: city.name }))}
+              onChange={(event) => setCityId(event.target.value)}
+            />
+          </Field>
         )}
-      </Modal>
-    </>
+        <Field label={lt('zones.form.name')} error={pressed ? nameError : null}>
+          <TextInput value={name} onChange={(event) => setName(event.target.value)} />
+        </Field>
+        <Field
+          label={lt('zones.form.areas')}
+          hint={zone ? lt('zones.form.redrawHint') : undefined}
+          error={pressed ? areasError : null}
+        >
+          <SearchSelect
+            multiple
+            options={options}
+            value={picked}
+            onChange={setPicked}
+            placeholder={lt('zones.form.findArea')}
+            loading={areasLoading}
+          />
+        </Field>
+        <AddMore label={lt('zones.form.advanced')}>
+          <Field label={lt('zones.form.size')}>
+            <TextInput type="number" min={0.1} step={0.1} inputMode="decimal" value={km} onChange={(event) => setKm(event.target.value)} />
+          </Field>
+        </AddMore>
+      </form>
+    </Drawer>
   );
 }

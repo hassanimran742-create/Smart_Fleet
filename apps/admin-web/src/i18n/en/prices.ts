@@ -1,48 +1,54 @@
 /**
- * `prices`: copy for Delivery prices and the price drawer (UX_ADMIN §2.3). Owned by the admin-web-money
- * lane. Keep `as const` and the export name: i18n/index.ts imports it by name, and `t('prices:…')` is
- * type-checked, so a missing key fails `tsc`.
+ * `prices`: copy for Delivery prices and the price drawer (website spec W15–W17, UX_ADMIN §2.3). Owned by
+ * the admin-web-money lane. Keep `as const` and the export name: i18n/index.ts imports it by name, and
+ * `t('prices:…')` is type-checked, so a missing key fails `tsc`.
  *
  * A price is a base per order plus an optional amount per full cylinder by size (ADR-08); a missing
- * price is always said in words ("Not set"), never by colour alone.
+ * price is always said in words ("Not set", "1 missing"), never by colour alone.
  */
 export const prices = {
   page: {
     title: 'Delivery prices',
-    subtitle: "What each distributor pays per order, by the customer's zone: a base per order, plus an optional amount per cylinder size.",
-    loadFailed: "Couldn't load the delivery prices",
+    subtitle: 'What a distributor pays per order, by customer zone.',
+    loadFailedFor: "Couldn't load {{distributor}}'s prices",
   },
 
   index: {
-    emptyTitle: 'No distributors yet',
-    emptyBody: 'Add a distributor first. Their delivery prices are set here.',
+    emptyTitle: 'No distributors yet.',
     addDistributor: 'Add distributor',
-    loadFailed: "Couldn't load the distributors",
+    loadFailed: "Couldn't load delivery prices",
   },
 
+  /** The distributor picker: chips up to 6 distributors, a search box beyond that. */
   switcher: {
     label: 'Distributor',
-    coverage: '{{priced}}/{{total}}',
-    coverageLabel: '{{priced}} of {{total}} zones have a price',
-    option: '{{name}} · {{priced}}/{{total}}',
+    missing_one: '{{count}} missing',
+    missing_other: '{{count}} missing',
+    complete: 'All set',
+    /** The search box's rows: "Ahmed Gas · 1 missing". */
+    option: '{{name}} · {{state}}',
   },
 
-  missing_one:
-    "{{count}} of {{total}} zones has no price for {{distributor}}. Customers in that zone can't be added, and orders there are blocked.",
-  missing_other:
-    "{{count}} of {{total}} zones have no price for {{distributor}}. Customers in those zones can't be added, and orders there are blocked.",
-  showMissing: 'Show only missing',
-  showArchived: 'Show archived zones',
+  missing_one: '{{count}} zone has no price. Customers there are blocked.',
+  missing_other: '{{count}} zones have no price. Customers there are blocked.',
+
+  filters: {
+    label: 'Zones',
+    all: 'All zones',
+    missing_one: 'Missing ({{count}})',
+    missing_other: 'Missing ({{count}})',
+  },
+  showArchived: 'Show archived',
 
   grid: {
     caption: "{{distributor}}'s delivery prices by zone",
     zone: 'Zone',
     base: 'Base per order',
-    perCylinder: 'per cylinder',
+    perCylinder: 'Per cylinder',
+    /** "11.8 kg Rs 40", joined with " · ". */
+    sizeAmount: '{{size}} {{amount}}',
     status: 'Status',
-    changed: 'Last changed',
     action: 'Action',
-    changedBy: '{{date}} by {{name}}',
     edit: 'Edit',
     set: 'Set price',
     view: 'View',
@@ -51,45 +57,44 @@ export const prices = {
   },
 
   empty: {
-    zonesTitle: 'No zones yet',
-    zonesBody: 'Zones are loaded by the setup script. Ask engineering to load the agreed zone shapes.',
-    missingTitle: 'Every zone has a price',
-    missingBody: 'Turn off “Show only missing” to see every zone.',
+    zonesTitle: 'No zones yet. Ask the tech team.',
+    missingTitle: 'Every zone has a price.',
+    showAll: 'Show all zones',
   },
 
   drawer: {
     title: '{{distributor}} · Zone {{zone}}',
+    subtitleChanged: '{{city}} · changed {{date}} by {{name}}',
+    subtitleChangedNoName: '{{city}} · changed {{date}}',
     zoneMissing: "We couldn't find this zone. It may have been removed.",
-    notSet: "No price yet. Customers in this zone can't be added, and orders there are blocked.",
-    lastChanged: 'Last changed {{date}} by {{name}}',
-    lastChangedNoName: 'Last changed {{date}}',
+    copyFrom: 'Copy from…',
+    /** "North · Rs 250 + per cylinder", "South · Rs 400". */
+    copyOption: '{{zone}} · {{summary}}',
+    copyWithSizes: '{{base}} + per cylinder',
     base: 'Base per order',
-    baseHint: 'Charged once per order, from Rs 0 to {{max}}.',
-    perCylinderTitle: 'Per cylinder (optional)',
-    perCylinderHint: 'Added for each full cylinder of that size, at most {{max}}. Blank means Rs 0.',
+    baseMissing: 'Type the base per order.',
+    addSizes: 'Add per-cylinder amounts',
+    perCylinderTitle: 'Per cylinder',
+    perCylinderHint: 'Blank means Rs 0.',
     exampleTitle: 'Example',
-    /** The live example; zero parts are left out, so a flat price reads only the base. */
+    /** The example, shown once the base is an amount; zero parts are left out. */
     example: {
-      both: 'An order of {{n}} × {{size}} costs {{base}} + {{n}} × {{per}} = {{total}}',
-      baseOnly: 'An order of {{n}} × {{size}} costs {{base}}',
-      sizeOnly: 'An order of {{n}} × {{size}} costs {{n}} × {{per}} = {{total}}',
-      noSizes: 'An order costs {{base}}',
-      /** Until the base is typed: Rs 0 is a real price, so a blank form never reads as "costs Rs 0". */
-      needsBase: 'Type the base per order to see an example.',
+      both: '{{n}} × {{size}}: {{base}} + {{n}} × {{per}} = {{total}}',
+      baseOnly: 'Every order: {{base}}',
+      sizeOnly: '{{n}} × {{size}}: {{n}} × {{per}} = {{total}}',
     },
-    note: 'New prices apply to orders placed from now on. Orders already placed keep their cost.',
-    archived: 'This zone is archived. Its price is kept but not used, and applies again if the zone is reactivated.',
+    note: "New orders use this price. Placed orders don't change.",
+    archived: 'This zone is archived. Its price is kept but not used.',
     save: 'Save price',
-    saved: 'Price saved for Zone {{zone}}. New orders use it now.',
+    saved: 'Price saved for Zone {{zone}}.',
     offline: "Couldn't reach the server. Your entries are kept — try again.",
     stale: 'This price changed while you were looking.',
     reload: 'Reload',
     remove: 'Remove price…',
     removeTitle: 'Remove the price for Zone {{zone}}?',
     removeBody: 'Customers in {{zone}} will be blocked until a new price is set.',
-    removeReason: 'Reason',
-    removeReasonHint: 'Saved in the activity log.',
+    removeReason: 'Why?',
     removeConfirm: 'Remove price',
-    removed: 'Price removed for Zone {{zone}}. Customers there are blocked until a new price is set.',
+    removed: 'Price removed for Zone {{zone}}.',
   },
 } as const;

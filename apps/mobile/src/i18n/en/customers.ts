@@ -1,10 +1,34 @@
 /**
- * `customers.*` copy: Add customer and its delivery cost panel (UX_MOBILE §4 S8), the delivery-address
- * picker of New order (S9 "Change address") and the map. Owned by the mobile-distributor lane.
+ * `customers.*` copy: the Customers list (shop spec §K), Add customer and its delivery cost line
+ * (UX_MOBILE §4 S8; §L, §M), the address picker sheet (§Q), New address (§R) and the map.
+ * Owned by the mobile-distributor lane.
  *
- * Say "customer", never "client" (UX_MOBILE §0).
+ * Say "customer", never "client", and no zone names on any shop screen (UX_MOBILE §0; shop spec §3.5).
  */
 export const customers = {
+  /** S8b Customers, and New order step 1 (they share one list). */
+  list: {
+    title: 'Customers',
+    search: 'Search name, mobile or area',
+    searchA11y: 'Search customers',
+    recent: 'Recent',
+    all: 'All customers',
+    /** The call button on a row (screen readers). */
+    call: 'Call {{name}}',
+    add: 'Add customer',
+    empty: 'No customers yet.',
+    noMatch: 'No customer matches “{{query}}”.',
+  },
+
+  /** A row that can't take an order, opened in place. */
+  block: {
+    noPrice: 'No delivery price here yet.',
+    outside: 'Outside our delivery area.',
+    noAddress: 'No delivery address yet.',
+    changeAddress: 'Change address',
+    addAddress: 'Add address',
+  },
+
   /** S8 Add customer. */
   add: {
     title: 'Add customer',
@@ -12,12 +36,10 @@ export const customers = {
     step2: 'Delivery location',
     name: 'Name',
     nameRequired: "Write the customer's name.",
-    mobile: 'Mobile',
+    mobile: 'Mobile number',
     area: 'Area',
-    areaPlaceholder: 'e.g. Model Town',
     notes: 'Notes',
     next: 'Next',
-    back: 'Back',
     phoneExists: '{{name}} already has this number.',
     useExisting: 'Use {{name}}',
     save: 'Save customer',
@@ -25,49 +47,45 @@ export const customers = {
     saved: 'Customer saved',
   },
 
-  /** The delivery spot: search, "Use my location", the map pin and the house / street line. */
+  /** The delivery spot: search, "Use my location", the map pin, and House and street. */
   location: {
-    search: 'Search',
-    searchPlaceholder: 'Area or street, e.g. Model Town',
+    searchPlaceholder: 'Search area or street',
     searching: 'Searching…',
-    noResults: 'No places found. Try another name, or drop the pin on the map.',
-    searchFailed: "Search isn't working right now. Drop the pin on the map instead.",
+    noResults: 'No places found. Tap the map instead.',
+    searchFailed: "Search isn't working. Tap the map instead.",
     useMyLocation: 'Use my location',
     locating: 'Finding your location…',
-    locationDenied: 'Allow location for this app in your phone settings, or search instead.',
-    locationFailed: "Couldn't find your location. Search or drop the pin instead.",
-    mapHint: 'Tap the map to drop the pin where deliveries go. Drag the pin to move it.',
+    locationDenied: 'Allow location in phone settings, or search.',
+    locationFailed: "Couldn't find you. Search or tap the map.",
+    mapHint: 'Tap the map to drop the pin.',
     mapA11y: 'Map. Tap to drop the delivery pin.',
     pin: 'Delivery spot',
-    house: 'House / street',
-    housePlaceholder: 'e.g. House 14, Street 5',
+    house: 'House and street',
     houseRequired: 'Write the house or street.',
-    noPin: 'Drop the pin to see the delivery cost.',
   },
 
-  /** The live cost panel (S8): `GET /pricing/quote?lat&lng`. */
+  /** The one line under the map (S8): `GET /pricing/quote?lat&lng`. */
   cost: {
     checking: 'Checking delivery area…',
-    priced: 'Zone {{zone}} · Delivery cost {{base}} per order',
+    priced: 'Delivery cost {{base}} per order',
     perSize: '+ {{amount}} per {{size}} cylinder',
-    outside: 'This location is outside our delivery area. Move the pin or call the office.',
-    priceNotSet:
-      "No delivery price is set for zone {{zoneName}} yet. You can't add this customer until the office sets it.",
-    priceNotSetAddress:
-      "No delivery price is set for zone {{zoneName}} yet. You can't deliver here until the office sets it.",
+    /** Several sizes that all add the same amount. */
+    perCylinder: '+ {{amount}} per cylinder',
+    perSizeRange: '+ {{min}} to {{max}} per cylinder',
+    outside: 'Outside our delivery area. Move the pin.',
+    priceNotSet: 'No delivery price here yet.',
+    error: "Couldn't check this spot.",
   },
 
-  /** S9 "Change address": the customer's saved addresses, or a new pin. */
+  /** The address picker sheet (§Q) and New address (§R). */
   address: {
-    title: 'Delivery address',
-    saved: 'Saved addresses',
-    none: 'No saved addresses yet.',
-    zone: 'Zone {{zone}}',
-    addNew: 'Add a new address',
+    title: 'Deliver to',
+    addNew: 'New address',
     newTitle: 'New address',
     save: 'Save address',
     saving: 'Saving…',
     savedToast: 'Address saved',
+    /** Read after the address that is chosen now. */
     current: 'Chosen',
   },
 

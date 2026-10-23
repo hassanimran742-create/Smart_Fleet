@@ -2,7 +2,7 @@
  * Review fixes on the office website's Today badge and price drawer (UX_ADMIN §1.3, §2.3). The website
  * has no UI test runner, so the rules run here on their own:
  * - the "waiting" count behind the Today badge and the "(n)" of the browser tab (web-ux-04);
- * - the price drawer's live example while the base is still blank (web-ux-07). example.ts reads its
+ * - the price drawer's live example, none while the base is still blank (web-ux-07). example.ts reads its
  *   words through the website's i18n setup, which needs Vite, so that one module is replaced here by the
  *   website's own English strings (i18n/en/prices.ts) and the shared formatRs.
  */
@@ -81,22 +81,25 @@ describe('REV web-ux-07 the price example never says "costs Rs 0" for a blank ba
     { cylinderTypeId: 's11', code: 'STD_11_8KG', label: '11.8 kg' },
   ];
 
-  it('REV web-ux-07 no base yet: no example (the drawer shows a hint instead)', () => {
+  it('REV web-ux-07 no base yet: no example (the drawer shows none until a base is typed)', () => {
     expect(priceExample(null, sizes, new Map())).toBeNull();
     expect(priceExample(null, [], new Map())).toBeNull();
-    expect(prices.drawer.example.needsBase).toBe('Type the base per order to see an example.');
+    expect(prices.drawer.example).not.toHaveProperty('needsBase');
   });
 
   it('REV web-ux-07 a typed base gives the example, and Rs 0 typed on purpose still reads as Rs 0', () => {
-    expect(priceExample(25000n, sizes, new Map())).toBe('An order of 2 × 6 kg costs Rs 250');
-    expect(priceExample(25000n, sizes, new Map([['s11', 4000n]]))).toBe('An order of 2 × 11.8 kg costs Rs 250 + 2 × Rs 40 = Rs 330');
-    expect(priceExample(0n, sizes, new Map())).toBe('An order of 2 × 6 kg costs Rs 0');
+    expect(priceExample(25000n, sizes, new Map())).toBe('Every order: Rs 250');
+    expect(priceExample(25000n, sizes, new Map([['s11', 4000n]]))).toBe('2 × 11.8 kg: Rs 250 + 2 × Rs 40 = Rs 330');
+    expect(priceExample(25000n, sizes, new Map([['s6', 3000n], ['s11', 4000n]]))).toBe('2 × 11.8 kg: Rs 250 + 2 × Rs 40 = Rs 330');
+    expect(priceExample(0n, sizes, new Map([['s6', 3000n]]))).toBe('2 × 6 kg: 2 × Rs 30 = Rs 60');
+    expect(priceExample(0n, sizes, new Map())).toBe('Every order: Rs 0');
   });
 
-  it('REV web-ux-07 the drawer passes the base only when it is an amount, and shows the hint otherwise', () => {
+  it('REV web-ux-07 the drawer passes the base only when it is an amount, and shows no example otherwise', () => {
     const drawer = fs.readFileSync(path.join(ADMIN_SRC, 'features', 'prices', 'PriceDrawer.tsx'), 'utf8');
     expect(drawer).toMatch(/priceExample\(base\.ok \? base\.paisa : null, grid\.sizes, amounts\)/);
     expect(drawer).not.toMatch(/priceExample\([^)]*0n/);
-    expect(drawer).toMatch(/\{example \? <p>\{example\}<\/p> : <p className="sf-prices__muted">\{t\('drawer\.example\.needsBase'\)\}<\/p>\}/);
+    expect(drawer).toMatch(/\{example \? \(/);
+    expect(drawer).not.toMatch(/needsBase/);
   });
 });

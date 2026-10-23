@@ -327,7 +327,7 @@ For `AUTH_WRONG_APP`, `details` is `{ role, app }`. `app` is one of "Smart Fleet
 | ORDER_NOT_ON_YOUR_TRIP | 403 | This order isn't on your trip. |
 | ORDER_USE_MANUAL_DELIVERY | 400 | Use "Mark delivered by office" for this. |
 | ORDER_NOT_ASSIGNABLE | 409 | This order can't get a driver now. |
-| ASSIGN_DRIVER_NOT_AVAILABLE | 409 | {{driver}} can't take jobs right now. |
+| ASSIGN_DRIVER_NOT_AVAILABLE | 409 | {{driver}} can't take trips right now. |
 | ASSIGN_DRIVER_NO_VEHICLE | 409 | {{driver}} has no van. Give them a van first. |
 | ASSIGN_ORDER_LOADED | 409 | Cylinders are already loaded on {{plateNo}}, so this order can't change driver. |
 | DISPATCH_AUTO_OFF | 403 | Automatic assignment is switched off. |
@@ -1490,7 +1490,7 @@ Scan errors carry `details.progress`, so the screen still shows "3 of 5" after a
 
 - **Stop:**
   - PENDING → ARRIVED (the first scan or arrive) → DONE (finish).
-  - PENDING or ARRIVED → CANCELLED or FAILED (the UI shows "Skipped").
+  - PENDING or ARRIVED → CANCELLED or FAILED (the driver app shows "Cancelled" or "Not delivered", UX_MOBILE §3.4; "Skipped" is retired).
 - **Trip:**
   - PLANNED → IN_PROGRESS: the first scan, arrive or start. Its orders don't change; they become IN_TRANSIT at the STORE_PICKUP finish.
   - IN_PROGRESS → COMPLETED: finish, with every stop closed and the van empty (or, while `trip.allowFinishWithLeftovers` is on, a leftover reason, §9.3).

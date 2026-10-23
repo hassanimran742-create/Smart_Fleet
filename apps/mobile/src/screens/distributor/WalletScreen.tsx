@@ -1,41 +1,44 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
 import { useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query';
 import type { DistributorHomeDto, Page, PaymentDto, StatementItem, StatementKind } from '@smartfleet/shared-types';
 import { formatPkTime, formatRs, localDate } from '@smartfleet/shared-utils';
-import type { ApiError } from '../../api/errors';
+import { isNetworkError, type ApiError } from '../../api/errors';
 import { qk } from '../../api/keys';
-import { formatDayLabelText, formatWhenText } from '../../i18n';
+import { formatDayLabelText } from '../../i18n';
 import {
   Button,
   Card,
+  ChoiceChips,
   colors,
   EmptyState,
   ErrorBanner,
+  Icon,
   layout,
   ListRow,
   MoneyText,
   moneyA11yLabel,
+  OfflineEmpty,
   Screen,
+  SkeletonCard,
   SkeletonList,
+  sizes,
   space,
   StatusChip,
   Text,
 } from '../../ui';
 import { fetchHome, fetchMyTopups, fetchStatement } from './shared/api';
-import { FilterChips } from './shared/FilterChips';
 import { feeText, isPositivePaisa, paisaOrZero } from './shared/format';
 import { useShopNavigation, useShopRoute } from './shared/navigation';
 import { StaleNotice } from './shared/StaleNotice';
 
-/** The four filters of Wallet history (UX_MOBILE S7). */
-export type WalletFilter = 'all' | 'topups' | 'deliveryCosts' | 'requests';
+/** The three filters of History (shop spec §J): every row, the top-up requests, the delivery costs. */
+export type WalletFilter = 'all' | 'topups' | 'deliveryCosts';
 
-/** The statement kinds each ledger filter asks for; "Delivery costs" shows returned costs beside their costs. */
-const FILTER_KINDS: Record<Exclude<WalletFilter, 'requests'>, readonly StatementKind[] | undefined> = {
+/** The statement kinds each ledger filter asks for; "Delivery costs" shows refunds beside their costs. */
+const FILTER_KINDS: Record<Exclude<WalletFilter, 'topups'>, readonly StatementKind[] | undefined> = {
   all: undefined,
-  topups: ['TOPUP_ADDED'],
   deliveryCosts: ['DELIVERY_COST', 'DELIVERY_COST_RETURNED'],
 };
 
@@ -57,11 +60,21 @@ function byDay<T>(rows: readonly T[], at: (row: T) => string): Section<T>[] {
   return sections;
 }
 
+/** The query parts a list's header and empty state read. */
+interface ListQuery {
+  data: unknown;
+  error: ApiError | null;
+  isError: boolean;
+  dataUpdatedAt: number;
+  refetch: () => Promise<unknown>;
+}
+
 /**
- * S7 Wallet history (replaces the unrouted LedgerScreen): the balance, filter chips (All · Money added
- * · Delivery costs · Top-up requests), top-ups being checked pinned at the top, and the ledger rows by
- * day with their kind, number, customer and "Balance after". "Top-up requests" lists every request
- * from `GET /payments/mine`, because a refused one never reaches the ledger.
+ * S7 History (shop spec §J; DECIDED "History rows"): the balance, three chips (All · Top-ups ·
+ * Delivery costs), and the rows by day. A row's title is its kind ("Delivery cost", "Top-up",
+ * "Refund"), its grey line the order or top-up number and the customer's name, and the amount is on
+ * the right with the time under it; there is no "Balance after". "Top-ups" lists every request
+ * (`GET /payments/mine`), because one that wasn't added never reaches the ledger.
  */
 export function WalletScreen() {
   const { t } = useTranslation();
@@ -75,52 +88,53 @@ export function WalletScreen() {
   const topups = useQuery<PaymentDto[], ApiError>({
     queryKey: qk.topups.mine,
     queryFn: fetchMyTopups,
-    enabled: filter === 'all' || filter === 'requests',
+    enabled: filter === 'topups',
   });
 
-  const header = (
+  // The header of either list; the chips hide only when the list has nothing to show and failed.
+  const header = (showChips: boolean, stale: ReactNode) => (
     <View style={styles.header}>
-      <WalletSummaryCard home={home.data} loading={home.isPending} />
-      {/* Two rows of two, so all four show on a 360 dp phone; "Top-up requests" is the only place a
-          refused top-up appears, and Home's "Being checked" opens it chosen (S2, S7). */}
-      <FilterChips<WalletFilter>
-        columns={2}
-        accessibilityLabel={t('wallet.history.filtersLabel')}
-        options={[
-          { value: 'all', label: t('wallet.history.filter.all') },
-          { value: 'topups', label: t('wallet.history.filter.topups') },
-          { value: 'deliveryCosts', label: t('wallet.history.filter.deliveryCosts') },
-          { value: 'requests', label: t('wallet.history.filter.requests') },
-        ]}
-        value={filter}
-        onChange={setFilter}
-      />
+      <SummaryCard home={home.data} loading={home.isPending} onBeingChecked={() => setFilter('topups')} />
+      {showChips ? (
+        <ChoiceChips<WalletFilter>
+          columns={3}
+          accessibilityLabel={t('wallet.history.filtersLabel')}
+          options={[
+            { value: 'all', label: t('wallet.history.filter.all') },
+            { value: 'topups', label: t('wallet.history.filter.topups') },
+            { value: 'deliveryCosts', label: t('wallet.history.filter.deliveryCosts') },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
+      ) : null}
+      {stale}
     </View>
   );
 
   return (
     <Screen scroll={false} padded={false}>
-      {filter === 'requests' ? (
+      {filter === 'topups' ? (
         <RequestsList header={header} topups={topups} onRefreshAlso={home.refetch} />
       ) : (
-        <StatementList
-          key={filter}
-          filter={filter}
-          header={header}
-          pending={(topups.data ?? []).filter((p) => p.stage === 'BEING_CHECKED')}
-          onRefreshAlso={() => Promise.all([home.refetch(), topups.refetch()])}
-        />
+        <StatementList key={filter} filter={filter} header={header} onRefreshAlso={home.refetch} />
       )}
     </Screen>
   );
 }
 
-/** Balance, and "Being checked" when above Rs 0 (never a skeleton "Rs 0"). */
-function WalletSummaryCard({ home, loading }: { home: DistributorHomeDto | undefined; loading: boolean }) {
+/** Balance, and "Being checked" when above Rs 0 (never a skeleton "Rs 0"); that row opens "Top-ups". */
+function SummaryCard({
+  home,
+  loading,
+  onBeingChecked,
+}: {
+  home: DistributorHomeDto | undefined;
+  loading: boolean;
+  onBeingChecked: () => void;
+}) {
   const { t } = useTranslation();
-  if (!home) {
-    return loading ? <SkeletonList rows={1} /> : null;
-  }
+  if (!home) return loading ? <SkeletonCard lines={1} /> : null;
   const wallet = home.wallet;
   return (
     <Card>
@@ -128,29 +142,47 @@ function WalletSummaryCard({ home, loading }: { home: DistributorHomeDto | undef
         <Text variant="label" tone="secondary" style={styles.flex}>
           {t('wallet.card.balance')}
         </Text>
-        <MoneyText paisa={wallet.balancePaisa} variant="title" />
+        <MoneyText paisa={wallet.balancePaisa} variant="title" numberOfLines={1} />
       </View>
       {isPositivePaisa(wallet.pendingTopupPaisa) ? (
-        <View style={styles.summaryRow}>
-          <Text variant="label" tone="warning" style={styles.flex}>
+        <Pressable
+          onPress={onBeingChecked}
+          accessibilityRole="button"
+          android_ripple={{ color: colors.ripple }}
+          style={[styles.summaryRow, styles.pendingRow]}
+        >
+          <Icon name="checking" size={20} tone="warning" />
+          <Text tone="warning" style={styles.flex}>
             {t('wallet.card.beingChecked')}
           </Text>
           <MoneyText paisa={wallet.pendingTopupPaisa} variant="bodyStrong" tone="warning" />
-        </View>
+          <Icon name="chevron" size={20} tone="secondary" />
+        </Pressable>
       ) : null}
     </Card>
   );
 }
 
+/** What a list shows with no rows: skeletons, the offline or error state, or its empty state. */
+function emptyOf(query: ListQuery, empty: ReactNode): ReactNode {
+  if (query.data === undefined) {
+    if (!query.isError) return <SkeletonList rows={4} />;
+    return isNetworkError(query.error) ? (
+      <OfflineEmpty onRetry={() => void query.refetch()} />
+    ) : (
+      <ErrorBanner error={query.error} onRetry={() => void query.refetch()} />
+    );
+  }
+  return empty;
+}
+
 function StatementList({
   filter,
   header,
-  pending,
   onRefreshAlso,
 }: {
-  filter: Exclude<WalletFilter, 'requests'>;
-  header: ReactNode;
-  pending: PaymentDto[];
+  filter: Exclude<WalletFilter, 'topups'>;
+  header: (showChips: boolean, stale: ReactNode) => ReactElement;
   onRefreshAlso: () => Promise<unknown>;
 }) {
   const { t } = useTranslation();
@@ -188,28 +220,7 @@ function StatementList({
 
   const firstLoad = statement.data === undefined;
   const stale = statement.isError && !firstLoad && !statement.isFetchNextPageError;
-
-  const listHeader = (
-    <View style={styles.listHeader}>
-      {header}
-      {stale ? <StaleNotice updatedAt={statement.dataUpdatedAt} onRetry={() => void statement.refetch()} /> : null}
-      {filter === 'all' && pending.length > 0 ? (
-        <View style={styles.pinned}>
-          <Text variant="label" tone="secondary">
-            {t('wallet.history.pinned')}
-          </Text>
-          <Card padding={0}>
-            {pending.map((payment, index) => (
-              <View key={payment.id}>
-                {index > 0 ? <Divider /> : null}
-                <RequestRow payment={payment} onPress={() => navigation.navigate('TopupStatus', { id: payment.id })} />
-              </View>
-            ))}
-          </Card>
-        </View>
-      ) : null}
-    </View>
-  );
+  const addMoney = { label: t('common.actions.addMoney'), onPress: () => navigation.navigate('TopupAmount'), icon: 'addMoney' as const };
 
   return (
     <SectionList<StatementItem, Section<StatementItem>>
@@ -217,30 +228,26 @@ function StatementList({
       keyExtractor={(row) => row.id}
       stickySectionHeadersEnabled={false}
       contentContainerStyle={styles.content}
-      ListHeaderComponent={listHeader}
+      ListHeaderComponent={header(
+        !(firstLoad && statement.isError),
+        stale ? <StaleNotice updatedAt={statement.dataUpdatedAt} onRetry={() => void statement.refetch()} /> : null,
+      )}
       renderSectionHeader={({ section }) => (
         <Text variant="label" tone="secondary" style={styles.sectionTitle} accessibilityRole="header">
           {section.title}
         </Text>
       )}
-      renderItem={({ item }) => <StatementRow row={item} onPress={item.subject ? () => openRow(item) : undefined} />}
+      renderItem={({ item }) => <StatementRow row={item} onPress={opensSomething(item) ? () => openRow(item) : undefined} />}
       ItemSeparatorComponent={Divider}
       ListEmptyComponent={
         <View style={styles.empty}>
-          {firstLoad ? (
-            statement.isError ? (
-              <ErrorBanner error={statement.error} onRetry={() => void statement.refetch()} />
+          {emptyOf(
+            statement,
+            filter === 'all' ? (
+              <EmptyState icon="wallet" title={t('wallet.empty')} action={addMoney} />
             ) : (
-              <SkeletonList rows={4} />
-            )
-          ) : filter === 'all' ? (
-            <EmptyState
-              icon="wallet"
-              title={t('wallet.empty')}
-              action={{ label: t('common.actions.addMoney'), onPress: () => navigation.navigate('TopupAmount'), icon: 'addMoney' }}
-            />
-          ) : (
-            <EmptyState icon="wallet" title={t('wallet.history.emptyFiltered')} />
+              <EmptyState icon="wallet" title={t('wallet.history.emptyFiltered')} />
+            ),
           )}
         </View>
       }
@@ -262,37 +269,73 @@ function StatementList({
   );
 }
 
-/** One ledger row: "Delivery cost · AG-0142 · Sana", the time, "Balance after Rs 4,520", the signed amount. */
+/** Rows that point at an order or a top-up open it. */
+function opensSomething(row: StatementItem): boolean {
+  return row.subject?.type === 'ORDER' || row.subject?.type === 'TOPUP';
+}
+
+/**
+ * The amount, signed and green for money in, with the time under it (History's right side). A row
+ * that opens nothing keeps the chevron's room, so the amounts line up in one column.
+ */
+function AmountAndTime({
+  amount,
+  time,
+  signed = true,
+  tone,
+  inset = false,
+}: {
+  amount: string;
+  time: string;
+  signed?: boolean;
+  tone?: 'success';
+  inset?: boolean;
+}) {
+  return (
+    <View style={[styles.trailing, inset ? styles.trailingInset : null]}>
+      <MoneyText paisa={amount} sign={signed ? 'always' : 'none'} variant="bodyStrong" tone={tone} numberOfLines={1} />
+      <Text variant="caption" tone="secondary" numberOfLines={1}>
+        {time}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * One ledger row (DECIDED, review finding mobile-ux-05): the kind ("Delivery cost", "Refund"), the
+ * grey line "AG-0142 · Sana" (or the top-up number, or the correction's reason), and on the right the
+ * signed amount with its time.
+ */
 function StatementRow({ row, onPress }: { row: StatementItem; onPress?: () => void }) {
   const { t } = useTranslation();
-  const kind = t(`wallet.kind.${row.kind}`);
+  const title = t(`wallet.kind.${row.kind}`);
   const subject = row.subject;
-  const title = !subject
-    ? kind
-    : subject.type === 'ORDER' && subject.clientName
-      ? t('wallet.history.rowWithCodeAndName', { kind, code: subject.shortCode, name: subject.clientName })
-      : t('wallet.history.rowWithCode', { kind, code: subject.shortCode });
+  const subjectLine = subject
+    ? subject.type === 'ORDER' && subject.clientName
+      ? t('wallet.history.subjectLine', { code: subject.shortCode, name: subject.clientName })
+      : subject.shortCode
+    : null;
+  const reasonCode = row.kind === 'CORRECTION' ? row.reasonCode : null;
+  const reason = reasonCode && reasonCode !== 'OTHER' ? t(`wallet.correction.${reasonCode}`) : null;
+  const subtitle =
+    subjectLine && reason ? t('wallet.history.lineWithReason', { line: subjectLine, reason }) : subjectLine ?? reason ?? undefined;
   const time = formatPkTime(row.at);
-  const reason = row.kind === 'CORRECTION' && row.reasonCode ? t(`wallet.correction.${row.reasonCode}`) : null;
-  const subtitle = reason ? t('wallet.history.timeWithReason', { time, reason }) : time;
-  const balanceAfter = t('wallet.history.balanceAfter', { balance: feeText(row.balanceAfterPaisa) });
   const moneyIn = paisaOrZero(row.amountPaisa) > 0;
-  const spokenAmount = moneyA11yLabel(formatSigned(row.amountPaisa), t);
+  const spokenAmount = moneyA11yLabel(signedText(row.amountPaisa), t);
 
   return (
     <ListRow
       title={title}
       subtitle={subtitle}
-      meta={balanceAfter}
       onPress={onPress}
       chevron={!!onPress}
-      accessibilityLabel={[title, spokenAmount, subtitle, balanceAfter].join(', ')}
-      trailing={<MoneyText paisa={row.amountPaisa} sign="always" variant="bodyStrong" tone={moneyIn ? 'success' : 'default'} />}
+      accessibilityLabel={[title, spokenAmount, subtitle, time].filter(Boolean).join(', ')}
+      trailing={<AmountAndTime amount={row.amountPaisa} time={time} tone={moneyIn ? 'success' : undefined} inset={!onPress} />}
     />
   );
 }
 
-function formatSigned(paisa: string): string {
+function signedText(paisa: string): string {
   try {
     return formatRs(paisa, { sign: 'always' });
   } catch {
@@ -305,8 +348,8 @@ function RequestsList({
   topups,
   onRefreshAlso,
 }: {
-  header: ReactNode;
-  topups: { data: PaymentDto[] | undefined; error: ApiError | null; isError: boolean; dataUpdatedAt: number; refetch: () => Promise<unknown> };
+  header: (showChips: boolean, stale: ReactNode) => ReactElement;
+  topups: ListQuery & { data: PaymentDto[] | undefined };
   onRefreshAlso: () => Promise<unknown>;
 }) {
   const { t } = useTranslation();
@@ -328,37 +371,28 @@ function RequestsList({
       keyExtractor={(payment) => payment.id}
       stickySectionHeadersEnabled={false}
       contentContainerStyle={styles.content}
-      ListHeaderComponent={
-        <View style={styles.listHeader}>
-          {header}
-          {topups.isError && !firstLoad ? (
-            <StaleNotice updatedAt={topups.dataUpdatedAt} onRetry={() => void topups.refetch()} />
-          ) : null}
-        </View>
-      }
+      ListHeaderComponent={header(
+        !(firstLoad && topups.isError),
+        topups.isError && !firstLoad ? (
+          <StaleNotice updatedAt={topups.dataUpdatedAt} onRetry={() => void topups.refetch()} />
+        ) : null,
+      )}
       renderSectionHeader={({ section }) => (
         <Text variant="label" tone="secondary" style={styles.sectionTitle} accessibilityRole="header">
           {section.title}
         </Text>
       )}
-      renderItem={({ item }) => (
-        <RequestRow payment={item} onPress={() => navigation.navigate('TopupStatus', { id: item.id })} />
-      )}
+      renderItem={({ item }) => <RequestRow payment={item} onPress={() => navigation.navigate('TopupStatus', { id: item.id })} />}
       ItemSeparatorComponent={Divider}
       ListEmptyComponent={
         <View style={styles.empty}>
-          {firstLoad ? (
-            topups.isError ? (
-              <ErrorBanner error={topups.error} onRetry={() => void topups.refetch()} />
-            ) : (
-              <SkeletonList rows={4} />
-            )
-          ) : (
+          {emptyOf(
+            topups,
             <EmptyState
               icon="receipt"
               title={t('wallet.history.requestsEmpty')}
               action={{ label: t('common.actions.addMoney'), onPress: () => navigation.navigate('TopupAmount'), icon: 'addMoney' }}
-            />
+            />,
           )}
         </View>
       }
@@ -367,24 +401,41 @@ function RequestsList({
   );
 }
 
-/** A top-up request: "Top-up AG-T031", when it was sent, the amount and its stage chip. */
+/**
+ * A top-up request, in History's row shape: "Top-up", the grey line "AG-T031 · Ahmed Raza" ("You told
+ * us Rs 5,000" under it when a different amount was added), the amount and time on the right, and
+ * its chip (Being checked, Added, Not added) under the grey line.
+ */
 function RequestRow({ payment, onPress }: { payment: PaymentDto; onPress: () => void }) {
   const { t } = useTranslation();
-  const title = t('wallet.history.requestTitle', { code: payment.shortCode });
-  const subtitle = t('wallet.history.requestedAt', { when: formatWhenText(payment.createdAt) });
+  const added = payment.stage === 'ADDED';
+  const amount = added && payment.creditedPaisa ? payment.creditedPaisa : payment.amountPaisa;
+  const differs = added && !!payment.creditedPaisa && paisaOrZero(payment.creditedPaisa) !== paisaOrZero(payment.amountPaisa);
+  const title = t('wallet.history.topupTitle');
+  const subtitle = payment.payerName
+    ? t('wallet.history.subjectLine', { code: payment.shortCode, name: payment.payerName })
+    : payment.shortCode;
+  const toldUs = differs ? t('wallet.history.toldUs', { amount: feeText(payment.amountPaisa) }) : undefined;
+  const time = formatPkTime(payment.createdAt);
   return (
     <ListRow
       title={title}
       subtitle={subtitle}
+      meta={toldUs}
       onPress={onPress}
       chevron
-      accessibilityLabel={[title, moneyA11yLabel(feeText(payment.amountPaisa), t), t(`stages.topup.${payment.stage}`), subtitle].join(', ')}
-      trailing={
-        <View style={styles.requestTrailing}>
-          <MoneyText paisa={payment.amountPaisa} variant="bodyStrong" />
-          <StatusChip kind="topup" value={payment.stage} />
-        </View>
-      }
+      accessibilityLabel={[
+        title,
+        moneyA11yLabel(feeText(amount), t),
+        t(`stages.topup.${payment.stage}`),
+        subtitle,
+        toldUs,
+        time,
+      ]
+        .filter(Boolean)
+        .join(', ')}
+      trailing={<AmountAndTime amount={amount} time={time} signed={false} />}
+      below={<StatusChip kind="topup" value={payment.stage} />}
     />
   );
 }
@@ -415,10 +466,9 @@ function Divider() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: space.xxl, flexGrow: 1 },
-  header: { gap: space.md },
-  listHeader: { padding: layout.gutter, gap: space.md },
-  pinned: { gap: space.xs },
+  header: { padding: layout.gutter, gap: space.md },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.xs },
+  pendingRow: { minHeight: sizes.touch, marginTop: space.xs, borderTopWidth: 1, borderTopColor: colors.border },
   flex: { flex: 1 },
   sectionTitle: {
     paddingHorizontal: layout.gutter,
@@ -427,7 +477,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   divider: { height: 1, backgroundColor: colors.border },
-  requestTrailing: { alignItems: 'flex-end', gap: space.xs },
+  trailing: { alignItems: 'flex-end', gap: 2 },
+  // The chevron (24) and the row's gap before it (12).
+  trailingInset: { marginEnd: 24 + space.md },
   footer: { padding: layout.gutter, minHeight: space.xxl },
   footerError: { alignItems: 'center', gap: space.sm },
   empty: { paddingHorizontal: layout.gutter },

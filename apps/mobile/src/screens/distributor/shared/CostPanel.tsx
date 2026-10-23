@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { LocationQuote } from '@smartfleet/shared-types';
+import type { LocationQuote, PriceView } from '@smartfleet/shared-types';
 import { formatRs } from '@smartfleet/shared-utils';
 import type { ApiError } from '../../../api/errors';
 import { qk, STALE_MS } from '../../../api/keys';
 import { useOfficeContact } from '../../../hooks/useAppConfig';
-import { Button, Card, ErrorBanner, Icon, space, Text } from '../../../ui';
+import { Button, colors, Icon, space, Text, type IconName } from '../../../ui';
 import { fetchLocationQuote } from './api';
-import { isPositivePaisa } from './format';
+import { paisaOrZero } from './format';
 
 /** A map pin. */
 export interface Pin {
@@ -17,7 +18,7 @@ export interface Pin {
   lng: number;
 }
 
-/** The live panel waits this long after the pin stops moving (UX_MOBILE S8). */
+/** The cost line waits this long after the pin stops moving (UX_MOBILE S8). */
 const QUOTE_DEBOUNCE_MS = 400;
 
 /** Pins are compared and cached to 6 decimals (about 10 cm), as the server compares delivery points. */
@@ -43,7 +44,7 @@ export type CostPanelState =
   | { kind: 'checking' }
   | { kind: 'priced'; quote: LocationQuote }
   | { kind: 'outside' }
-  | { kind: 'priceNotSet'; zoneName: string }
+  | { kind: 'priceNotSet' }
   | { kind: 'error'; error: ApiError; retry: () => void };
 
 /**
@@ -70,54 +71,69 @@ export function useCostPanelState(pin: Pin | null): CostPanelState {
   const quote = query.data;
   if (!quote) return { kind: 'checking' };
   if (quote.blockCode === 'PRICING_ZONE_NOT_COVERED') return { kind: 'outside' };
-  if (quote.blockCode === 'PRICING_PRICE_NOT_SET') return { kind: 'priceNotSet', zoneName: quote.zone?.name ?? '' };
+  if (quote.blockCode === 'PRICING_PRICE_NOT_SET') return { kind: 'priceNotSet' };
   if (!quote.price) return { kind: 'checking' };
   return { kind: 'priced', quote };
 }
 
 /**
- * The cost panel under the map (UX_MOBILE S8): checking, priced (the base and every size that costs
- * more than Rs 0), outside the delivery area, no price in that zone (with "Call office"), or an error
- * with "Try again". It is inline and announced, never a pop-up.
+ * What sizes add to a price, in one caption (shop spec §M): "+ Rs 40 per 11.8 kg cylinder" for one
+ * size, "+ Rs 30 to Rs 150 per cylinder" for several, or null when only the base is charged.
  */
-export function CostPanel({ state, purpose }: { state: CostPanelState; purpose: 'customer' | 'address' }) {
+function perSizeText(price: PriceView, t: TFunction): string | null {
+  const adding = price.sizes.filter((size) => paisaOrZero(size.perCylinderPaisa) > 0);
+  if (adding.length === 0) return null;
+  if (adding.length === 1) {
+    return t('customers.cost.perSize', { amount: formatRs(adding[0].perCylinderPaisa), size: adding[0].sizeLabel });
+  }
+  const amounts = adding.map((size) => paisaOrZero(size.perCylinderPaisa));
+  const min = Math.min(...amounts);
+  const max = Math.max(...amounts);
+  return min === max
+    ? t('customers.cost.perCylinder', { amount: formatRs(min) })
+    : t('customers.cost.perSizeRange', { min: formatRs(min), max: formatRs(max) });
+}
+
+/**
+ * The one line under the map (shop spec §M item 5): the hint before a pin, "Checking delivery area…",
+ * the cost once priced, or why the spot can't be saved, with its one action. It always says why
+ * "Save" is greyed out. `locateError` is the "Use my location" failure, shown in the hint's place.
+ */
+export function CostLine({ state, locateError }: { state: CostPanelState; locateError?: string | null }) {
   const { t } = useTranslation();
   const office = useOfficeContact();
 
   switch (state.kind) {
     case 'noPin':
-      return (
-        <Text tone="secondary" style={styles.hint}>
-          {t('customers.location.noPin')}
+      return locateError ? (
+        <Line icon="error" tone="danger" text={locateError} />
+      ) : (
+        <Text variant="caption" tone="secondary" style={styles.hint}>
+          {t('customers.location.mapHint')}
         </Text>
       );
     case 'checking':
       return (
-        <Card accessibilityLabel={t('customers.cost.checking')}>
-          <View style={styles.row} accessibilityLiveRegion="polite">
-            <Icon name="checking" size={24} tone="secondary" />
-            <Text tone="secondary" style={styles.flex}>
-              {t('customers.cost.checking')}
-            </Text>
-          </View>
-        </Card>
+        <View style={styles.row} accessibilityLiveRegion="polite">
+          <ActivityIndicator size="small" color={colors.brand} />
+          <Text tone="secondary" style={styles.flex}>
+            {t('customers.cost.checking')}
+          </Text>
+        </View>
       );
     case 'error':
-      return <ErrorBanner error={state.error} onRetry={state.retry} />;
-    case 'outside':
-    case 'priceNotSet': {
-      const text =
-        state.kind === 'outside'
-          ? t('customers.cost.outside')
-          : purpose === 'customer'
-            ? t('customers.cost.priceNotSet', { zoneName: state.zoneName })
-            : t('customers.cost.priceNotSetAddress', { zoneName: state.zoneName });
       return (
-        <Card tone="danger">
-          <View style={styles.row} accessibilityRole="alert" accessibilityLiveRegion="polite">
-            <Icon name="error" size={24} tone="danger" />
-            <Text style={styles.flex}>{text}</Text>
-          </View>
+        <View style={styles.block}>
+          <Line icon="error" tone="danger" text={t('customers.cost.error')} />
+          <Button label={t('common.actions.tryAgain')} onPress={state.retry} variant="secondary" fullWidth={false} />
+        </View>
+      );
+    case 'outside':
+      return <Line icon="error" tone="danger" text={t('customers.cost.outside')} />;
+    case 'priceNotSet':
+      return (
+        <View style={styles.block}>
+          <Line icon="error" tone="danger" text={t('customers.cost.priceNotSet')} />
           {office.phone ? (
             <Button
               label={t('common.actions.callOffice')}
@@ -125,39 +141,44 @@ export function CostPanel({ state, purpose }: { state: CostPanelState; purpose: 
               icon="call"
               variant="secondary"
               fullWidth={false}
-              style={styles.action}
             />
           ) : null}
-        </Card>
+        </View>
       );
-    }
     case 'priced': {
       const price = state.quote.price!;
-      const sizes = price.sizes.filter((size) => isPositivePaisa(size.perCylinderPaisa));
+      const extra = perSizeText(price, t);
       return (
-        <Card tone="success">
-          <View style={styles.row} accessibilityLiveRegion="polite">
-            <Icon name="ok" size={24} tone="success" />
-            <View style={styles.flex}>
-              <Text variant="bodyStrong">
-                {t('customers.cost.priced', { zone: price.zone.name, base: formatRs(price.basePaisa) })}
+        <View style={styles.row} accessibilityLiveRegion="polite">
+          <Icon name="ok" size={24} tone="success" />
+          <View style={styles.flex}>
+            <Text variant="bodyStrong">{t('customers.cost.priced', { base: formatRs(price.basePaisa) })}</Text>
+            {extra ? (
+              <Text variant="caption" tone="secondary">
+                {extra}
               </Text>
-              {sizes.map((size) => (
-                <Text key={size.cylinderTypeId}>
-                  {t('customers.cost.perSize', { amount: formatRs(size.perCylinderPaisa), size: size.sizeLabel })}
-                </Text>
-              ))}
-            </View>
+            ) : null}
           </View>
-        </Card>
+        </View>
       );
     }
   }
 }
 
+function Line({ icon, tone, text }: { icon: IconName; tone: 'danger' | 'secondary'; text: string }) {
+  return (
+    <View style={styles.row} accessibilityRole={tone === 'danger' ? 'alert' : undefined} accessibilityLiveRegion="polite">
+      <Icon name={icon} size={24} tone={tone} />
+      <Text tone={tone} style={styles.flex}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
-  flex: { flex: 1, gap: space.xs },
-  hint: { paddingVertical: space.sm },
-  action: { marginTop: space.md },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 32 },
+  block: { gap: space.sm, alignItems: 'flex-start' },
+  flex: { flex: 1 },
+  hint: { paddingVertical: space.xs },
 });

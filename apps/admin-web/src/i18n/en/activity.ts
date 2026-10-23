@@ -1,5 +1,6 @@
 /**
- * `activity`: the Activity log page and one plain sentence per audit action (UX_ADMIN §2.9). Owned by the
+ * `activity`: the Activity log page and one plain sentence per audit action (website spec W40, UX_ADMIN
+ * §2.9). Owned by the
  * admin-web-money lane. Keep `as const` and the export name: i18n/index.ts imports it by name.
  *
  * Sentences live at `activity:<action>` (`topup.approve` is `{ topup: { approve } }`). Both
@@ -19,12 +20,12 @@
 export const activity = {
   page: {
     title: 'Activity log',
-    subtitle: 'Who changed what, and why. Newest first.',
+    subtitle: 'Who changed what, and why.',
     loadFailed: "Couldn't load the activity log",
   },
 
+  /** The filter names are read out only; the chips and the "Anyone" box speak for themselves. */
   filters: {
-    label: 'Activity filters',
     what: 'What',
     who: 'Who',
     date: 'Date',
@@ -32,7 +33,7 @@ export const activity = {
     anyone: 'Anyone',
     anyDate: 'Any date',
     office: 'Office',
-    shops: 'Shops',
+    distributors: 'Distributors',
     drivers: 'Drivers',
     shopUser: '{{name}} · {{shop}}',
   },
@@ -52,14 +53,11 @@ export const activity = {
     who: 'Who',
     what: 'What happened',
     why: 'Why',
-    none: '—',
   },
 
   empty: {
     title: 'Nothing has been recorded yet',
-    body: 'Changes to money, orders, expenses and settings show up here.',
     filteredTitle: 'Nothing matches these filters',
-    filteredBody: 'Try another date, or clear the filters.',
   },
 
   more: {
@@ -119,7 +117,7 @@ export const activity = {
     /** diff { no, reasonCode, refunded, refundPaisa, startedRule } */
     cancel: 'Cancelled {{no}} · $t(activity:parts.cancelRefund.{{refunded}})',
     /** diff { no, reasonCode } */
-    fail: 'Marked {{no}} as could not deliver',
+    fail: 'Marked {{no}} not delivered',
     /** diff { no } */
     manual_delivery: 'Recorded delivery of {{no}} by office',
   },
@@ -170,7 +168,7 @@ export const activity = {
     update: "Edited {{distributor}}'s contact details",
     store_update: "Edited {{distributor}}'s store",
     /** diff { distributor, from, to } */
-    code_change: "Changed {{distributor}}'s shop code from {{from}} to {{to}}",
+    code_change: "Changed {{distributor}}'s distributor code from {{from}} to {{to}}",
     /** diff { from, distributor }: from PENDING activates, from SUSPENDED reactivates */
     activate: '$t(activity:parts.activate.{{from}})',
     suspend: 'Suspended {{distributor}}',
@@ -193,7 +191,7 @@ export const activity = {
     /** diff { name }, after { role } */
     role_change: "Changed {{name}}'s role to $t(activity:parts.role.{{role}})",
     /** diff { name, role } */
-    password_reset: 'Set a new app password for {{name}} ($t(activity:parts.loginOf.{{role}}))',
+    password_reset: 'New app password for {{name}} ($t(activity:parts.loginOf.{{role}}))',
     /** after { name } */
     create_office: 'Added office user {{name}}',
   },
@@ -231,8 +229,8 @@ export const activity = {
     reopen: 'Reopened a locked day',
   },
   pilot: {
-    setup: 'Loaded the pilot setup file',
-    reset: 'Reset the pilot test data',
+    setup: 'Loaded the starting data',
+    reset: 'Reset the test data',
   },
 
   // ---- Words the sentences nest -----------------------------------------------------------------
@@ -252,13 +250,13 @@ export const activity = {
       ADMIN: 'admin',
       DISPATCHER: 'dispatcher',
       STORE_KEEPER: 'store keeper',
-      DISTRIBUTOR: 'shop',
+      DISTRIBUTOR: 'distributor',
       DRIVER: 'driver',
       CLIENT: 'customer',
     },
     loginOf: {
-      DISTRIBUTOR: 'shop login',
-      DRIVER: 'driver login',
+      DISTRIBUTOR: 'distributor',
+      DRIVER: 'driver',
     },
     answer: { YES: 'All received', PARTLY: 'Partly received', NO: 'Not received', OTHER: 'Other problem' },
   },
@@ -272,7 +270,7 @@ export const activity = {
       reject: {
         NOT_IN_BANK: 'Money not found in the bank',
         AMOUNT_DIFFERENT: "Amount doesn't match",
-        NAME_DIFFERENT: "Payer name doesn't match",
+        NAME_DIFFERENT: "Name on the account doesn't match",
         DUPLICATE: 'Duplicate request',
         OTHER: 'Other',
       },
@@ -300,7 +298,7 @@ export const activity = {
         WRONG_ADDRESS: 'Wrong address',
         NOT_REACHABLE: "Couldn't reach the customer",
         VAN_PROBLEM: 'Van problem',
-        OTHER: 'Other reason',
+        OTHER: 'Other',
       },
     },
   },

@@ -1,6 +1,6 @@
 /**
  * Review (robustness and operations), finding robustness-ops-13: the shop app's "Add address"
- * (PickAddressScreen) sends one Idempotency-Key per intent and retries with it after a timeout
+ * (NewAddressScreen, formerly PickAddressScreen) sends one Idempotency-Key per intent and retries with it after a timeout
  * (apps/mobile/src/screens/distributor/shared/api.ts addClientAddress). The API ignores the key on
  * POST /clients/:id/addresses, and addresses can't be edited or removed in the pilot, so a retried add
  * leaves a duplicate in the address picker.

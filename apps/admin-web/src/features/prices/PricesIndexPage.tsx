@@ -1,5 +1,5 @@
 import { Navigate } from '@tanstack/react-router';
-import { Plus } from 'lucide-react';
+import { Plus, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ButtonLink } from '../../app/ButtonLink';
 import { EmptyState, ErrorState, PageHeader, SkeletonText } from '../../ui';
@@ -31,8 +31,8 @@ export function PricesIndexPage() {
         />
       ) : (
         <EmptyState
+          icon={Store}
           title={t('index.emptyTitle')}
-          body={t('index.emptyBody')}
           action={
             <ButtonLink to="/distributors/new" variant="primary" icon={Plus}>
               {t('index.addDistributor')}

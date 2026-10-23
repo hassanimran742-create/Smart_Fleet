@@ -1,5 +1,5 @@
-import { useId, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { ImageUp, Trash2, X } from 'lucide-react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { ImagePlus, X } from 'lucide-react';
 import type { ExpenseDto, ExpenseTypeDto } from '@smartfleet/shared-types';
 import {
   createExpenseSchema,
@@ -10,12 +10,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import { errorDetails, messageFor, toApiError } from '../../api/errors';
 import { uploadFile } from '../../api/upload';
-import { formatCalendarDate, formatDateTime } from '../../i18n/format';
+import { formatCalendarDate, formatDateTime, formatRs } from '../../i18n/format';
 import {
+  AddMore,
   Button,
-  DateInput,
+  DateChips,
   Drawer,
   Field,
+  FilterChips,
+  flashRow,
   InlineAlert,
   KeyValueList,
   MoneyInput,
@@ -49,10 +52,32 @@ export interface ExpenseDrawerProps {
 }
 
 const NOTE_MAX = 200;
+/** Up to this many types are chips; more make the Type a Select (UX_PRINCIPLES §3, website spec O10). */
+const TYPE_CHIPS_MAX = 6;
+/** The type of the last expense added in this browser, picked first next time (website spec W35). */
+const LAST_TYPE_KEY = 'smartfleet.admin.expenses.lastType';
 
-function initialValues(state: ExpenseDrawerState): FormValues<typeof createExpenseSchema> {
+function readLastType(): string | null {
+  try {
+    return window.localStorage.getItem(LAST_TYPE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberType(typeId: string): void {
+  try {
+    window.localStorage.setItem(LAST_TYPE_KEY, typeId);
+  } catch {
+    // Storage unavailable: the next expense starts with no type picked.
+  }
+}
+
+function initialValues(state: ExpenseDrawerState, types: readonly ExpenseTypeDto[]): FormValues<typeof createExpenseSchema> {
   if (state.mode === 'add') {
-    return { expenseDate: todayInKarachi(), amountPaisa: null, typeId: '', vehicleId: '', driverId: '', description: '', receiptFileId: undefined };
+    const last = readLastType();
+    const typeId = last && types.some((type) => type.id === last && !type.archived) ? last : '';
+    return { expenseDate: todayInKarachi(), amountPaisa: null, typeId, vehicleId: '', driverId: '', description: '', receiptFileId: undefined };
   }
   const e = state.expense;
   return {
@@ -90,9 +115,16 @@ function codeFields(error: unknown): Record<string, string> {
   };
 }
 
+/** True for an empty form value ("" or null or missing). */
+function blank(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+}
+
 /**
- * Add or edit an expense (UX_ADMIN §2.7): Date, Amount, Type, Van, Driver, Note and a receipt photo.
- * A removed expense opens read-only. "Remove expense…" asks for a reason and voids it.
+ * Add or edit an expense (UX_ADMIN §2.7, website spec W35) in a few taps: Date chips (Today picked),
+ * Type chips (the last type used picked), the amount (focused), a short note, and the van, driver and
+ * receipt photo behind "+ Add van, driver or receipt". A removed expense opens read-only. "Remove
+ * expense…" asks why, with reason cards, and voids it.
  */
 export function ExpenseDrawer({ state, types, onClose }: ExpenseDrawerProps) {
   if (state.mode === 'edit' && !state.expense.allowedActions.includes('EDIT')) {
@@ -106,10 +138,9 @@ function ExpenseForm({ state, types, onClose }: ExpenseDrawerProps) {
   const toast = useToast();
   const confirm = useConfirm();
   const invalidate = useInvalidateExpenses();
-  const formId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editing = state.mode === 'edit' ? state.expense : null;
-  const form = useZodForm(createExpenseSchema, initialValues(state));
+  const form = useZodForm(createExpenseSchema, initialValues(state, types));
   const create = useCreateExpense();
   const update = useUpdateExpense(editing?.id ?? null);
   const vans = useVans();
@@ -120,6 +151,7 @@ function ExpenseForm({ state, types, onClose }: ExpenseDrawerProps) {
   const [removedMeanwhile, setRemovedMeanwhile] = useState(false);
   const today = todayInKarachi();
   const saving = create.isPending || update.isPending;
+  const values = form.values;
 
   const typeOptions = useMemo<SelectOption[]>(() => {
     const options = types.filter((type) => !type.archived).map((type) => ({ value: type.id, label: type.name }));
@@ -146,20 +178,32 @@ function ExpenseForm({ state, types, onClose }: ExpenseDrawerProps) {
     return options;
   }, [drivers.data, editing]);
 
+  const typeId = typeof values.typeId === 'string' ? values.typeId : '';
   const dateError =
     form.errorFor('expenseDate') ??
-    (typeof form.values.expenseDate === 'string' && form.values.expenseDate > today ? t('errors:EXPENSE_DATE_IN_FUTURE') : undefined);
+    (typeof values.expenseDate === 'string' && values.expenseDate > today ? t('errors:EXPENSE_DATE_IN_FUTURE') : undefined);
+  const typeError = form.errorFor('typeId') ? (blank(values.typeId) ? t('drawer.typeMissing') : form.errorFor('typeId')) : undefined;
+  const amountError = form.errorFor('amountPaisa') ? (blank(values.amountPaisa) ? t('drawer.amountMissing') : form.errorFor('amountPaisa')) : undefined;
+  const noteError = form.errorFor('description') ? (blank(values.description) ? t('drawer.noteMissing') : form.errorFor('description')) : undefined;
 
   const submit = async (data: CreateExpenseInput) => {
     if (data.expenseDate > today) return;
+    const typeName = types.find((type) => type.id === data.typeId)?.name ?? editing?.type.name ?? '';
     try {
+      let saved: ExpenseDto | null = null;
       if (editing) {
         const patch = changesFrom(editing, data);
-        if (Object.keys(patch).length > 0) await update.mutateAsync(patch);
+        if (Object.keys(patch).length === 0) {
+          onClose();
+          return;
+        }
+        saved = await update.mutateAsync(patch);
       } else {
-        await create.mutateAsync(data);
+        saved = await create.mutateAsync(data);
+        rememberType(data.typeId);
       }
-      toast.success(t('drawer.saved'));
+      toast.success(t('drawer.saved', { type: typeName, amount: formatRs(data.amountPaisa) }));
+      if (saved) flashRow('expenses', saved.id);
       await invalidate();
       onClose();
     } catch (error) {
@@ -194,42 +238,46 @@ function ExpenseForm({ state, types, onClose }: ExpenseDrawerProps) {
     setUploadError(null);
   };
 
-  const dirty = form.isDirty;
-
-  const cancel = async () => {
-    if (saving) return;
-    if (dirty) {
-      const { ok } = await confirm({
-        title: t('common:dialog.discardTitle'),
-        body: t('common:dialog.discardBody'),
-        tone: 'danger',
-        confirmLabel: t('common:actions.discardChanges'),
-        cancelLabel: t('common:actions.keepEditing'),
-      });
-      if (!ok) return;
-    }
-    onClose();
-  };
-
   const remove = async () => {
     if (!editing) return;
+    const reasonWords: Record<string, string> = {
+      TWICE: t('remove.reasons.twice'),
+      AMOUNT: t('remove.reasons.amount'),
+      TYPE: t('remove.reasons.type'),
+    };
     const { ok } = await confirm({
       title: t('remove.title'),
-      body: t('remove.body'),
       tone: 'danger',
       facts: [
         { label: t('drawer.date'), value: formatCalendarDate(editing.expenseDate, { year: true }) },
         { label: t('drawer.type'), value: editing.type.name },
         { label: t('drawer.amount'), value: <MoneyText paisa={editing.amountPaisa} /> },
       ],
+      body: t('remove.body'),
       confirmLabel: t('remove.confirm'),
-      reason: { label: t('remove.reason'), hint: t('remove.reasonHint'), required: true, minLength: 5, maxLength: 200 },
-      action: async ({ reason }) => {
-        await voidExpense(editing.id, reason ?? '');
+      reason: {
+        optionsLabel: t('remove.reason'),
+        options: [
+          { value: 'TWICE', label: reasonWords.TWICE },
+          { value: 'AMOUNT', label: reasonWords.AMOUNT },
+          { value: 'TYPE', label: reasonWords.TYPE },
+          { value: 'OTHER', label: t('remove.reasons.other') },
+        ],
+        optionColumns: 2,
+        noteFor: ['OTHER'],
+        requiredFor: ['OTHER'],
+        label: t('remove.otherLabel'),
+        minLength: 5,
+        maxLength: 200,
+      },
+      // The picked card's words are the reason; "Other" sends what was typed (API: 5–200 characters).
+      action: async ({ reason, reasonCode }) => {
+        await voidExpense(editing.id, reasonCode && reasonCode !== 'OTHER' ? (reasonWords[reasonCode] ?? '') : (reason ?? ''));
       },
     });
     if (!ok) return;
     toast.success(t('remove.done'));
+    flashRow('expenses', editing.id);
     await invalidate();
     onClose();
   };
@@ -244,13 +292,16 @@ function ExpenseForm({ state, types, onClose }: ExpenseDrawerProps) {
       </span>
     ) : undefined;
 
+  const formId = 'sf-expense-form';
+  const extrasSet = Boolean(editing?.vehicle || editing?.driver || editing?.receiptFileId);
+
   return (
     <Drawer
       title={editing ? t('drawer.editTitle') : t('drawer.addTitle')}
       subtitle={
         editing ? t('drawer.recordedLine', { name: editing.recordedBy.name, when: formatDateTime(editing.createdAt) }) : undefined
       }
-      dirty={dirty}
+      dirty={form.isDirty}
       dismissible={!saving}
       onClose={onClose}
       notice={
@@ -263,130 +314,130 @@ function ExpenseForm({ state, types, onClose }: ExpenseDrawerProps) {
       footer={{
         start:
           editing && editing.allowedActions.includes('VOID') && !removedMeanwhile ? (
-            <Button variant="ghost-danger" icon={Trash2} onClick={() => void remove()} disabled={saving}>
+            <Button variant="ghost-danger" onClick={() => void remove()} disabled={saving}>
               {t('drawer.remove')}
             </Button>
           ) : undefined,
         end: (
-          <>
-            <Button onClick={() => void cancel()} disabled={saving}>
-              {t('drawer.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              type="submit"
-              form={formId}
-              loading={saving}
-              disabled={uploading || removedMeanwhile}
-            >
-              {t('drawer.save')}
-            </Button>
-          </>
+          <Button variant="primary" type="submit" form={formId} loading={saving} disabled={uploading || removedMeanwhile}>
+            {t('drawer.save')}
+          </Button>
         ),
       }}
     >
-      <form id={formId} className="sf-expenses__form" onSubmit={form.handleSubmit(submit)} noValidate>
+      <form
+        id={formId}
+        className="sf-expenses__form"
+        noValidate
+        onSubmit={(event) => {
+          form.handleSubmit(submit)(event);
+          // The type comes first on screen: a missing one takes the focus (its chips have no name).
+          if (blank(values.typeId)) document.querySelector<HTMLElement>('.sf-expenses__type-chips [role="radio"]')?.focus();
+        }}
+      >
         {form.formError ? (
           <InlineAlert tone="danger" live>
             {form.formError}
           </InlineAlert>
         ) : null}
-        <div className="sf-expenses__form-row">
-          <Field label={t('drawer.date')} hint={t('drawer.dateHint')} error={dateError}>
-            <DateInput
-              name="expenseDate"
-              value={typeof form.values.expenseDate === 'string' ? form.values.expenseDate : ''}
-              max={today}
-              required
-              onChange={(value) => form.setValue('expenseDate', value)}
-              onBlur={() => form.touch('expenseDate')}
-            />
-          </Field>
-          <Field label={t('drawer.amount')} error={form.errorFor('amountPaisa')}>
-            <MoneyInput
-              name="amountPaisa"
-              valuePaisa={typeof form.values.amountPaisa === 'string' ? form.values.amountPaisa : null}
-              max={EXPENSE_MAX_PAISA}
-              required
-              onChange={(value) => form.setValue('amountPaisa', value)}
-              onBlur={() => form.touch('amountPaisa')}
-            />
-          </Field>
-        </div>
-        <Field label={t('drawer.type')} error={form.errorFor('typeId')}>
-          <Select
-            name="typeId"
-            value={typeof form.values.typeId === 'string' ? form.values.typeId : ''}
-            placeholder={t('drawer.typePlaceholder')}
-            options={typeOptions}
-            required
-            onChange={(event) => form.setValue('typeId', event.target.value)}
-            onBlur={() => form.touch('typeId')}
+        <Field label={t('drawer.date')} error={dateError}>
+          <DateChips
+            value={typeof values.expenseDate === 'string' ? values.expenseDate : ''}
+            max={today}
+            onChange={(value) => form.setValue('expenseDate', value)}
+            onBlur={() => form.touch('expenseDate')}
           />
         </Field>
-        <div className="sf-expenses__form-row">
-          <Field label={t('drawer.van')} optional error={form.errorFor('vehicleId')} hint={listHint(vans.isError, () => void vans.refetch())}>
-            <Select
-              name="vehicleId"
-              value={typeof form.values.vehicleId === 'string' ? form.values.vehicleId : ''}
-              placeholder={t('drawer.noVan')}
-              options={vanOptions}
-              onChange={(event) => form.setValue('vehicleId', event.target.value)}
+        <Field label={t('drawer.type')} error={typeError}>
+          {typeOptions.length <= TYPE_CHIPS_MAX ? (
+            <FilterChips<string>
+              className="sf-expenses__type-chips"
+              options={typeOptions}
+              value={typeId || null}
+              onChange={(value) => form.setValue('typeId', value)}
             />
-          </Field>
-          <Field
-            label={t('drawer.driver')}
-            optional
-            error={form.errorFor('driverId')}
-            hint={listHint(drivers.isError, () => void drivers.refetch())}
-          >
+          ) : (
             <Select
-              name="driverId"
-              value={typeof form.values.driverId === 'string' ? form.values.driverId : ''}
-              placeholder={t('drawer.noDriver')}
-              options={driverOptions}
-              onChange={(event) => form.setValue('driverId', event.target.value)}
+              name="typeId"
+              value={typeId}
+              placeholder=""
+              options={typeOptions}
+              onChange={(event) => form.setValue('typeId', event.target.value)}
+              onBlur={() => form.touch('typeId')}
             />
-          </Field>
-        </div>
-        <Field label={t('drawer.note')} hint={t('drawer.noteHint')} error={form.errorFor('description')}>
+          )}
+        </Field>
+        <Field label={t('drawer.amount')} error={amountError} className="sf-expenses__amount">
+          <MoneyInput
+            name="amountPaisa"
+            data-autofocus
+            valuePaisa={typeof values.amountPaisa === 'string' ? values.amountPaisa : null}
+            max={EXPENSE_MAX_PAISA}
+            onChange={(value) => form.setValue('amountPaisa', value)}
+            onBlur={() => form.touch('amountPaisa')}
+          />
+        </Field>
+        <Field label={t('drawer.note')} error={noteError}>
           <Textarea
             name="description"
-            value={typeof form.values.description === 'string' ? form.values.description : ''}
+            rows={2}
+            placeholder={t('drawer.notePlaceholder')}
+            value={typeof values.description === 'string' ? values.description : ''}
             maxLength={NOTE_MAX}
-            required
             onChange={(event) => form.setValue('description', event.target.value)}
             onBlur={() => form.touch('description')}
           />
         </Field>
-        <Field label={t('drawer.receipt')} optional hint={t('drawer.receiptHint')} error={uploadError ?? form.errorFor('receiptFileId')}>
-          <div className="sf-expenses__receipt">
-            {preview ? <img className="sf-expenses__receipt-preview" src={preview} alt={t('drawer.receipt')} /> : null}
-            <input
-              ref={fileInputRef}
-              className="sf-expenses__file-input"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              tabIndex={-1}
-              aria-hidden
-              onChange={(event) => void pickReceipt(event)}
-            />
-            <Button icon={ImageUp} loading={uploading} onClick={() => fileInputRef.current?.click()} disabled={saving}>
-              {uploading ? t('drawer.uploading') : preview ? t('drawer.replaceReceipt') : t('drawer.attachReceipt')}
-            </Button>
-            {preview ? (
-              <Button variant="ghost" icon={X} onClick={removeReceipt} disabled={saving || uploading}>
-                {t('drawer.removeReceipt')}
-              </Button>
-            ) : null}
+        <AddMore label={t('drawer.addMore')} defaultOpen={extrasSet}>
+          <div className="sf-expenses__form-row">
+            <Field label={t('drawer.van')} error={form.errorFor('vehicleId')} hint={listHint(vans.isError, () => void vans.refetch())}>
+              <Select
+                name="vehicleId"
+                value={typeof values.vehicleId === 'string' ? values.vehicleId : ''}
+                placeholder={t('drawer.noVan')}
+                options={vanOptions}
+                onChange={(event) => form.setValue('vehicleId', event.target.value)}
+              />
+            </Field>
+            <Field label={t('drawer.driver')} error={form.errorFor('driverId')} hint={listHint(drivers.isError, () => void drivers.refetch())}>
+              <Select
+                name="driverId"
+                value={typeof values.driverId === 'string' ? values.driverId : ''}
+                placeholder={t('drawer.noDriver')}
+                options={driverOptions}
+                onChange={(event) => form.setValue('driverId', event.target.value)}
+              />
+            </Field>
           </div>
-        </Field>
+          <Field label={t('drawer.receipt')} error={uploadError ?? form.errorFor('receiptFileId')}>
+            <div className="sf-expenses__receipt">
+              {preview ? <img className="sf-expenses__receipt-preview" src={preview} alt={t('drawer.receipt')} /> : null}
+              <input
+                ref={fileInputRef}
+                className="sf-expenses__file-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                tabIndex={-1}
+                aria-hidden
+                onChange={(event) => void pickReceipt(event)}
+              />
+              <Button icon={ImagePlus} loading={uploading} onClick={() => fileInputRef.current?.click()} disabled={saving}>
+                {uploading ? t('drawer.uploading') : preview ? t('drawer.replaceReceipt') : t('drawer.attachReceipt')}
+              </Button>
+              {preview ? (
+                <Button variant="ghost" icon={X} onClick={removeReceipt} disabled={saving || uploading}>
+                  {t('drawer.removeReceipt')}
+                </Button>
+              ) : null}
+            </div>
+          </Field>
+        </AddMore>
       </form>
     </Drawer>
   );
 }
 
-/** A removed expense, read-only: it stays in the activity log and out of totals. */
+/** A removed expense, read-only: it stays in the activity log and out of totals. × closes it. */
 function RemovedExpenseDrawer({ expense, onClose }: { expense: ExpenseDto; onClose: () => void }) {
   const { t } = useTranslation(['expenses', 'common']);
   return (
@@ -395,15 +446,14 @@ function RemovedExpenseDrawer({ expense, onClose }: { expense: ExpenseDto; onClo
       subtitle={formatCalendarDate(expense.expenseDate, { year: true })}
       chip={<StatusChip kind="expense" value="VOIDED" />}
       onClose={onClose}
-      notice={<InlineAlert tone="info">{t('drawer.removedNotice')}</InlineAlert>}
-      footer={{ end: <Button onClick={onClose}>{t('drawer.close')}</Button> }}
+      notice={<InlineAlert tone="neutral">{t('drawer.removedNotice')}</InlineAlert>}
     >
       <KeyValueList
         items={[
           { label: t('drawer.amount'), value: <MoneyText paisa={expense.amountPaisa} /> },
           { label: t('drawer.type'), value: expense.type.name },
-          { label: t('drawer.van'), value: expense.vehicle?.plateNo ?? t('table.noVan') },
-          { label: t('drawer.driver'), value: expense.driver?.name ?? t('table.noDriver') },
+          { label: t('drawer.van'), value: expense.vehicle?.plateNo ?? t('table.none') },
+          { label: t('drawer.driver'), value: expense.driver?.name ?? t('table.none') },
           { label: t('drawer.note'), value: expense.description },
           {
             label: t('drawer.receipt'),
@@ -412,14 +462,14 @@ function RemovedExpenseDrawer({ expense, onClose }: { expense: ExpenseDto; onClo
                 <img className="sf-expenses__receipt-preview" src={expense.receiptUrl} alt={t('drawer.receipt')} />
               </a>
             ) : (
-              t('table.noReceipt')
+              t('table.none')
             ),
           },
           { label: t('drawer.recordedBy'), value: expense.recordedBy.name },
           { label: t('drawer.recordedAt'), value: formatDateTime(expense.createdAt) },
-          { label: t('drawer.removedAt'), value: expense.voidedAt ? formatDateTime(expense.voidedAt) : t('table.noVan') },
-          { label: t('drawer.removedBy'), value: expense.voidedBy?.name ?? t('table.noVan') },
-          { label: t('drawer.removedReason'), value: expense.voidReason ?? t('table.noVan') },
+          { label: t('drawer.removedAt'), value: expense.voidedAt ? formatDateTime(expense.voidedAt) : t('table.none') },
+          { label: t('drawer.removedBy'), value: expense.voidedBy?.name ?? t('table.none') },
+          { label: t('drawer.removedReason'), value: expense.voidReason ?? t('table.none') },
         ]}
       />
     </Drawer>

@@ -1,7 +1,8 @@
 /**
  * `wallets`: copy for Wallets, the wallet page, the history, the statement download and the correction
- * dialog (UX_ADMIN §2.6). Owned by the admin-web-money lane. Keep `as const` and the export name:
- * i18n/index.ts imports it by name, and `t('wallets:…')` is type-checked, so a missing key fails `tsc`.
+ * dialog (website spec W12–W14, UX_ADMIN §2.6). Owned by the admin-web-money lane. Keep `as const` and
+ * the export name: i18n/index.ts imports it by name, and `t('wallets:…')` is type-checked, so a missing
+ * key fails `tsc`.
  *
  * One balance, no holds (ADR-06): nothing here says "available", "held" or "on hold". Money copy never
  * names the refund rule (G01-08).
@@ -9,40 +10,42 @@
 export const wallets = {
   list: {
     title: 'Wallets',
-    subtitle: "Each distributor's prepaid balance for delivery costs.",
+    subtitle: 'Prepaid balances for delivery costs.',
     caption: "Distributors' wallets",
     distributor: 'Distributor',
     balance: 'Balance',
-    checking: 'Being checked',
+    /** The red chip beside a balance under the low-balance warning setting (`AdminWalletRow.lowBalance`). */
+    low: 'Low',
+    checking: 'To check',
     lastTopup: 'Last top-up',
-    checkingValue_one: '{{amount}} · {{count}} request',
-    checkingValue_other: '{{amount}} · {{count}} requests',
-    noTopupYet: 'None yet',
+    checkingValue_one: '{{amount}} · {{count}} top-up',
+    checkingValue_other: '{{amount}} · {{count}} top-ups',
     none: '—',
-    emptyTitle: 'No distributors yet',
-    emptyBody: 'A wallet shows up here when a distributor is added.',
+    search: 'Distributor name',
+    searchEmpty: 'No distributors match “{{q}}”',
+    emptyTitle: 'No distributors yet.',
+    emptyAction: 'Add distributor',
     loadFailed: "Couldn't load the wallets",
   },
 
   page: {
-    title: '{{distributor}} · Wallet',
-    fallbackTitle: 'Wallet',
-    recordCorrection: 'Record correction',
-    mismatchReason: 'Fix the history mismatch first.',
+    title: '{{distributor}} wallet',
+    recordCorrection: 'Record correction…',
+    mismatchReason: 'Fix the history first.',
     download: 'Download statement',
     loadFailed: "Couldn't load this wallet",
   },
 
   balance: {
     label: 'Balance',
-    checking: '{{amount}} in top-ups being checked (not added yet)',
+    checking: '{{amount}} in top-ups to check',
   },
 
   integrity: {
-    ok: 'History matches the balance (checked {{ago}})',
-    mismatch: "The history doesn't match the balance by {{difference}}. Tell engineering, and don't record corrections until it's fixed.",
-    /** The history matches, but an old unguarded debit left the balance below Rs 0 (DATA_MODEL §3.5). */
-    belowZero: 'The balance is below zero. Record a correction to bring it to Rs 0 or more.',
+    ok: 'History adds up',
+    mismatch: 'History is {{difference}} off. Tell the tech team before any correction.',
+    /** The history adds up, but an old unguarded debit left the balance below Rs 0 (DATA_MODEL §3.5). */
+    belowZero: 'Balance is below zero. Record a correction to bring it to Rs 0.',
   },
 
   history: {
@@ -54,7 +57,7 @@ export const wallets = {
       all: 'All',
       TOPUP_ADDED: 'Top-ups',
       DELIVERY_COST: 'Delivery costs',
-      DELIVERY_COST_RETURNED: 'Returned delivery costs',
+      DELIVERY_COST_RETURNED: 'Returned costs',
       CORRECTION: 'Corrections',
     },
     when: 'When',
@@ -68,6 +71,7 @@ export const wallets = {
       topup: 'Top-up · {{no}} · ref {{ref}}',
       topupNoRef: 'Top-up · {{no}}',
       topupBare: 'Top-up',
+      deliveryCostCustomer: 'Delivery cost · {{no}} · {{customer}}',
       deliveryCost: 'Delivery cost · {{no}}',
       deliveryCostBare: 'Delivery cost',
       returned: 'Delivery cost returned · {{no}} (cancelled before delivery started)',
@@ -76,12 +80,14 @@ export const wallets = {
       correctionNoNote: 'Correction: {{reason}}',
       opening: 'Opening balance',
       openingNote: 'Opening balance — {{note}}',
-      legacy: 'Older entry (before the pilot)',
+      legacy: 'Older entry',
       refillCost: 'Refill delivery cost · {{no}}',
       refillCostBare: 'Refill delivery cost',
     },
-    emptyTitle: 'Nothing in these dates',
-    emptyBody: 'Money added to and taken from the wallet shows up here. Try other dates or another type.',
+    /** The filters leave nothing (with Clear filters). */
+    emptyTitle: 'Nothing in these dates.',
+    /** The wallet has no history at all yet. */
+    emptyNew: 'No money in or out yet.',
     loadFailed: "Couldn't load the history",
   },
 
@@ -96,21 +102,26 @@ export const wallets = {
       balanceAfter: 'Balance after (Rs)',
       by: 'By',
     },
-    tooMany: 'Pick a shorter date range. One statement holds at most {{max}} rows.',
+    tooMany: 'Pick a shorter date range.',
     nothing: 'There is nothing to download for these dates.',
     failed: "Couldn't make the statement. Try again.",
   },
 
+  /** The correction dialog (W14): the form, then the confirmation in the same dialog. */
   correction: {
     title: 'Record a correction for {{distributor}}',
-    intro: 'Only for genuine mistakes. It is saved in the history and the activity log.',
+    intro: 'For mistakes only.',
+    /** The add/take cards' group name, read out only. */
     direction: 'Direction',
-    add: 'Add money to the wallet',
-    take: 'Take money from the wallet',
+    add: 'Add money',
+    take: 'Take money',
+    pickDirection: 'Pick add or take.',
     amount: 'Amount',
     amountHint: 'Up to {{max}}.',
+    amountHintTake: 'Up to {{max}}, the balance.',
+    amountMissing: 'Type the amount.',
     reason: 'Reason',
-    reasonPlaceholder: 'Pick a reason',
+    pickReason: 'Pick a reason.',
     /** `CorrectionReason`, with the shop app's words (UX_MOBILE §3.4 `wallet.correction.*`, G16-06). */
     reasons: {
       WRONG_TOPUP_APPROVAL: 'Top-up approved by mistake',
@@ -119,18 +130,17 @@ export const wallets = {
       OPENING_BALANCE: 'Opening balance',
       OTHER: 'Other',
     },
-    related: 'Related top-up or order',
-    relatedPlaceholder: 'AG-T031 or AG-0142',
-    relatedHint: "{{distributor}}'s own top-up or order, for tracing only.",
-    relatedChecking: 'Checking the number…',
-    relatedTopup: 'Top-up {{no}} · {{amount}} · {{status}}',
-    relatedOrder: 'Order {{no}} · {{customer}} · placed {{when}}',
-    relatedNotTheirs: '{{distributor}} has no top-up or order {{number}}.',
-    relatedInvalid: 'Type a top-up number like {{topup}} or an order number like {{order}}.',
-    relatedFailed: "Couldn't check this number.",
-    relatedRetry: 'Check again',
     note: 'Note',
-    noteHint: 'Why? Saved in the history and the activity log.',
+    notePlaceholder: 'What went wrong?',
+    noteMissing: 'Write what went wrong, at least {{min}} characters.',
+    addRelated: 'Link a top-up or order',
+    related: 'Top-up or order',
+    relatedPlaceholder: 'Search by number',
+    /** The picker's rows: "AG-T031 · Rs 5,000 · Approved", "AG-0142 · Sana · 21 Oct". */
+    relatedTopup: '{{no}} · {{amount}} · {{status}}',
+    relatedOrder: '{{no}} · {{customer}} · {{when}}',
+    relatedNotTheirs: '{{distributor}} has no top-up or order {{number}}.',
+    relatedFailed: "Couldn't check this number.",
     preview: 'Balance: {{from}} → {{to}}',
     tooMuch: "{{distributor}} has only {{balance}}. You can't take more than that.",
     continue: 'Continue',
@@ -138,7 +148,6 @@ export const wallets = {
     confirmTakeTitle: 'Take {{amount}} from {{distributor}} wallet as a correction?',
     confirmAdd: 'Add {{amount}}',
     confirmTake: 'Take {{amount}}',
-    confirmBody: 'It shows in the history and the activity log with your name and the note.',
     facts: {
       reason: 'Reason',
       note: 'Note',

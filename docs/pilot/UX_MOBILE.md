@@ -9,17 +9,23 @@ The customer app is off for the pilot. Customers use the web link (CUSTOMER_PAGE
 Routes, payloads and error codes come from API_CONTRACT.md. This doc owns screens, states, copy keys and the mobile design system.
 
 ## 0. Plain words
+UX_PRINCIPLES.md (the rulebook) wins on look, layout, choice of control, copy and screen states; this doc wins on behaviour, money, safety, routes and data. The simple-UX pass of 2026-10-23 applied the rulebook to every Inc 1 screen below, and the Inc 2 and Inc 3 sections are designed to it.
+
 **Shop app**
 - Say "customer", never "client". Say "the office", never "admin".
-- Money words: "Balance", "Being checked", "Add money", "Delivery cost", "Paid from your wallet", "Returned to your wallet".
+- Money words: "Balance", "Being checked", "Add money", "Delivery cost", "Back to your wallet" (the cancel sheet's money label), "No refund" (a cancelled order whose cost was kept, on the list and the detail).
+- **History** is the one name for the wallet's list: the Home tile and the screen title, and nowhere "Wallet".
 - **Never** "On hold", "held" or "charged later": there are no holds (DECISIONS ADR-06).
+- No zone names on any shop screen ("Zone North" is an office word). The shop sees "No price yet", "Outside delivery area", or nothing.
 
 **Driver app**
-- Say "trip". The four actions are **Load** (`SCAN_OUT`), **Deliver** (`DELIVERED`), **Take back** (`PICKED_UP_EMPTY`) and **Hand back** (the store scans IN).
+- Say "trip", never "job" or "run". The four actions are **Load** (`SCAN_OUT`), **Deliver** (`DELIVERED`), **Take back** (`PICKED_UP_EMPTY`) and **Unload** (the store scans IN; the shop app says Receive). Never "Hand over" or "Hand back".
 
 **Both apps**
 - No enum value, UUID or system word ever reaches the screen.
 - Money is always written "Rs 3,450".
+- The office buttons read "Call office" and "WhatsApp office", and both Help screens say "Office hours {{hours}}". Sentences may still say "…call the office.".
+- Connection trouble has one wording: the banner "No connection" with "Try again", and a button's own failure "Not sent. Tap again." (the lead's decision of 2026-10-23). Never "No internet": the same message shows when the server is down.
 
 ---
 
@@ -139,101 +145,139 @@ The variant is chosen once from `Constants.expoConfig.extra.variant`.
 - **Elevation:** a 1 px border plus Android elevation 1; sheets 8. No large shadows, to stay cheap on low-end GPUs.
 - **Motion:** presses 150 ms, sheets 220 ms. Only spinners loop. Animation is skipped when reduce-motion is on.
 
-**Icons:** `ui/Icon.tsx` wraps MaterialCommunityIcons (already in the binary) behind semantic names. All emoji are removed.
+**Icons:** `ui/Icon.tsx` wraps MaterialCommunityIcons (already in the binary) behind semantic names. All emoji are removed. Every glyph below is in the installed font, so a new name needs no native change.
 
-| Semantic name | Glyph |
-|---|---|
-| wallet | wallet |
-| addMoney | cash-plus |
-| order | clipboard-list-outline |
-| customer | account |
-| store | storefront-outline |
-| truck | truck-delivery |
-| scan | qrcode-scan |
-| cylinder | gas-cylinder |
-| checking | clock-outline |
-| ok | check-circle |
-| error | alert-circle |
-| warn | alert |
-| call | phone |
-| map | map-marker |
-| navigate | navigation-variant |
-| torch | flashlight |
-| keyboard | keyboard-outline |
-| copy | content-copy |
-| share | share-variant |
-| download | download |
-| upload | upload |
-| sheet | file-excel-outline |
-| chevron | chevron-right |
-| menu | menu |
-| empty | gauge-empty |
-| partFilled | gauge-low |
-| full | gauge-full |
-| receipt | receipt |
+| Semantic name | Glyph | Used for |
+|---|---|---|
+| wallet | wallet | the wallet card, and Home's History tile (so it isn't read as order history) |
+| addMoney | cash-plus | Add money |
+| order | clipboard-list-outline | My orders, New order |
+| customer | account | one customer; Deliver (driver) |
+| customers | account-multiple-outline | the Customers tile and its empty state (new 2026-10-23) |
+| store | storefront-outline | the store; Unload (driver) |
+| truck | truck-delivery | on the way; a trip; Start / Continue trip |
+| van | van-utility | the van; Load (driver) |
+| scan | qrcode-scan | the idle scan strip |
+| cylinder | gas-cylinder | size lines, Refills, Take back |
+| checking | clock-outline | waiting, and nothing else |
+| history | history | the "Saved {{time}}" stamp |
+| ok / check | check-circle / check | done, a ticked chip |
+| error | alert-circle | refusals, blocked rows |
+| warn | alert | warnings that aren't waiting (Low balance, the Partly and Other answers) |
+| offline | wifi-off | the connection banner and "Nothing saved yet." |
+| info | information-outline | the refund line, Already scanned |
+| call | phone | Call office, Call driver, Call {{name}}, Forgot password? |
+| whatsApp | whatsapp | WhatsApp office |
+| map / navigate | map-marker / navigation-variant | I've arrived / Maps, Use my location |
+| search | magnify | search fields (new 2026-10-23) |
+| torch, keyboard | flashlight, keyboard-outline | the camera's torch, Type number |
+| copy, share | content-copy, share-variant | Copy IBAN, the copy-amount icon button, Send link |
+| download, upload, sheet | download, upload, file-excel-outline | day-end (Inc 3) |
+| chevron | chevron-right (flips right-to-left) | rows that open, the How-to-pay path |
+| menu, help, profile, signOut | menu, help-circle-outline, account-circle-outline, logout | the side menus |
+| plus, minus, close | plus, minus, close | AddMore and the Fab, steppers, the Timeline's `stopped` marker |
+| radioOn / radioOff | radiobox-marked / radiobox-blank | reason rows in ConfirmSheet |
+| empty / partFilled / full | gauge-empty / gauge-low / gauge-full | cylinder states (Inc 2) |
+| photo, receipt, lock, home | image-plus, receipt, lock-outline, home-outline | the screenshot tile, empty states, read-only rows |
+| sms, link | message-text-outline, link-variant | the Inc 2 Send link sheet (added with Inc 2) |
 
 ### 2.2 Components (all exported from `ui/index.ts`)
+Items 25–31 are the rulebook's new components (UX_PRINCIPLES §3), built from the tokens on 2026-10-23. The fixes to items 3–24 keep each component's look.
+
 1. **Text** `{variant, tone, numberOfLines, align}`
    - Tones: default, secondary, brand, success, warning, danger, onBrand, onBrandMuted, disabled.
    - Sets the font-scale cap. Title and heading set `accessibilityRole='header'`.
-2. **Icon** `{name, size: 20|24|32|48, tone, label?}`. Hidden from screen readers unless it has a `label`.
-3. **Screen** `{children, scroll=true, refreshing?, onRefresh?, footer?, banner?, padded=true}`
+2. **Icon** `{name, size: 16|20|24|32|48, tone, label?}`. Hidden from screen readers unless it has a `label`. 16 is for chips.
+3. **Screen** `{children, scroll=true, refreshing?, onRefresh?, footer?, banner?, fab?, padded=true}`
    - Built from SafeAreaView (react-native-safe-area-context 4.10 is installed), ScrollView with RefreshControl, and KeyboardAvoidingView.
    - `footer` is a sticky white bar with a top border, holding the one primary action.
+   - `fab` is the slot for item 28; lists keep `FAB_CLEARANCE` of bottom padding so the last row clears it. A screen has a footer or a Fab, never both.
    - EnvBanner and OfflineBanner render on top.
 4. **Header**: `makeScreenOptions()` for native-stack.
    - White background, left-aligned 18 semibold title from i18n, 1 px bottom border.
    - `HeaderIconButton {icon, label, onPress}` at 48 dp, used for the menu, "Call office" (always shown on driver screens) and help.
-5. **Button** `{label, onPress, variant: primary|secondary|danger|ghost|inverse, size: md|lg, icon?, loading?, loadingLabel?, disabled?, fullWidth=true, accessibilityHint?}`
-   - Variants: primary is white on brand; secondary is brandText with a 1.5 px brand border; danger is white on danger; ghost is brandText; inverse is brandText on white (used on the wallet card).
+   - **"Call office" never disappears:** each good `/app/config` answer keeps its `support` block (phone, WhatsApp, hours; never the bank account) in secure storage as `support.contact`, and `useOfficeContact` uses it until the server answers. "Call office", the header call button and "Forgot password?" then work offline.
+5. **Button** `{label, onPress, variant: primary|secondary|danger|dangerOutline|ghost|inverse, size: md|lg, icon?, loading?, loadingLabel?, disabled?, fullWidth=true, accessibilityLabel?, accessibilityHint?}`
+   - Variants: primary is white on brand; secondary is brandText with a 1.5 px brand border; danger is white on danger; **dangerOutline** is `dangerText` with a 1.5 px `danger` border on `surface` (pressed `dangerSoft`), the calm look of a cancel inside the content; ghost is brandText; inverse is brandText on white (used on the wallet card).
    - Loading keeps the width and shows a spinner plus `loadingLabel`, with `accessibilityState.busy`. Disabled is textDisabled on sunken.
    - A **double-tap guard** ignores presses while loading and for 600 ms after a press.
 6. **Card** `{tone: default|brand|success|warning|danger, onPress?, padding}`. A pressable card gets a ripple and `role=button`.
 7. **MoneyText** `{paisa: string|number|bigint, variant, tone, sign: none|auto|always}`
    - Formats with `formatRs`: "Rs 3,450", "+Rs 5,000" (`sign="always"`), "−Rs 330" (U+2212), with no space after the sign; zero is never signed. Tabular numbers.
    - The accessibility label comes from `money.a11y` ("{{amount}} rupees").
-8. **StatusChip** `{kind: order|fee|topup|answer|refill|dayEnd|step, value}`
-   - Looks up tone, icon and words from the tables in §3.4, or takes `{tone, icon, label}` directly.
+8. **StatusChip** `{kind: order|fee|topup|answer|refill|dayEnd|step, value, stepIcon?}`
+   - Looks up tone, icon and words from the tables in §3.4, or takes `{tone, icon, label}` directly. `stepIcon` sets the IN_PROGRESS step chip's icon (`van` for Load, `customer` for Deliver, `store` for Unload; default `truck`).
    - Height 28, label 14 semibold, icon 16. Never colour alone.
    - An unknown value shows neutral "Updating…" and logs a warning.
-9. **Field** `{label, value, onChangeText, helper?, error?, optional?, prefix? ('Rs' | '+92'), keyboardType, autoCapitalize, maxLength, secure?, rightAction?, onBlur, returnKeyType}`
-   - Label above the input. Optional fields are written "(optional)"; no asterisks.
+9. **Field** `{label?, value, onChangeText, helper?, error?, optional?, prefix? ('Rs' | '+92'), leadingIcon?, keyboardType, autoCapitalize, maxLength, secure?, rightAction?, onBlur, returnKeyType, accessibilityLabel?}`
+   - Label above the input. Optional fields are written "(optional)"; no asterisks. A search box has no visible label: `leadingIcon="search"`, a placeholder and an `accessibilityLabel`.
    - Focus is a 2 px brand border; error is a 2 px danger border plus an icon and the error text below.
    - The accessibility label is the label plus the error.
-10. **AmountChips** `{optionsPaisa, selectedPaisa?, onSelect}`. 48 dp radio chips; the selected one is brand with a check.
-11. **SegmentedControl** `{options:[{value,label,icon?}], value, onChange}`. 48 / 56 dp, `role=radiogroup`.
+   - **PhoneField** (a Field with the fixed "+92"): the phone pad, the placeholder `common.phoneExample` "300 1234567", the number spaced as it is typed ("300 1234567"), a typed leading 0 dropped, and a pasted +92, 0092 or 0300 form cleaned. Read its value with `normalizePkPhone`.
+10. **AmountChips** `{optionsPaisa, selectedPaisa?, onSelect, columns?, otherLabel?}`. 48 dp radio chips; the selected one is brand with a check. `columns` gives equal cells with the tick inside, so nothing moves when tapped. `otherLabel` adds a last chip ("Other amount") that reports `OTHER_AMOUNT`.
+11. **SegmentedControl** `{options:[{value,label,icon?}], value, onChange}`. 48 / 56 dp, `role=radiogroup`. At most 3 segments, labels of 10 characters or fewer.
 12. **Stepper** `{value, min, max, onChange, label}`. 48 / 56 dp − and + buttons, `role=adjustable`.
-13. **ListRow** `{title, subtitle?, meta?, leadingIcon?, trailing?, below?, onPress?, chevron?}`. At least 64 / 72 dp; the title wraps to 2 lines at most. `below` holds chips under the text lines and takes no width from the title.
-14. **EmptyState** `{icon, title, body?, action?}`.
+13. **ListRow** `{title, subtitle?, meta?, leadingIcon?, trailing?, below?, onPress?, chevron?}`. At least 64 / 72 dp; the title wraps to 2 lines at most. `below` holds chips (and a row's small action, after the chip) under the text lines and takes no width from the title. Every list uses the WhatsApp-like row: a bold title, one grey line, the time on the right (`rowTime`: "10:46 am" today, else "Yesterday" or "Mon 19 Oct"), the chip below. History is the one exception: its right side shows the amount.
+14. **EmptyState** `{icon, title, body?, action?}`: one line of 8 words or fewer, plus at most one button.
 15. **ErrorBanner** `{error: ApiError|string, onRetry?, extraAction?, tone}`
     - Inline, never a modal. Shows the mapped message, a 48 dp "Try again", and an optional extra action ("Call office", "Add money").
     - `role=alert` with a live region.
-16. **QueryBoundary** `{query, skeleton, isEmpty?, empty, children(data)}`
+16. **QueryBoundary** `{query, skeleton, isEmpty?, empty, offlineAction?, children(data)}`
 
     | State | Shows |
     |---|---|
     | first load | skeleton |
-    | error, no data | ErrorBanner with "Try again" |
-    | error, cached data | the strip "Showing saved info from {{time}}. Couldn't refresh." above the data |
+    | error, no data, no connection | OfflineEmpty (item 31) "Nothing saved yet.", with its own Try again only while the OfflineBanner is hidden; `offlineAction` adds a button (the driver's trip and step screens pass "Call office") |
+    | error, no data, server error | ErrorBanner with "Try again" |
+    | error, cached data | the strip "Saved {{time}}" (`common.stale`) with the `history` icon above the data, plus "Try again" only while the OfflineBanner is hidden. The data never remounts (REV mobile-ux-06) |
     | empty | EmptyState |
 
-    Every list and detail screen uses it.
+    Every list and detail screen uses it. A screen with several queries shows one body state, not one card per query.
 17. **Skeleton**: static `sunken` blocks, with an optional slow pulse that is off under reduce-motion.
-18. **Toast**: `useToast().show({message, tone})`, hosted at the root, shown above the footer for 3 seconds, in a live region.
-19. **ConfirmSheet** `{visible, title, body, amountPaisa?, amountLabel?, reasons?: [{code,label}], requireReason?, noteForOther?, confirmLabel, confirmTone: primary|danger, cancelLabel, onConfirm(): Promise, onClose}`
-    - A bottom-sheet Modal. The confirm button shows loading.
-    - On error the sheet stays open with an ErrorBanner inside. Back closes it unless it is busy.
+18. **Toast**: `useToast().show({message, tone})`, hosted at the root, shown above the footer for 3 seconds, in a live region. 6 fixed words at most.
+19. **ConfirmSheet** `{visible, title, body, amountPaisa?, amountLabel?, reasons?: [{code,label}], requireReason?, noteForOther?, reasonsLabel?, pickReasonLabel?, confirmLabel, confirmTone: primary|danger, cancelLabel, onConfirm(): Promise, onClose}`
+    - A bottom-sheet Modal built on `SheetFrame` (scrim, handle, 220 ms slide, Back closes it unless it is busy). The same shell serves PickerSheet.
+    - **The buttons are pinned** under the scroll area, with a divider only while the content scrolls, so they never scroll off. **The cancel is `secondary`** (outlined, the same size as the confirm), never a ghost link.
+    - Reasons sit under `reasonsLabel`, default `common.confirm.why` "Why?". With `requireReason` the confirm **stays enabled**: pressed without a reason, the label turns into `pickReasonLabel` (default `common.confirm.pickReason` "Pick a reason.") in danger text and the rows scroll into view. The note's error shows only after a press.
+    - The confirm shows loading. On error the sheet stays open with the error line (ActionLine) just above the buttons. A request that gets no answer shows the shared `NETWORK_OFFLINE` text "No connection. Try again." there, because the banner is behind the scrim.
+    - Both apps use it the same way: the shop's cancel sheets, the driver's Could not deliver, All delivered, Finish trip and Sign out sheets, and the Inc 2 sheets.
 20. **StepHeader** `{step, total, title}`: "Step 2 of 3" with a segmented bar.
-21. **Timeline** `{items:[{key,label,time?,detail?,state: done|current|todo|problem}]}`.
-22. **EnvBanner**: a top strip from `appConfig.environment`, falling back to `EXPO_PUBLIC_ENV` until the config loads: training gives "TRAINING · test money only" (`common.env.training`); development, test and staging give "TEST SERVER · test money only" (`common.env.test`); production gives none.
-23. **OfflineBanner**: "No internet. We'll keep trying."
+21. **Timeline** `{items:[{key,label,time?,detail?,state: done|current|todo|problem|stopped}]}`. `stopped` is a neutral cross: a cancelled order ends with it, never with a green tick.
+22. **EnvBanner**: a top strip from `appConfig.environment`, falling back to `EXPO_PUBLIC_ENV` until the config loads: training gives "Training · test money only" (`common.env.training`); development, test and staging give "Test server · test money only" (`common.env.test`); production gives none.
+23. **OfflineBanner**: "No connection" (`common.offline`) with a 48 dp (driver 56 dp) "Try again" that refetches the active queries. While it shows, screens add no network error of their own, except a button's own failure line.
     - In Inc 1, shown after a network error in the last 30 seconds.
     - From the 0.2.0 APK, driven by NetInfo.
-24. **ScanPanel** (`ui/scan/`, owned by the driver lane): v1 in Inc 1 (§5), full in Inc 2 (§7.1).
+24. **ScanPanel** (`ui/scan/`, owned by the driver lane): the Inc 1 version (§5), full in Inc 2 (§7.1).
+    - Props `step` (LOAD | HANDOVER | TAKE_BACK | UNLOAD), `onScan`, `active` and `complete` (a 200 ms buzz when it turns true).
+    - No title, hint or count inside the panel: the CountBar sits above it, and the idle strip is the hint.
+    - The result strip is 56 dp with a 32 dp icon; "Checking…" and "Not sent" + Retry show inside the strip. The camera has a 4 dp frame in the result colour.
+    - Camera height clamp(0.28 × window height, 160, 300) dp; a paused camera (a sheet open, the screen hidden) is a plain dark block.
+    - The screen stays awake while the camera runs (a guarded require of `expo-keep-awake` 13.0.2, already in the binary; a binary without it just loses keep-awake).
+    - **SizeLines** (`ui/scan/SizeLines.tsx`) takes translated lines `{key, text, complete?, secondary?}`: "2 × 11.8 kg", or "11.8 kg · 2 of 3" with a tick once that size is complete. The shop's Receive scan (Inc 2) uses it too.
+25. **PickerSheet** (NEW): a sheet list on `SheetFrame`. Sections with "Recent" first, a search box shown above 8 rows, a tick on the chosen row, rows that expand in place (`keepOpen`), a row spinner, dividers and action rows. A tap picks and closes. Used by the address picker ("Deliver to"), the refill station above 6, and the Inc 2 Send link sheet (no search).
+26. **ChoiceChips** (NEW): `screens/distributor/shared/FilterChips.tsx` moved into `ui/` (the old file is gone). `role=radiogroup`; with `columns` an equal grid, without it the chips wrap: nothing scrolls sideways. History uses `columns={3}`, refill sizes `columns={2}`.
+27. **AddMore** (NEW): a ghost "+ Add more" row (`common.actions.addMore`) that opens optional fields in place and stays open.
+28. **Fab** (NEW): the primary Button look (brand, `radius.md`, 56 dp, `plus` icon, label always shown) plus `elevation.sheet`, bottom-end 16 dp in, above the safe area, hidden while the keyboard is open. My orders "+ New order", Customers and New order step 1 "+ Add customer", Refills "+ New refill".
+29. **CountBar** (NEW; one definition for both apps): a `Card` with the big count (`display`, tabular, never shrinks) and the caller's verb beside it (`heading`), an 8 dp bar (`sunken` track, `brand` fill), one polite live region read as "{{done}} of {{total}} {{verb}}". Its words are `common.count.*`; the caller passes the verb (`scan.verb.*`).
+
+    | Mode | Shows | Used by |
+    |---|---|---|
+    | target | "2 of 3" + the verb, and the bar | the Inc 1 Load and Deliver steps ("scanned"), Inc 2 Load, Deliver and Unload, the shop's Receive (Inc 2), the refill run (Inc 3) |
+    | complete | a success card, the `ok` icon, "All 3 scanned"; bar full in `successGraphic` | the same |
+    | over (Inc 1 only) | "4 scanned · 3 needed" in warning text; bar full in `warningGraphic` | Inc 1 Load and Deliver (the legacy route doesn't cap counts) |
+    | soft | the number and its label, with no bar ("0 taken back · 2 expected", or "0 taken back" when none is expected); never red, never blocks | Take back |
+    | countdown | the number + "on the van"; at 0 the success "Nothing on the van." | the Inc 1 Unload |
+30. **ActionLine** (NEW): a footer or sheet button's own failure, one caption line with the `error` icon, directly above the button: "Not sent. Tap again." (`common.notSent`) for no answer, or the mapped message for a refusal, with a 48 dp ghost "Call office" or "Add money" when that is the fix. No second Try again: the button is the retry. The two money buttons pass their own text, "Not sent. Tap again. It won't be sent twice." (`topup.tellUs.notSent`, `orders.new.notSent`).
+31. **OfflineEmpty** (NEW): the `offline` icon and "Nothing saved yet." (`common.offlineEmpty`) when a screen has no data and no connection. Calm, never a red card; Try again only while the banner is hidden; an optional `offlineAction`.
+
+Also in `ui/` and `hooks/`: `useNoConnection()` (true while the OfflineBanner shows; the driver's "Location paused" hides then), `isNetworkError(err)`, `useOfficeContact()` (item 4) and the sign-in number kept as `auth.lastPhone` (§3.6).
 
 **Screen rules**
-- One primary action per screen, in `Screen.footer`.
-- A form with input asks "Leave without saving?" (ConfirmSheet on `beforeRemove`).
+- One primary action per screen, in `Screen.footer`. A list screen's "new" is the Fab instead; no screen has both.
+- The header arrow (and Android Back) is the only Back; there is no "Back" text button. A multi-step screen goes back one step (`beforeRemove` is intercepted while the step is above 1), and each step opens scrolled to the top.
+- A footer button's own failure is one line just above it (ActionLine). No second Try again.
+- A cancel in the content is a `dangerOutline` button, never a footer button.
+- A form with input asks "Leave without saving?" / "What you typed will be lost." with Leave and Stay (ConfirmSheet on `beforeRemove`).
 - Irreversible money actions use ConfirmSheet, unless the screen is itself a review that names the amount on its button ("Place order · pay Rs 330").
 - `Alert.alert` is never used. There are no hex literals in screens, only tokens.
 
@@ -289,23 +333,28 @@ The variant is chosen once from `Constants.expoConfig.extra.variant`.
 - **Dates:** `formatWhen(iso, now, t)` (shared-utils) gives "Today, 4:12 pm", "Yesterday, 9:05 am" or "Mon 19 Oct, 4:12 pm" in Asia/Karachi, with no Intl dependency on Hermes. Today and Yesterday are Asia/Karachi calendar days, not the 03:00 business day. A time later today still reads "Today"; any other day reads as a date, with the year added when it isn't now's year ("Sun 19 Oct 2025, 4:12 pm"). Day headings use `formatDayLabel` with the same rule. Business-day screens (day-end, "done today") use `businessDate`, never `formatWhen`.
 
 ### 3.4 Status words. The server sends stable values; the phone maps them.
+The words live in `i18n/en/stages.ts` and the tones and icons in `ui/statusTables.ts`, as UX_PRINCIPLES §4 sets them (the 2026-10-23 changes are built).
+
 **Order stage** (`stages.order.*`)
 | Stage | Words | Tone / icon |
 |---|---|---|
-| NEEDS_DRIVER | Waiting for driver | neutral / checking |
+| NEEDS_DRIVER | Waiting for driver | warning / checking |
 | DRIVER_ASSIGNED | Driver assigned | brand / customer |
-| LOADING | Loading at your store | brand / store |
+| LOADING | Loading | brand / store |
 | ON_THE_WAY | On the way | brand / truck |
 | DELIVERED | Delivered | success / ok |
-| NOT_DELIVERED | Could not deliver | danger / error |
+| NOT_DELIVERED | Not delivered | danger / error |
 | CANCELLED | Cancelled | neutral / none |
 
 **Fee** (`stages.fee.*`)
-| Status | Chip | Long form |
-|---|---|---|
-| DEDUCTED | "{{fee}} paid" (neutral) | "Paid from your wallet" |
-| REVERSED | "{{fee}} returned" (success) | "Returned to your wallet" |
-| NONE | "No delivery cost" (neutral) | |
+| Status | Chip |
+|---|---|
+| DEDUCTED | "{{fee}} paid" (neutral) |
+| REVERSED | "{{fee}} returned" (success) |
+| NONE | "No delivery cost" (neutral) |
+
+- On My orders a cost chip shows only on a cancelled Done row: "Rs 330 returned", or "No refund" (neutral, `orders.list.noRefund`) when the cost was taken and kept. The order detail says the same: "No refund. Delivery had started.".
+- The long forms "Paid from your wallet" / "Returned to your wallet" are no longer shown.
 
 **Top-up stage** (`stages.topup.*`)
 | Stage | Words | Tone |
@@ -316,38 +365,50 @@ The variant is chosen once from `Constants.expoConfig.extra.variant`.
 
 The reason text for NOT_ADDED comes from `topup.reason.<TopupRejectReason>`.
 
-**Statement kinds** (`wallet.kind.*`)
+**Statement kinds** (`wallet.kind.*`): a History row's title is the kind only (the lead, review finding mobile-ux-05).
 | Kind | Words |
 |---|---|
-| TOPUP_ADDED | Money added |
+| TOPUP_ADDED | Top-up |
 | DELIVERY_COST | Delivery cost |
-| DELIVERY_COST_RETURNED | Delivery cost returned (order cancelled) |
-| CORRECTION | Correction by the office |
+| DELIVERY_COST_RETURNED | Refund |
+| CORRECTION | Office correction |
 | OPENING_BALANCE | Opening balance |
 | LEGACY | Older entry |
 
-Correction reasons (`wallet.correction.*`):
+Correction reasons (`wallet.correction.*`), the shop's words. The office keeps its own words on the website (UX_ADMIN §2.6); this split replaces settled point G16-06's one label set.
 | Code | Words |
 |---|---|
-| WRONG_TOPUP_APPROVAL | Top-up approved by mistake |
-| SYSTEM_ERROR | System error |
+| WRONG_TOPUP_APPROVAL | Top-up added by mistake |
+| SYSTEM_ERROR | Mistake fixed |
 | BANK_REVERSAL | Bank reversed a top-up |
 | OPENING_BALANCE | Opening balance |
-| OTHER | Other |
+| OTHER | (no reason line) |
 
-**Driver step** (`stages.step.*`): TO_DO "To do", NEXT "Next", IN_PROGRESS "In progress", DONE "Done", SKIPPED "Skipped" (for stop status FAILED or CANCELLED).
-
-**Customer answer** [Inc 2] (`stages.answer.*`)
-| Answer | Words | Tone |
+**Driver step** (`stages.step.*`; `StatusChip kind="step"`)
+| Value | Words | Tone / icon |
 |---|---|---|
-| YES | Customer: all received | success |
-| PARTLY | Customer: partly received | warning |
-| NO | Customer: not received | danger |
-| OTHER | Customer sent a note | warning |
-| PENDING | Waiting for customer | neutral |
-| EXPIRED | No answer | neutral |
+| TO_DO | To do | neutral / none |
+| NEXT | Next | brand / chevron |
+| IN_PROGRESS | In progress | brand / the step's icon (`stepIcon`: Load `van`, Deliver `customer`, Unload `store`; a trip on Today `truck`), never the clock |
+| DONE | Done | success / ok |
+| NOT_DELIVERED | Not delivered | danger / error (the order FAILED) |
+| CANCELLED | Cancelled | neutral / none (the order or stop was cancelled, or the office stopped the trip) |
+
+SKIPPED "Skipped" is gone; aborted trips are no longer listed. A stop of a COMPLETED trip that was never closed shows Done.
+
+**Customer answer** [Inc 2] (`stages.answer.*`), settled point G07-23 as the lead kept it on 2026-10-23
+| Answer | Words | Tone / icon |
+|---|---|---|
+| YES | Customer: all received | success / ok |
+| PARTLY | Customer: partly received | warning / warn |
+| NO | Customer: not received | danger / error |
+| OTHER | Customer sent a note | warning / warn |
+| PENDING | Waiting for customer | warning / checking (the amber clock) |
+| EXPIRED | No answer | neutral / none |
 
 It is shown as a separate chip, never as the order stage.
+
+**Refill stage** and **day-end** words are in §8.1 and §8.3 (`stages.refill.*`, `stages.dayEnd.*`).
 
 ### 3.5 Data fetching and network
 - **QueryClient:** `staleTime 30s`; queries retry twice for retryable errors (1 s, 2 s, 4 s backoff); `refetchOnReconnect`.
@@ -366,7 +427,13 @@ It is shown as a separate chip, never as the order stage.
 
   ClientStack and OtpScreen leave navigation; the files are kept.
 - **`useAppConfig()`** reads `GET /app/config` (public, cached 5 minutes; S9 'Check and place' refetches it). Menus and tiles read `features.*`, so each increment switches on per server without a new build.
-- **The side menu** renders items from `navigation/menus/distributorMenu.ts` and `driverMenu.ts`. Each lane owns its own file.
+- **Kept on the phone** (`expo-secure-store`, already in the 0.1.0 binary; display conveniences only):
+  - `support.contact`: the `support` block (phone, WhatsApp, hours) of each good `/app/config` answer. `useOfficeContact` uses it until the server answers, so "Call office", the header call button and "Forgot password?" work with no connection. The company bank account is never read from storage: a stale account is a money risk.
+  - `auth.lastPhone`: the number of the last good sign-in. Sign in prefills it, in both apps; Sign out keeps it.
+- **The side menu** renders items from `navigation/menus/distributorMenu.ts` and `driverMenu.ts`. Each lane owns its own file. Rows have one word or two and no subtitles; neither header shows a balance.
+  - Shop: the header is the business name and phone; rows Profile · Help · Sign out.
+  - Driver: the header is the name and the van plate; rows My van · Refills · Help · Sign out.
+  - Sign out asks first (rule 7): "Sign out?" / "You'll need your password." / [Sign out] (danger) / [Stay signed in] (secondary).
 - **Typed routes:** `DistributorStackParams` and `DriverStackParams` replace the 18 `useNavigation<any>()` calls.
 
 ### 3.7 Money in the app
@@ -380,347 +447,408 @@ It is shown as a separate chip, never as the order stage.
 ---
 
 ## 4. Increment 1: shop app screens
+Rebuilt to UX_PRINCIPLES on 2026-10-23 (the shop spec, with the lead's DECIDED answers). Patterns on every screen:
+- **States, one message per problem** (§2.2 #16, #30, #31): a skeleton in the final layout; the one OfflineBanner "No connection · Try again" with saved data stamped "Saved 4:12 pm", or "Nothing saved yet." with nothing saved; a server error as one ErrorBanner; a footer button's own failure as the ActionLine above it; inside a sheet, the error line above its pinned buttons.
+- **The bottom:** one main `lg` button in the footer, or a Fab on a list screen. A main button is disabled only when a visible line says why ("Pick a size first."); otherwise it stays enabled and points at what is missing when pressed. Cancels are never in the footer.
+- **Back:** the header arrow is the only Back; New order and Add customer go back one step; each step opens at the top.
+- **Rows:** the WhatsApp-like row (§2.2 #13), time on the right with `rowTime`. History is the one list with the amount on the right.
+- **Money and time:** `MoneyText`/`formatRs`; a cost breakdown is a data-only caption ("Rs 250 + 2 × Rs 40 + 1 × Rs 150") under a big total, never with "=" or zone names. Checking hours are 12-hour through `formatClock` (shared-utils): "9 am to 9 pm".
+- **No zone names** anywhere in the shop app (§0).
 
-### S1 Sign in, Wrong app, Update required (foundation; replaces `auth/PhoneScreen.tsx`)
+### S1 Sign in, Wrong app, Update required (foundation; shared by both apps)
 - **Layout**
-  - EnvBanner, the app mark, `common.appName` "Smart Fleet".
-  - Field "Mobile number", with prefix +92 and the phone pad. It is normalised on blur with `normalizePkPhone` and shown with `formatPkPhone(phone)` (local style, "0300 1234567"), the form both apps use for every phone.
+  - No header. The brand tile (`truck`), `common.appName` "Smart Fleet" and the subtitle "Shop app" (the driver build: "Driver app"). No "Sign in" heading and no helper line.
+  - PhoneField "Mobile number" (§2.2 #9): "+92" fixed, the placeholder "300 1234567", spaced as typed, a typed leading 0 dropped. It is **prefilled with the last signed-in number** (`auth.lastPhone`, §3.6), in both apps.
   - Field "Password", with a 48 dp Show/Hide.
-  - Footer primary "Sign in". Ghost button "Forgot password? Call the office" (a `tel:` link to the support phone).
-  - The language pills and the OTP fallback are removed (PhoneScreen.tsx:51-63, 75-78).
-- **States:** submitting "Signing in…"; inline errors `AUTH_INVALID_CREDENTIALS`, `AUTH_ACCOUNT_NOT_ACTIVE`, `AUTH_ROLE_LOCKED`, `AUTH_WRONG_APP`, `RATE_LIMITED`, `NETWORK_*`. `AUTH_WRONG_APP` shows `errors.AUTH_WRONG_APP` ("This account is for the Smart Fleet Driver app.") under the form: the server refuses the sign-in, so no session starts and the WrongApp screen doesn't open.
+  - Footer: the error line (when there is one), the primary "Sign in" ("Signing in…"), then the ghost "Forgot password?" with the `call` icon (screen readers: "Forgot password? Call the office"). It opens the dialler, and is hidden when no office number is known from the config or `support.contact`.
+  - The language pills and the OTP fallback are removed.
+- **States:** while signing in the fields are read-only. Errors show on the line just above "Sign in", and typing clears it: `AUTH_INVALID_CREDENTIALS` "Wrong phone number or password.", `AUTH_WRONG_APP` ("This account is for the Smart Fleet Driver app." / "…shop app."; no session starts, so the WrongApp screen doesn't open), `AUTH_ACCOUNT_NOT_ACTIVE` and `AUTH_ROLE_LOCKED` (with [Call office]), `RATE_LIMITED`, and with no answer the banner plus "Not sent. Tap again.".
 - **Copy**
 
   | Key | Text |
   |---|---|
-  | `auth.signIn.title` | Sign in |
-  | `auth.signIn.subtitle_distributor` | For shops using Smart Fleet |
-  | `auth.signIn.subtitle_driver` | For Smart Fleet drivers |
+  | `auth.signIn.subtitle_distributor` / `_driver` | Shop app / Driver app |
   | `auth.signIn.phone` | Mobile number |
-  | `auth.signIn.phoneHelper` | The number the office registered for you |
-  | `auth.signIn.password` | Password |
+  | `auth.signIn.phonePlaceholder` | 300 1234567 |
+  | `auth.signIn.phoneInvalid` | Enter a number like 300 1234567. |
+  | `auth.signIn.password` / `.passwordRequired` | Password / Enter your password. |
   | `auth.signIn.show` / `auth.signIn.hide` | Show / Hide |
   | `auth.signIn.submit` / `auth.signIn.submitting` | Sign in / Signing in… |
-  | `auth.signIn.forgot` | Forgot password? Call the office |
+  | `auth.signIn.forgot` / `.forgotA11y` | Forgot password? / Forgot password? Call the office |
 
-- **WrongApp** (only the §3.6 fallback gate, for a saved session whose role doesn't fit this build): one button, "Sign out".
+- **WrongApp** (only the §3.6 fallback gate, for a saved session whose role doesn't fit this build): the badge, the title, one line, and one button, "Sign out".
 
   | Key | Text |
   |---|---|
-  | `auth.wrongApp.title` | Wrong app for this account |
-  | `auth.wrongApp.shopAccount` | This is the driver app. Your account is a shop account. Please use the Smart Fleet shop app. |
-  | `auth.wrongApp.driverAccount` | This is the shop app. Your account is a driver account. Please use the Smart Fleet Driver app. |
+  | `auth.wrongApp.title` | Wrong app |
+  | `auth.wrongApp.driverAccount` | This account is for the Smart Fleet Driver app. |
+  | `auth.wrongApp.shopAccount` | This account is for the Smart Fleet shop app. |
   | `auth.wrongApp.officeAccount` | Office accounts use the Smart Fleet website. |
+  | `auth.wrongApp.otherAccount` | This account can't use this app. Call the office. |
 
-- **UpdateRequired**: button "Call the office".
+- **UpdateRequired:** the download badge, the title and one line. With `links.updateUrl` set, the primary "Get new version" with the secondary "Call office" above it; with no link, "Call office" is the only button, as primary.
 
   | Key | Text |
   |---|---|
-  | `common.update.title` | Please update the app |
-  | `common.update.body` | This version is too old to use. Ask the office for the new version. |
+  | `common.update.title` | Update the app |
+  | `common.update.body` | This version is too old. |
+  | `common.update.download` | Get new version |
+  | `common.actions.callOffice` | Call office |
 
-### S2 Home with the wallet card (extends `distributor/HomeScreen.tsx`)
-Matches agreed sample screen 1.
+### S2 Home (`distributor/HomeScreen.tsx`)
 ```
-[Smart Fleet                         menu]
-Salam, Ali Gas
-+ Wallet (brandText background) --------+
-| Balance                               |
-| Rs 3,450                      display |
-| (clock) Being checked      Rs 5,000   |   only when > 0
-| [Add money]                History >  |
-+---------------------------------------+
-(low-balance card when lowBalance)
-Today: 3 active orders >
-My orders >                 Refill cylinders >
-Receive from driver > (Inc 2)   Day-end sheet > (Inc 3)
+[Salam, Ahmed Gas                     menu]   <- the greeting is the header title
++ Wallet card (brand) -------------------+
+| Balance                                |
+| Rs 3,450              [! Low balance]  |   chip only when lowBalance
+| (history) Saved 11:08 am               |   only when stale
+| (clock) Being checked      Rs 5,000  > |   only when > 0
+| [         Add money          ]         |
++----------------------------------------+
+[Get started]                                 new shop only
+(Inc 2/3 status rows: customer problems, Receive from driver, Day-end sheet)
+[My orders (3)]   [Customers]
+[History]         [Refills]
+Active orders
+  Sana / 2 × 11.8 kg · AG-0007 / 10:46 am / [Waiting for driver]
+  (up to 3 rows, then "+2 more")
 [            New order            ]   <- footer, lg
 ```
-- **Data:** `GET /distributor/home` (wallet, order counts, store status) and `GET /users/me`.
-- **Wallet card**
-  - Loading shows skeleton bars, never "Rs 0" (fixes M5).
-  - On error: `wallet.card.loadError` "Couldn't load your balance." with an inverse "Try again".
-  - Stale data shows "Updated {{time}}".
-  - The "Being checked" row shows only when it is above 0. It opens the latest top-up status (S6), or the Top-ups filter of S7 when there is more than one.
-- **Low balance** (`lowBalance` from the server: true when the balance is below `wallet.lowBalancePaisa`, not equal to it): a warning card `home.lowBalance` "Your balance is low. New orders need enough money for the delivery cost." with "Add money".
-- **Store not set:** the footer is disabled, with the note "Your store isn't set up yet. Call the office." (`DISTRIBUTOR_NO_STORE`).
+- **Data:** `GET /distributor/home` and `GET /users/me`; `GET /orders?tab=active` (the first page, shared with My orders, polled every 30 s while Home is focused and only while `orders.active` > 0); `GET /clients` only for a new shop (no active orders and none delivered today).
+- **Wallet card** (`Card tone="brand"`, same look)
+  - Loading shows skeleton bars, never "Rs 0". On error: "Couldn't load your balance." with an inverse "Try again".
+  - **Low balance:** when `lowBalance` is true (the balance is below `wallet.lowBalancePaisa`, not equal to it; Rs 0 turns the warning off), the warning chip "Low balance" (`warn` icon) beside the amount. It replaces the old low-balance card and its second "Add money".
+  - Stale data: "Saved {{time}}" with the `history` icon inside the card only, plus an inverse "Try again" while the banner is hidden.
+  - "Being checked" (only above 0) opens the one top-up being checked, or History with the Top-ups filter when there are several.
+  - One button, "Add money".
+- **Get started** (a new shop only, while it has no customers): a card with three rows, "Add money" (a tick once money is in or being checked), "Add a customer" and "Place an order". It replaces the "Today: 0 active orders" tile and the low-balance sentence.
+- **Tiles** (a 2-column grid, each at least 96 dp, no second line): "My orders" (`order`, with a brand count badge while orders are active), "Customers" (`customers`), "History" (`wallet`), "Refills" (`cylinder`).
+- **Active orders:** up to 3 rows (S10's row), newest first, then "+{{count}} more" opening My orders.
+- **Inc 2/3 status rows** sit above the tiles, in this order: customer problems, Receive from driver, Day-end sheet (§7.3, §8.3). In Inc 1 the problems row keeps its current look until Inc 2 builds it.
+- **Store not set or account not active:** the footer becomes the line "Your store isn't set up yet." (or "Your shop account isn't active.") above a primary "Call office"; with no office number known, the line and a disabled "New order".
+- **Removed:** the "History ›" link in the card, the low-balance card, the "Today" tile, the grey line on every tile, and the greeting line in the content.
 - **Copy**
 
   | Key | Text |
   |---|---|
   | `home.greeting` | Salam, {{name}} |
-  | `wallet.card.balance` | Balance |
-  | `wallet.card.beingChecked` | Being checked |
-  | `wallet.card.addMoney` | Add money |
-  | `wallet.card.history` | History |
+  | `wallet.card.balance` / `.beingChecked` / `.addMoney` | Balance / Being checked / Add money |
+  | `home.lowBalance` | Low balance |
+  | `common.stale` | Saved {{time}} |
+  | `home.getStarted.title` / `.addMoney` / `.addCustomer` / `.newOrder` | Get started / Add money / Add a customer / Place an order |
+  | `home.tiles.orders` / `.customers` / `.history` / `.refills` | My orders / Customers / History / Refills |
+  | `home.activeTitle` / `home.moreOrders` (`_plural`) | Active orders / +{{count}} more |
   | `home.newOrder` | New order |
-  | `home.today` / `_plural` | {{count}} active order / {{count}} active orders |
-  | `home.tiles.orders` | My orders |
-  | `home.tiles.refills` | Refill cylinders |
+  | `home.noStore` / `home.notActive` | Your store isn't set up yet. / Your shop account isn't active. |
 
-- **Removed:** sign-out on Home (it moves to the menu) and the emoji tiles.
-- **Menu:** a header with the business name and phone. 56 dp rows: Wallet, My orders, Profile, Help, and Sign out (danger, ConfirmSheet "Sign out of Smart Fleet?"). Notifications, the language switch and About are removed.
+- **Menu** (§3.6): Profile, Help and Sign out, with no subtitles and no balance; the header shows the business name and phone. Wallet and My orders are Home tiles.
 
-### S3 Add money: Amount (new `distributor/topup/TopupAmountScreen.tsx`; agreed screen 2)
+### S3 Add money: Amount (`distributor/topup/TopupAmountScreen.tsx`)
 - **Layout**
-  - StepHeader "Step 1 of 3"; title "How much do you want to add?"
-  - A Field with the "Rs" prefix and autofocus.
-  - AmountChips from `topup.quickAmountsPaisa`.
-  - Helper "Minimum {{min}} · Maximum {{max}}" (from `GET /payments/topup-info`).
-  - Footer "Next", disabled until the amount is valid.
-- **Prefill:** opened from an order blocked by `WALLET_INSUFFICIENT_BALANCE`, the amount is the larger of the minimum and `shortBy` rounded up to Rs 100.
-- **Inline errors:** `topup.amount.tooLow` "The minimum is {{min}}"; `topup.amount.tooHigh` "The maximum is {{max}} per top-up. Make two top-ups for more."
-- **Info banner** when `pending.count > 0`: "You have {{amount}} being checked. You can still add more."
-- **States:** a skeleton while the info loads. On `TOPUP_ACCOUNT_NOT_CONFIGURED`, an ErrorBanner, and Next stays blocked.
+  - StepHeader "Step 1 of 3"; title "How much do you want to add?".
+  - While top-ups are being checked: a quiet row with the clock, "Being checked" and the amount (Home's row).
+  - AmountChips in **2 columns** from `topup.quickAmountsPaisa`, plus a last chip **"Other amount"**: with three quick amounts, a 2×2 grid. **No keyboard on open** (no `autoFocus`).
+  - "Other amount" opens a RupeeField labelled "Other amount", focused, with the helper "Rs 500 to Rs 50,000" (from `GET /payments/topup-info`).
+  - The caption "Money is checked 9 am to 9 pm." (`formatClock`; moved here from S4, so a person paying at 10 pm knows first).
+  - Footer "Next", always enabled: with nothing chosen it shows "Pick an amount." under the chips; "Other amount" with nothing typed shows the minimum under the field; a chip over the cap shows its error under the chips.
+- **Prefill:** opened from an order short of money, the larger of the minimum and the shortfall rounded up to Rs 100; from "Tell us again" (S6), the request's amount. A prefill equal to a chip selects the chip, otherwise "Other amount" with the field filled.
+- **Errors:** `topup.amount.tooLow` "The minimum is {{min}}"; `topup.amount.tooHigh` "Up to {{max}} per top-up. Send two for more."
+- **States:** a skeleton while the info loads (the chips can come from `config.topup` offline). `TOPUP_ACCOUNT_NOT_CONFIGURED`: an ErrorBanner ("Top-ups aren't open yet. Call the office.") with "Call office", and Next is blocked.
 
-### S4 Add money: How to pay (new `TopupHowToPayScreen.tsx`; agreed screen 3)
+### S4 Add money: How to pay (`TopupHowToPayScreen.tsx`)
 - **Layout**
-  - StepHeader "Step 2 of 3"; title "How to pay".
-  - SegmentedControl "Easypaisa" | "Bank app".
-  - An account card from `topup-info.account`: account name in bold, bank, IBAN in mono grouped by 4 with "Copy IBAN" (RN Clipboard, Toast "Copied"), and the amount with "Copy amount".
-  - Numbered steps for the chosen channel, a warning callout, and the hours line.
-  - Footer "I have paid".
-- **Test servers:** the account card shows whatever `topup.account` holds there (a dummy account set by the CLI), under the EnvBanner. Nothing else changes.
+  - StepHeader "Step 2 of 3", titled **"Pay Rs 5,000"**, with a 48 dp copy icon button beside it (screen readers "Copy amount"; toast "Copied").
+  - SegmentedControl "Easypaisa" | "Bank app", prefilled from the last top-up's channel (`qk.topups.mine`), else Easypaisa. It is the channel sent on S5.
+  - Account card, no labels: the account name in bold, then "Check this name before sending." (`warningText`, `warn` icon), the bank, the IBAN in mono grouped by 4, and "Copy IBAN" (toast "Copied").
+  - **One path line** instead of numbered steps, with `chevron` icons that flip right-to-left: Easypaisa "Bank Transfer › {{bank}} › Paste IBAN"; Bank app "Transfer › Paste IBAN".
+  - The caption "We never send account numbers on WhatsApp."
+  - Footer **"I've paid"**, enabled once the account has loaded.
+- **States:** a skeleton card; with nothing saved and no connection, "Nothing saved yet." (the account is never shown from storage); `TOPUP_ACCOUNT_NOT_CONFIGURED` with "Call office". On a test server the account card shows the dummy account under the EnvBanner.
 - **Copy**
 
   | Key | Text |
   |---|---|
-  | `topup.howToPay.title` | How to pay |
+  | `topup.howToPay.title` | Pay {{amount}} |
   | `topup.howToPay.easypaisa` / `.bankApp` | Easypaisa / Bank app |
-  | `topup.howToPay.accountName` | Account name |
-  | `topup.howToPay.bank` | Bank |
-  | `topup.howToPay.iban` | IBAN |
-  | `topup.howToPay.amount` | Amount |
-  | `topup.howToPay.copyIban` / `.copyAmount` / `.copied` | Copy IBAN / Copy amount / Copied |
-  | `topup.howToPay.ep1` | Open Easypaisa and tap Bank Transfer |
-  | `topup.howToPay.ep2` | Choose the bank and paste the IBAN |
-  | `topup.howToPay.ep3` | Enter {{amount}}. Any purpose is fine |
-  | `topup.howToPay.ep4` | Send it, then take a screenshot |
-  | `topup.howToPay.bank1` | Open your bank app and choose Transfer (Raast or IBFT) |
-  | `topup.howToPay.bank2` | Paste the IBAN |
-  | `topup.howToPay.bank3` | Enter {{amount}} |
-  | `topup.howToPay.bank4` | Send it, then take a screenshot |
-  | `topup.howToPay.warning` | The account name must be {{accountName}}. We never send account numbers on WhatsApp. |
-  | `topup.howToPay.hours` | Money is checked {{from}}–{{to}}. Send before {{to}} to use it today. |
-  | `topup.howToPay.paid` | I have paid |
+  | `topup.howToPay.checkName` | Check this name before sending. |
+  | `topup.howToPay.copyIban` / `.copyAmount` / `.copied` | Copy IBAN / Copy amount (the icon's label) / Copied |
+  | `topup.howToPay.ep.transfer` / `.ep.bank` / `.app.transfer` / `.pasteIban` | Bank Transfer / {{bank}} / Transfer / Paste IBAN |
+  | `topup.howToPay.noWhatsApp` | We never send account numbers on WhatsApp. |
+  | `topup.howToPay.paid` | I've paid |
 
-### S5 Add money: Tell us you paid (new `TopupTellUsScreen.tsx`; agreed screen 4)
+### S5 Add money: Tell us you paid (`TopupTellUsScreen.tsx`)
 - **Layout**
   - StepHeader "Step 3 of 3"; title "Tell us you paid".
-  - Fields:
-    - "Amount sent": prefilled, editable, Rs prefix.
-    - "Paid from (name on the account)": required, words capitalised, at most 60 characters.
-    - "Paid with": SegmentedControl, prefilled.
-    - "Transaction ID": optional.
-  - A screenshot tile "Add screenshot" (`pickAndUploadImage`, quality 0.5, purpose TOPUP_PROOF). It shows a thumbnail with "Remove", and a spinner while uploading. A failed upload says "Upload failed. Try again." and doesn't block sending.
-  - Footer "Send for checking", loading label "Sending…", with the screen's idempotency key. It is enabled once the amount is valid; an empty payer name is checked on press and shows its error on the field.
-- **API:** `POST /payments/topup-requests { amountPaisa, payerName, payerChannel, transactionId?, proofFileId? }`.
-- **On success:** `replace('TopupStatus', {id})`, so Back doesn't return to the form, and the Toast "Sent for checking".
-- **Errors:** `TOPUP_ACCOUNT_NOT_CONFIGURED` and `DISTRIBUTOR_NOT_ACTIVE` (ErrorBanner with "Call office"), `TOPUP_AMOUNT_TOO_SMALL`/`_TOO_LARGE`, `TOPUP_WOULD_EXCEED_CAP`, `TOPUP_TOO_MANY_PENDING`, `VALIDATION_FAILED` (field errors), `FILE_NOT_FOUND`. A network failure shows `topup.tellUs.notSent` "Not sent. Check your internet and tap Send again. You won't be added twice."
-- **Copy**
+  - The read-only line "Rs 5,000 · Easypaisa": the amount and channel carried from S3 and S4 (the header arrow goes back to change them). **"Amount sent" and "Paid with" are gone, and "Other" is no longer offered** (the lead, 2026-10-23).
+  - Field **"Name on the account"**: words capitalised, at most 60 characters, prefilled from the last top-up's name (`qk.topups.mine`) or from "Tell us again". Its helper follows the channel: "As Easypaisa shows it." or "As your bank app shows it.".
+  - The screenshot tile "Add screenshot" (`pickAndUploadImage`, quality 0.5, purpose TOPUP_PROOF): "Uploading…", then a thumbnail, "Screenshot added" and "Remove"; "Upload failed. Try again." never blocks sending. "Helps us find it faster" is its screen-reader hint.
+  - AddMore "+ Add more" opens "Transaction ID" (optional; letters, digits and dashes, at most 40).
+  - Footer: the error line, then "Send for checking" ("Sending…"), with the screen's idempotency key. It is enabled whenever no upload is running; an empty name is checked on press and shows "Write the name on the account." on the field.
+- **API:** `POST /payments/topup-requests { amountPaisa, payerName, payerChannel, transactionId?, proofFileId? }`. The key's deps are `[amountPaisa, name, channel]`, so a retry always reuses it.
+- **On success:** `replace('TopupStatus', {id})`, so Back doesn't return to the form, and the toast "Sent for checking".
+- **Errors** (the footer line): no answer "Not sent. Tap again. It won't be sent twice." (`topup.tellUs.notSent`), entries kept; `TOPUP_ACCOUNT_NOT_CONFIGURED` and `DISTRIBUTOR_NOT_ACTIVE` with a ghost "Call office"; `TOPUP_TOO_MANY_PENDING`, `TOPUP_WOULD_EXCEED_CAP`, the amount limits, `FILE_NOT_FOUND`; `VALIDATION_FAILED` at the fields ("Use letters, numbers and dashes only." for the transaction ID).
 
-  | Key | Text |
-  |---|---|
-  | `topup.tellUs.title` | Tell us you paid |
-  | `topup.tellUs.amount` | Amount sent |
-  | `topup.tellUs.payerName` | Paid from (name on the account) |
-  | `topup.tellUs.payerNameHelp` | The name your bank or Easypaisa shows for you |
-  | `topup.tellUs.channel` | Paid with |
-  | `topup.tellUs.txnId` / `.txnIdHelp` | Transaction ID / If you have it |
-  | `topup.tellUs.screenshot` / `.screenshotHelp` | Add screenshot / Helps us find it faster |
-  | `topup.tellUs.submit` / `.sending` | Send for checking / Sending… |
-
-### S6 Add money: Status (new `TopupStatusScreen.tsx`; agreed screen 5)
-- **Layout:** the title is the amount. A Timeline: "Sent {{time}}" → "Being checked" ("Usually within 1 hour, {{from}}–{{to}}") → "Added to your balance". Footer "Back to home", which goes straight to Home. A New order left under the status screen (Add money from "Check and place") closes without "Leave without saving?" and its draft is dropped: it can't be placed until the top-up is added.
-- **BEING_CHECKED:** the second step is current. Outside the checking hours: "Checking starts at {{from}}."
-- **ADDED:** "{{amount}} added. Balance now: {{balance}}".
-  - If `creditedPaisa` ≠ `amountPaisa`: `topup.status.addedDifferent` "{{credited}} added (you told us {{amount}}). Call the office if this is wrong."
-- **NOT_ADDED:** a danger card with `topup.reason.<code>` and the office note.
-  - Actions: secondary "Call office", and primary "Try again", which starts a new top-up prefilled with the amount and name.
-- **Polling:** every 30 seconds while BEING_CHECKED and focused, plus pull to refresh.
+### S6 Add money: Status (`TopupStatusScreen.tsx`)
+- **Layout:** header "Top-up AG-T005" (the code shows once). The big amount (`creditedPaisa` once added), the `topup` chip, then by stage:
+  - **Being checked:** a Timeline "Sent {{time}}" → "Being checked" ("Usually within 1 hour, 9 am to 9 pm", or "Checking starts at 9 am." outside the hours) → "Added to your balance". Footer "Back to home".
+  - **Added:** a success card "Balance now" with the balance, and the caption "Added {{when}}". No timeline. When the amounts differ: "You told us Rs 5,000. Call office if this is wrong.", with a secondary "Call office" above "Back to home".
+  - **Not added:** a danger card with `topup.reason.<code>` and "The office wrote: “…”". Footer: the secondary "Call office" above the primary **"Tell us again"**, which resets the stack to Amount › How to pay › Tell us you paid, all prefilled, and opens on Tell us you paid: nothing asks the person to pay again. A request paid "Other" comes back as Easypaisa.
+- "Back to home" goes straight to Home. A New order left under the status screen (Add money from "Check and place") closes without "Leave without saving?" and its draft is dropped: it can't be placed until the top-up is added.
+- **Polling:** every 30 seconds while being checked and focused, plus pull to refresh.
 - **Reasons**
 
   | Key | Text |
   |---|---|
   | `topup.reason.NOT_IN_BANK` | We can't see this payment in our bank yet. |
   | `topup.reason.AMOUNT_DIFFERENT` | The amount in our bank is different. |
-  | `topup.reason.NAME_DIFFERENT` | The payer name doesn't match our bank. |
+  | `topup.reason.NAME_DIFFERENT` | The name on the account doesn't match our bank. (word for word the website's reject preview, UX_ADMIN §2.2) |
   | `topup.reason.DUPLICATE` | This payment was already used for another top-up. |
   | `topup.reason.OTHER` | The office couldn't approve it. |
 
-### S7 Wallet history (new `distributor/WalletScreen.tsx`; replaces the unrouted `LedgerScreen.tsx`)
+### S7 History (`distributor/WalletScreen.tsx`; replaces the unrouted `LedgerScreen.tsx`)
 - **Layout**
-  - A compact summary: Balance, and Being checked (if above 0).
-  - Filter chips: All · Money added (`kind=TOPUP_ADDED`) · Delivery costs (`kind=DELIVERY_COST,DELIVERY_COST_RETURNED`, so a returned cost shows beside its cost) · Top-up requests. They sit in two rows of two, so all four show on a 360 dp phone and nothing scrolls sideways (§6).
-  - Pending top-ups are pinned at the top.
-  - A FlatList with day sections ("Today", "Yesterday", "Mon 19 Oct").
-- **Rows** (`GET /wallet/statement`)
-  - Title from `wallet.kind.*` plus `subject.shortCode`, and `subject.clientName` for orders (" · AG-0142 · Ahmed Khan", " · AG-T031").
-  - Subtitle: the time. Caption: "Balance after {{balance}}".
-  - Trailing: MoneyText with `sign="always"`, success colour for money in.
-  - A DELIVERY_COST or DELIVERY_COST_RETURNED row opens the order. A CORRECTION row shows its reason label.
-- **"Top-up requests" filter:** lists `GET /payments/mine` in every state, because rejected requests never reach the ledger. A row opens S6.
-- **Paging:** cursor, 30 per page, `onEndReached`.
-- **Empty:** `wallet.empty` "No money movements yet." with "Add money".
+  - Header **"History"** (the one name for the wallet's list).
+  - A summary card: "Balance", and "Being checked" with the clock when above 0 (a tap switches the filter to Top-ups in place).
+  - ChoiceChips with `columns={3}`: **All · Top-ups · Delivery costs**. They wrap to 2 rows at the largest font.
+  - Day sections ("Today", "Yesterday", "Mon 19 Oct").
+- **Rows, All and Delivery costs** (`GET /wallet/statement`; Delivery costs is `kind=DELIVERY_COST,DELIVERY_COST_RETURNED`):
+  - the title is the kind only (§3.4): "Delivery cost", "Refund", "Top-up", "Office correction", "Opening balance", "Older entry";
+  - the grey line is the number and customer ("AG-0142 · Sana"), the top-up number ("AG-T031"), or the correction reason ("Mistake fixed", "Top-up added by mistake"; nothing for Other);
+  - on the right, the signed `MoneyText` (success colour for money in) with the time under it;
+  - a chevron on rows that open their order or top-up; a row that opens nothing keeps the chevron's room, so the amounts line up.
+  - **No "Balance after"** (the lead, 2026-10-23). The website wallet page keeps the full history for the office.
+- **Top-ups filter** (`GET /payments/mine`, every state, because rejected requests never reach the ledger): every request in the same shape: the title "Top-up", the grey line "AG-T031 · Ahmed Raza" (plus "You told us Rs 5,000" when the amounts differ), the amount (credited when added) and time on the right, and the `topup` chip below. A row opens S6. The old "Money added" and "Top-up requests" filters are merged into it.
+- **Paging:** cursor, 30 per page, `onEndReached`, "Loading more…", "Couldn't load more." with Try again.
+- **Empty:** "No money movements yet." with "Add money" (History has no footer or Fab, so the empty state keeps its button); Top-ups: "No top-ups yet." with "Add money".
 
-### S8 Add customer, with zone and delivery cost (new `distributor/AddCustomerScreen.tsx`; replaces `AddClientScreen.tsx`)
+### S8 Add customer (`distributor/AddCustomerScreen.tsx`; replaces `AddClientScreen.tsx`)
 - **Step 1 of 2, "Customer details"**
-  - Name (required). Mobile (required; normalised on blur, inline `CLIENT_PHONE_INVALID`). Area (optional). Notes (optional).
-  - City chips, priority and credit limit are removed (AddClientScreen.tsx:25-32, 175-181).
+  - Name (required). PhoneField **"Mobile number"** (the Sign in label; normalised on blur; `CLIENT_PHONE_INVALID` "Enter a number like 300 1234567."). **House and street** (required, at most 60; moved here from step 2).
+  - AddMore "+ Add more" opens **Area** (one visible "Area" label, up to 4 ChoiceChips of the shop's most used areas from `qk.clients`, then the field) and **Notes**.
+  - Footer "Next": it checks the three fields and shows each error under its field.
+  - `CLIENT_PHONE_EXISTS` (from the save) comes back here with "{{name}} already has this number." and a secondary "Use {{name}}".
 - **Step 2 of 2, "Delivery location"**
-  - Search, or "Use my location". The location permission is asked on that tap only; today it is asked on mount (:65-76).
-  - The map: tap to drop the pin. Field "House / street" (required).
-  - **A cost panel** refreshed by `GET /pricing/quote?lat&lng` (400 ms debounce, 200 always):
+  - Search (`leadingIcon="search"`, placeholder "Search area or street"); results show as rows under it.
+  - The 240 dp map opens on the shop's store; a tap drops the pin, which can be dragged. A secondary "Use my location" (`navigate`) sits over its bottom-end corner and asks for permission on that tap only.
+  - **One line under the map**, refreshed by `GET /pricing/quote?lat&lng` (400 ms debounce):
 
-    | State | Panel |
+    | State | Line |
     |---|---|
+    | no pin | "Tap the map to drop the pin." |
     | checking | "Checking delivery area…" |
-    | priced | success card "Zone {{zone}} · Delivery cost {{base}} per order", plus one line "+ {{amount}} per {{size}} cylinder" for each **non-zero** size. When every size is 0 it shows just the base line. |
-    | `PRICING_ZONE_NOT_COVERED` | danger card "This location is outside our delivery area. Move the pin or call the office." |
-    | `PRICING_PRICE_NOT_SET` | danger card "No delivery price is set for zone {{zoneName}} yet. You can't add this customer until the office sets it.", with "Call office" |
-    | error | ErrorBanner with retry |
+    | priced | the `ok` icon and "Delivery cost {{base}} per order", plus a caption only when sizes add a cost: "+ {{min}} to {{max}} per cylinder", "+ {{amount}} per cylinder" when several sizes add the same, or "+ {{amount}} per {{size}} cylinder" for one size |
+    | `PRICING_ZONE_NOT_COVERED` | "Outside our delivery area. Move the pin." |
+    | `PRICING_PRICE_NOT_SET` | "No delivery price here yet." with a secondary "Call office" |
+    | error | "Couldn't check this spot." with "Try again" |
 
-  - Footer "Save customer", enabled only when priced. An empty "House / street" is checked on press: the field shows "Write the house or street."
+    A failed "Use my location" adds one danger caption: "Allow location in phone settings, or search." or "Couldn't find you. Search or tap the map.". **No zone name.**
+  - Footer "Save customer" ("Saving…"), enabled only when the pin is priced; the line under the map always says why when it isn't.
 - **Save:** one atomic `POST /clients` with `address`.
-  - `CLIENT_PHONE_EXISTS` goes back to step 1 with "{{name}} already has this number." and the action "Use {{name}}".
-- **Success:** the Toast "Customer saved". Opened from New order, it returns there with the customer selected.
+- **Success:** the toast "Customer saved". Opened from New order (or "Use {{name}}"), it opens New order on step 2 for that customer; opened from Customers, it goes back there.
+- City chips, priority and credit limit are removed.
 
-### S9 New order (new `distributor/NewOrderScreen.tsx`; replaces `PlaceOrderScreen.tsx`; 3 steps)
-- **Step 1 of 3, "Who is it for?"**
-  - Search (name, phone, area). Rows show name, phone and area, plus a zone chip.
-  - An address with `priceStatus NOT_SET` shows a danger chip "No price yet". Selecting it shows the PRICE_NOT_SET card, and Next stays disabled. An address with `priceStatus OUTSIDE` shows a danger chip "Outside delivery area"; selecting it shows the `PRICING_ZONE_NOT_COVERED` card ("This location is outside our delivery area. Move the pin or call the office.") and Next stays disabled. The zone chip shows the live `zone`, and none when it is null.
-  - Secondary "Add new customer" opens S8. Footer "Next".
-- **Step 2 of 3, "Cylinders"**
-  - One Stepper row per size: "Deliver {{count}}" and "Take back", which defaults to the same count.
-  - A live line "Delivery cost about {{fee}}" from the customer's price, hidden while 0.
-  - Footer "Next" once at least one cylinder is chosen. The total is capped at `orders.maxCylindersPerOrder`.
+### S8b Customers (`distributor/CustomersScreen.tsx`, new in Inc 1; route `Customers`)
+Customers and New order step 1 share one list, `screens/distributor/shared/CustomerList.tsx`.
+- **Layout**
+  - Header "Customers". A search box (`search` icon, placeholder "Search name, mobile or area", screen readers "Search customers") filters the downloaded list on the phone.
+  - **"Recent"**: up to 5 customers of the newest orders, from the first pages of `qk.orders.list('active')` and `('done')` (fetched when not cached; hidden if either fails, and while searching). Then **"All customers"**, A–Z.
+  - **Row:** the name; the grey line "0300 1234567 · Model Town"; a trailing 48 dp call button (screen readers "Call {{name}}", a `tel:` link). Below, only when the default address can't take an order, a danger chip with the `error` icon: "No price yet", "Outside delivery area" or "No address yet". No zone chip.
+  - **A row tap starts a New order for that customer**, opening on step 2 (`navigate('NewOrder', { clientId, pickedAt })`). A blocked row instead opens in place, one at a time, and scrolls to the top of the list so its fix is never under the Fab: "No delivery price here yet." or "Outside our delivery area." with [Change address] and [Call office] **stacked** ("Change address" is too long to sit side by side at 360 dp), or "No delivery address yet." with [Add address]. [Change address] opens the address PickerSheet (S9); picking an orderable address starts New order on step 2 with it. [Add address] opens New address, which then starts New order.
+  - The **Fab** "+ Add customer" opens Add customer; on save it comes back here with the toast "Customer saved".
+- **States:** the search box then 5 skeleton rows; empty "No customers yet." (the Fab stays); no match "No customer matches “{{query}}”."; errors as §4's patterns.
+
+### S9 New order (`distributor/NewOrderScreen.tsx`; 3 steps)
+- **Step 1 of 3, "Who is it for?"**: the CustomerList (S8b) without the call button. A tap on an orderable customer selects them and **goes straight to step 2**; there is no Next and no footer. A blocked row opens in place (S8b). The Fab "+ Add customer" opens Add customer and comes back on step 2 with the new customer. Back from step 2 shows the list with the chosen row ticked.
+- **Step 2 of 3, "Cylinders to deliver"**
+  - The caption "For Sana · House 14, Street 5".
+  - One row per size, sorted by weight: a Stepper labelled with the size, then, while it is above 0, an indented "Take back" Stepper that follows it until changed.
+  - **Every count starts at 0** (the lead, 2026-10-23: never prefill silently, so no wrong order goes out by accident). While nothing is chosen and the customer has ordered before, a one-tap chip **"Same as last time"** fills the sizes, counts and take-back of the customer's newest order in the cached first pages of Active and Done; it hides once a count is set.
+  - Footer: the line "Delivery cost about Rs 330", or "Add at least 1 cylinder." with nothing chosen (Next is then disabled), plus "Up to 30 cylinders per order." at the cap (`orders.maxCylindersPerOrder`); then "Next".
 - **Step 3 of 3, "Check and place"**
   ```
-  Customer       Ahmed Khan · 0300 1234567
-  Deliver to     House 14, Street 5 (Zone F-7)        [Change address]
-  Cylinders      2 × 11.8 kg · take back 2
-  Delivery cost  Rs 250 per order + 2 × Rs 40 (11.8 kg) = Rs 330       (zero lines hidden; flat: "Rs 250")
-  Your wallet    Balance now Rs 3,450 · After this order Rs 3,120
-  (i) Rs 330 is taken from your wallet now. If you cancel before the driver starts loading,
-      you get it back. After loading starts, it isn't returned, even if the customer refuses.
+  Sana · 0300 1234567
+  House 14, Street 5                         [Change]
+  ---------------------------------------------------
+  2 × 11.8 kg · take back 2
+  ---------------------------------------------------
+  Delivery cost                                Rs 330    (big)
+  Rs 250 + 2 × Rs 40                                     (caption, only when sizes add)
+  ---------------------------------------------------
+  Balance now                               Rs 3,450
+  After this order                          Rs 3,120
+  (i) Refund only if cancelled before loading.
   [ Place order · pay Rs 330 ]
   ```
-  - **Data:** `POST /orders/quote` on entry and on every change. "Change address" opens PickAddress (saved addresses or a new pin, with the same cost panel as S8).
-  - **The refund sentence** follows `appConfig.orders.deliveryStartedAt`, read fresh: the app refetches `GET /app/config` when this step opens (not the 5-minute copy):
+  - **Data:** `POST /orders/quote` on entry and on every change. "Change" opens the address PickerSheet "Deliver to" (`screens/distributor/shared/AddressPickerSheet.tsx`): the saved addresses with a tick on the current one, blocked ones with their chip (opening in place, the sheet staying open), and a last row "+ New address" that opens the **New address** screen (`NewAddressScreen.tsx`, route `NewAddress`: House and street, then S8's location picker and cost line, "Save address"; toast "Address saved"). Saving from step 3 comes back to step 3 with the new address. New address and "Use {{name}}" can also start from Customers or Home: they then replace themselves with New order on step 2, so Back returns where they started.
+  - **The refund line** follows `appConfig.orders.deliveryStartedAt`, read fresh (the app refetches `GET /app/config` when this step opens):
 
     | Key | Text |
     |---|---|
-    | `orders.new.refundRule.FIRST_LOAD_SCAN` | the text above |
-    | `orders.new.refundRule.DRIVER_ASSIGNED` | "…If you cancel before a driver is assigned, you get it back. After that, it isn't returned, even if the customer refuses." |
-    | `orders.new.refundRule.LEFT_STORE` | "…If you cancel before the van leaves your store, you get it back…" |
+    | `orders.new.refundRule.FIRST_LOAD_SCAN` | Refund only if cancelled before loading. |
+    | `orders.new.refundRule.DRIVER_ASSIGNED` | Refund only if cancelled before a driver is assigned. |
+    | `orders.new.refundRule.LEFT_STORE` | Refund only if cancelled before the van leaves. |
 
-  - **Not enough money:** a danger card "You need {{required}} but have {{balance}}. Add money to place this order." The footer becomes "Add money", opening S3 prefilled.
-  - **Submit:** `POST /orders` with `Idempotency-Key` and `quotedTotalPaisa`.
-    - `PRICING_QUOTE_CHANGED`: a warning banner "The delivery cost changed to {{total}}. Check it and tap Place order again.", and the breakdown refreshes.
-    - `WALLET_INSUFFICIENT_BALANCE` shows the not-enough card.
-  - **Success:** replace with OrderDetail and the Toast "Order placed · {{fee}} paid". The old "A driver will be assigned shortly" becomes "The office will assign a driver."
-  - **A zero cost:** the button is "Place order" and the wallet lines are hidden.
+    It is hidden when the cost is 0 or the balance is short.
+  - **Footer lines** above the button, at most one: short of money "You need {{required}}. You have {{balance}}." (danger), and the button becomes "Add money", opening S3 prefilled; `PRICING_QUOTE_CHANGED` "The delivery cost is now {{total}}. Check it, then tap again." (warning), with the cost refreshed; no answer "Not sent. Tap again. It won't be sent twice." (`orders.new.notSent`).
+  - A blocked address (`PRICING_PRICE_NOT_SET` / `PRICING_ZONE_NOT_COVERED`) shows the S8b line with [Change address] and [Call office] stacked. A quote that failed shows "Couldn't get the cost." with "Try again".
+  - **Submit:** `POST /orders` with `Idempotency-Key` and `quotedTotalPaisa`. `WALLET_INSUFFICIENT_BALANCE` shows the short-of-money line.
+  - **Success:** replace with Order detail and the toast "Order placed · {{fee}} paid".
+  - **A zero cost:** "No delivery cost", the wallet lines hidden, and the button "Place order".
 - **Copy**
 
   | Key | Text |
   |---|---|
-  | `orders.new.title` | New order |
-  | `orders.new.who` | Who is it for? |
-  | `orders.new.addCustomer` | Add new customer |
-  | `orders.new.noPrice` | No price yet |
-  | `orders.new.outside` | Outside delivery area |
-  | `orders.new.cylinders` | Cylinders |
-  | `orders.new.deliver` / `.takeBack` | Deliver / Take back |
-  | `orders.new.costAbout` | Delivery cost about {{fee}} |
-  | `orders.new.review` | Check and place |
+  | `orders.new.title` / `.who` / `.cylinders` / `.review` | New order / Who is it for? / Cylinders to deliver / Check and place |
+  | `orders.new.forCustomer` | For {{name}} · {{address}} |
+  | `orders.new.sameAsLast` | Same as last time |
+  | `orders.new.takeBack` / `.costAbout` / `.pickSome` | Take back / Delivery cost about {{fee}} / Add at least 1 cylinder. |
+  | `orders.new.noPrice` / `.outside` / `.noAddress` | No price yet / Outside delivery area / No address yet |
+  | `orders.new.change` | Change |
+  | `orders.new.deliveryCost` / `.costNone` / `.costError` | Delivery cost / No delivery cost / Couldn't get the cost. |
   | `orders.new.balanceNow` / `.balanceAfter` | Balance now / After this order |
-  | `orders.new.place` | Place order · pay {{fee}} |
-  | `orders.new.placeFree` | Place order |
-  | `orders.new.placed` | Order placed · {{fee}} paid |
-  | `orders.new.officeAssigns` | The office will assign a driver. |
+  | `orders.new.notEnough` / `.priceChanged` | You need {{required}}. You have {{balance}}. / The delivery cost is now {{total}}. Check it, then tap again. |
+  | `orders.new.place` / `.placeFree` / `.placing` | Place order · pay {{fee}} / Place order / Placing order… |
+  | `orders.new.placed` / `.officeAssigns` | Order placed · {{fee}} paid / The office will assign a driver. |
+  | `customers.address.title` / `.addNew` | Deliver to / New address |
 
-### S10 My orders (new `distributor/OrdersScreen.tsx`; replaces `OrderHistoryScreen.tsx`)
+### S10 My orders (`distributor/OrdersScreen.tsx`, `shared/OrderRow.tsx`)
 - **Layout:** SegmentedControl "Active ({{n}})" | "Done".
-  - Each ListRow has the customer name as title and "{{shortCode}} · {{items}} · {{when}}" as subtitle ("2 × 11.8 kg").
-  - Trailing: StatusChip(stage). A second line carries the fee chip ("Rs 330 paid" or "Rs 330 returned").
+  - Each row: the customer's name; the grey line "2 × 11.8 kg · AG-0007"; the time on the right ("10:46 am"); the stage chip below; a chevron.
+  - A cost chip only on a **cancelled Done row**: "Rs 330 returned", or "No refund" when the cost was kept. Active and delivered rows have none.
+  - The **Fab** "+ New order".
 - **Data:** `GET /orders?tab=active|done&cursor`, every 30 seconds while focused, plus pull to refresh.
-- **Empty:** Active "No active orders." with "New order"; Done "No finished orders yet."
+- **Empty:** Active "No active orders." (the Fab is the button); Done "No finished orders yet.".
 
-### S11 Order detail and cancel (new `distributor/OrderDetailScreen.tsx`; replaces `TrackOrderScreen.tsx`)
+### S11 Order detail and cancel (`distributor/OrderDetailScreen.tsx`)
 The live socket is removed.
 - **Layout**
   - Header "Order {{shortCode}}".
-  - Timeline: "Placed · {{fee}} paid" → "Driver assigned" → "Loading at your store" → "On the way" → "Delivered", each with its time. A cancelled order ends with "Cancelled · {{fee}} returned" or "Cancelled · no refund".
-  - Cost card: "Delivery cost {{fee}}" plus the fee chip, with the breakdown.
-  - Items: "Deliver 2 × 11.8 kg · take back 2".
-  - Once assigned, a driver card with name, van plate and "Call driver".
-  - While ON_THE_WAY, a small map of the driver's last position (polls `/orders/:id/tracking` every 20 seconds).
-- **Cancel** (danger button, shown while `cancel.allowed`). A ConfirmSheet whose text comes from `order.cancel`:
+  - The stage chip. While waiting for a driver, the caption "The office will assign a driver.".
+  - **Active orders:** the Timeline "Placed · {{fee}} paid" → "Driver assigned" → "Loading" → "On the way" → "Delivered", each with its time.
+  - **Finished orders** show one status line instead: Delivered "Today, 11:02 am"; Cancelled "Today, 10:30 am · Customer cancelled"; Not delivered (red) "Today, 11:40 am · Customer not home" (`orders.detail.statusLine` "{{when}} · {{reason}}"). A ghost **"All steps"** opens the Timeline in place; a cancelled order's Timeline ends with the neutral `stopped` marker.
+  - **One facts card:** the customer "Sana · 0300 1234567" with a 48 dp call button (screen readers "Call {{name}}") and the address (no zone); while active with a trip, the driver "Kashif · Van LEA-101"; the cylinders "Deliver 2 × 11.8 kg · take back 2"; and the cost: "Delivery cost" with the fee chip and the caption "Rs 250 + 2 × Rs 40", or, for a cancelled order whose cost was kept, "No refund. Delivery had started.".
+  - While ON_THE_WAY and a driver position exists: "Where the driver is", a small map (polls `/orders/:id/tracking` every 20 seconds).
+  - **Cancel** (only while `cancel.allowed`): a full-width **`dangerOutline`** button at the end of the content, never in the footer: "Cancel order" while a refund is due, "Cancel · no refund" when `noRefundReason = DELIVERY_STARTED`.
+  - **Footer:** "Call driver" while a driver is assigned and the order is active; otherwise no footer (the screen only shows; the header arrow leaves). From Inc 2 a delivered order's footer belongs to the customer-answer card (§7.3).
+- **Cancel sheet** (ConfirmSheet, §2.2 #19), its words from `order.cancel`:
 
-  | Case | Title | Body | Confirm |
+  | Case | Title | Money | Confirm |
   |---|---|---|---|
-  | `refundPaisa > 0` | Cancel order {{code}}? | {{fee}} comes back to your wallet. | Yes, cancel and get {{fee}} back |
-  | `noRefundReason = DELIVERY_STARTED` (danger) | Cancel without refund? | Delivery has started. If you cancel now, the {{fee}} is not returned. | Cancel without refund |
-  | `refundPaisa` 0 and no `noRefundReason` (no cost, or an order the old system charged before the switch-over) | Cancel order {{code}}? | | Yes, cancel order |
+  | `refundPaisa > 0` | Cancel order {{code}}? | "Back to your wallet" with {{fee}} big | Cancel · get {{fee}} back |
+  | `noRefundReason = DELIVERY_STARTED` and a cost was taken (danger) | Cancel without refund? | "Delivery has started." with "Not returned" and {{fee}} big | Cancel without refund |
+  | otherwise (no cost, or an order the old system charged before the switch-over) | Cancel order {{code}}? | none | Cancel order |
 
-  - Reasons: Customer cancelled · Wrong order · Duplicate order · Out of stock at the store · Other (needs a note of at least 3 characters).
-  - It sends `confirmRefundPaisa`.
-    - `ORDER_CANCEL_TERMS_CHANGED`: the sheet re-renders with the new terms and says "Delivery has just started. The refund is now {{refund}}."
-    - `ORDER_HANDOVER_STARTED`: "Cylinders were already handed over. Call the office."
-  - Toasts: "Order cancelled · {{fee}} returned" or "Order cancelled · no refund".
-- **States:** skeleton; ErrorBanner; `NOT_FOUND` gives EmptyState "We couldn't find this order."
+  - "Why?" above the radio rows Customer cancelled · Wrong order · Duplicate order · Out of stock · Other; Other opens "What happened?" (3–300 characters). The cancel "Keep order" is secondary.
+  - It sends `confirmRefundPaisa`. `ORDER_CANCEL_TERMS_CHANGED`: the sheet re-renders with the new terms and says "Delivery has just started. The refund is now {{refund}}." (the catalogue's words). `ORDER_HANDOVER_STARTED`: "Cylinders were already handed over. Call the office."
+  - Toasts: "Order cancelled · {{fee}} returned", "Order cancelled · no refund" or "Order cancelled".
+- **States:** a skeleton card and the title "Order"; stale "Saved {{time}}"; `NOT_FOUND` gives EmptyState "We couldn't find this order.".
+- From Inc 2 (S14) the delivered order's cost reads "Delivery cost {{fee}} · paid when the order was placed", and the Delivered / Taken back card replaces the cylinders line.
 
-### S12 Profile and Help (extends `distributor/ProfileScreen.tsx`; `HelpScreen.tsx` replaces `AboutScreen.tsx`)
-- **Profile** is read-only: name, business name, shop code, mobile, store name and address, with "To change these, call the office."
-  - CNIC, role and IDs are removed (ProfileScreen.tsx:52-56, 68-70). `PATCH /users/me` is used only for name and email.
-- **Help:**
-  - "Call the office" (`support.phone`; replaces the fake number at AboutScreen.tsx:29-33), and "WhatsApp the office" if set.
-  - Short "How top-ups work" and "When you get the delivery cost back" texts, the latter following the rule.
-  - "App version {{version}} · update {{id}}", and Sign out.
+### S12 Profile and Help (`distributor/ProfileScreen.tsx`, `HelpScreen.tsx`)
+- **Profile** is read-only: one card of icon rows with no visible labels (the labels stay as screen-reader prefixes): the business name (the contact name as the grey line only when it differs), the mobile, and the store with its address (or "Not set up yet"). The caption "Only the office can change these." and the footer "Call office". The shop code, CNIC, role and IDs are not shown. `PATCH /users/me` is used only for name and email.
+- **Help:** a card "Delivery cost" with the one refund line (`orders.new.refundRule.*`, following the setting); a card "Top-ups" with "Being checked until the office adds it."; "Office hours {{hours}}" when set; "App version {{version}} · update {{id}}". Footer: the secondary "WhatsApp office" (only when set) above the primary "Call office". The number comes from the config or `support.contact` (§3.6); with neither, the line "The office number isn't loaded yet.". **No Sign out on Help:** it is in the menu only.
+- The retired customer stack's About (`HelpContent shop={false}`) shows only the office buttons, the hours and the version.
 
-### S12b Refill request, minimal Inc 1 change (`distributor/RequestFillingScreen.tsx`)
-- Remove the DIY mode (:21, :122-153), the price lines and the float balance check (:63-67).
-- One request per size, with the Stepper capped at `refill.maxCylinders`. Keep the request list; each row shows its stage chip from the DTO's `stage` (`stages.refill.*`, the §8.1 words), never the raw status.
-- Cancel only while the request is waiting for a driver or assigned, through a ConfirmSheet "Cancel this refill?" (`REFILL_NOT_CANCELLABLE`).
-- The full rebuild is in Inc 3 (§8).
+### S12b Refills and New refill (`RefillListScreen.tsx`, route `Refills`; `NewRefillScreen.tsx`, route `NewRefill`)
+Built in Inc 1 as the Inc 3 screens S16 and S17 (§8.1), so Inc 3 only adds the refill detail and the scan counts. No money anywhere (ADR-16); the do-it-yourself mode and the price lines are gone.
+- **Refills:** header "Refills". Rows (the §2.2 row look; a local copy, so the Cancel stays reachable by screen readers): `cylinder`, "3 × 6 kg", the refill number as the grey line, the time on the right, the refill chip below. **Inc 1 only:** after the chip, a `dangerOutline` md "Cancel" while the refill is waiting for a driver or assigned; it opens "Cancel this refill?" / "The driver won't pick up these cylinders." with [Cancel refill] (danger) and [Keep refill] (secondary). `REFILL_NOT_CANCELLABLE` shows "This refill can't be cancelled after pickup." in the sheet and the list refreshes. The **Fab** "+ New refill" hides while the list is empty, when the empty state "No refills yet." carries "New refill". No station on the row.
+- **New refill:** header "New refill". "Size": ChoiceChips with `columns={2}` (a 2×2 grid), prefilled with the last refill's size, and the helper "One size per refill.". "How many": a Stepper from 1 to `refill.maxCylinders`, "Up to 30 per refill.". "Filling station": its name as text with one station, radio rows for 2–6, a PickerSheet above 6; prefilled with the last station used, else the first active one. Footer **"Request refill · 2 × 11.8 kg"** ("Sending…"); before a size is chosen, "Request refill", disabled, with "Pick a size first." above it. On success: the toast "Refill requested" and back to Refills (replace).
+- **States:** one body state for sizes and stations together; blocked ("No station is taking refills. Call the office." / "No sizes to refill yet. Call the office.") with "Call office"; a failure on the footer line.
+- Each row's chip is the `stages.refill.*` word (§8.1), never the raw status.
 
 ---
 
-## 5. Increment 1: driver app stop-gaps (R1)
-- **`driver/HomeScreen.tsx`**
-  - Remove the free scan tiles (:65-80), Nearby orders (:101-152) and Transfer tasks (:154-172).
-  - Trip rows use StatusChip (`stages.step`), under the text (ListRow `below`), so the customer's name keeps the row's width on a 360 dp phone; the trip screen's step rows do the same.
-  - The empty state reads "No jobs yet. The office will assign your next job."
-- **ScanPanel v1 core** (`ui/scan/ScanPanel.tsx`) replaces `ScanScreen.tsx`
-  - The camera loop with the same-QR ignore copied from TransferScanScreen.tsx:64-67, an inline result strip, vibration, error copy by code, QR only.
-  - DeliverySteps opens it with a fixed `eventType` plus `tripId` and `orderId`. The free event picker (ScanScreen.tsx:16-22) is deleted.
-- **`DeliveryStepsScreen.tsx`**
-  - Buttons are disabled while sending. Errors show as an ErrorBanner by code (fixes the missing `onError`, :57-68).
-  - "All delivered" opens a ConfirmSheet: "Mark all delivered? Only do this after you have handed over every cylinder."
-  - An `X-Already-Applied` reply shows "Already marked delivered".
-  - **"Could not deliver"** (secondary) opens a ConfirmSheet with the `DeliveryFailureReason` list and calls `POST /orders/:id/fail`. `ORDER_NOT_STARTED_USE_CANCEL` shows "This order hasn't started. Call the office."
-- **`ActiveTripScreen.tsx`:** StatusChip and error banners.
-- **Copy:** "Ask admin" becomes "Call the office" (VehicleLoad.tsx:51, VehicleInfoScreen.tsx:25, FillingOrdersScreen.tsx:49,158).
-- **Driver profile** is read-only; CNIC is removed (driver/ProfileScreen.tsx:51).
-- **Menu:** Fuel refill, Notifications and the language switch are removed.
-- **Live location** (`hooks/useLiveLocation.ts`)
-  - Drop `driverId` from the emits (:42, 52-56).
-  - On `connect_error` with an expired session, refresh the token and reconnect.
-  - Show "Location paused, no connection" after 30 seconds disconnected.
-- **Fix** the existing type error at FillingOrdersScreen.tsx:124 (or rely on the foundation's `muted` wrapper).
+## 5. Increment 1: driver app (R1, rebuilt to the rulebook on 2026-10-23)
+The driver spec's D1–D16, with the lead's DECIDED answers. Every scan is still one server call per cylinder on the legacy Inc 1 routes (`POST /custody/scan`, `PATCH /trips/stops/:id/arrive|depart`, `PATCH /orders/:id/status DELIVERED`, `POST /orders/:id/fail`, `PATCH /trips/:id/status`, `/filling-orders/:id/*`), and a holder changes only by a scan.
+
+**Routes** (`navigation/DriverStack.tsx`): Home (Today), ActiveTrip (Trip), DeliverySteps (the Load or Deliver step, with its own camera), **Unload** `{ tripId }` (new; the Inc 1 SCAN_IN), **Refills** (list), **RefillRun** `{ refillId }` (new), VehicleInfo (My van) and Help (with the profile). The Scan, Profile and FillingRuns routes are retired. The menu is My van · Refills · Help · Sign out (§3.6).
+
+**The frame on every driver screen**
+- The header: a back arrow and a title of 3 words at most ("Step 2 of 3" on a step screen), with "Call office" at the end of every header (it works offline, §2.2 #4); Today also has the menu.
+- **At most two top strips, and only one about the network:** the EnvBanner; "No connection" + Try again; and "Location paused" (on duty, the API answers, but live location hasn't got through for 30 s). "Location paused" hides while "No connection" shows, and on Today it is said in the duty row instead of a strip.
+- One 56 dp footer button, with at most one line above it: its own failure (ActionLine, "Not sent. Tap again." or the catalogue text, with [Call office] when that is the fix) or why it is off.
+- No data and no connection: the banner and "Nothing saved yet.", and the trip and step screens add [Call office]. Saved data stays, stamped "Saved 11:05 am".
+
+**Today** (`driver/HomeScreen.tsx`)
+- The header "Today · Thu 22 Oct" (the business date, from `day.cutoffLocalTime`), Call office and the menu.
+- The duty row: "On duty" / "Off duty" with the Switch; a second line only when something is wrong ("Location blocked. Allow it in settings." / "Phone location is off. Turn it on." with "Open settings", or "Location paused").
+- The van row (`components/VehicleLoad.tsx`): the plate and "3 full · 1 empty" with zeros hidden, or "No cylinders"; with no van, "No van yet.". It opens My van.
+- The trips, no heading. The current trip (the one in progress, else the oldest planned) in a card with a 2 dp brand border: "Deliver to {{name}}" (or "Deliver to {{count}} customers") and "{{count}} cylinders · load at {{store}}", with the chip "Next" or "In progress". Other open trips are plain rows with the chip "To do". Aborted trips are not listed.
+- "Done today: {{count}}": trips COMPLETED in today's business day, only when above 0. The phone no longer reopens finished trips.
+- **Footer** (only with a current trip): **"Start trip"** (planned: `PATCH /trips/:id/status IN_PROGRESS`, then the Load step opens, with Trip under it) or **"Continue trip"** (the next open step, else the Trip screen).
+- Empty: "Nothing to do." / "New trips appear by themselves." with a secondary "Call office", and no footer. It polls every 30 seconds while focused.
+
+**Trip** (`driver/ActiveTripScreen.tsx`)
+- Header "Trip". Step rows in trip order (chip below the text, chevron):
+  - "Load at {{store}}" (`van`), "{{count}} cylinders";
+  - one "Deliver to {{name}}" per customer (`customer`), the address, then "{{count}} cylinders · take back {{back}}";
+  - "Unload at {{store}}" (`store`), "{{count}} on the van" while the van has any.
+- Step chips (§3.4): the Load row counts every order except one cancelled before its first load scan; the Unload row is To do while a customer waits, Next while the van holds cylinders, and Done at 0 or once the trip is completed.
+- **The footer names the next step:** "Start trip" → "Load at store" → "Deliver to {{name}}" → "Unload at store" (cylinders on the van, no open delivery) → "Finish trip" (van empty), then "Back to home" once closed. Never "Next:" or "Hand back".
+- **Finish trip** (rule 7): "Finish this trip?" / "Unload at {{store}} first. You can't scan for this trip after." / [Finish trip] / [Not yet] (secondary). Success: back to Today with the toast "Trip done".
+- **Leftovers** (only when the server answers `TRIP_VAN_NOT_EMPTY` with `leftoversAllowed: true`, which the Inc 1 server never does): the sheet "Finish with {{count}} on the van?" / "The office will see this. Unload them on your next trip." with "Why?" over the tap rows Store closed · No one to scan · Other ("What happened?", 5–300 characters, for Other only). The picked row's English words are sent as `reason` on `PATCH /trips/:id/status COMPLETED` (API_CONTRACT §9.3 maps it to `leftoverReason`). Without `leftoversAllowed`, the footer line shows the catalogue text "The store must scan in {{count}} more from your van.".
+- A closed trip shows the card "Trip done" or "The office stopped this trip.".
+
+**The step screens: the camera is on the step** (`DeliverySteps` with `StepFrame`; there is no separate scan screen and no "Scan to …" button)
+- Every step reads, top to bottom: the header "Step {{n}} of {{N}}" (N = the load stops + the deliveries + Unload); the title (verb and place); the **CountBar**; the camera (`ScanPanel`); the result strip, whose idle text is the hint; the size lines; the rare actions last; then one footer button. A step's back arrow always goes to the Trip screen, and a finished step replaces itself with the next one (the frame remounts per phase, so a new phase starts at the top).
+- **The Inc 1 count** (UX_PRINCIPLES §9.2): the legacy route sends no progress, so the CountBar shows the screen's tally of different cylinders the server confirmed on this step (recorded or already recorded), labelled "scanned" ("0 of 3 scanned", "All 3 scanned", "4 scanned · 3 needed"). It lives in memory per trip, stop and step (`scanTally`), is never saved or sent, and never blocks.
+- **"Done loading" and "All delivered" stay pressable** (the Inc 1 server allows it; Inc 2 enforces it). Until the tally reaches the total they are outlined (`secondary`), then the filled primary. Pressed early, they open "Only {{done}} of {{total}} scanned. Continue?" with [Done loading] or [Yes, all delivered] and [Keep scanning]; "All delivered" adds "Only if the customer has every cylinder.". At the count, "Done loading" acts at once and "All delivered" asks "All delivered?" / "Only if the customer has every cylinder." / [Yes, all delivered] / [Not yet]. Each sheet freezes the count it opened with.
+- **Load at {{store}}:** hint "Scan each full cylinder.", recorded "Loaded"; the size lines "2 × 11.8 kg"; footer "Done loading". After it: the camera stops, the success card "Loading done", and the footer becomes the next step.
+- **Deliver to {{name}}, on the way** (before arriving): the address; "Maps" (screen readers "Open in maps", when the stop has a pin) and **"Call {{name}}"** (the customer's phone from the trip; side by side only when both labels have 12 characters or fewer, else stacked); what to deliver, with "Take back {{count}}"; a secondary "Could not deliver"; footer "I've arrived" (it acts at once).
+- **At the customer, deliver:** "Call {{name}}" stays (above "Could not deliver"); hint "Scan each cylinder you give.", recorded "Delivered"; the size lines; a secondary "Could not deliver" last; footer "All delivered".
+- **Take back:** the success strip "All delivered", the title "Take back from {{name}}", the soft CountBar "0 taken back · 2 expected" (or "0 taken back"); hint "Scan each cylinder you take back.", recorded "Taken back"; footer "Finish visit" (in Inc 1 a short take-back finishes without asking).
+- **After the visit:** the success card "Visit done"; a not-delivered order the danger card "Not delivered" + "Bring the cylinders back to the store."; a cancelled one the neutral card "Cancelled" + the same line. The footer is the Trip screen's next step.
+- **Could not deliver** (ConfirmSheet, rule 7): "Couldn't deliver to {{name}}?" / "Bring the cylinders back to the store." / "Why?" over Customer not home · Customer refused · Wrong address · Not reachable · Van problem · Other ("What happened?", 3–300) / [Mark not delivered] (danger, enabled; pressed with no reason it says "Pick a reason." and sends nothing) / [Go back] (secondary). It calls `POST /orders/:id/fail`; `ORDER_NOT_STARTED_USE_CANCEL` shows "This order hasn't started. Call the office." with [Call office].
+- **Camera states:** not yet allowed: "To read the QR labels." + [Allow camera]; blocked: "Camera blocked. Allow it in settings." + [Open settings]; "Starting camera…" only while the permission's answer is awaited; "Camera didn't start. Go back and try again."; paused by a sheet or a hidden screen: a plain dark block. The CountBar always shows.
+- **Scan strip** (§2.2 #24): checking "Checking…"; recorded the verb; "Already scanned"; refused `errors.<CODE>` with [Call office] when that is the fix; no answer "Not sent" + Retry (the same read; the count doesn't move).
+
+**Unload at {{store}}** (route `Unload`; the Inc 1 SCAN_IN)
+- The last step: header "Step {{N}} of {{N}}". The countdown CountBar: the server's van count (`GET /inventory/my-vehicle`, refetched after each scan and every 10 s) + "on the van", with "2 full · 1 empty" under it, down to the success "Nothing on the van.".
+- Hint "Scan each cylinder you bring back.", recorded "Unloaded".
+- Footer: "Finish trip" with no open delivery (outlined while the van has cylinders, primary at 0; it opens the Finish trip sheet here), otherwise "Back to trip".
+- The van count is the whole van: with two loaded trips on one van it can't tell whose cylinders are whose (accepted for Inc 1).
+
+**Refills** (`RefillsScreen`) and **Refill** (`RefillRunScreen`, route `RefillRun`); no money anywhere
+- **Refills:** header "Refills". Open refills, oldest first: "{{count}} × {{size}} · {{shop}}" with the chip of the driver's next step (`driver.refills.stage.*`: Waiting for driver (warning) · Pick up empties · Picking up empties · Go to the station · At the station · Bring them back · Back at store (brand) · Done · Cancelled). "Done today: {{count}}" (refills COMPLETED today). No footer. Empty: "No refills now." / "New ones appear by themselves.".
+- **Refill:** header "Refill"; the step as the title, then "{{count}} × {{size}} · {{shop}}"; one footer button per step (Inc 1 counts with steppers; Inc 3 puts scans on this same screen, §8.2):
+
+  | Status | Title | Control | Footer |
+  |---|---|---|---|
+  | ASSIGNED | Pick up empties at {{store}} | Stepper "Empties picked up", "Up to {{count}}" | Picked up {{count}} empties |
+  | EMPTIES_PICKED | Go to {{station}} | – | I've arrived |
+  | AT_STATION | Fill at {{station}} | Stepper "Cylinders filled", "Out of {{count}} picked up" | Mark {{count}} filled |
+  | FILLED | Bring them back to {{store}} | "Filled {{filled}} of {{count}}" | Brought back |
+  | RETURNED | Back at {{store}} | "The office will finish this refill." | none |
+  | COMPLETED / CANCELLED | the chip Done / Cancelled | – | Back to refills |
+
+  A refill the driver can't see shows "We couldn't find this. It may have been removed." with "Back to refills".
+
+**My van** (`driver/VehicleInfoScreen.tsx`): the plate (`van` icon), the big total "3" + "cylinders", and one row per size with the counts at the end and zeros hidden ("1 full · 2 empty"). "Nothing on the van." when empty; with no van, "No van yet." + [Call office]. No table header and no coloured digits; it polls every 10 s.
+
+**Help, with the profile merged in** (`driver/HelpScreen.tsx`; `ProfileScreen.tsx` retires): the office number, "Office hours {{hours}}" and a secondary "WhatsApp office" (when set); a "you" card with Name · Mobile · Van (no licence number); "App version 0.1.0" (· update id); footer "Call office". Offline everything comes from `support.contact` and the cached profile; "Office number not loaded yet." shows only when it has never loaded.
+
+**Live location** (`hooks/useLiveLocation.ts`)
+- Drop `driverId` from the emits.
+- On `connect_error` with an expired session, refresh the token and reconnect.
+- Show "Location paused" after 30 seconds without getting through, only while "No connection" isn't showing.
+
+**Type error:** the old `muted` error at FillingOrdersScreen.tsx:124 went with the screen.
 
 ## 6. Increment 1 acceptance (UX bar)
+- **The rulebook's Definition of simple** (UX_PRINCIPLES §10) is Yes on every screen, at its word budgets (TEST_CASES UXQ-027 shop app, UXQ-028 driver app).
 - **No system words or pop-ups:** no `Alert.alert`, raw enum, "Rs.", "On hold" or float maths in any screen touched. Money always goes through MoneyText.
-- **States:** every touched screen has a skeleton, an empty state, an error with retry, and a stale strip.
+- **States:** every touched screen has a skeleton, an empty state, an error with retry, the "Saved …" strip and "Nothing saved yet.". At most one network strip shows at a time.
 - **Targets and contrast:** touch targets of at least 48 dp (driver 56 dp), and only token colours.
 - **Typecheck:** `npm run typecheck -w @smartfleet/mobile` passes with 0 errors, including a missing i18n key.
 - **Large font:** layouts hold at the largest font size on a 360×640 dp phone.
-- **Slow network:** on a 2G-throttled emulator, actions show "Sending…" and time out at 15 seconds with a retry. A retry never creates a second order or top-up.
+- **Driver steps:** a step screen holds its own camera (there is no separate scan screen), and every step screen is within 18 words.
+- **Slow network:** on a 2G-throttled emulator, actions show "Sending…" and time out at 15 seconds with the "Not sent. Tap again." line. A retry never creates a second order or top-up.
 - **Low-end phone:** tested on a pilot-class 2 GB Android phone.
 
 ---
 
 ## 7. Increment 2: driver flow, store receive, confirmation
+Designed to the rulebook on 2026-10-23 (the driver spec's R-SP and R2–R10, and the Inc 2/3 spec), on the Inc 1 screens of §5. What changes from Inc 1: the server's `progress` replaces the tally, the strips name the cylinder, the shop scans the unload, and the visit gets its Empty / Part-filled / Full tap.
 
 ### 7.0 Native baseline APK 0.2.0 (start of Inc 2)
 - **Version:** 0.1.0 → 0.2.0, which changes the runtime (app.config.ts:19,25).
@@ -728,23 +856,31 @@ The live socket is removed.
   - `expo-av` (scan-ok, scan-error and step-complete sounds, each under 10 KB);
   - `@react-native-community/netinfo`;
   - `expo-document-picker` and `expo-sharing` (the day-end sheet);
-  - FCM config for the driver "new job" push (expo-notifications is already a dependency);
+  - FCM config for the driver "New trip" push (expo-notifications is already a dependency);
   - optionally `@sentry/react-native`, and the app name "Smart Fleet" replacing "LPG Management" (app.config.ts:5).
 - **Rollout:** an install day for every pilot phone. Then the office raises `app.minVersion.*`.
 - **Fallback:** JS detects the sound module and falls back to vibration only.
 
 ### 7.1 ScanPanel, full version (`ui/scan/ScanPanel.tsx`, `scanReducer.ts`, `useScanFeedback.ts`)
 ```ts
-type ScanStep = 'LOAD' | 'HANDOVER' | 'TAKE_BACK' | 'RECEIVE' | 'REFILL_PICKUP' | 'REFILL_FILL';
+type ScanStep = 'LOAD' | 'HANDOVER' | 'TAKE_BACK' | 'UNLOAD' | 'RECEIVE' | 'REFILL_PICKUP' | 'REFILL_FILL';
 interface ScanPanelProps {
-  step: ScanStep; title: string;
-  progress: { done: number; total: number | null; rows: { key: string; label: string; done: number; total: number | null }[] };
+  step: ScanStep;
   onScan(i: { scanId: string; code: string; entryMethod: 'QR' | 'TYPED'; returnState?: 'EMPTY' | 'PART_FILLED' | 'FULL'; lat?: number; lng?: number }): Promise<ScanResult>;
-  stateSelector?: { value: 'EMPTY' | 'PART_FILLED' | 'FULL'; onChange(v): void };   // TAKE_BACK only
-  allowTyped: boolean; complete: boolean; completeLabel: string; footer: ReactNode;
+  active: boolean; complete: boolean; allowTyped: boolean;
 }
+// The step screen (StepFrame) owns the title, the CountBar fed from ScanResult.progress, SizeLines,
+// the TAKE_BACK state tap and the footer, so the panel never holds a title, a hint or a count.
 ```
-- **Camera:** `CameraView` with `barcodeTypes:['qr']`, a torch toggle, `useKeepAwake()`. It unmounts when the step is complete, the app is backgrounded or a sheet opens.
+- **Order inside a step screen** (both apps, so the shop's Receive scan reads like the driver's steps):
+  1. (TAKE_BACK only) the state tap;
+  2. the CountBar (§2.2 #29);
+  3. the camera;
+  4. the result strip, whose idle text is the hint;
+  5. "Not saved";
+  6. the details: SizeLines ("11.8 kg · 2 of 3" with a tick once complete), or the three take-back lists;
+  7. "Type number".
+- **Camera:** `CameraView` with `barcodeTypes:['qr']`, a 56 dp torch toggle, keep-awake. Height clamp(0.28 × window height, 160, 300) dp, with a 4 dp frame in the result colour. It unmounts when the step is complete, the app is backgrounded or a sheet opens.
 - **Read loop:**
   - trim the value;
   - ignore the same QR for 2.5 seconds;
@@ -752,198 +888,200 @@ interface ScanPanelProps {
   - give every read a new `scanId`;
   - attach a best-effort GPS fix that never blocks;
   - re-arm 600 ms after a success, 1.2 seconds after a refusal.
-- **Feedback**, never a pop-up:
+- **Feedback**, never a pop-up (the strip is 56 dp, solid, with a 32 dp icon):
 
   | Outcome | What the driver gets |
   |---|---|
-  | Recorded | a green tick; strip "✓ {{shortCode}} · {{size}} {{verb}}"; the counter moves; 40 ms vibration and a beep; the screen reader says "{{done}} of {{total}} {{verb}}" |
-  | Already recorded | neutral strip "Already scanned · {{shortCode}}"; no buzz |
-  | Refused (4xx) | a scanError strip with `errors.<code>` (2 lines at most); double vibration and the error tone; it stays until the next good scan |
-  | Not sent (network) | an amber row in "Not saved ({{n}})" with "Retry" and "Retry all", reusing the same `scanId`; the counter doesn't move |
-  | Step complete | the card turns green ("All 5 loaded"); a 200 ms vibration and a chime; the camera stops; the footer is enabled |
+  | Recorded | a green strip "{{shortCode}} · {{size}} {{verb}}" (take back: "{{shortCode}} · {{state}}", so a wrong state tap is caught at once); the count moves; 40 ms vibration and a beep; the screen reader says "{{done}} of {{total}} {{verb}}" |
+  | Already recorded | grey strip "Already scanned · {{shortCode}}"; no buzz |
+  | Refused (4xx) | a red strip with `errors.<code>` (2 lines at most) and [Call office] when that is the fix; double vibration and the error tone; it stays until the next good scan |
+  | Not sent (network) | one amber card "Not saved: {{count}}" with **one** "Retry" that resends every unsaved read, each with its own `scanId`; the counter doesn't move |
+  | Step complete | the CountBar turns green ("All 5 loaded"); a 200 ms vibration and a chime; the camera stops; the footer wakes up |
 
-- **Progress card:** a big "3 of 5" with the step's verb, and one row per size ("11.8 kg · 2 of 3"). TAKE_BACK has a soft target: "2 taken back · 3 expected", with rows by state.
-- **Typed number** (if `features.typedCylinderNumber`): a ghost "Type number" opens an inline Field (placeholder "e.g. C0042"; it accepts 42, 0042, C0042 or AG-C0042) and sends `entryMethod:'TYPED'`. A refusal 404 `SCAN_CYLINDER_UNKNOWN` keeps the typed text in the field so it can be corrected.
-- **Camera permission:**
-  - not yet asked: "The camera reads the QR label on each cylinder." with "Allow camera";
-  - blocked: "Open settings" and "Type number instead".
-- **Leaving with unsaved scans:** a ConfirmSheet "{{count}} scan is not saved" / plural "{{count}} scans are not saved" with "Stay and retry" and "Leave".
-- **Accessibility:** the camera label is "Camera. Point it at the cylinder's QR label." The counter is a live region.
+- **Typed number** (when `features.typedCylinderNumber` is on): a ghost "Type number" (`keyboard`) opens an inline Field "Cylinder number" on the number pad, placeholder "e.g. 42" (it accepts 42, 0042, C0042 or AG-C0042), with a 56 dp send button named by the step's verb ("Load", "Deliver", "Take back"). It sends `entryMethod:'TYPED'`. A `SCAN_CYLINDER_UNKNOWN` refusal keeps the typed digits in the field.
+- **Camera permission:** not yet asked: "To read the QR labels." with [Allow camera]; blocked: "Camera blocked. Allow it in settings." with [Open settings] and a ghost [Type number instead].
+- **Leaving with unsaved scans** (rule 7): "2 scans not saved" / "Leave now and they're lost." / [Leave] (danger) / [Stay and retry].
+- **Accessibility:** the camera label is "Camera. Point it at the cylinder's QR label." The CountBar is one live region.
 
-**Scan copy**
+**Scan copy** (`scan.*`)
 | Key | Text |
 |---|---|
-| `scan.verb.LOAD` | loaded |
-| `scan.verb.HANDOVER` | delivered |
-| `scan.verb.TAKE_BACK` | taken back |
-| `scan.verb.RECEIVE` | received |
-| `scan.verb.REFILL_PICKUP` | picked up |
-| `scan.verb.REFILL_FILL` | filled |
-| `scan.progress` | {{done}} of {{total}} {{verb}} |
-| `scan.expected` | {{done}} taken back · {{total}} expected |
-| `scan.already` | Already scanned · {{shortCode}} |
-| `scan.notSaved` | Not saved ({{count}}) |
-| `scan.retry` / `scan.retryAll` | Retry / Retry all |
-| `scan.typed.open` | Type number |
+| `scan.verb.LOAD` / `.HANDOVER` / `.TAKE_BACK` / `.UNLOAD` | loaded / delivered / taken back / unloaded |
+| `scan.verb.RECEIVE` / `.REFILL_PICKUP` / `.REFILL_FILL` / `.REFILL_BACK` | received / picked up / filled / back (the shop's refill receive) |
+| `scan.verb.SCANNED` | scanned (the Inc 1 tally) |
+| `common.count.progress` / `.progressA11y` | {{done}} of {{total}} / {{done}} of {{total}} {{verb}} (read aloud) |
+| `common.count.complete` / `.over` | All {{total}} {{verb}} / {{done}} {{verb}} · {{total}} needed |
+| `common.count.expected` / `.expectedA11y` | {{verb}} · {{total}} expected / {{done}} {{verb}} · {{total}} expected |
+| `scan.recorded` | {{shortCode}} · {{size}} {{verb}} |
+| `scan.recordedState` | {{shortCode}} · {{state}} |
+| `scan.alreadyCode` / `scan.already` | Already scanned · {{shortCode}} / Already scanned |
+| `scan.sizeProgress` | {{size}} · {{done}} of {{total}} |
+| `scan.notSaved` / `scan.retry` | Not saved: {{count}} / Retry (`scan.retryAll` is gone) |
+| `scan.typed.open` / `.instead` / `.label` / `.placeholder` | Type number / Type number instead / Cylinder number / e.g. 42 |
 | `scan.state.label` | This cylinder is: |
 | `scan.state.EMPTY` / `.PART_FILLED` / `.FULL` | Empty / Part-filled / Full |
+| `scan.unsaved.title` / `_plural` | {{count}} scan not saved / {{count}} scans not saved |
+| `scan.unsaved.body` / `.leave` / `.stay` | Leave now and they're lost. / Leave / Stay and retry |
+| `scan.step.RECEIVE.hint` | Scan each cylinder from the van. |
+| `scan.already.RECEIVE` | Already in your store |
+| `scan.complete.RECEIVE` / `_plural` | All {{total}} received |
+| `scan.complete.REFILL_BACK` / `_plural` | All {{total}} back · Refill done |
+| `scan.fromVan` | {{driver}}'s van |
 
 ### 7.2 Driver screens (Inc 2)
-- **R2 Today** (new `driver/TodayScreen.tsx`; `GET /driver/home`)
-  - Header "Today · {{date}}" with Call office.
-  - A duty switch (56 dp, reuses `useLiveLocation`).
-  - A van card: the plate and "{{full}} full · {{empty}} empty · {{part}} part-filled". With no van: "No van is assigned to you. Call the office."
-  - A list of trips: "Trip · {{count}} customer · load at {{store}}" / plural "Trip · {{count}} customers · load at {{store}}", a step chip and "Start" or "Continue". Only the active or next trip has the primary button.
-  - Empty: "No jobs yet. The office will assign your next job. This page updates by itself." It polls every 30 seconds while focused.
-- **R3 Trip** (new `TripScreen.tsx`; `GET /trips/:id`, every 15 seconds)
-  - A store card, then the steps: "Load at {{store}}", each customer ("Deliver {{give}} · take back {{back}}"), and "Hand back at {{store}}".
-  - The footer's primary changes with progress: "Load at store", "Deliver to {{name}}", "Hand back at store", "Finish trip".
+- **R2 Today** (`driver/TodayScreen.tsx`; `GET /driver/home`): §5's Today with the server's data. The header "Today · {{businessDate}}"; the van row "3 full · 1 empty · 1 part-filled" (zeros hidden, "No cylinders" at 0); `activeTrip` is the current-trip card, `nextTrips` the rows; the current trip's action is the footer "Start trip" / "Continue trip", not a button per row; "Done today: {{count}}" from `doneToday`. Empty: "Nothing to do." / "New trips appear by themselves." with [Call office]; it polls every 30 seconds. No van: "No van yet." in the van row, and My van offers [Call office].
+- **R3 Trip** (`TripScreen.tsx`; `GET /trips/:id`, every 15 seconds): §5's Trip.
+  - Step lines from `progress`: Load "{{done}} of {{total}} loaded" once loading has begun; Deliver "{{done}} of {{total}} delivered"; Unload "{{count}} on the van".
+  - The footer's one main button by progress: "Start trip", "Load at store", "Deliver to {{name}}", "Unload at store", "Finish trip". There is no "Hand back at store".
   - The driver may open any visit still to do.
-  - Finish: `POST /trips/:id/finish`. `TRIP_VAN_NOT_EMPTY` shows `errors.TRIP_VAN_NOT_EMPTY`, the catalogue text ("The store still needs to scan in the cylinders on your van ({{count}} left)."), never its own wording.
-  - When the refusal has `details.leftoversAllowed = true`, a ConfirmSheet opens instead: title `driver.trip.leftovers.title` "Finish with {{count}} cylinder still on the van?" / plural "Finish with {{count}} cylinders still on the van?", body `driver.trip.leftovers.body` "The office will see this. Hand them to the shop at the start of your next trip.", a required note `driver.trip.leftovers.reason` "Why can't the shop take them now?" (5–300 characters) and confirm `driver.trip.leftovers.confirm` "Finish trip". It resends the finish with `leftoverReason`.
-- **R4 Load** (new `LoadScreen.tsx`)
-  - ScanPanel(LOAD) with one row per size from the stop's progress.
-  - Footer "Done loading", which calls `POST /trips/:id/stops/:stopId/finish`. It is disabled until complete (`LOAD_INCOMPLETE`).
-  - A ghost link "Store doesn't have them all? Call the office".
-- **R5 Visit** (new `VisitScreen.tsx`; replaces `DeliveryStepsScreen.tsx`)
-  - **Phase 1, Deliver:** ScanPanel(HANDOVER) with rows "Give {{n}} × {{size}}". "Could not deliver" is disabled once anything has been given.
-  - **Phase 2, Take back:**
-    - A SegmentedControl "This cylinder is: Empty | Part-filled | Full" (56 dp, defaults to Empty, sticky), then ScanPanel(TAKE_BACK) with three lists.
-    - A ghost "No label or other brand" opens a sheet with size, state and count (0–30; 0 removes the row) (`PUT …/unlabelled-returns`). These count as taken back.
-    - Footer "Finish visit". If fewer came back than expected (labelled and unlabelled together), a ConfirmSheet "Took back {{taken}} of {{expected}}. Why?" offers Customer kept them, Customer had none, or Other (note). It sends `takeBackShort`.
-  - **Phase 3, Done:** "Visit done", "Gave {{given}} · Took back {{taken}} ({{empty}} empty, {{part}} part-filled, {{full}} full)". Footer "Next: {{name}}", "Hand back at store" or "Back to trip".
+  - Finish: `POST /trips/:id/finish`. With an empty van: "Finish this trip?" / "You can't scan for this trip after." (`driver.trip.finishSheet.bodyEmpty`) / [Finish trip] / [Not yet]. `TRIP_VAN_NOT_EMPTY` shows the catalogue text on the footer line, "The store must scan in {{count}} more from your van." (settled point G16-05, now in these words), never its own wording.
+  - When the refusal has `details.leftoversAllowed = true`, the leftovers sheet opens instead (rule 7): "Finish with {{count}} on the van?" / "The office will see this. Unload them on your next trip." / "Why?" over the tap rows Store closed · No one to scan · Other. The picked row's English words are sent as `leftoverReason` (each has at least 5 characters, so the 5–300 rule holds); only Other opens "What happened?" (5–300). [Finish trip] / [Not yet] (secondary).
+- **R4 Load** (`LoadScreen.tsx`, ScanPanel LOAD): §5's Load step with the server's progress. The CountBar "0 of 3" + "loaded", complete "All 3 loaded" (the camera stops); SizeLines "11.8 kg · 0 of 2", "45.4 kg · 0 of 1". Footer "Done loading" (`POST /trips/:id/stops/:stopId/finish`), **disabled until complete** (`LOAD_INCOMPLETE`), with the line "{{count}} more to load" above it. Last, a ghost with `call`: "Missing some? Call office". After it: the card "Loading done", and the footer "Deliver to {{name}}".
+- **R5 Visit** (`VisitScreen.tsx`; replaces `DeliverySteps`): four phases on one screen, the header "Step {{step}} of {{total}}" throughout.
+  - **Phase 0 · On the way** (stop PENDING): §5's on-the-way screen: Maps, **Call {{name}}**, what to deliver with "Take back {{count}}", "Could not deliver", and the footer "I've arrived" (`PATCH /trips/stops/:id/arrive`). The camera doesn't run while driving.
+  - **Phase 1 · Deliver:** the CountBar "0 of 3" + "delivered"; the camera (HANDOVER), the strip and SizeLines; "Type number"; "Could not deliver" last, disabled once a cylinder is given with the line "You already gave some. Call office."; the footer "Finish visit", disabled, with "{{count}} more to deliver". **When the server says the give is complete, the screen moves to phase 2 by itself**, after the long buzz and chime.
+  - **Phase 2 · Take back:** the strip "All {{count}} delivered"; the title "Take back from {{name}}"; the state tap "This cylinder is:" with a 56 dp SegmentedControl Empty | Part-filled | Full (default Empty, sticky); the soft CountBar "0 taken back · 3 expected"; the camera (TAKE_BACK) and the strip "AG-C0012 · Part-filled"; three lists headed "Part-filled · 2" and so on (empty lists hidden), rows "AG-C0012 · 11.8 kg" and, with no label, "No label · 2 × 11.8 kg" (tap to edit); a ghost "No label" opening the sheet below; "Type number"; the footer "Finish visit".
+    - **No label sheet:** "No label or other brand"; Size (ChoiceChips, 2 columns), State (SegmentedControl), How many (Stepper 0–30, where 0 removes the row); pinned [Save] / [Go back]. It sends `PUT …/unlabelled-returns` with the stop's whole list; these count as taken back.
+    - **Short take-back sheet** (rule 7): "Took back {{taken}} of {{expected}}", "Why?" over Customer kept them · Customer had none · Other (a note); [Finish visit] stays enabled ("Pick a reason." when pressed with none); [Go back]. It sends `takeBackShort`.
+  - **Phase 3 · Done:** the success card "Visit done", then "Gave 3 · Took back 3" and "1 empty · 2 part-filled · 0 full" on two lines, with no brackets. The footer is the next step ("Deliver to Usman", "Unload at store", "Back to trip").
   - **No share button and no link:** the driver never sees the confirmation link.
-- **R6 Could not deliver:** a ConfirmSheet inside Visit, calling `POST /orders/:id/fail`.
-  - Title "Couldn't deliver to {{name}}?". Reasons from `DeliveryFailureReason`.
-  - Body "The cylinders stay on your van. Bring them back to the store today."
-  - The result line: "Marked could not deliver." No money is mentioned to the driver.
-- **R7 Hand back** (new `HandBackScreen.tsx`): passive, because the shop scans.
-  - "Give each cylinder to the shop. They scan it in their app. This page updates by itself."
-  - Groups: Not delivered (full) / Empty / Part-filled / Full (taken back), with "{{done}} of {{total}} received". It polls every 5 seconds.
-  - Unlabelled returns aren't listed and never block Finish trip: they have no holder, so the driver hands them over by hand (the shop sees their counts on the order, S14).
-  - Footer "Finish trip", enabled when the van is empty.
-- **R8 New-job push:** register through `POST /push-tokens`. The message reads "New job · {{count}} customer · load at {{store}}" / plural "New job · {{count}} customers · load at {{store}}". On Sign out the app first calls `DELETE /push-tokens { token }` (best effort; a failure never blocks signing out). The next sign-in on that phone moves the token to the new driver anyway.
-- **R9 Van** (extends `VehicleInfoScreen.tsx`/`VehicleLoad.tsx`): the real cylinders on the van, by state and size. The capacity maths at VehicleInfoScreen.tsx:46-51 is removed.
+- **R6 Could not deliver:** §5's sheet, inside Visit (`POST /orders/:id/fail`). Its button is disabled once a cylinder is given (phase 1). No money is mentioned to the driver.
+- **R7 Unload** (`UnloadScreen.tsx`; the shop scans): the title "Unload at {{store}}"; the line "Give each cylinder to the shop to scan."; the CountBar "0 of 5" + "unloaded" (the shop's screen says "received"); groups Not delivered · Empty · Part-filled · Full with rows "AG-C0021 · 15 kg" (a received row gets a tick, turns secondary and moves to the end of its group). It polls every 5 seconds. The footer "Finish trip" is **always enabled**: outlined while cylinders are left, the filled primary at "All 5 unloaded"; an early tap gets the server's answer (the `TRIP_VAN_NOT_EMPTY` line, or the leftovers sheet), so the leftovers path is never hidden. Unlabelled returns aren't listed and never block (they have no holder, so the driver hands them over by hand; the shop sees their counts on the order, S14).
+- **R8 New-trip push:** register through `POST /push-tokens`. The title "New trip", the body "{{customers}} · load at {{store}}" ({{customers}} is the name, or "{{count}} customers"). A tap opens Today. On Sign out the app first calls `DELETE /push-tokens { token }` (best effort; a failure never blocks signing out). The next sign-in on that phone moves the token to the new driver anyway.
+- **R9 My van** (`VanScreen`): §5's My van, plus groups by state ("Full", "Empty", "Part-filled", empty groups hidden), each with one row per size, "11.8 kg · 2", and the cylinder numbers on one secondary line ("AG-C0001, AG-C0002"). No capacity bar, no percentage, no money.
 
 ### 7.3 Shop app screens (Inc 2)
-- **S13 Receive from driver** (new `distributor/ReceiveListScreen.tsx`, `ReceiveScanScreen.tsx`; `GET /store/incoming` every 15 seconds, `POST /store/scans`)
-  - **List:** one row per van coming back, "{{driver}} · {{plate}}" with "{{total}} to receive · {{received}} received". With one van it opens straight into the scan. Empty: "No driver is bringing cylinders back right now."
-  - **Scan:** ScanPanel(RECEIVE), with "All {{total}} received" when done. A cylinder already in the store is soft: "Already in your store". Unlabelled returns aren't on the list or scanned (they have no holder); their counts show on the order (S14).
-  - **Home tile:** "Receive from driver", with the badge "{{n}} coming back".
+- **Home rows** (above the tiles, S2), in this order, each a row with an icon, a bold title, one grey line and a chevron:
+  - **customer problems** (`features.confirmations` and open problems in `GET /alerts/mine`): the `error` icon, danger tone, "{{count}} customer problem(s)" and "The office will look into it". One problem opens its order; more open S15;
+  - **Receive from driver** (`features.scanFlow`): `store`, "Receive from driver" and "{{count}} coming back" in bold brand text, or "Nothing coming back"; it polls with `store.incoming` (15 s) while Home is focused;
+  - **Day-end sheet** (Inc 3, §8.3).
+  A failed `/alerts/mine` or `/store/incoming` hides its row.
+- **S13 Receive from driver** (`distributor/ReceiveListScreen.tsx`, `ReceiveScanScreen.tsx`; `GET /store/incoming` every 15 seconds, `POST /store/scans`)
+  - **List:** header "Receive from driver". One row per van coming back: `van`, "{{driver}} · {{plate}}", "{{done}} of {{total}} received", and a "Refill" chip (brand, `cylinder`) when a cylinder came back from a refill; a fully received van shows "All received" until the next poll. With exactly one van, the list is skipped and the scan opens. Empty: "Nothing coming back right now.". Offline: the banner, the saved rows stamped "Saved {{time}}".
+  - **Scan:** the header "{{driver}} · {{plate}}"; the driver's step order (§7.1): the CountBar "1 of 2" + "received", the camera (RECEIVE) with the hint "Scan each cylinder from the van.", SizeLines (only with 2 or more sizes), "Type number" when on, and the footer **"Done"** (always enabled: leaving never loses a saved scan). Recorded "✓ {{shortCode}} · {{size}} received" (plus " · {{driver}}'s van" when it came from another van); "Already in your store" (grey); refusals in red (`SCAN_NOT_ON_A_VAN`, `SCAN_WRONG_OWNER`, `SCAN_CYLINDER_UNKNOWN`); "Not saved: {{count}}" with one Retry; complete "All {{total}} received", or "All {{total}} back · Refill done" for a refill-only van. Unlabelled returns aren't on the list or scanned (they have no holder); their counts show on the order.
 - **S14 Order detail additions**
-  - "Delivered" (given by size against the order) and "Taken back" (lists by state, plus unlabelled counts).
+  - One card replaces the cylinders line once the visit is finished: **Delivered** (`customer`), one line per size "2 × 11.8 kg", or "11.8 kg · 1 of 2" when short; **Taken back** (`cylinder`), one line per state with the numbers ("Empty · AG-C0011") and, with no label, "Empty · No label · 1 × 11.8 kg"; the caption "{{count}} expected" when the total differs from the order's take-back.
   - The cost line stays fixed: "Delivery cost {{fee}} · paid when the order was placed".
-  - **The customer confirmation card** (only when `features.confirmations` is on and the order's `confirmation` is not null) is **record only**. See CUSTOMER_PAGE §10 for its states and share buttons. It never shows money lines.
-- **S15:** the order rows and detail add the answer chip (§3.4) next to the stage chip. Home adds `home.problems` / `home.problems_plural` ("{{count}} customer problem" / "{{count}} customer problems") when the distributor has open cases (`GET /alerts/mine`). Tapping opens that order (one case) or a list of open cases: "{{shortCode}} · {{customer}}", the answer words (§3.4), "since {{when}}"; each row opens its order.
-- **S15b Edit customer** (`PATCH /clients/:id`): AddCustomerScreen in edit mode. When `confirmationNeedsNewLink` is true: "The customer has a pending link on the old number. Make a new link from the order." Edit mode has step 1 only (name, mobile, notes). The address can't be edited: "To deliver somewhere else, add a new address from New order → Change address."
+  - **The customer answer card** (only when `features.confirmations` is on and the order's `confirmation` is not null) is **record only**: see CUSTOMER_PAGE §10 for its states, its one footer button and the Send link sheet. It sits above the facts card and never shows money lines. The finished timeline stays one status line, so a delivered order stays near 25 words.
+- **S15 Customer problems** (`CasesScreen.tsx`): header "Customer problems". Rows: the customer's name; the grey line "{{shortCode}} · “{{comment}}”" (or just the number); the time on the right; the answer chip below (§3.4); a chevron opening its order. No footer: the office closes problems. Empty: "No customer problems.". The order rows and detail add the answer chip next to the stage chip.
+- **S15b Edit customer** (`PATCH /clients/:id`): Add customer step 1 in edit mode, header "Edit customer": Name, PhoneField "Mobile number" (+92 fixed, "300 1234567"), the note (or AddMore "+ Add note"), and a read-only address row with the caption "New address? Use New order.". Footer "Save customer"; toast "Customer saved". When the save answers `confirmationNeedsNewLink: true` (opened from the card's "Fix number"), back on the order the "Make a new link?" sheet opens at once; the card's footer stays "Make new link" until it is done. `CLIENT_PHONE_INVALID` ("Enter a number like 300 1234567.") and `CLIENT_PHONE_EXISTS` show under the field.
 - **No cylinder-history screen** in the pilot: plain-word history is on the office website (UX_ADMIN §3.5). `GET /cylinders/:code/history` stays open to the owning distributor for later.
 
 ### 7.4 Inc 2 acceptance
 - A scan never pops up a box. Every outcome gives a tick or a refusal strip, with sound and vibration. "X of Y" always matches the server.
-- An unsaved scan is never dropped silently.
-- A driver goes Load → Deliver → Take back → Hand back → Finish with exactly one primary button per screen.
-- "No IN, no OUT" shows `SCAN_NOT_ON_YOUR_VAN`. A cylinder given on a visit can't be taken back (`SCAN_GIVEN_THIS_VISIT`). Taken-back cylinders show as three lists.
+- An unsaved scan is never dropped silently: "Not saved: N" with one Retry.
+- A driver goes Load → Deliver → Take back → Unload → Finish with exactly one primary button per screen, each footer naming the next step.
+- "No IN, no OUT" shows `SCAN_NOT_ON_YOUR_VAN` ("Not loaded on your van. Don't deliver it. Call office."). A cylinder given on a visit can't be taken back (`SCAN_GIVEN_THIS_VISIT`, "You just delivered this one. You can't take it back now."). Taken-back cylinders show as three lists.
+- The Inc 2 screens pass the Definition of simple (TEST_CASES UXQ-032).
 - Checked in sunlight on a pilot phone. A 6-hour shift without being signed out.
 
 ---
 
 ## 8. Increment 3: refills and day-end
+Designed to the rulebook on 2026-10-23 (the Inc 2/3 spec §4, and the driver spec's R10, word for word the same).
 
-### 8.1 Shop app: refills (replaces `RequestFillingScreen.tsx`; no money anywhere)
-- **S16 Refills** (`RefillListScreen.tsx`)
-  - Rows: "{{count}} × {{size}} · {{station}}" with a stage chip. Footer "New refill".
-  - Empty: "No refills yet. Send empty cylinders to be filled."
-- **S17 New refill** (one screen)
-  - Size chips ("One size per refill. For two sizes, make two requests."), a Stepper from 1 to `refill.maxCylinders` ("Up to 30 per refill."), and a station (radio rows, or plain text if there is only one).
-  - Primary "Request refill" (`POST /filling-orders`, Idempotency-Key).
-  - Toast "Refill requested".
-- **S18 Refill detail**
-  - Timeline: Requested → Driver assigned → "Picked up {{n}} of {{t}}" → "Filled {{n}} of {{t}}" → "Back in your store {{n}} of {{t}}" → Done.
-  - When filled < picked, Done reads `refill.detail.doneShort` "Done · {{filled}} of {{picked}} filled. The others came back as they were."
-  - A driver card with Call.
-  - "Cancel refill" (danger, only before pickup): ConfirmSheet "Cancel this refill?". `REFILL_NOT_CANCELLABLE` shows "This refill can't be cancelled after pickup."
+### 8.1 Shop app: refills (no money anywhere)
+Inc 1 already ships the list and the new-refill screens (S12b) and the stage words "Coming back" and "Back at store"; Inc 3 adds the refill detail and the scan counts.
+- **S16 Refills** (`RefillListScreen.tsx`): header "Refills". Rows newest first: `cylinder`, "{{count}} × {{size}}", the refill number as the grey line, the time on the right, the stage chip below with " · {{done}} of {{total}}" on PICKING_UP, COMING_BACK and BACK_AT_STORE, and a chevron opening S18. The Fab "+ New refill" hides while the list is empty; the empty state "No refills yet." carries "New refill". From Inc 3 the rows have no Cancel: it moves to S18. Offline: the saved list stamped "Saved {{time}}".
+- **S17 New refill** (`NewRefillScreen.tsx`): as S12b: size ChoiceChips (2 columns, wrapping), "One size per refill.", the Stepper "How many" (1 to `refill.maxCylinders`, "Up to 30 per refill."), the station (text for one, radio rows for 2–6, a PickerSheet above 6), the last size and station prefilled, and the footer "Request refill · {{count}} × {{size}}" ("Pick a size first." before a size). `POST /filling-orders` with an Idempotency-Key; toast "Refill requested"; replace with the list. `REFILL_TOO_MANY` shows under the count; `REFILL_STATION_INACTIVE` refetches the stations.
+- **S18 Refill detail** (new): header "Refill {{refillNo}}"; the stage chip, "{{count}} × {{size}}" and the station.
+  - A CountBar while the refill is moving: "{{picked}} of {{requested}} picked up", then "{{filled}} of {{picked}} filled", then "{{received}} of {{picked}} back".
+  - A Timeline without counts in its labels: Requested · Driver assigned · Picked up · Filled · Back at store · Done, each with its time and its count as the detail ("2 of 2"). Fewer filled reads "Done · {{filled}} of {{picked}} filled", with the detail "The rest came back unfilled.".
+  - A driver card once assigned, with a secondary "Call".
+  - **"Cancel refill"** as a `dangerOutline` button in the content (never the footer), only while `allowedActions` has CANCEL (before pickup). The sheet: "Cancel this refill?" / "The driver won't pick up these cylinders." / [Cancel refill] (danger) / [Keep refill] (secondary); toast "Refill cancelled"; `REFILL_NOT_CANCELLABLE` shows the catalogue text in the sheet and the screen refetches.
+  - No footer. `NOT_FOUND`: "We couldn't find this refill.".
+- **Returns:** S13 Receive lists a refill van with the "Refill" chip. When the last one is scanned in: "All {{total}} back · Refill done".
 
-  **Refill stages** (`stages.refill.*`, one row per `RefillStage`, API_CONTRACT §1.4):
-  | Stage | Words |
-  |---|---|
-  | NEEDS_DRIVER | Waiting for driver |
-  | DRIVER_ASSIGNED | Driver assigned |
-  | PICKING_UP | Picking up empties |
-  | PICKED_UP | Empties picked up |
-  | AT_STATION | At the station |
-  | COMING_BACK | Coming back filled |
-  | BACK_AT_STORE | Back in your store |
-  | DONE | Done |
-  | CANCELLED | Cancelled |
+**Refill stages** (`stages.refill.*`, one row per `RefillStage`, API_CONTRACT §1.4):
+| Stage | Words | Tone / icon |
+|---|---|---|
+| NEEDS_DRIVER | Waiting for driver | warning / checking |
+| DRIVER_ASSIGNED | Driver assigned | brand / customer |
+| PICKING_UP | Picking up empties | brand / store |
+| PICKED_UP | Empties picked up | brand / truck |
+| AT_STATION | At the station | brand / cylinder |
+| COMING_BACK | Coming back | brand / truck |
+| BACK_AT_STORE | Back at store | brand / store |
+| DONE | Done | success / ok |
+| CANCELLED | Cancelled | neutral / none |
 
-  WAITING_FOR_DRIVER and FILLING are renamed NEEDS_DRIVER and AT_STATION.
+WAITING_FOR_DRIVER and FILLING are renamed NEEDS_DRIVER and AT_STATION.
 
-- **Returns:** S13 Receive also lists refill vans ("Refill · {{driver}} · {{n}} to receive"). When the last one is scanned in: "All {{total}} back in your store · Refill done".
+### 8.2 Driver: refill run (R10, `RefillRunScreen.tsx`; the Inc 1 screen of §5 with scans in place of the steppers)
+The header "Refill" with Call office; the title is the step, with "{{count}} × {{size}} · {{shop}}" as data; then the CountBar, the camera with its hint, and one footer button. The screen opens at the step the status gives (ASSIGNED → 1; EMPTIES_PICKED or AT_STATION → 2; FILLED → 3).
 
-### 8.2 Driver: refill run (R10, `RefillRunScreen.tsx`; replaces the typed counts in `FillingOrdersScreen.tsx`)
-1. **"Pick up empties at {{store}}":** ScanPanel(REFILL_PICKUP) with "{{n}} of {{t}} picked up". Footer "Done picking up" (`advance → EMPTIES_PICKED`), disabled until at least one cylinder is picked up.
-2. **"Fill at {{station}}":** ScanPanel(REFILL_FILL) with the info "Scan each cylinder after the station fills it". Footer "Done filling" (`advance → FILLED`), disabled until at least one cylinder is filled. If the station fills none, the driver goes on to step 3: the shop's receive scans still finish the refill.
-3. **"Hand back at {{store}}":** the passive R7 view. The shop's receive scans complete the refill.
+| Step | Title | CountBar and hint | Footer |
+|---|---|---|---|
+| 1 Pick up | Pick up empties at {{store}} | ScanPanel(REFILL_PICKUP): "0 of 2" + "picked up"; "Scan each cylinder you pick up." (a full one is refused with the catalogue's words) | "Done picking up" (`advance → EMPTIES_PICKED`), off at 0 with "Scan a cylinder first." above it; "Type number" when on |
+| 2 Fill | Fill at {{station}} | ScanPanel(REFILL_FILL): "0 of 2" + "filled"; "Scan each filled cylinder." | "Done filling" (`advance → FILLED`), off at 0 with the same line. While 0 are filled, a ghost **"Bring back unfilled"** moves to step 3 without a server call: the shop's receive scans still finish the refill |
+| 3 Unload | Unload at {{store}} | passive, as R7: "0 of 2" + "unloaded" (polls 5 s); "Give each cylinder to the shop to scan." | **none while the shop scans**; when the refill is DONE, the success card "Refill done" and the footer "Back to refills" |
 
-Refusals use the `REFILL_*` and `SCAN_*` codes.
+- Complete: "All 2 picked up", "All 2 filled", "All 2 unloaded", with the long buzz.
+- Refusals in the strip: `REFILL_CYLINDER_NOT_EMPTY`, `REFILL_CYLINDER_WRONG_SIZE`, `REFILL_CYLINDER_ON_OTHER_REFILL`, `SCAN_NOT_AT_STORE`, `REFILL_COUNT_REACHED` ("All picked up: {{requested}} of {{requested}}."), `REFILL_CYLINDER_NOT_ON_THIS_REFILL`. `REFILL_WRONG_STEP` refetches and moves to the right step. No answer: "Not saved: {{count}}" with one Retry.
+- The driver's Refills list stays §5's (it opens this screen); Inc 3 deletes the Inc 1 stepper keys and the steps "Go to …", "Bring them back …" and "Back at …".
 
 ### 8.3 Shop app: day-end (setting `dayEnd.enabled`, read as `appConfig.features.dayEnd`; needs the 0.2.0 APK)
+- **The Home row** "Day-end sheet" (`sheet` icon) with "Send today's count", opening S19.
 - **S19 Day-end** (`dayend/DayEndScreen.tsx`)
-  - A header card: the business date and a status chip.
+  - Header "Day-end". A row: the business date and the status chip:
 
-    | `stage` (API_CONTRACT §1.4) | Words (`dayEnd.stage.*`) |
-    |---|---|
-    | NOT_STARTED | Not sent yet |
-    | READY | Check the differences |
-    | WAITING_FOR_APPROVAL | Waiting for approval |
-    | APPROVED | Approved · day closed |
-    | SENT_BACK | Sent back · see note |
+    | `stage` (API_CONTRACT §1.4) | Words (`stages.dayEnd.*`) | Tone / icon |
+    |---|---|---|
+    | NOT_STARTED | Not sent | neutral / none |
+    | READY | Ready to send | brand / upload |
+    | WAITING_FOR_APPROVAL | Waiting for office | warning / checking |
+    | APPROVED | Approved · day closed | success / ok |
+    | SENT_BACK | Sent back | danger / error |
 
-  - While `officeNote` is set: a warning card "The office sent this back: “{{note}}”" (SENT_BACK) or "The office reopened this day: “{{note}}”" (REOPENED), then "Fix it, upload the sheet again and send it."
-  - Three numbered cards:
-    1. **"Download today's sheet":** `FileSystem.downloadAsync` with the auth header, then `Sharing.shareAsync` ("Open with Excel, WPS or Sheets"). "One row per cylinder. Fill in only the rows that differ from your register."
-    2. **"Fill it in":** "For each cylinder that isn't where the sheet says, choose where it really is and why."
-    3. **"Upload the filled sheet":** footer primary "Choose file" (DocumentPicker, xlsx type) → "Checking your sheet…" → S20.
-  - The buttons follow the day's `allowedActions`: download needs DOWNLOAD and "Choose file" needs UPLOAD (a sheet downloaded for this date). A day waiting for approval or approved has neither, so both are disabled.
-  - An upload refused for the whole file (`DAY_SHEET_UNREADABLE`, `DAY_SHEET_WRONG_DISTRIBUTOR`, `DAY_SHEET_WRONG_DATE`, `DAY_SHEET_OUTDATED`, `FILE_TOO_LARGE`) shows an ErrorBanner on card 3 with `errors.<code>`; nothing was saved. Only the newest downloaded sheet can be uploaded.
-- **S20 Day-end preview** (`dayend/DayEndPreviewScreen.tsx`)
-  - Summary: two keys shown side by side, "{{count}} cylinder checked" / plural "{{count}} cylinders checked" (for example `dayEnd.preview.checked`) and "{{count}} difference" / plural "{{count}} differences" (`dayEnd.preview.differences`), as "35 cylinders checked · 1 difference", with chips by kind (`dayEnd.diff.*`: "In a different place", "State differs", "Place and state differ", "Number not in the app").
-  - An upload refused with `DAY_SHEET_ROW_ERRORS`: a danger list "{{sheet}}, row {{row}}: {{problem}}" from `details.rows` ({{sheet}} "Cylinders" or "Extra cylinders"; {{problem}} = `dayEnd.rowError.<code>`), with "and {{count}} more row" / "and {{count}} more rows" when `total` is larger, and the primary "Fix the sheet and upload again". Nothing was saved, so there is nothing to send.
-  - Each difference: "{{shortCode}} · {{size}}"; "App: {{where}}, {{state}}" → "Your sheet: {{where}}, {{state}}"; the reason; and what approval does (`dayEnd.fix.*`: "Move to your store", "Set to {{state}}", "Mark as lost", "Add as a new cylinder", "Not changed: the office will check it").
-  - Footer "Send for approval ({{count}} difference)" / plural "Send for approval ({{count}} differences)": a ConfirmSheet "Send the day-end for {{date}}? After the office approves, this day is closed and can't be changed." It calls `POST /day-end/:date/submit {version}`.
+  - Sent back or reopened only: a danger card "Office note: “{{note}}”" (or "Office reopened this day: “{{note}}”"), then "Fix it and upload again.".
+  - **Three step rows** (not tappable; the icon shows the state: a tick when done, the step's icon in brand when current, grey when to do): "Download sheet" (then a tick and a ghost "Download again"); "Fill in only what's different" with the helper "Where it is, its state, and why."; "Upload the sheet" (after an upload "{{count}} difference · {{time}}" and a ghost "Upload again").
+  - **The footer follows `allowedActions` and the stage:** DOWNLOAD only: "Download sheet" (`FileSystem.downloadAsync` with the auth header, then `Sharing.shareAsync` titled "Open in your sheet app"); UPLOAD with nothing uploaded since the newest sheet: "Upload filled sheet" (DocumentPicker, xlsx; "Checking your sheet…"; then S20); READY: "Send for approval · {{count}} difference(s)" (the S20 confirm); WAITING_FOR_APPROVAL: no footer, with the line "The office is checking it."; APPROVED: no footer.
+  - An upload refused for the whole file (`DAY_SHEET_UNREADABLE`, `DAY_SHEET_WRONG_DISTRIBUTOR`, `DAY_SHEET_WRONG_DATE`, `DAY_SHEET_OUTDATED` "This is an old copy. Download a new sheet and use that.", `FILE_TOO_LARGE`, `DAY_LOCKED`, `DAY_ALREADY_SUBMITTED`) shows an ErrorBanner above the footer; nothing was saved. Only the newest downloaded sheet can be uploaded. `DAY_NOT_FOUND`: "We couldn't find this day.".
+- **S20 Check and send** (`dayend/DayEndPreviewScreen.tsx`)
+  - Header "Check and send". The summary: the big "{{count}}" with "difference(s)", and the caption "{{count}} cylinders checked". ChoiceChips by kind (All · Place · State · New) when there are 2 or more kinds.
+  - One card per difference: "{{shortCode}} · {{size}}"; "App: {{where}} · {{state}}"; "You: {{where}} · {{state}}" with the part that differs in bold; the note in quotes; the fix chip (`dayEnd.fix.*`: "Move to your store", "Set to {{state}}", "Mark as lost", "Add as new cylinder", "Office will check"); a grey "Will be skipped" when it moved since the sheet.
+  - Footer "Send for approval · {{count}} difference(s)" (no brackets); with 0 differences, "Send for approval" and "Your count matches the app.".
+  - **The confirm** (rule 7): "Send day-end for {{date}}?" / "Once the office approves, this day is closed." / [Send for approval] / [Not yet]. It calls `POST /day-end/:date/submit {version}`; success: back to S19 with "Waiting for office" and the toast "Sent to the office". `DAY_VERSION_CHANGED` shows a banner with "Upload again".
+  - **Row errors** (422 `DAY_SHEET_ROW_ERRORS`; nothing was saved): a danger card with the catalogue text, the list "Row {{row}} · {{sheet}}: {{problem}}" ({{sheet}} "Cylinders" or "Extra cylinders"; {{problem}} = `dayEnd.rowError.<code>`, the shared `DAY_END_ROW_ERROR_EN` texts), "and {{count}} more row(s)", and the footer "Upload fixed sheet". The 9 row texts become the shorter ones of the Inc 2/3 spec §4.7 when Inc 3 is built, each 12 words or fewer (for example PLACE_UNKNOWN "Where: use In my store, On driver's van, With customer or Missing.").
 
 ### 8.4 Inc 3 acceptance
 - Every refill step is a scan with "X of Y".
 - No refill screen shows money.
-- The day-end loop (download → upload → preview → send) works on the pilot distributor's phone with the spreadsheet app chosen at the site visit, including a file forwarded through WhatsApp.
+- The day-end loop (download → upload → check → send) works on the pilot distributor's phone with the spreadsheet app chosen at the site visit, including a file forwarded through WhatsApp.
+- The Inc 3 screens pass the Definition of simple (TEST_CASES UXQ-033).
 
 ---
 
 ## Appendix A. Screen map (old → new; lane in brackets)
 | Old file (apps/mobile/src/screens) | New | Inc |
 |---|---|---|
-| auth/PhoneScreen.tsx | auth/SignInScreen, WrongAppScreen, UpdateRequiredScreen [foundation] | 1 |
+| auth/PhoneScreen.tsx | auth/SignInScreen, WrongAppScreen, UpdateRequiredScreen [foundation, phone kit] | 1 |
 | auth/OtpScreen.tsx, client/*, navigation/ClientStack.tsx | removed from navigation; files kept [foundation] | 1 |
-| distributor/HomeScreen.tsx | extended: wallet card and hub [mobile-distributor] | 1 |
+| distributor/HomeScreen.tsx | Home: wallet card, Get started, tiles, active orders [mobile-distributor] | 1 |
 | distributor/TopupScreen.tsx | topup/Amount, HowToPay, TellUs, Status [mobile-distributor] | 1 |
-| distributor/LedgerScreen.tsx | WalletScreen [mobile-distributor] | 1 |
+| distributor/LedgerScreen.tsx | WalletScreen, titled History [mobile-distributor] | 1 |
 | distributor/AddClientScreen.tsx | AddCustomerScreen [mobile-distributor] | 1 (+edit in 2) |
-| distributor/PlaceOrderScreen.tsx | NewOrderScreen + PickAddress [mobile-distributor] | 1 |
+| (none) | CustomersScreen, route `Customers` [mobile-distributor] | 1 |
+| distributor/PlaceOrderScreen.tsx | NewOrderScreen, with shared/AddressPickerSheet and NewAddressScreen (route `NewAddress`); PickAddressScreen is retired [mobile-distributor] | 1 |
 | distributor/OrderHistoryScreen.tsx | OrdersScreen [mobile-distributor] | 1 |
 | distributor/TrackOrderScreen.tsx | OrderDetailScreen [mobile-distributor] | 1 (+2) |
 | distributor/ProfileScreen.tsx, AboutScreen.tsx | read-only Profile, HelpScreen [mobile-distributor] | 1 |
-| distributor/RequestFillingScreen.tsx | minimal Inc 1 edits; then RefillList, NewRefill, RefillDetail | 1 / 3 |
+| distributor/RequestFillingScreen.tsx | RefillListScreen (route `Refills`) and NewRefillScreen (route `NewRefill`) in Inc 1; RefillDetailScreen in Inc 3 | 1 / 3 |
 | distributor/NotificationsScreen, InventoryScreen, AnalyticsScreen | hidden for the pilot | 1 |
 | (none) | ReceiveListScreen, ReceiveScanScreen | 2 |
 | (none) | DayEndScreen, DayEndPreviewScreen | 3 |
-| driver/HomeScreen.tsx | stop-gaps (1) [mobile-driver], then TodayScreen (2) | 1 / 2 |
-| driver/ActiveTripScreen.tsx | stop-gaps (1), then TripScreen (2) | 1 / 2 |
-| driver/DeliveryStepsScreen.tsx | stop-gaps (1), then LoadScreen, VisitScreen, HandBackScreen (2) | 1 / 2 |
-| driver/ScanScreen.tsx | ui/scan/ScanPanel [mobile-driver] | 1 / 2 |
+| driver/HomeScreen.tsx | Today (1) [mobile-driver], then TodayScreen (2) | 1 / 2 |
+| driver/ActiveTripScreen.tsx | Trip, with FinishTripSheet (1), then TripScreen (2) | 1 / 2 |
+| driver/DeliveryStepsScreen.tsx | the Load and Deliver step screens, each with its camera (`StepFrame`, `scanTally.ts`) (1), then LoadScreen and VisitScreen (2) | 1 / 2 |
+| driver/ScanScreen.tsx | retired: the camera is on the step screens, and UnloadScreen (route `Unload`) is the Inc 1 SCAN_IN. A one-line re-export stays only until the unmounted ClientStack stops importing it | 1 |
+| (none) | UnloadScreen: the Inc 1 scan unload, then the passive R7 view in Inc 2 (Inc 2's HandBackScreen is this file) | 1 / 2 |
+| driver/ProfileScreen.tsx | merged into HelpScreen | 1 |
+| driver/FillingOrdersScreen.tsx | RefillsScreen (route `Refills`) + RefillRunScreen (route `RefillRun`, `refillModel.ts`): steppers in Inc 1, scans in Inc 3 | 1 / 3 |
 | driver/TransferScanScreen.tsx | pattern for ScanPanel; hidden | 1 |
-| driver/FillingOrdersScreen.tsx | type fix (1); RefillRunScreen (3) | 1 / 3 |
-| driver/VehicleInfoScreen.tsx + components/VehicleLoad.tsx | copy fix (1); VanScreen (2) | 1 / 2 |
+| driver/VehicleInfoScreen.tsx + components/VehicleLoad.tsx | My van (1); VanScreen (2) | 1 / 2 |
 | driver/FuelRefill, Transfers, TransferDetail, Notifications, Reconcile | hidden for the pilot | 1 |
+
+**Shared shop files** (`screens/distributor/shared/`): `CustomerList.tsx` (Customers and New order step 1), `AddressPickerSheet.tsx` (on PickerSheet), `CallButton.tsx`, `queries.ts` (`useOrderPages`, `useClients`, `useCylinderTypes`: one cache shape for `qk.orders.list`, shared by Home, My orders, Recent and "Same as last time"). `shared/InfoRow.tsx` and the FilterChips re-export are removed: ChoiceChips lives in `ui/`.
 
 ## Appendix B. API calls per screen (API_CONTRACT.md)
 **Inc 1**
@@ -951,17 +1089,18 @@ Refusals use the `REFILL_*` and `SCAN_*` codes.
 |---|---|
 | All screens | `GET /app/config` |
 | S1 | `POST /auth/login`, `POST /auth/refresh` |
-| S2 | `GET /distributor/home`, `GET /users/me` |
-| S3, S4 | `GET /payments/topup-info` |
+| S2 | `GET /distributor/home`, `GET /users/me`, `GET /orders?tab=active` (the first page), `GET /clients` (a new shop only) |
+| S3, S4 | `GET /payments/topup-info`; S4 and S5 read `GET /payments/mine` for the channel and name prefill |
 | S5 | `POST /files/upload`, `POST /payments/topup-requests` |
 | S6 | `GET /payments/:id` |
 | S7 | `GET /wallet/statement`, `GET /payments/mine` |
-| S8 | `GET /pricing/quote`, `POST /clients`, `POST /clients/:id/addresses` |
-| S9 | `GET /clients`, `GET /cylinder-types`, `POST /orders/quote`, `POST /orders` |
+| S8 | `GET /pricing/quote`, `POST /clients`; New address `POST /clients/:id/addresses` |
+| S8b | `GET /clients`, `GET /orders?tab=active` and `?tab=done` (the first pages, for Recent) |
+| S9 | step 1 as S8b; `GET /cylinder-types`, `POST /orders/quote`, `POST /orders` |
 | S10 | `GET /orders?tab` |
 | S11 | `GET /orders/:id`, `GET /orders/:id/tracking`, `POST /orders/:id/cancel` |
 | S12b | `GET /filling-stations`, `GET`/`POST /filling-orders`, `PATCH /filling-orders/:id/cancel` |
-| R1 | `GET /trips/mine`, `GET /trips/:id`, `PATCH /trips/stops/:id/arrive\|depart`, `POST /custody/scan`, `PATCH /orders/:id/status`, `POST /orders/:id/fail` |
+| R1 | `GET /trips/mine`, `GET /trips/:id`, `PATCH /trips/stops/:id/arrive\|depart`, `POST /custody/scan`, `PATCH /orders/:id/status`, `POST /orders/:id/fail`, `PATCH /trips/:id/status`, `GET /inventory/my-vehicle` (Today, the steps, Unload, My van), `GET /filling-orders/driver/mine`, `GET /filling-orders/:id` and its step routes |
 
 **Inc 2**
 | Screen | Calls |
@@ -985,31 +1124,33 @@ Refusals use the `REFILL_*` and `SCAN_*` codes.
 **Keys and polling**
 | Key | Note |
 |---|---|
-| `qk.appConfig` | cached 5 minutes; S9 'Check and place' refetches it |
+| `qk.appConfig` | cached 5 minutes; S9 'Check and place' refetches it. Each good answer also saves `support.contact` (secure storage, §3.6) |
 | `qk.me` | |
 | `qk.home` | |
 | `qk.wallet.statement(filter)` | |
 | `qk.topups.info` | |
-| `qk.topups.mine` | |
+| `qk.topups.mine` | also read by S4 (the channel prefill) and S5 (the name prefill) |
 | `qk.topups.byId(id)` | polls 30 s while being checked |
-| `qk.clients` | |
+| `qk.clients` | read by Home (a new shop only), Customers, New order and Add customer (the area suggestions) |
 | `qk.pricing.quote(lat,lng)` | stale after 5 minutes |
-| `qk.orders.list(tab)` | polls 30 s |
+| `qk.orders.list(tab)` | polls 30 s. `'active'` is also read by Home, which polls it every 30 s while focused and only while `orders.active` > 0; the first pages of `'active'` and `'done'` feed Customers and New order (Recent, and "Same as last time") |
 | `qk.orders.byId(id)` | polls 20 s while on the way |
 | `qk.refills.mine` | |
 | `qk.stations` | |
 | `qk.driver.trips` | Inc 1 |
+| `['driver','vanLoad']` | polls 10 s; read on Today, Trip, the step screens, Unload and My van; each scan refreshes it |
+| `['driver','refills']` / `['driver','refills', id]` | `GET /filling-orders/driver/mine` / `GET /filling-orders/:id`, each polled every 15 s |
 | `qk.driver.home` | Inc 2 |
-| `qk.trip(id)` | polls 15 s; 5 s on Hand back |
+| `qk.trip(id)` | polls 15 s; 5 s on Unload (Inc 2) |
 | `qk.store.incoming` | polls 15 s |
 | `qk.cases.mine` | |
 | `qk.dayEnd(date)` | |
 
-Polling runs only while the screen is focused and the app is active.
+Polling runs only while the screen is focused and the app is active. `support.contact` and `auth.lastPhone` are secure-storage items, not query keys.
 
 **Invalidation**
 - **Order placed or cancelled:** `home`, `wallet.statement`, `orders.list`; set `orders.byId` from the response.
 - **Top-up sent:** `home`, `topups.mine`.
-- **Each scan:** merge the ScanResult progress into `trip(id)`.
+- **Each scan:** merge the ScanResult progress into `trip(id)` (Inc 2); in Inc 1, refresh `['driver','vanLoad']` and the screen's tally.
 - **Step complete:** `trip(id)` and `driver.home`.
 - **Receive scan:** `store.incoming`; when a refill completes, also `refills.mine`.

@@ -1,54 +1,59 @@
 /**
- * `scan.*` copy: the ScanPanel (ui/scan/ScanPanel.tsx; UX_MOBILE §5 v1 core, §7.1 in Inc 2). Owned by
- * the mobile-driver lane.
+ * `scan.*` copy: the ScanPanel on the driver's step screens (ui/scan/ScanPanel.tsx; driver spec §1.3;
+ * UX_MOBILE §5, §7.1 in Inc 2). Owned by the mobile-driver lane.
  *
- * Each step has a title, a hint and the words of a recorded scan. `{{place}}` is the store or the
- * customer of the step. A refused scan shows `errors.<CODE>`, never words of its own. Every string
- * that shows a count has a `_plural` form (i18next v3).
+ * Each step has the idle strip's hint (8 words at most) and the word of a recorded scan. The step's
+ * title is the screen's, not the panel's. A refused scan shows `errors.<CODE>`, never words of its own.
+ * The CountBar's words ("2 of 3", "All 3 scanned") are `common.count.*`; the panel only gives the verb.
  */
 export const scan = {
   step: {
     LOAD: {
-      title: 'Load at {{place}}',
-      hint: 'Scan each full cylinder as you put it on the van.',
-      recorded: 'Loaded onto the van',
+      hint: 'Scan each full cylinder.',
+      recorded: 'Loaded',
     },
     HANDOVER: {
-      title: 'Hand over to {{place}}',
-      hint: 'Scan each cylinder as you give it to the customer.',
-      recorded: 'Handed over to the customer',
+      hint: 'Scan each cylinder you give.',
+      recorded: 'Delivered',
     },
     TAKE_BACK: {
-      title: 'Take back from {{place}}',
-      hint: 'Scan each empty cylinder the customer gives back.',
-      recorded: 'Taken back onto the van',
+      hint: 'Scan each cylinder you take back.',
+      recorded: 'Taken back',
     },
-    HAND_BACK: {
-      title: 'Hand back at {{place}}',
-      hint: 'Scan each cylinder as you take it off the van into the store.',
-      recorded: 'Back in the store',
+    UNLOAD: {
+      hint: 'Scan each cylinder you bring back.',
+      recorded: 'Unloaded',
     },
   },
+
+  /**
+   * The CountBar's verb. Inc 1 counts the cylinders the server confirmed on this screen (a tally, not
+   * the server's count), so it says "scanned"; Inc 2 adds "loaded", "delivered" and "unloaded".
+   */
+  verb: {
+    SCANNED: 'scanned',
+    TAKE_BACK: 'taken back',
+  },
+
   /** When the step's store or customer isn't known yet. */
   theStore: 'the store',
   theCustomer: 'the customer',
 
-  aim: 'Point the camera at the QR label.',
   checking: 'Checking…',
   already: 'Already scanned',
-  count: '{{count}} cylinder scanned here',
-  count_plural: '{{count}} cylinders scanned here',
+  /** No answer: the strip keeps the read, with Retry. */
+  notSent: 'Not sent',
   retry: 'Retry',
-  done: 'Done',
 
   camera: {
+    /** What screen readers hear for the running camera. */
     label: "Camera. Point it at the cylinder's QR label.",
-    why: 'The camera reads the QR label on each cylinder.',
+    why: 'To read the QR labels.',
     allow: 'Allow camera',
-    blocked: 'The camera is blocked for Smart Fleet. Allow it in your phone settings.',
+    blocked: 'Camera blocked. Allow it in settings.',
     openSettings: 'Open settings',
-    starting: 'Starting the camera…',
-    failed: "The camera didn't start. Go back and open the scan again.",
+    starting: 'Starting camera…',
+    failed: "Camera didn't start. Go back and try again.",
   },
 
   torch: {

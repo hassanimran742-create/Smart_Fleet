@@ -1,5 +1,5 @@
 /**
- * Top-up requests and the review drawer (UX_ADMIN §2.2). Owned by the admin-web-money lane.
+ * Top-ups and the review drawer (website spec W06–W11, UX_ADMIN §2.2). Owned by the admin-web-money lane.
  *
  * Contract with app/router.tsx (foundation):
  * - `TopupsPage`: `/topups` (route id '/topups'); search `TopupsSearch` from app/search.ts (`tab`, `q`).

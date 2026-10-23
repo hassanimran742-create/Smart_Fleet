@@ -91,9 +91,11 @@ export function validatePricesSearch(raw: RawSearch): PricesSearch {
 export interface DistributorsSearch {
   /** "Show suspended". */
   suspended?: true;
+  /** The name, phone or code search, kept in the URL like the Orders board's. */
+  q?: string;
 }
 export function validateDistributorsSearch(raw: RawSearch): DistributorsSearch {
-  return { suspended: searchFlag(raw.suspended) };
+  return { suspended: searchFlag(raw.suspended), q: searchText(raw.q) };
 }
 
 export const EXPENSES_TABS = ['expenses', 'fuel-logs'] as const;

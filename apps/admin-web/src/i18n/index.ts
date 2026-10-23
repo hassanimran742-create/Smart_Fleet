@@ -6,6 +6,7 @@ import { common } from './en/common';
 import { distributors } from './en/distributors';
 import { errors } from './en/errors';
 import { expenses } from './en/expenses';
+import { legacy } from './en/legacy';
 import { nav } from './en/nav';
 import { orders } from './en/orders';
 import { prices } from './en/prices';
@@ -21,7 +22,8 @@ import { wallets } from './en/wallets';
  *
  * - Foundation namespaces: `common`, `nav`, `status`, `errors` (= ERROR_MESSAGE_EN), `validation`.
  * - Lane namespaces (each lane owns its file in `en/`): `today`, `orders`, `distributors`, `auth`,
- *   `topups`, `wallets`, `prices`, `settings`, `activity`, `expenses`. Inc 2 adds `problems` and `cylinders`;
+ *   `topups`, `wallets`, `prices`, `settings`, `activity`, `expenses`, and `legacy` (the legacy screens' light
+ *   pass, read through legacy/i18n.ts). Inc 2 adds `problems` and `cylinders`;
  *   Inc 3 adds `refills` and `dayend`: register a new namespace here and nowhere else.
  * - `types.d.ts` types `t()` from these resources, so a missing key fails `tsc`.
  * - Keys are `namespace:path.to.key`. Never pass a default value to `t()`: that overload skips the key check.
@@ -45,6 +47,7 @@ export const resources = {
     settings,
     activity,
     expenses,
+    legacy,
   },
 } as const;
 

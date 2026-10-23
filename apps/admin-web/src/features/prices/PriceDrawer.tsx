@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getRouteApi } from '@tanstack/react-router';
-import type { PriceGridDto, PriceGridZone } from '@smartfleet/shared-types';
+import type { PriceGridDto, PriceGridPrice, PriceGridZone } from '@smartfleet/shared-types';
 import { formatPkDay } from '@smartfleet/shared-utils';
 import { PRICE_MAX_PAISA, type PutPriceInput } from '@smartfleet/shared-validation';
 import { useTranslation } from 'react-i18next';
@@ -8,18 +8,22 @@ import { fieldMessage, messageFor, toApiError, type ApiError } from '../../api/e
 import { useCloseDrawer } from '../../app/drawer';
 import { formatRs } from '../../i18n/format';
 import {
+  AddMore,
   Button,
   Drawer,
   ErrorState,
   Field,
+  flashRow,
   InlineAlert,
   MoneyInput,
+  Select,
+  Skeleton,
   SkeletonText,
   StatusChip,
   useConfirm,
   useToast,
 } from '../../ui';
-import { PRICE_DRAWER_POLL_MS, removePrice, useApplyPriceRow, usePriceGrid, useSavePrice } from './api';
+import { PRICE_DRAWER_POLL_MS, PRICES_FLASH, removePrice, useApplyPriceRow, usePriceGrid, useSavePrice } from './api';
 import { priceExample } from './example';
 import './prices.css';
 
@@ -30,9 +34,10 @@ const REASON_MIN = 5;
 const REASON_MAX = 300;
 
 /**
- * The price drawer (`/prices/$distributorId/$zoneId`, UX_ADMIN §2.3): a required base per order and an
- * optional amount per cylinder size (blank is Rs 0), each from Rs 0 to Rs 100,000, with a live example.
- * Saving answers the zone's row, which goes into the grid at once (G03-04).
+ * The price drawer (`/prices/$distributorId/$zoneId`, website spec W16): a base per order (Rs 0 allowed)
+ * and, behind "+ Add per-cylinder amounts", an amount per full cylinder by size (blank is Rs 0), each up
+ * to Rs 100,000, with "Copy from…" another zone and a live example. Saving answers the zone's row,
+ * which goes into the grid at once (G03-04).
  */
 export function PriceDrawer() {
   const { t } = useTranslation(['prices', 'nav']);
@@ -43,15 +48,15 @@ export function PriceDrawer() {
 
   if (grid.isPending) {
     return (
-      <Drawer title={t('nav:pages.price')} onClose={close}>
-        <SkeletonText lines={8} />
+      <Drawer title={<Skeleton width="14rem" />} onClose={close}>
+        <SkeletonText lines={6} />
       </Drawer>
     );
   }
   if (!grid.data) {
     return (
       <Drawer title={t('nav:pages.price')} onClose={close}>
-        <ErrorState error={grid.error} onRetry={() => void grid.refetch()} retrying={grid.isFetching} title={t('page.loadFailed')} />
+        <ErrorState error={grid.error} onRetry={() => void grid.refetch()} retrying={grid.isFetching} title={t('index.loadFailed')} />
       </Drawer>
     );
   }
@@ -87,13 +92,18 @@ function signature(drafts: Drafts): string {
   return JSON.stringify([one(drafts.base), Object.entries(drafts.sizes).map(([id, draft]) => [id, one(draft)])]);
 }
 
-function draftsOf(grid: PriceGridDto, row: PriceGridZone): Drafts {
+function draftsFromPrice(grid: PriceGridDto, price: PriceGridPrice | null): Drafts {
   const sizes: Record<string, AmountDraft> = {};
   for (const size of grid.sizes) {
-    const amount = row.price?.sizes.find((entry) => entry.cylinderTypeId === size.cylinderTypeId)?.perCylinderPaisa;
+    const amount = price?.sizes.find((entry) => entry.cylinderTypeId === size.cylinderTypeId)?.perCylinderPaisa;
     sizes[size.cylinderTypeId] = draftOf(amount, true);
   }
-  return { base: draftOf(row.price?.basePaisa, false), sizes };
+  return { base: draftOf(price?.basePaisa, false), sizes };
+}
+
+/** Any size has an amount above Rs 0. */
+function hasSizeAmounts(drafts: Drafts): boolean {
+  return Object.values(drafts.sizes).some((draft) => draft.text.trim() !== '' && draft.paisa !== '0');
 }
 
 /** The amount of a box, or the reason it isn't one. Blank is Rs 0 for a size; the base is required. */
@@ -105,13 +115,16 @@ function amountOf(draft: AmountDraft, required: boolean): { ok: true; paisa: big
 }
 
 function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row: PriceGridZone; onClose: () => void; reloadGrid: () => void }) {
-  const { t } = useTranslation(['prices', 'validation', 'errors']);
+  const { t } = useTranslation(['prices', 'validation']);
   const toast = useToast();
   const confirm = useConfirm();
   const save = useSavePrice(grid.distributor.id, row.zone.id);
   const applyRow = useApplyPriceRow(grid.distributor.id);
-  const [initial, setInitial] = useState(() => draftsOf(grid, row));
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [initial, setInitial] = useState(() => draftsFromPrice(grid, row.price));
   const [drafts, setDrafts] = useState(initial);
+  const [sizesOpen, setSizesOpen] = useState(() => hasSizeAmounts(initial));
+  const [copiedFrom, setCopiedFrom] = useState('');
   const [baseline, setBaseline] = useState(row.price?.updatedAt ?? null);
   const [submitted, setSubmitted] = useState(false);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
@@ -132,15 +145,20 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
   for (const entry of sizeAmounts) if (entry.result.ok && entry.result.paisa !== null) amounts.set(entry.size.cylinderTypeId, entry.result.paisa);
   const example = priceExample(base.ok ? base.paisa : null, grid.sizes, amounts);
 
-  const message = (code: 'REQUIRED' | 'PRICE_INVALID') => t(`validation:${code}`);
-  const baseError = serverErrors.basePaisa ?? (submitted && !base.ok ? message(base.code) : undefined);
+  const baseError =
+    serverErrors.basePaisa ?? (submitted && !base.ok ? (base.code === 'REQUIRED' ? t('drawer.baseMissing') : t('validation:PRICE_INVALID')) : undefined);
   const sizeError = (id: string, result: ReturnType<typeof amountOf>) =>
-    serverErrors[`size:${id}`] ?? (submitted && !result.ok ? message(result.code) : undefined);
+    serverErrors[`size:${id}`] ?? (submitted && !result.ok ? t('validation:PRICE_INVALID') : undefined);
+
+  // Other zones of this distributor that have a price: "Copy from…" fills the boxes from one of them.
+  const copyable = grid.zones.filter((other) => other.zone.id !== row.zone.id && other.price !== null);
 
   const reload = () => {
-    const next = draftsOf(grid, row);
+    const next = draftsFromPrice(grid, row.price);
     setInitial(next);
     setDrafts(next);
+    setSizesOpen(hasSizeAmounts(next));
+    setCopiedFrom('');
     setBaseline(row.price?.updatedAt ?? null);
     setServerErrors({});
     setTopError(null);
@@ -150,9 +168,10 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
   const rowVersion = row.price?.updatedAt ?? null;
   useEffect(() => {
     if (rowVersion === baseline || dirty) return;
-    const next = draftsOf(grid, row);
+    const next = draftsFromPrice(grid, row.price);
     setInitial(next);
     setDrafts(next);
+    if (hasSizeAmounts(next)) setSizesOpen(true);
     setBaseline(rowVersion);
   }, [rowVersion, baseline, dirty, grid, row]);
 
@@ -163,6 +182,16 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
   const setSize = (id: string, patch: Partial<AmountDraft>) => {
     setDrafts((prev) => ({ ...prev, sizes: { ...prev.sizes, [id]: { ...(prev.sizes[id] ?? { text: '', paisa: null }), ...patch } } }));
     setServerErrors(({ [`size:${id}`]: _drop, ...rest }) => rest);
+  };
+
+  const copyFrom = (zoneId: string) => {
+    setCopiedFrom(zoneId);
+    const source = copyable.find((other) => other.zone.id === zoneId);
+    if (!source?.price) return;
+    const next = draftsFromPrice(grid, source.price);
+    setDrafts(next);
+    if (hasSizeAmounts(next)) setSizesOpen(true);
+    setServerErrors({});
   };
 
   const showError = (error: ApiError, sent: PutPriceInput) => {
@@ -191,9 +220,18 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
     setTopError({ text: messageFor(error) });
   };
 
+  // "Save price" stays pressable: with a gap, the box that needs fixing says so and gets the focus.
   const onSave = async () => {
     setSubmitted(true);
-    if (!base.ok || base.paisa === null || !valid) return;
+    if (!base.ok || base.paisa === null || !valid) {
+      const badSize = sizeAmounts.find((entry) => !entry.result.ok);
+      if (badSize) setSizesOpen(true);
+      window.requestAnimationFrame(() => {
+        const target = !base.ok ? '[name="basePaisa"]' : badSize ? `[name="size-${badSize.size.cylinderTypeId}"]` : null;
+        if (target) bodyRef.current?.querySelector<HTMLElement>(target)?.focus();
+      });
+      return;
+    }
     const body: PutPriceInput = {
       basePaisa: base.paisa.toString(),
       sizes: sizeAmounts
@@ -209,6 +247,7 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
       const saved = await save.mutateAsync(body);
       await applyRow(saved);
       toast.success(t('drawer.saved', { zone }));
+      flashRow(PRICES_FLASH, row.zone.id);
       onClose();
     } catch (error) {
       showError(toApiError(error), body);
@@ -221,7 +260,7 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
       body: t('drawer.removeBody', { zone }),
       tone: 'danger',
       confirmLabel: t('drawer.removeConfirm'),
-      reason: { label: t('drawer.removeReason'), hint: t('drawer.removeReasonHint'), required: true, minLength: REASON_MIN, maxLength: REASON_MAX },
+      reason: { label: t('drawer.removeReason'), required: true, minLength: REASON_MIN, maxLength: REASON_MAX },
       action: async ({ reason }) => {
         // A price that was already gone answers the same row (X-Already-Applied): it reads as removed.
         await applyRow(await removePrice(grid.distributor.id, row.zone.id, reason ?? ''));
@@ -229,17 +268,24 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
     });
     if (!ok) return;
     toast.success(t('drawer.removed', { zone }));
+    flashRow(PRICES_FLASH, row.zone.id);
     onClose();
   };
 
   const busy = save.isPending;
+  const locked = archived || busy;
   const updatedBy = row.price?.updatedBy?.name;
   const updatedAt = row.price ? formatPkDay(row.price.updatedAt, { weekday: false }) : null;
+  const subtitle = updatedAt
+    ? updatedBy
+      ? t('drawer.subtitleChanged', { city: row.zone.cityName, date: updatedAt, name: updatedBy })
+      : t('drawer.subtitleChangedNoName', { city: row.zone.cityName, date: updatedAt })
+    : row.zone.cityName;
 
   return (
     <Drawer
       title={t('drawer.title', { distributor, zone })}
-      subtitle={row.zone.cityName}
+      subtitle={subtitle}
       chip={<StatusChip kind="price" value={row.price ? 'SET' : 'NOT_SET'} />}
       dirty={dirty && !busy}
       dismissible={!busy}
@@ -272,79 +318,98 @@ function PriceForm({ grid, row, onClose, reloadGrid }: { grid: PriceGridDto; row
         ),
       }}
     >
-      {archived ? (
-        <InlineAlert tone="info" className="sf-prices__drawer-alert">
-          {t('drawer.archived')}
-        </InlineAlert>
-      ) : null}
-      {!row.price && !archived ? (
-        <InlineAlert tone="warning" className="sf-prices__drawer-alert">
-          {t('drawer.notSet')}
-        </InlineAlert>
-      ) : null}
-      {updatedAt ? (
-        <p className="sf-prices__muted sf-prices__last-changed">
-          {updatedBy ? t('drawer.lastChanged', { date: updatedAt, name: updatedBy }) : t('drawer.lastChangedNoName', { date: updatedAt })}
-        </p>
-      ) : null}
+      <div ref={bodyRef}>
+        {archived ? (
+          <InlineAlert tone="info" className="sf-prices__drawer-alert">
+            {t('drawer.archived')}
+          </InlineAlert>
+        ) : null}
 
-      <Field label={t('drawer.base')} hint={t('drawer.baseHint', { max: formatRs(PRICE_MAX_PAISA) })} error={baseError}>
-        <MoneyInput
-          name="basePaisa"
-          allowZero
-          min={0}
-          max={PRICE_MAX_PAISA}
-          valuePaisa={drafts.base.paisa}
-          onChange={(paisa) => setBase({ paisa })}
-          onInput={(event) => setBase({ text: event.currentTarget.value })}
-          disabled={archived || busy}
-        />
-      </Field>
+        {copyable.length > 0 && !archived ? (
+          <Field label={t('drawer.copyFrom')} labelHidden className="sf-prices__copy">
+            <Select
+              value={copiedFrom}
+              placeholder={t('drawer.copyFrom')}
+              options={copyable.map((other) => ({
+                value: other.zone.id,
+                label: t('drawer.copyOption', {
+                  zone: other.zone.name,
+                  summary:
+                    other.price && other.price.sizes.some((entry) => entry.perCylinderPaisa !== '0')
+                      ? t('drawer.copyWithSizes', { base: formatRs(other.price.basePaisa) })
+                      : formatRs(other.price?.basePaisa ?? null),
+                }),
+              }))}
+              onChange={(event) => copyFrom(event.target.value)}
+              disabled={busy}
+            />
+          </Field>
+        ) : null}
 
-      {grid.sizes.length > 0 ? (
-        <fieldset className="sf-prices__sizes" disabled={archived || busy}>
-          <legend className="sf-prices__sizes-title">{t('drawer.perCylinderTitle')}</legend>
-          <p className="sf-prices__muted sf-prices__sizes-hint">{t('drawer.perCylinderHint', { max: formatRs(PRICE_MAX_PAISA) })}</p>
-          <div className="sf-prices__sizes-grid">
-            {sizeAmounts.map(({ size, result }) => (
-              <Field key={size.cylinderTypeId} label={size.label} error={sizeError(size.cylinderTypeId, result)}>
-                <MoneyInput
-                  allowZero
-                  min={0}
-                  max={PRICE_MAX_PAISA}
-                  valuePaisa={drafts.sizes[size.cylinderTypeId]?.paisa ?? null}
-                  onChange={(paisa) => setSize(size.cylinderTypeId, { paisa })}
-                  onInput={(event) => setSize(size.cylinderTypeId, { text: event.currentTarget.value })}
-                  disabled={archived || busy}
-                />
-              </Field>
-            ))}
-          </div>
-        </fieldset>
-      ) : null}
+        <Field label={t('drawer.base')} error={baseError}>
+          <MoneyInput
+            name="basePaisa"
+            data-autofocus
+            allowZero
+            min={0}
+            max={PRICE_MAX_PAISA}
+            valuePaisa={drafts.base.paisa}
+            onChange={(paisa) => setBase({ paisa })}
+            onInput={(event) => setBase({ text: event.currentTarget.value })}
+            disabled={locked}
+          />
+        </Field>
 
-      <section className="sf-prices__example" aria-live="polite">
-        <h3 className="sf-prices__example-title">{t('drawer.exampleTitle')}</h3>
-        {example ? <p>{example}</p> : <p className="sf-prices__muted">{t('drawer.example.needsBase')}</p>}
-      </section>
-      <p className="sf-prices__muted">{t('drawer.note')}</p>
+        {grid.sizes.length > 0 ? (
+          <AddMore label={t('drawer.addSizes')} open={sizesOpen} onOpenChange={setSizesOpen}>
+            <fieldset className="sf-prices__sizes" disabled={locked}>
+              <legend className="sf-prices__sizes-title">{t('drawer.perCylinderTitle')}</legend>
+              <div className="sf-prices__sizes-grid">
+                {sizeAmounts.map(({ size, result }) => (
+                  <Field key={size.cylinderTypeId} label={size.label} error={sizeError(size.cylinderTypeId, result)}>
+                    <MoneyInput
+                      name={`size-${size.cylinderTypeId}`}
+                      allowZero
+                      min={0}
+                      max={PRICE_MAX_PAISA}
+                      valuePaisa={drafts.sizes[size.cylinderTypeId]?.paisa ?? null}
+                      onChange={(paisa) => setSize(size.cylinderTypeId, { paisa })}
+                      onInput={(event) => setSize(size.cylinderTypeId, { text: event.currentTarget.value })}
+                      disabled={locked}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <p className="sf-prices__muted sf-prices__sizes-hint">{t('drawer.perCylinderHint')}</p>
+            </fieldset>
+          </AddMore>
+        ) : null}
 
-      {topError ? (
-        <InlineAlert
-          tone="danger"
-          live
-          className="sf-prices__drawer-alert"
-          action={
-            topError.reload ? (
-              <Button size="sm" onClick={reload}>
-                {t('drawer.reload')}
-              </Button>
-            ) : undefined
-          }
-        >
-          {topError.text}
-        </InlineAlert>
-      ) : null}
+        {example ? (
+          <section className="sf-prices__example" aria-live="polite">
+            <h3 className="sf-prices__example-title">{t('drawer.exampleTitle')}</h3>
+            <p>{example}</p>
+          </section>
+        ) : null}
+        <p className="sf-prices__muted sf-prices__note">{t('drawer.note')}</p>
+
+        {topError ? (
+          <InlineAlert
+            tone="danger"
+            live
+            className="sf-prices__drawer-alert"
+            action={
+              topError.reload ? (
+                <Button size="sm" onClick={reload}>
+                  {t('drawer.reload')}
+                </Button>
+              ) : undefined
+            }
+          >
+            {topError.text}
+          </InlineAlert>
+        ) : null}
+      </div>
     </Drawer>
   );
 }

@@ -1,23 +1,39 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { RotateCw } from 'lucide-react';
+import { Bell, RotateCw } from 'lucide-react';
 import type { DistributorDto } from '@smartfleet/shared-types';
 import { api } from '../api/client';
 import { messageFor } from '../api/errors';
 import { Modal } from '../components/Modal';
 import { translateDynamic } from '../i18n';
 import { formatDateTime, formatRs } from '../i18n/format';
-import { actionInWords, Button, StatusChip, useConfirm, useToast } from '../ui';
+import {
+  actionInWords,
+  Button,
+  EmptyState,
+  ErrorState,
+  FilterBar,
+  FilterChips,
+  PageHeader,
+  SkeletonText,
+  StatusChip,
+  Tabs,
+  useConfirm,
+  useToast,
+} from '../ui';
+import { useLegacyT } from './i18n';
 import './legacy.css';
 
 /**
- * Legacy Alerts screen, kept inside the shell for Inc 1 (UX_ADMIN §2.11). Touched for §2.11:
- * ConfirmDialog instead of browser pop-ups, no emoji, chips and plain words instead of raw values and id
- * fragments, money as "Rs 3,450", and every failure shown. The retired "credit exceeds" rule kind can't be
- * created any more (balances can't go negative; API_CONTRACT §7.2).
+ * Legacy Alerts screen, kept inside the shell for Inc 1 (UX_ADMIN §2.11). Light pass (website spec W48):
+ * the tabs read Open alerts · Rules, "Check now" checks the rules, Open · All are chips, and an empty
+ * list is one line with the bell. The chips read Open (red), Seen (amber) and Sorted (green). The rule
+ * table says "Limit" and "Urgency". The retired "credit exceeds" rule kind can't be created any more
+ * (balances can't go negative; API_CONTRACT §7.2).
  */
 
 type Tab = 'open' | 'rules';
+type Show = 'OPEN' | 'ALL';
 
 type RuleKind = 'DISTRIBUTOR_BALANCE_LOW' | 'DISTRIBUTOR_CREDIT_OVER' | 'STORE_STOCK_LOW' | 'SPECIAL_CLIENT';
 type Severity = 'INFO' | 'WARNING' | 'CRITICAL';
@@ -43,9 +59,9 @@ const KIND_LABELS: Record<RuleKind, string> = {
 };
 
 const KIND_HELP: Record<RuleKind, string> = {
-  DISTRIBUTOR_BALANCE_LOW: 'The threshold is an amount in rupees. Raises an alert whenever the picked distributor (or any distributor, if left blank) has a balance below it.',
+  DISTRIBUTOR_BALANCE_LOW: 'The limit is an amount in rupees. Raises an alert whenever the picked distributor (or any distributor, if left blank) has a balance below it.',
   DISTRIBUTOR_CREDIT_OVER: 'No longer used: a balance can never go below zero.',
-  STORE_STOCK_LOW: 'The threshold is the smallest number of full cylinders expected. Pick the cylinder size, and optionally one store.',
+  STORE_STOCK_LOW: 'The limit is the smallest number of full cylinders expected. Pick the cylinder size, and optionally one store.',
   SPECIAL_CLIENT: 'Pick a customer. Raises an alert on every new order from that customer.',
 };
 
@@ -69,51 +85,34 @@ interface AlertRow {
 }
 
 export function AlertsScreen() {
+  const lt = useLegacyT();
   const [tab, setTab] = useState<Tab>('open');
   return (
-    <>
-      <h2>Alerts</h2>
-      <div role="tablist" aria-label="Alert views" style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
-        {([
-          ['open', 'Open alerts'],
-          ['rules', 'Alert rules'],
-        ] as [Tab, string][]).map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              background: 'none',
-              borderBottom: tab === id ? '3px solid var(--primary)' : '3px solid transparent',
-              fontWeight: tab === id ? 600 : 400,
-              color: tab === id ? 'var(--primary)' : 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
+    <div className="sf-legacy-page">
+      <PageHeader title={lt('alerts.title')} />
+      <Tabs<Tab>
+        label={lt('alerts.title')}
+        items={[
+          { id: 'open', label: lt('alerts.tabs.open') },
+          { id: 'rules', label: lt('alerts.tabs.rules') },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
       {tab === 'open' && <OpenAlertsTab />}
       {tab === 'rules' && <RulesTab />}
-    </>
+    </div>
   );
 }
 
 function OpenAlertsTab() {
+  const lt = useLegacyT();
   const qc = useQueryClient();
   const toast = useToast();
-  const [filter, setFilter] = useState<'OPEN' | 'ALL'>('OPEN');
-  const { data, isPending, isError, error, refetch } = useQuery({
-    queryKey: ['alerts', filter],
-    queryFn: async () => {
-      const url = filter === 'OPEN' ? '/alerts?status=OPEN' : '/alerts';
-      return (await api.get<AlertRow[]>(url)).data;
-    },
+  const [show, setShow] = useState<Show>('OPEN');
+  const query = useQuery({
+    queryKey: ['alerts', show],
+    queryFn: async () => (await api.get<AlertRow[]>(show === 'OPEN' ? '/alerts?status=OPEN' : '/alerts')).data,
     refetchInterval: 15000,
   });
 
@@ -129,7 +128,7 @@ function OpenAlertsTab() {
   const resolve = useMutation({
     mutationFn: (id: string) => api.patch(`/alerts/${id}/resolve`),
     onSuccess: () => {
-      toast.success('Alert marked as sorted.');
+      toast.success(lt('alerts.sortedToast'));
       refresh();
     },
     onError: (e) => toast.error(e),
@@ -137,66 +136,71 @@ function OpenAlertsTab() {
   const evalNow = useMutation({
     mutationFn: () => api.post('/alert-rules/evaluate'),
     onSuccess: () => {
-      toast.success('Rules checked.');
+      toast.success(lt('alerts.checkedToast'));
       refresh();
     },
     onError: (e) => toast.error(e),
   });
 
+  const rows = query.data ?? [];
+
   return (
     <>
-      <div className="flex" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-        <div>
-          <button onClick={() => setFilter('OPEN')} className={filter === 'OPEN' ? 'primary' : ''}>Open</button>{' '}
-          <button onClick={() => setFilter('ALL')} className={filter === 'ALL' ? 'primary' : ''}>All</button>
-        </div>
+      <FilterBar className="sf-legacy__bar">
+        <FilterChips<Show>
+          label={lt('alerts.show')}
+          options={[
+            { value: 'OPEN', label: lt('alerts.filters.open') },
+            { value: 'ALL', label: lt('alerts.filters.all') },
+          ]}
+          value={show}
+          onChange={setShow}
+        />
         <Button icon={RotateCw} onClick={() => evalNow.mutate()} loading={evalNow.isPending}>
-          Check the rules now
+          {lt('alerts.checkNow')}
         </Button>
-      </div>
-      {isPending && (
-        <div className="card"><p className="muted">Loading alerts…</p></div>
-      )}
-      {isError && (
-        <div className="card">
-          <p style={{ color: 'var(--danger-fg)' }}>{messageFor(error)}</p>
-          <button onClick={() => void refetch()}>Try again</button>
-        </div>
-      )}
-      {!isPending && !isError && (data ?? []).length === 0 && (
-        <div className="card">
-          <p className="muted">{filter === 'OPEN' ? 'No open alerts. New alerts show up here by themselves.' : 'No alerts yet.'}</p>
-        </div>
-      )}
-      {(data ?? []).map((a) => (
-        <div className="card" key={a.id}>
-          <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-            <div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <StatusChip kind="severity" value={a.severity} />
+      </FilterBar>
+      {query.isPending ? <SkeletonText lines={4} /> : null}
+      {query.isError && !query.data ? (
+        <ErrorState error={query.error} title={lt('alerts.loadFailed')} onRetry={() => void query.refetch()} retrying={query.isFetching} />
+      ) : null}
+      {query.isSuccess && rows.length === 0 ? (
+        <EmptyState icon={Bell} title={show === 'OPEN' ? lt('alerts.emptyOpen') : lt('alerts.emptyAll')} />
+      ) : null}
+      {rows.map((a) => (
+        <section className="sf-legacy-card" key={a.id}>
+          <div className="sf-legacy-card__row">
+            <div className="sf-legacy-alert">
+              <div className="sf-legacy__chips">
                 <StatusChip kind="alert" value={a.status} />
-                <span className="muted">{actionInWords(a.alertType)}</span>
+                <StatusChip kind="severity" value={a.severity} />
+                <span className="sf-legacy__muted">{actionInWords(a.alertType)}</span>
               </div>
-              <h3 style={{ margin: '4px 0' }}>{a.title}</h3>
+              <h3 className="sf-legacy-card__title">{a.title}</h3>
               {a.body ? <p>{a.body}</p> : null}
-              <p className="muted">{formatDateTime(a.createdAt)}</p>
+              <p className="sf-legacy__muted">{formatDateTime(a.createdAt)}</p>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {a.status === 'OPEN' && (
-                <button onClick={() => ack.mutate(a.id)} disabled={ack.isPending}>Mark as seen</button>
-              )}
-              {a.status !== 'RESOLVED' && (
-                <button className="primary" onClick={() => resolve.mutate(a.id)} disabled={resolve.isPending}>Mark as sorted</button>
-              )}
-            </div>
+            <span className="sf-legacy__actions">
+              {a.status === 'OPEN' ? (
+                <Button size="sm" onClick={() => ack.mutate(a.id)} disabled={ack.isPending}>
+                  {lt('alerts.seen')}
+                </Button>
+              ) : null}
+              {a.status !== 'RESOLVED' ? (
+                <Button size="sm" onClick={() => resolve.mutate(a.id)} disabled={resolve.isPending}>
+                  {lt('alerts.sorted')}
+                </Button>
+              ) : null}
+            </span>
           </div>
-        </div>
+        </section>
       ))}
     </>
   );
 }
 
 function RulesTab() {
+  const lt = useLegacyT();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const toast = useToast();
@@ -247,7 +251,7 @@ function RulesTab() {
       const usesRs = form.ruleKind === 'DISTRIBUTOR_BALANCE_LOW' || form.ruleKind === 'DISTRIBUTOR_CREDIT_OVER';
       const threshold = usesRs ? Math.round(Number(form.thresholdRs) * 100) : Math.floor(Number(form.thresholdCount));
       if (!form.name.trim()) throw new Error('Name the rule so you can recognise it later.');
-      if (!Number.isFinite(threshold) || threshold < 0) throw new Error('The threshold must be 0 or more.');
+      if (!Number.isFinite(threshold) || threshold < 0) throw new Error(lt('alerts.limitMissing'));
       if (form.ruleKind === 'STORE_STOCK_LOW' && !form.cylinderTypeId) throw new Error('Pick a cylinder size for a stock rule.');
       if (form.ruleKind === 'SPECIAL_CLIENT' && !form.resourceId) throw new Error('Pick the customer.');
 
@@ -298,17 +302,17 @@ function RulesTab() {
 
   return (
     <>
-      <div className="flex" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-        <p className="muted" style={{ margin: 0 }}>
-          Custom rules raise alerts on the Open tab whenever the condition is met.
-        </p>
-        <button className="primary" onClick={() => setShowNew(true)}>New rule</button>
-      </div>
+      <FilterBar className="sf-legacy__bar">
+        <span />
+        <Button variant="primary" onClick={() => setShowNew(true)}>
+          {lt('alerts.newRule')}
+        </Button>
+      </FilterBar>
 
       <div className="card">
         <table>
           <thead>
-            <tr><th>Name</th><th>What it watches</th><th>Threshold</th><th>Severity</th><th>Last raised</th><th>On</th><th aria-label="Actions"></th></tr>
+            <tr><th>Name</th><th>What it watches</th><th>{lt('alerts.limit')}</th><th>{lt('alerts.urgency')}</th><th>Last raised</th><th>On</th><th aria-label="Actions"></th></tr>
           </thead>
           <tbody>
             {(data ?? []).length === 0 && (
@@ -361,12 +365,12 @@ function RulesTab() {
 
         {usesRs ? (
           <>
-            <label>Threshold (Rs)</label>
+            <label>{lt('alerts.limitRs')}</label>
             <input type="number" value={form.thresholdRs} onChange={(e) => setForm({ ...form, thresholdRs: e.target.value })} />
           </>
         ) : !usesClient && (
           <>
-            <label>Threshold (cylinders)</label>
+            <label>{lt('alerts.limitCylinders')}</label>
             <input type="number" value={form.thresholdCount} onChange={(e) => setForm({ ...form, thresholdCount: e.target.value })} />
           </>
         )}
@@ -417,7 +421,7 @@ function RulesTab() {
           </>
         )}
 
-        <label>Severity</label>
+        <label>{lt('alerts.urgency')}</label>
         <select value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value as Severity })}>
           {SEVERITIES.map((sev) => <option key={sev} value={sev}>{severityWords(sev)}</option>)}
         </select>

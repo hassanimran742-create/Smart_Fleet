@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Linking, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ORDER_CANCEL_REASONS, type OrderCancelTerms, type OrderDto } from '@smartfleet/shared-types';
+import { ORDER_CANCEL_REASONS, type OrderCancelTerms, type OrderDto, type OrderStage } from '@smartfleet/shared-types';
 import { formatRs } from '@smartfleet/shared-utils';
 import { useIdempotencyKey } from '../../api/client';
 import { isApiError, toApiError, type ApiError } from '../../api/errors';
@@ -31,20 +31,33 @@ import {
   type TimelineItem,
 } from '../../ui';
 import { cancelOrder, fetchOrder, fetchOrderTracking, type OrderTrackingDto } from './shared/api';
-import { costBreakdownText, isPositivePaisa, orderCost, paisaOrZero, phoneText } from './shared/format';
+import { CallButton } from './shared/CallButton';
+import { costParts, isPositivePaisa, orderCost, paisaOrZero, phoneText } from './shared/format';
 import { shopKeys } from './shared/keys';
 import { useShopNavigation, useShopRoute } from './shared/navigation';
-import { Notice } from './shared/Notice';
 import { usePullRefresh } from './shared/refresh';
 
 const ACTIVE_STATUSES: ReadonlySet<string> = new Set(['PENDING', 'CONFIRMED', 'ASSIGNED', 'IN_TRANSIT']);
+/** The stages with a driver on the order: "Call driver" is the footer and the facts show the driver. */
+const DRIVER_STAGES: ReadonlySet<OrderStage> = new Set(['DRIVER_ASSIGNED', 'LOADING', 'ON_THE_WAY']);
+/** A finished order shows one status line instead of the timeline, until "All steps" (shop spec §T). */
+const FINISHED_STAGES: ReadonlySet<OrderStage> = new Set(['DELIVERED', 'CANCELLED', 'NOT_DELIVERED']);
 const TRACKING_DELTA = 0.03;
 
+/** Nothing to return when a cancel can't refund and nothing was paid; a cost kept is "no refund". */
+function cancelWords(terms: OrderCancelTerms, order: OrderDto): 'refund' | 'noRefund' | 'nothing' {
+  if (paisaOrZero(terms.refundPaisa) > 0) return 'refund';
+  if (terms.noRefundReason === 'DELIVERY_STARTED' && isPositivePaisa(order.fee.totalPaisa)) return 'noRefund';
+  return 'nothing';
+}
+
 /**
- * S11 Order detail (replaces TrackOrderScreen; the live socket is gone): the timeline with the cost
- * events, the cost card, the cylinders, the driver once assigned and their last position while on the
- * way. "Cancel order" opens a sheet whose words come from the order's own `cancel` terms; it sends the
- * refund the person saw, so a cancel after delivery started can never refund by surprise.
+ * S11 Order detail (shop spec §T): the stage chip, the timeline while the order is under way (a
+ * finished order shows one line, with "All steps"), one facts card (customer with a call button,
+ * driver, cylinders, cost), the driver on the map while on the way, and the red-outline cancel at
+ * the end of the content (never the footer). "Call driver" is the footer while a driver has the
+ * order; otherwise there is nothing to do and no footer. The cancel sheet's words come from the
+ * order's own terms, and it sends the refund the person saw.
  */
 export function OrderDetailScreen() {
   const { t } = useTranslation();
@@ -73,15 +86,20 @@ export function OrderDetailScreen() {
   }, [navigation, order.data, t]);
 
   const notFound = !order.data && isApiError(order.error) && order.error.status === 404;
-  const canCancel = !!order.data?.cancel.allowed;
+  const driverPhone = order.data && DRIVER_STAGES.has(order.data.stage) ? order.data.trip?.driver.phone : null;
 
   return (
     <Screen
       refreshing={pull.refreshing}
       onRefresh={pull.onRefresh}
       footer={
-        canCancel ? (
-          <Button label={t('orders.detail.cancel')} onPress={() => setSheetOpen(true)} variant="danger" size="lg" />
+        driverPhone ? (
+          <Button
+            label={t('orders.detail.callDriver')}
+            onPress={() => void Linking.openURL(telUrl(driverPhone)).catch(() => undefined)}
+            size="lg"
+            icon="call"
+          />
         ) : undefined
       }
     >
@@ -89,7 +107,7 @@ export function OrderDetailScreen() {
         <EmptyState icon="order" title={t('orders.detail.notFound')} />
       ) : (
         <QueryBoundary query={order} skeleton={<SkeletonCard lines={5} />}>
-          {(data) => <OrderBody order={data} />}
+          {(data) => <OrderBody order={data} onCancel={() => setSheetOpen(true)} />}
         </QueryBoundary>
       )}
       {/* Outside the boundary (like the driver's sheets), so nothing the boundary shows can reset the
@@ -106,77 +124,78 @@ export function OrderDetailScreen() {
   );
 }
 
-function OrderBody({ order }: { order: OrderDto }) {
+function OrderBody({ order, onCancel }: { order: OrderDto; onCancel: () => void }) {
   const { t } = useTranslation();
-  const cost = orderCost(order);
-  // NONE is a zero cost or an order from before the switch-over: no cost was taken by this app.
-  const charged = order.fee.status !== 'NONE' && isPositivePaisa(order.fee.totalPaisa);
+  const finished = FINISHED_STAGES.has(order.stage);
+  const [allSteps, setAllSteps] = useState(false);
+  const words = cancelWords(order.cancel, order);
 
   return (
     <View style={styles.stack}>
-      <StatusChip kind="order" value={order.stage} />
-
-      {order.stage === 'NEEDS_DRIVER' ? <Notice tone="brand" icon="checking" text={t('orders.new.officeAssigns')} /> : null}
-
-      <Card>
-        <Timeline items={timelineOf(order, t)} />
-      </Card>
-
-      <Card>
-        <Text variant="label" tone="secondary">
-          {t('orders.detail.costTitle')}
-        </Text>
-        <Text variant="heading" style={styles.cardLine}>
-          {charged ? t('orders.detail.cost', { fee: formatRs(order.fee.totalPaisa) }) : t('orders.detail.costNone')}
-        </Text>
-        <View style={styles.chips}>
-          <StatusChip kind="fee" value={order.fee.status} amountPaisa={order.fee.totalPaisa} />
-        </View>
-        {charged && cost ? <Text style={styles.cardLine}>{costBreakdownText(cost, t)}</Text> : null}
-        {charged ? (
-          <Text tone="secondary" style={styles.cardLine}>
-            {t(`stages.feeLong.${order.fee.status}`)}
+      <View style={styles.status}>
+        <StatusChip kind="order" value={order.stage} />
+        {order.stage === 'NEEDS_DRIVER' ? (
+          <Text variant="caption" tone="secondary">
+            {t('orders.new.officeAssigns')}
           </Text>
         ) : null}
-      </Card>
+        {finished ? (
+          <Text variant="caption" tone="secondary">
+            {statusLineOf(order, t)}
+          </Text>
+        ) : null}
+        {finished && !allSteps ? (
+          <Button
+            label={t('orders.detail.allSteps')}
+            onPress={() => setAllSteps(true)}
+            variant="ghost"
+            fullWidth={false}
+            style={styles.ghost}
+          />
+        ) : null}
+      </View>
 
-      <Card>
-        <Text variant="label" tone="secondary">
-          {t('orders.detail.itemsTitle')}
-        </Text>
-        <View style={styles.cardLines}>
-          {order.lines.map((line) => (
-            <Text key={line.id}>
-              {t('orders.detail.itemLine', { count: line.fullCount, size: line.sizeLabel, back: line.expectedReturnCount })}
-            </Text>
-          ))}
-        </View>
-      </Card>
+      {!finished || allSteps ? (
+        <Card>
+          <Timeline items={timelineOf(order, t)} />
+        </Card>
+      ) : null}
 
-      <Card>
-        <Text variant="label" tone="secondary">
-          {t('orders.detail.customerTitle')}
-        </Text>
-        <Text variant="bodyStrong" style={styles.cardLine}>
-          {t('orders.new.customerValue', { name: order.client.name, phone: phoneText(order.client.phone) })}
-        </Text>
-        <Text variant="label" tone="secondary" style={styles.cardGap}>
-          {t('orders.detail.deliverTo')}
-        </Text>
-        <Text style={styles.cardLine}>
-          {t('orders.new.deliverToValue', { label: order.deliveryAddressLabel, zone: order.destZone.name })}
-        </Text>
-      </Card>
+      <FactsCard order={order} />
 
-      {order.trip ? <DriverCard order={order} /> : null}
       {order.stage === 'ON_THE_WAY' ? <TrackingCard order={order} /> : null}
+
+      {order.cancel.allowed ? (
+        <Button
+          label={words === 'noRefund' ? t('orders.detail.cancelNoRefund') : t('orders.detail.cancel')}
+          onPress={onCancel}
+          variant="dangerOutline"
+          style={styles.cancel}
+        />
+      ) : null}
     </View>
   );
 }
 
+/** A finished order's caption: "Today, 11:02 am", or with why: "Today, 10:30 am · Customer cancelled". */
+function statusLineOf(order: OrderDto, t: TFunction): string {
+  if (order.stage === 'CANCELLED') {
+    const when = order.cancelledAt ? formatWhenText(order.cancelledAt) : '';
+    const reason = order.cancelReasonCode ? t(`orders.cancel.reason.${order.cancelReasonCode}`) : null;
+    return reason && when ? t('orders.detail.statusLine', { when, reason }) : reason ?? when;
+  }
+  if (order.stage === 'NOT_DELIVERED') {
+    const when = order.failedAt ? formatWhenText(order.failedAt) : '';
+    const reason = order.failureReasonCode ? t(`orders.detail.failureReason.${order.failureReasonCode}`) : null;
+    return reason && when ? t('orders.detail.statusLine', { when, reason }) : reason ?? when;
+  }
+  return order.deliveredAt ? formatWhenText(order.deliveredAt) : '';
+}
+
 /**
- * Placed · {{fee}} paid → Driver assigned → Loading at your store → On the way → Delivered, each with
- * its time; a cancelled order ends "Cancelled · {{fee}} returned" or "Cancelled · no refund".
+ * Placed · {{fee}} paid → Driver assigned → Loading → On the way → Delivered, each with its time. A
+ * cancelled order ends with the neutral "stopped" mark ("Cancelled · Rs 400 returned"), never a tick;
+ * one that wasn't delivered ends red with its reason.
  */
 function timelineOf(order: OrderDto, t: TFunction): TimelineItem[] {
   const fee = formatRs(order.fee.totalPaisa);
@@ -221,7 +240,7 @@ function timelineOf(order: OrderDto, t: TFunction): TimelineItem[] {
             ? t('orders.detail.timeline.cancelledNoRefund')
             : t('orders.detail.timeline.cancelled'),
         time: when(order.cancelledAt),
-        state: paid && !returned ? 'problem' : 'done',
+        state: 'stopped',
       });
     } else {
       items.push({
@@ -247,38 +266,89 @@ function timelineOf(order: OrderDto, t: TFunction): TimelineItem[] {
   return items;
 }
 
-/** The driver once assigned: name, van and "Call driver". */
-function DriverCard({ order }: { order: OrderDto }) {
+/** The facts (shop spec §T item 4): customer, driver while active, cylinders and cost, one card. */
+function FactsCard({ order }: { order: OrderDto }) {
   const { t } = useTranslation();
-  const trip = order.trip!;
+  const trip = order.trip;
+  const showDriver = !!trip && DRIVER_STAGES.has(order.stage);
+  const charged = order.fee.status !== 'NONE' && isPositivePaisa(order.fee.totalPaisa);
+  const cancelled = order.stage === 'CANCELLED';
+  const cost = orderCost(order);
+  const parts = charged && !cancelled && cost ? costParts(cost, t) : null;
+  const kept = cancelled && order.fee.status === 'DEDUCTED' && charged;
+
   return (
-    <Card>
-      <Text variant="label" tone="secondary">
-        {t('orders.detail.driverTitle')}
-      </Text>
-      <View style={styles.driverRow}>
-        <View style={styles.avatar}>
-          <Icon name="truck" size={24} tone="brand" />
+    <Card padding={0}>
+      <Section first>
+        <View style={styles.between}>
+          <View style={styles.flex}>
+            <Text variant="bodyStrong">
+              {t('orders.new.customerValue', { name: order.client.name, phone: phoneText(order.client.phone) })}
+            </Text>
+            <Text tone="secondary">{order.deliveryAddressLabel}</Text>
+          </View>
+          {order.client.phone ? (
+            <CallButton phone={order.client.phone} label={t('orders.detail.callCustomer', { name: order.client.name })} />
+          ) : null}
         </View>
-        <View style={styles.flex}>
-          <Text variant="bodyStrong">{trip.driver.name}</Text>
-          {trip.vehicle?.plateNo ? <Text tone="secondary">{t('orders.detail.van', { plate: trip.vehicle.plateNo })}</Text> : null}
-        </View>
-      </View>
-      {trip.driver.phone ? (
-        <Button
-          label={t('orders.detail.callDriver')}
-          onPress={() => void Linking.openURL(telUrl(trip.driver.phone)).catch(() => undefined)}
-          icon="call"
-          variant="secondary"
-          style={styles.cardGap}
-        />
+      </Section>
+
+      {showDriver && trip ? (
+        <Section>
+          <View style={styles.between}>
+            <Icon name="truck" size={24} tone="brand" />
+            <Text style={styles.flex}>
+              {trip.vehicle?.plateNo
+                ? t('orders.detail.driverLine', {
+                    name: trip.driver.name,
+                    van: t('orders.detail.van', { plate: trip.vehicle.plateNo }),
+                  })
+                : trip.driver.name}
+            </Text>
+          </View>
+        </Section>
       ) : null}
+
+      <Section>
+        {order.lines.map((line) => (
+          <Text key={line.id}>
+            {line.expectedReturnCount > 0
+              ? t('orders.detail.itemLine', { count: line.fullCount, size: line.sizeLabel, back: line.expectedReturnCount })
+              : t('orders.detail.itemLineNoBack', { count: line.fullCount, size: line.sizeLabel })}
+          </Text>
+        ))}
+      </Section>
+
+      <Section>
+        <View style={styles.between}>
+          <Text variant="label" tone="secondary" style={styles.flex}>
+            {t('orders.detail.costTitle')}
+          </Text>
+          <StatusChip kind="fee" value={order.fee.status} amountPaisa={order.fee.totalPaisa} />
+        </View>
+        {parts ? (
+          <Text variant="caption" tone="secondary">
+            {parts}
+          </Text>
+        ) : null}
+        {kept ? (
+          <Text variant="caption" tone="secondary">
+            {t('orders.detail.noRefund')}
+          </Text>
+        ) : null}
+      </Section>
     </Card>
   );
 }
 
-/** While on the way: the driver's last position, polled every 20 seconds (`/orders/:id/tracking`). */
+function Section({ children, first = false }: { children: ReactNode; first?: boolean }) {
+  return <View style={[styles.section, first ? null : styles.divided]}>{children}</View>;
+}
+
+/**
+ * While on the way: the driver's last position, polled every 20 seconds (`/orders/:id/tracking`). It
+ * shows only once a position exists; there is no "will show here" text.
+ */
 function TrackingCard({ order }: { order: OrderDto }) {
   const { t } = useTranslation();
   const poll = useFocusedInterval(POLL_MS.orderOnTheWay);
@@ -288,51 +358,46 @@ function TrackingCard({ order }: { order: OrderDto }) {
     refetchInterval: poll,
   });
   const driver = tracking.data?.driverLocation ?? null;
+  if (!driver) return null;
   const destination = tracking.data?.destination ?? order.destination;
-  const center = driver ?? destination;
 
   return (
     <Card>
       <Text variant="label" tone="secondary">
         {t('orders.detail.trackingTitle')}
       </Text>
-      {driver ? (
-        <View style={styles.map} accessible accessibilityLabel={t('orders.detail.trackingMapA11y')}>
-          <MapView
-            style={StyleSheet.absoluteFill}
-            region={{
-              latitude: center.lat,
-              longitude: center.lng,
-              latitudeDelta: TRACKING_DELTA,
-              longitudeDelta: TRACKING_DELTA,
-            }}
-            toolbarEnabled={false}
-          >
-            <Marker
-              coordinate={{ latitude: destination.lat, longitude: destination.lng }}
-              title={t('orders.detail.deliveryPin')}
-              pinColor={colors.success}
-            />
-            <Marker
-              coordinate={{ latitude: driver.lat, longitude: driver.lng }}
-              title={t('orders.detail.driverPin')}
-              pinColor={colors.brand}
-            />
-          </MapView>
-        </View>
-      ) : (
-        <Text tone="secondary" style={styles.cardLine}>
-          {t('orders.detail.trackingWaiting')}
-        </Text>
-      )}
+      <View style={styles.map} accessible accessibilityLabel={t('orders.detail.trackingMapA11y')}>
+        <MapView
+          style={StyleSheet.absoluteFill}
+          region={{
+            latitude: driver.lat,
+            longitude: driver.lng,
+            latitudeDelta: TRACKING_DELTA,
+            longitudeDelta: TRACKING_DELTA,
+          }}
+          toolbarEnabled={false}
+        >
+          <Marker
+            coordinate={{ latitude: destination.lat, longitude: destination.lng }}
+            title={t('orders.detail.deliveryPin')}
+            pinColor={colors.success}
+          />
+          <Marker
+            coordinate={{ latitude: driver.lat, longitude: driver.lng }}
+            title={t('orders.detail.driverPin')}
+            pinColor={colors.brand}
+          />
+        </MapView>
+      </View>
     </Card>
   );
 }
 
 /**
- * The cancel sheet (UX_MOBILE S11). Its title, body and button follow the terms: a refund ("Yes, cancel
- * and get Rs 330 back"), no refund once delivery started (danger "Cancel without refund"), or nothing
- * to return ("Yes, cancel order"). `ORDER_CANCEL_TERMS_CHANGED` re-renders it with the new terms.
+ * The cancel sheet (shop spec §U). The money comes first and big: "Back to your wallet Rs 330" while a
+ * refund is due, or "Delivery has started." with "Not returned Rs 400" (a danger confirm) once it has
+ * started. "Why?" asks for a reason; "Other" asks what happened. `ORDER_CANCEL_TERMS_CHANGED` keeps
+ * the sheet open with the new terms and the line "Delivery has just started. The refund is now Rs 0.".
  */
 function CancelSheet({
   order,
@@ -353,25 +418,20 @@ function CancelSheet({
   const idem = useIdempotencyKey([order.id, visible]);
   const terms = override ?? order.cancel;
   const code = order.shortCode;
-  const refund = paisaOrZero(terms.refundPaisa) > 0;
-  const noRefund = !refund && terms.noRefundReason === 'DELIVERY_STARTED';
-  const fee = formatRs(order.fee.totalPaisa);
+  const words = cancelWords(terms, order);
 
-  const title = refund
-    ? t('orders.cancel.titleRefund', { code })
-    : noRefund
-      ? t('orders.cancel.titleNoRefund')
-      : t('orders.cancel.title', { code });
-  const body = refund
-    ? t('orders.cancel.bodyRefund', { fee: formatRs(terms.refundPaisa) })
-    : noRefund
-      ? t('orders.cancel.bodyNoRefund', { fee })
-      : undefined;
-  const confirmLabel = refund
-    ? t('orders.cancel.confirmRefund', { fee: formatRs(terms.refundPaisa) })
-    : noRefund
-      ? t('orders.cancel.confirmNoRefund')
-      : t('orders.cancel.confirm');
+  const title =
+    words === 'refund'
+      ? t('orders.cancel.titleRefund', { code })
+      : words === 'noRefund'
+        ? t('orders.cancel.titleNoRefund')
+        : t('orders.cancel.title', { code });
+  const confirmLabel =
+    words === 'refund'
+      ? t('orders.cancel.confirmRefund', { fee: formatRs(terms.refundPaisa) })
+      : words === 'noRefund'
+        ? t('orders.cancel.confirmNoRefund')
+        : t('orders.cancel.confirm');
 
   const close = () => {
     setOverride(null);
@@ -382,13 +442,17 @@ function CancelSheet({
     <ConfirmSheet
       visible={visible}
       title={title}
-      body={body}
+      body={words === 'noRefund' ? t('orders.cancel.bodyNoRefund') : undefined}
+      amountPaisa={words === 'refund' ? terms.refundPaisa : words === 'noRefund' ? order.fee.totalPaisa : undefined}
+      amountLabel={
+        words === 'refund' ? t('orders.cancel.backToWallet') : words === 'noRefund' ? t('orders.cancel.notReturned') : undefined
+      }
       reasons={ORDER_CANCEL_REASONS.map((reason) => ({ code: reason, label: t(`orders.cancel.reason.${reason}`) }))}
       requireReason
       noteForOther
       noteLabel={t('orders.cancel.noteLabel')}
       confirmLabel={confirmLabel}
-      confirmTone={noRefund ? 'danger' : 'primary'}
+      confirmTone={words === 'noRefund' ? 'danger' : 'primary'}
       confirmLoadingLabel={t('orders.cancel.cancelling')}
       cancelLabel={t('orders.cancel.keep')}
       onClose={close}
@@ -440,19 +504,13 @@ function CancelSheet({
 const styles = StyleSheet.create({
   stack: { gap: space.lg },
   flex: { flex: 1 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm },
-  cardLine: { marginTop: space.xs },
-  cardLines: { marginTop: space.xs, gap: space.xs },
-  cardGap: { marginTop: space.md },
-  driverRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.sm },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  status: { gap: space.xs, alignItems: 'flex-start' },
+  ghost: { paddingHorizontal: space.sm, marginStart: -space.sm },
+  section: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
+  divided: { borderTopWidth: 1, borderTopColor: colors.border },
+  between: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // 24 dp below the last card (the stack's 16 plus 8).
+  cancel: { marginTop: space.sm },
   map: {
     height: 200,
     marginTop: space.sm,

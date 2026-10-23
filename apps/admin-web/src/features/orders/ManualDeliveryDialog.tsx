@@ -2,14 +2,15 @@ import { useState } from 'react';
 import type { OrderDto } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
 import { messageFor } from '../../api/errors';
-import { useToast } from '../../ui';
+import { flashRow, useToast } from '../../ui';
 import { useInvalidateOrder, useManualDelivery } from './api';
 import { ReasonDialog } from './ReasonDialog';
 
 /**
- * Mark delivered by office (UX_ADMIN §2.5, the Inc 1 manual delivery): a reason of at least 10
- * characters, logged with the office user's name. No money moves. A repeat (`X-Already-Applied`)
- * shows the same toast; an order the driver already delivered refetches, so the drawer shows it.
+ * Mark delivered (UX_ADMIN §2.5, §3.4, website spec W32), the office's manual delivery behind the
+ * drawer's "Mark delivered…": who confirmed the delivery, in at least 10 characters, logged with the
+ * office user's name. No money moves. A repeat (`X-Already-Applied`) shows the same toast; an order the
+ * driver already delivered refetches, so the drawer shows it. The drawer stays open on the order.
  */
 export function ManualDeliveryDialog({ order, onClose }: { order: OrderDto; onClose: () => void }) {
   const { t } = useTranslation('orders');
@@ -25,6 +26,7 @@ export function ManualDeliveryDialog({ order, onClose }: { order: OrderDto; onCl
       {
         onSuccess: (updated) => {
           toast.success(t('manual.toast', { no: updated.shortCode ?? order.shortCode }));
+          flashRow('orders', order.id);
           void invalidate();
           onClose();
         },
@@ -44,11 +46,11 @@ export function ManualDeliveryDialog({ order, onClose }: { order: OrderDto; onCl
   return (
     <ReasonDialog
       title={t('manual.title', { no: order.shortCode })}
-      body={t('manual.body')}
+      facts={<p className="sf-order-dialog__body">{t('manual.body')}</p>}
       reasonLabel={t('manual.reasonLabel')}
       noteLabel={t('manual.reasonLabel')}
-      noteHint={t('manual.reasonHint')}
       noteMin={10}
+      noteRows={3}
       confirmLabel={t('manual.confirm')}
       needNote={t('manual.needReason')}
       busy={deliver.isPending}

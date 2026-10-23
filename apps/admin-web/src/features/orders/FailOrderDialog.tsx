@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react';
+import { Truck, Wallet } from 'lucide-react';
 import { DELIVERY_FAILURE_REASONS, type DeliveryFailureReason, type OrderDto } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
 import { messageFor } from '../../api/errors';
 import { formatRs } from '../../i18n/format';
-import { useToast } from '../../ui';
+import { flashRow, useToast } from '../../ui';
 import { useFailOrder, useInvalidateOrder } from './api';
 import { ReasonDialog } from './ReasonDialog';
 
 /**
- * Could not deliver (UX_ADMIN §2.5): offered only once delivery has started (`MARK_FAILED` in the
- * order's `allowedActions`). A reason and a note of 5–300 characters; no money moves.
+ * Could not deliver (UX_ADMIN §2.5, website spec W31): offered only once delivery has started
+ * (`MARK_FAILED` in the order's `allowedActions`). Two fact lines (the cost stays paid; the driver
+ * brings the cylinders back), a reason and a note of 5–300 characters ("What happened?": the office's
+ * note stays required, DECIDED). No money moves. The drawer stays open on the order.
  */
 export function FailOrderDialog({ order, onClose }: { order: OrderDto; onClose: () => void }) {
   const { t } = useTranslation('orders');
@@ -32,6 +35,7 @@ export function FailOrderDialog({ order, onClose }: { order: OrderDto; onClose: 
       {
         onSuccess: (updated) => {
           toast.success(t('fail.toast', { no: updated.shortCode ?? order.shortCode }));
+          flashRow('orders', order.id);
           void invalidate();
           onClose();
         },
@@ -52,11 +56,24 @@ export function FailOrderDialog({ order, onClose }: { order: OrderDto; onClose: 
   return (
     <ReasonDialog<DeliveryFailureReason>
       title={t('fail.title', { no: order.shortCode })}
-      body={charged ? t('fail.body', { amount: formatRs(order.fee.totalPaisa) }) : t('fail.bodyNoCost')}
+      facts={
+        <ul className="sf-order-dialog__facts">
+          {charged ? (
+            <li className="sf-order-dialog__fact">
+              <Wallet aria-hidden size={16} strokeWidth={2} />
+              <span>{t('fail.facts.money', { amount: formatRs(order.fee.totalPaisa) })}</span>
+            </li>
+          ) : null}
+          <li className="sf-order-dialog__fact">
+            <Truck aria-hidden size={16} strokeWidth={2} />
+            <span>{t('fail.facts.driver')}</span>
+          </li>
+        </ul>
+      }
       reasons={reasons}
       reasonLabel={t('cancel.reasonLabel')}
       noteLabel={t('cancel.noteLabel')}
-      noteHint={t('cancel.noteHint')}
+      notePlaceholder={t('fail.notePlaceholder')}
       noteMin={5}
       confirmLabel={t('fail.confirm')}
       needReason={t('cancel.needReason')}

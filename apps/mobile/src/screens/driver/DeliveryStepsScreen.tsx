@@ -1,32 +1,40 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { TFunction } from 'i18next';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DELIVERY_FAILURE_REASONS, type DeliveryFailureReason } from '@smartfleet/shared-types';
 import { toApiError, type ApiError } from '../../api/errors';
 import { POLL_MS, qk } from '../../api/keys';
+import { useVanLoad, vanTotal } from '../../components/VehicleLoad';
+import { telUrl } from '../../hooks/useAppConfig';
 import { useFocusedInterval } from '../../hooks/useFocusedInterval';
 import type { DriverStackParams } from '../../navigation/DriverStack';
 import {
+  ActionLine,
   Button,
   Card,
   ConfirmSheet,
+  CountBar,
   EmptyState,
-  ErrorBanner,
-  Icon,
   QueryBoundary,
-  SkeletonCard,
-  StatusChip,
-  Text,
-  layout,
   space,
   type ConfirmInput,
   type ConfirmReason,
 } from '../../ui';
-import { DriverScreen, NoticeStrip, useCallOfficeAction, usePullToRefresh } from './components';
+import { ScanPanel, SizeLines, type ScanOutcome, type ScanRead, type ScanStep, type SizeLine } from '../../ui/scan';
+import {
+  DriverScreen,
+  NextStepButton,
+  NoticeStrip,
+  StepFrame,
+  StepSkeleton,
+  useCallOfficeAction,
+  usePullToRefresh,
+} from './components';
+import { FinishTripSheet } from './FinishTripSheet';
+import { addToTally, tallyKey, useScanTally, type TallyStep } from './scanTally';
 import {
   arriveAtStop,
   departStop,
@@ -34,22 +42,26 @@ import {
   lastKnownPosition,
   markDelivered,
   markNotDelivered,
+  refreshAfterScan,
   refreshTrip,
+  scanCylinder,
   withOrder,
   withStop,
   type LegacyScanEvent,
 } from './tripApi';
 import {
+  customerNameOf,
+  cylindersToGive,
   cylindersToTakeBack,
-  isOrderOpen,
+  findStop,
   isTripOpen,
-  nextOpenStop,
   orderOf,
-  sizeLabelOf,
-  stepTitle,
+  ordersOfTheLoad,
+  ordersToLoad,
+  sizeLinesOf,
+  stepPosition,
   stopStatusOf,
-  stopStepState,
-  stopsOf,
+  storeNameOf,
   type TripOrder,
   type TripStop,
   type TripView,
@@ -58,54 +70,57 @@ import {
 type Nav = NativeStackNavigationProp<DriverStackParams, 'DeliverySteps'>;
 
 /**
- * Where a stop is (UX_MOBILE §5). The store stop: LOAD until "Done loading", then LOADED. A customer:
- * DRIVE until "I've arrived", VISIT (hand over, then take back) until "Finish visit", then
- * VISIT_DONE; SKIPPED when the order failed or was cancelled. CLOSED: the trip ended first.
+ * Where a step is (driver spec D7–D9). The store: LOAD until "Done loading", then LOADED. A customer:
+ * DRIVE until "I've arrived", DELIVER (scan what you give) until "All delivered", TAKE_BACK (scan what
+ * comes back) until "Finish visit", then VISIT_DONE; NOT_DELIVERED or CANCELLED when the order failed
+ * or was cancelled. CLOSED: the trip ended before this step did.
  */
-type Phase = 'LOAD' | 'LOADED' | 'DRIVE' | 'VISIT' | 'VISIT_DONE' | 'SKIPPED' | 'CLOSED';
+type Phase =
+  | 'LOAD'
+  | 'LOADED'
+  | 'DRIVE'
+  | 'DELIVER'
+  | 'TAKE_BACK'
+  | 'VISIT_DONE'
+  | 'NOT_DELIVERED'
+  | 'CANCELLED'
+  | 'CLOSED';
 
 function phaseOf(trip: TripView, stop: TripStop): Phase {
   const order = orderOf(trip, stop);
   const status = stopStatusOf(stop, order);
-  if (status === 'FAILED' || status === 'CANCELLED') return 'SKIPPED';
   if (stop.stopType !== 'DELIVERY') {
     if (status === 'DONE') return 'LOADED';
-    return isTripOpen(trip) ? 'LOAD' : 'CLOSED';
+    return isTripOpen(trip) && (status === 'PENDING' || status === 'ARRIVED') ? 'LOAD' : 'CLOSED';
   }
-  if (order?.status === 'FAILED' || order?.status === 'CANCELLED') return 'SKIPPED';
   if (status === 'DONE') return 'VISIT_DONE';
+  // The office stopped the trip before anything happened on it: nothing to bring back.
+  if (trip.status === 'ABORTED') return 'CLOSED';
+  if (order?.status === 'FAILED' || status === 'FAILED') return 'NOT_DELIVERED';
+  if (order?.status === 'CANCELLED' || status === 'CANCELLED') return 'CANCELLED';
   if (!isTripOpen(trip)) return 'CLOSED';
-  if (status === 'ARRIVED' || order?.status === 'DELIVERED') return 'VISIT';
+  if (order?.status === 'DELIVERED') return 'TAKE_BACK';
+  if (status === 'ARRIVED') return 'DELIVER';
   return 'DRIVE';
 }
 
-/** "2 × 11.8 kg" for each size, added up over the given orders. */
-function sizeLines(orders: readonly (TripOrder | null)[], t: TFunction): { key: string; text: string }[] {
-  const bySize = new Map<string, { size: string; count: number }>();
-  for (const order of orders) {
-    for (const line of order?.lines ?? []) {
-      if (!line.fullCount) continue;
-      const key = line.cylinderTypeId;
-      const size = sizeLabelOf(line, (kg) => t('driver.size', { kg }));
-      const entry = bySize.get(key) ?? { size, count: 0 };
-      entry.count += line.fullCount;
-      bySize.set(key, entry);
-    }
-  }
-  return [...bySize.entries()].map(([key, entry]) => ({
-    key,
-    text: t('driver.steps.line', { count: entry.count, size: entry.size }),
-  }));
-}
+/** The camera of each scanning phase: the panel's step, the tally's step and the legacy event. */
+const SCAN_OF: Partial<Record<Phase, { step: ScanStep & TallyStep; event: LegacyScanEvent }>> = {
+  LOAD: { step: 'LOAD', event: 'SCAN_OUT' },
+  DELIVER: { step: 'HANDOVER', event: 'DELIVERED' },
+  TAKE_BACK: { step: 'TAKE_BACK', event: 'PICKED_UP_EMPTY' },
+};
 
-type DeliveredNotice = 'marked' | 'already' | null;
+/** The sheets of this screen; one at a time. */
+type Sheet = 'early' | 'delivered' | 'notDelivered' | 'finish';
 
 /**
- * One step of a trip at a time (UX_MOBILE §5): load at the store, drive to the customer, hand over and
- * take back, then finish the visit. Scans open only from here, already set for the step. Each action
- * button shows that it is sending and can't be pressed twice; a refusal or a lost connection shows
- * inline with "Try again", never in a pop-up. "All delivered" asks first, and "Could not deliver"
- * takes a reason.
+ * One step of the trip (driver spec §1.2, D7–D11), with its camera on the screen: no separate scan
+ * screen. Load at the store; on the way to a customer (Maps, Call, "I've arrived"); at the customer,
+ * deliver then take back; then the step's state card and the next step's button. "Done loading" and
+ * "All delivered" stay pressable: outlined until the screen's count is reached, and an early press asks
+ * "Only 1 of 3 scanned. Continue?" (DECIDED; the Inc 1 server allows it). "All delivered" and "Could
+ * not deliver" ask first (rule 7). Every footer failure is one line above its button.
  */
 export function DeliveryStepsScreen() {
   const { t } = useTranslation();
@@ -113,13 +128,17 @@ export function DeliveryStepsScreen() {
   const { params } = useRoute<RouteProp<DriverStackParams, 'DeliverySteps'>>();
   const tripId = params?.tripId ?? '';
   const stopId = params?.stopId ?? '';
+  const focused = useIsFocused();
   const queryClient = useQueryClient();
   const callOffice = useCallOfficeAction();
-
-  const [deliverOpen, setDeliverOpen] = useState(false);
-  const [failOpen, setFailOpen] = useState(false);
-  const [failError, setFailError] = useState<string | null>(null);
-  const [delivered, setDelivered] = useState<DeliveredNotice>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  // The count an early sheet was opened with: its words stay put while it closes on the next phase.
+  const [asked, setAsked] = useState<{ done: number; total: number; reached: boolean }>({
+    done: 0,
+    total: 0,
+    reached: true,
+  });
+  const [failCode, setFailCode] = useState<string | null>(null);
 
   const trip = useQuery<TripView, ApiError>({
     queryKey: qk.trip(tripId),
@@ -127,12 +146,25 @@ export function DeliveryStepsScreen() {
     enabled: tripId !== '',
     refetchInterval: useFocusedInterval(POLL_MS.trip),
   });
-  const pull = usePullToRefresh(trip.refetch);
+  const van = useVanLoad();
+  const pull = usePullToRefresh(trip.refetch, van.refetch);
 
   const data = trip.data;
-  const stop = data ? stopsOf(data).find((candidate) => candidate.id === stopId) ?? null : null;
+  const stop = data ? findStop(data, stopId) : null;
   const order = data && stop ? orderOf(data, stop) : null;
   const phase = data && stop ? phaseOf(data, stop) : null;
+  const scan = phase ? (SCAN_OF[phase] ?? null) : null;
+  const tally = useScanTally(scan ? tallyKey(tripId, stopId, scan.step) : null);
+  const count = vanTotal(van.data);
+  // While the van's load is unknown, unloading stays offered as the next step.
+  const vanHasCylinders = count === null || count > 0;
+
+  // "Step 2 of 3": where this step is in the trip.
+  const position = data && stop ? stepPosition(data, stop.id) : null;
+  const headerTitle = position ? t('common.step', position) : '';
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: headerTitle });
+  }, [navigation, headerTitle]);
 
   const setTrip = (update: (old: TripView | undefined) => TripView | undefined) =>
     queryClient.setQueryData<TripView>(qk.trip(tripId), update);
@@ -144,42 +176,56 @@ export function DeliveryStepsScreen() {
       await refreshTrip(queryClient, tripId);
     },
   });
-  const depart = useMutation<unknown, ApiError, void>({
-    mutationFn: async () => {
-      const result = await departStop(stopId);
-      setTrip((old) => withStop(old, result.data));
-      await refreshTrip(queryClient, tripId);
-    },
-  });
-  /** "All delivered" sent again after it was marked: the server confirms, nothing changes. */
-  const recheck = useMutation<boolean, ApiError, void>({
-    mutationFn: async () => {
-      if (!order) return false;
-      const result = await markDelivered(order.id);
-      return result.alreadyApplied;
-    },
-    onSuccess: (alreadyApplied) => setDelivered(alreadyApplied ? 'already' : 'marked'),
-  });
+  /** "Done loading" at the store, "Finish visit" at a customer. */
+  const leaveStop = async () => {
+    const result = await departStop(stopId);
+    setTrip((old) => withStop(old, result.data));
+    await refreshTrip(queryClient, tripId);
+  };
+  const depart = useMutation<unknown, ApiError, void>({ mutationFn: leaveStop });
 
-  // A new step starts clean: the last step's error and result line belong to that step.
+  // A new phase starts clean: the last phase's error line belongs to that phase.
   const resetArrive = arrive.reset;
   const resetDepart = depart.reset;
-  const resetRecheck = recheck.reset;
   const lastPhase = useRef(phase);
   useEffect(() => {
     if (lastPhase.current === phase) return;
     lastPhase.current = phase;
     resetArrive();
     resetDepart();
-    resetRecheck();
-    if (phase !== 'VISIT') setDelivered(null);
-  }, [phase, resetArrive, resetDepart, resetRecheck]);
+  }, [phase, resetArrive, resetDepart]);
+
+  /** The cylinders this phase scans: what to load, what to give, what is expected back. */
+  let total = 0;
+  if (data && phase === 'LOAD') total = ordersToLoad(data).reduce((sum, item) => sum + cylindersToGive(item), 0);
+  else if (phase === 'DELIVER') total = cylindersToGive(order);
+  else if (phase === 'TAKE_BACK') total = cylindersToTakeBack(order);
+  const reached = tally >= total;
+
+  const orderId = order?.id;
+  const onScan = useCallback(
+    async (read: ScanRead): Promise<ScanOutcome> => {
+      if (!scan) throw new Error('This step has no scan');
+      const result = await scanCylinder({
+        qrCode: read.code,
+        eventType: scan.event,
+        tripId,
+        orderId: scan.event === 'SCAN_OUT' ? undefined : orderId,
+        lat: read.lat,
+        lng: read.lng,
+      });
+      addToTally(tallyKey(tripId, stopId, scan.step), read.code);
+      refreshAfterScan(queryClient, tripId);
+      return result.alreadyRecorded ? 'already' : 'recorded';
+    },
+    [scan, tripId, stopId, orderId, queryClient],
+  );
 
   const confirmDelivered = async () => {
     if (!order) return;
-    const result = await markDelivered(order.id);
+    // A repeat (`X-Already-Applied`) does the same: the take-back phase shows, with no extra notice.
+    await markDelivered(order.id);
     setTrip((old) => withOrder(old, { id: order.id, status: 'DELIVERED' }));
-    setDelivered(result.alreadyApplied ? 'already' : 'marked');
     void refreshTrip(queryClient, tripId);
   };
 
@@ -187,164 +233,182 @@ export function DeliveryStepsScreen() {
     if (!order) return;
     const reasonCode = DELIVERY_FAILURE_REASONS.find((code) => code === input.reasonCode);
     if (!reasonCode) return;
-    setFailError(null);
+    setFailCode(null);
     const position = await lastKnownPosition();
     try {
       await markNotDelivered(order.id, { reasonCode, note: input.note, ...(position ?? {}) });
     } catch (thrown) {
       const error = toApiError(thrown);
-      setFailError(error.code);
-      // The driver's words for this refusal (UX_MOBILE §5): the shop cancels an order that hasn't started.
+      setFailCode(error.code);
+      // The driver's words for this refusal: the shop cancels an order that hasn't started.
       if (error.code === 'ORDER_NOT_STARTED_USE_CANCEL') throw t('driver.fail.notStarted');
       throw error;
     }
-    // The step turns to "Marked could not deliver." at once; the refetch brings the stop's own status.
+    // The step turns to "Not delivered" at once; the refetch brings the stop's own status.
     setTrip((old) => withOrder(old, { id: order.id, status: 'FAILED' }));
     void refreshTrip(queryClient, tripId);
   };
 
-  const scan = (eventType: LegacyScanEvent) =>
-    navigation.navigate('Scan', { eventType, tripId, orderId: eventType === 'SCAN_OUT' ? undefined : order?.id });
   const backToTrip = () => navigation.navigate('ActiveTrip', { tripId });
-
-  const next = data ? nextOpenStop(data) : null;
-  const moveOn =
-    data && next && next.id !== stopId ? (
-      <Button
-        label={t('driver.steps.next', { step: stepTitle(data, next, t) })}
-        onPress={() => navigation.replace('DeliverySteps', { tripId, stopId: next.id })}
-        testID="steps.next"
-      />
-    ) : (
-      <Button label={t('driver.steps.backToTrip')} onPress={backToTrip} testID="steps.back" />
-    );
+  const notFound = data === undefined && trip.isError && toApiError(trip.error).code === 'NOT_FOUND';
 
   let footer: ReactNode;
-  switch (phase) {
-    case 'LOAD':
-      footer = (
-        <>
-          {depart.error ? <ErrorBanner error={depart.error} onRetry={() => depart.mutate()} /> : null}
+  if (notFound) {
+    footer = (
+      <Button label={t('driver.trip.backHome')} onPress={() => navigation.navigate('Home')} testID="steps.backHome" />
+    );
+  } else if (data && !stop) {
+    footer = <Button label={t('driver.steps.backToTrip')} onPress={backToTrip} testID="steps.back" />;
+  } else if (data) {
+    switch (phase) {
+      case 'LOAD':
+        footer = (
+          <>
+            <ActionLine error={depart.error} />
+            <Button
+              label={t('driver.steps.load.done')}
+              loadingLabel={t('driver.steps.sending')}
+              loading={depart.isPending}
+              variant={reached ? 'primary' : 'secondary'}
+              onPress={() => {
+                if (reached) {
+                  depart.mutate();
+                  return;
+                }
+                setAsked({ done: tally, total, reached });
+                setSheet('early');
+              }}
+              testID="steps.doneLoading"
+            />
+          </>
+        );
+        break;
+      case 'DRIVE':
+        footer = (
+          <>
+            <ActionLine error={arrive.error} />
+            <Button
+              label={t('driver.steps.drive.arrive')}
+              loadingLabel={t('driver.steps.sending')}
+              loading={arrive.isPending}
+              icon="map"
+              onPress={() => arrive.mutate()}
+              testID="steps.arrive"
+            />
+          </>
+        );
+        break;
+      case 'DELIVER':
+        footer = (
           <Button
-            label={t('driver.steps.load.done')}
-            loadingLabel={t('driver.steps.sending')}
-            loading={depart.isPending}
-            onPress={() => depart.mutate()}
-            testID="steps.doneLoading"
+            label={t('driver.steps.deliver.all')}
+            icon="ok"
+            variant={reached ? 'primary' : 'secondary'}
+            onPress={() => {
+              setAsked({ done: tally, total, reached });
+              setSheet('delivered');
+            }}
+            testID="steps.allDelivered"
           />
-        </>
-      );
-      break;
-    case 'DRIVE':
-      footer = (
-        <>
-          {arrive.error ? <ErrorBanner error={arrive.error} onRetry={() => arrive.mutate()} /> : null}
-          <Button
-            label={t('driver.steps.drive.arrive')}
-            loadingLabel={t('driver.steps.sending')}
-            loading={arrive.isPending}
-            icon="map"
-            onPress={() => arrive.mutate()}
-            testID="steps.arrive"
+        );
+        break;
+      case 'TAKE_BACK':
+        footer = (
+          <>
+            <ActionLine error={depart.error} />
+            <Button
+              label={t('driver.steps.finishVisit')}
+              loadingLabel={t('driver.steps.sending')}
+              loading={depart.isPending}
+              onPress={() => depart.mutate()}
+              testID="steps.finishVisit"
+            />
+          </>
+        );
+        break;
+      case 'CLOSED':
+        footer = <Button label={t('driver.steps.backToTrip')} onPress={backToTrip} testID="steps.back" />;
+        break;
+      default:
+        footer = (
+          <NextStepButton
+            trip={data}
+            vanHasCylinders={vanHasCylinders}
+            from="step"
+            onFinish={() => setSheet('finish')}
           />
-        </>
-      );
-      break;
-    case 'VISIT':
-      footer = isOrderOpen(order) ? (
-        <Button
-          label={t('driver.steps.deliver.all')}
-          icon="ok"
-          onPress={() => setDeliverOpen(true)}
-          testID="steps.allDelivered"
-        />
-      ) : (
-        <>
-          {depart.error ? <ErrorBanner error={depart.error} onRetry={() => depart.mutate()} /> : null}
-          <Button
-            label={t('driver.steps.finishVisit')}
-            loadingLabel={t('driver.steps.sending')}
-            loading={depart.isPending}
-            onPress={() => depart.mutate()}
-            testID="steps.finishVisit"
-          />
-        </>
-      );
-      break;
-    case 'LOADED':
-    case 'VISIT_DONE':
-    case 'SKIPPED':
-      footer = moveOn;
-      break;
-    case 'CLOSED':
-      footer = <Button label={t('driver.steps.backToTrip')} onPress={backToTrip} testID="steps.back" />;
-      break;
-    default:
-      footer = data && !stop ? <Button label={t('driver.steps.backToTrip')} onPress={backToTrip} /> : undefined;
+        );
+    }
   }
 
-  const customerName = order?.client?.name ?? t('scan.theCustomer');
+  const customerName = customerNameOf(order, t);
   const failReasons: ConfirmReason[] = DELIVERY_FAILURE_REASONS.map((code: DeliveryFailureReason) => ({
     code,
     label: t(`driver.fail.reason.${code}`),
   }));
 
   return (
-    <DriverScreen refreshing={pull.refreshing} onRefresh={pull.onRefresh} footer={footer}>
-      <QueryBoundary query={trip} skeleton={<SkeletonCard lines={3} />}>
-        {(view) => {
-          const current = stopsOf(view).find((candidate) => candidate.id === stopId);
-          if (!current) {
-            return (
-              <EmptyState icon="truck" title={t('driver.steps.missing.title')} body={t('driver.steps.missing.body')} />
-            );
-          }
-          return (
-            <View style={styles.stack}>
-              {delivered ? (
-                <NoticeStrip
-                  tone="success"
-                  icon="ok"
-                  message={delivered === 'already' ? t('driver.steps.deliver.already') : t('driver.steps.deliver.marked')}
-                  testID="steps.deliveredNotice"
+    <>
+      {/* Keyed by phase: a new phase starts at the top, with its strip and title in view. */}
+      <DriverScreen key={phase ?? 'none'} refreshing={pull.refreshing} onRefresh={pull.onRefresh} footer={footer}>
+        {notFound ? (
+          <EmptyState icon="truck" title={t('errors.NOT_FOUND')} />
+        ) : (
+          <QueryBoundary query={trip} skeleton={<StepSkeleton />} errorAction={callOffice} offlineAction={callOffice}>
+            {(view) => {
+              const current = findStop(view, stopId);
+              if (!current) return <EmptyState icon="truck" title={t('driver.steps.missing.title')} />;
+              return (
+                <StepBody
+                  trip={view}
+                  stop={current}
+                  phase={phaseOf(view, current)}
+                  tally={tally}
+                  total={total}
+                  onScan={onScan}
+                  cameraActive={focused && sheet === null}
+                  onNotDelivered={() => {
+                    setFailCode(null);
+                    setSheet('notDelivered');
+                  }}
                 />
-              ) : null}
-              <StopBody
-                trip={view}
-                stop={current}
-                phase={phaseOf(view, current)}
-                onScan={scan}
-                onNotDelivered={() => {
-                  setFailError(null);
-                  setFailOpen(true);
-                }}
-                recheck={{
-                  run: () => recheck.mutate(),
-                  pending: recheck.isPending,
-                  error: recheck.error,
-                }}
-              />
-            </View>
-          );
-        }}
-      </QueryBoundary>
+              );
+            }}
+          </QueryBoundary>
+        )}
+      </DriverScreen>
 
       <ConfirmSheet
-        visible={deliverOpen}
-        title={t('driver.steps.deliver.sheet.title')}
+        visible={sheet === 'early'}
+        title={t('driver.steps.early.title', { done: asked.done, total: asked.total })}
+        confirmLabel={t('driver.steps.load.done')}
+        confirmLoadingLabel={t('driver.steps.sending')}
+        cancelLabel={t('driver.steps.early.keep')}
+        onConfirm={leaveStop}
+        onClose={() => setSheet(null)}
+        testID="steps.earlySheet"
+      />
+
+      <ConfirmSheet
+        visible={sheet === 'delivered'}
+        title={
+          asked.reached
+            ? t('driver.steps.deliver.sheet.title')
+            : t('driver.steps.early.title', { done: asked.done, total: asked.total })
+        }
         body={t('driver.steps.deliver.sheet.body')}
         confirmLabel={t('driver.steps.deliver.sheet.confirm')}
         confirmLoadingLabel={t('driver.steps.sending')}
-        cancelLabel={t('driver.steps.deliver.sheet.cancel')}
+        cancelLabel={asked.reached ? t('driver.steps.deliver.sheet.cancel') : t('driver.steps.early.keep')}
         onConfirm={confirmDelivered}
-        onClose={() => setDeliverOpen(false)}
+        onClose={() => setSheet(null)}
         testID="steps.deliverSheet"
       />
 
       <ConfirmSheet
-        visible={failOpen}
+        visible={sheet === 'notDelivered'}
         title={t('driver.fail.title', { name: customerName })}
-        body={t('driver.fail.body')}
+        body={t('driver.steps.bringBack')}
         reasons={failReasons}
         requireReason
         noteForOther
@@ -353,216 +417,293 @@ export function DeliveryStepsScreen() {
         confirmLoadingLabel={t('driver.steps.sending')}
         confirmTone="danger"
         cancelLabel={t('driver.fail.cancel')}
-        errorAction={failError === 'ORDER_NOT_STARTED_USE_CANCEL' ? callOffice : undefined}
+        errorAction={failCode === 'ORDER_NOT_STARTED_USE_CANCEL' ? callOffice : undefined}
         onConfirm={confirmNotDelivered}
-        onClose={() => setFailOpen(false)}
+        onClose={() => setSheet(null)}
         testID="steps.failSheet"
       />
-    </DriverScreen>
+
+      <FinishTripSheet
+        visible={sheet === 'finish'}
+        onClose={() => setSheet(null)}
+        tripId={tripId}
+        store={storeNameOf(data, t)}
+      />
+    </>
   );
 }
 
-interface RecheckState {
-  run: () => void;
-  pending: boolean;
-  error: ApiError | null;
-}
-
-function StopBody({
-  trip,
-  stop,
-  phase,
-  onScan,
-  onNotDelivered,
-  recheck,
-}: {
+interface StepBodyProps {
   trip: TripView;
   stop: TripStop;
   phase: Phase;
-  onScan: (eventType: LegacyScanEvent) => void;
+  /** The Inc 1 tally of this phase's scans (driver spec §1.5). */
+  tally: number;
+  /** What this phase scans: to load, to give, or expected back. */
+  total: number;
+  onScan: (read: ScanRead) => Promise<ScanOutcome>;
+  /** False while a sheet is open or the screen is hidden: the camera stops. */
+  cameraActive: boolean;
   onNotDelivered: () => void;
-  recheck: RecheckState;
-}) {
+}
+
+/** The step's content in StepFrame's fixed order, by phase. */
+function StepBody({ trip, stop, phase, tally, total, onScan, cameraActive, onNotDelivered }: StepBodyProps) {
   const { t } = useTranslation();
-  const order = orderOf(trip, stop);
-  const title = stepTitle(trip, stop, t);
-  const chip = <StatusChip kind="step" value={stopStepState(trip, stop)} />;
+  const scan = SCAN_OF[phase];
+  const camera = scan ? (
+    <ScanPanel
+      key={scan.step}
+      step={scan.step}
+      onScan={onScan}
+      active={cameraActive}
+      complete={total > 0 ? tally >= total : undefined}
+      testID="steps.scan"
+    />
+  ) : null;
 
   if (stop.stopType !== 'DELIVERY') {
-    const openOrders = (trip.orders ?? []).filter((candidate) => isOrderOpen(candidate));
-    const lines = sizeLines(openOrders, t);
+    const title = t('driver.trip.loadAt', { store: storeNameOf(trip, t) });
+    // While loading: what is still to load; once loaded: what was loaded.
+    const loaded = phase === 'LOAD' ? ordersToLoad(trip) : ordersOfTheLoad(trip);
+    const lines = <SizeLines lines={sizeLinesOf(loaded, t)} testID="steps.sizes" />;
+    if (phase === 'LOAD') {
+      return (
+        <StepFrame
+          title={title}
+          count={<CountBar count={tally} total={total} verb={t('scan.verb.SCANNED')} testID="steps.count" />}
+          scan={camera}
+          details={lines}
+          testID="steps.load"
+        />
+      );
+    }
     return (
-      <View style={styles.stack}>
-        <Card>
-          <View style={styles.cardBody}>
-            {chip}
-            <Text variant="title">{title}</Text>
-            {trip.originStore?.address ? <Text tone="secondary">{trip.originStore.address}</Text> : null}
-            {lines.map((line) => (
-              <View key={line.key} style={styles.line}>
-                <Icon name="cylinder" size={24} tone="brand" />
-                <Text variant="bodyStrong" tabular>
-                  {line.text}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Card>
-        {phase === 'LOAD' ? (
-          <Card>
-            <View style={styles.cardBody}>
-              <Text>{t('driver.steps.load.body')}</Text>
-              <Button
-                label={t('driver.steps.load.scan')}
-                icon="scan"
-                variant="secondary"
-                onPress={() => onScan('SCAN_OUT')}
-                testID="steps.scanLoad"
-              />
-            </View>
-          </Card>
-        ) : null}
-        {phase === 'LOADED' ? <NoticeStrip tone="success" icon="ok" message={t('driver.steps.load.finished')} /> : null}
-        {phase === 'SKIPPED' || phase === 'CLOSED' ? (
-          <NoticeStrip tone="neutral" icon="info" message={t('driver.steps.closed')} />
-        ) : null}
-      </View>
+      <StepFrame
+        title={title}
+        count={
+          phase === 'LOADED' ? (
+            <NoticeStrip tone="success" icon="ok" message={t('driver.steps.load.finished')} testID="steps.state" />
+          ) : (
+            <NoticeStrip tone="neutral" message={t('driver.steps.closed')} testID="steps.state" />
+          )
+        }
+        details={lines}
+        testID="steps.load"
+      />
     );
   }
 
-  const location = stop.location;
-  const giveLines = sizeLines([order], t);
-  const takeBack = cylindersToTakeBack(order);
-  const handedOver = order?.status === 'DELIVERED';
-
   return (
-    <View style={styles.stack}>
-      <Card>
-        <View style={styles.cardBody}>
-          {chip}
-          <Text variant="title">{title}</Text>
-          {order?.deliveryAddressLabel ? <Text tone="secondary">{order.deliveryAddressLabel}</Text> : null}
-          {phase === 'DRIVE' ? (
+    <CustomerStep
+      trip={trip}
+      stop={stop}
+      phase={phase}
+      tally={tally}
+      total={total}
+      camera={camera}
+      onNotDelivered={onNotDelivered}
+    />
+  );
+}
+
+function CustomerStep({
+  trip,
+  stop,
+  phase,
+  tally,
+  total,
+  camera,
+  onNotDelivered,
+}: Omit<StepBodyProps, 'onScan' | 'cameraActive'> & { camera: ReactNode }) {
+  const { t } = useTranslation();
+  const order = orderOf(trip, stop);
+  const name = customerNameOf(order, t);
+  const deliverTitle = t('driver.trip.deliverTo', { name });
+  const giveLines: SizeLine[] = sizeLinesOf([order], t);
+  const takeBack = cylindersToTakeBack(order);
+  const notDelivered = (
+    <Button
+      label={t('driver.fail.open')}
+      icon="error"
+      variant="secondary"
+      onPress={onNotDelivered}
+      testID="steps.notDelivered"
+    />
+  );
+
+  switch (phase) {
+    case 'DRIVE': {
+      const takeBackLine: SizeLine = {
+        key: 'takeBack',
+        text: t('driver.steps.takeBack.count', { count: takeBack }),
+        secondary: true,
+      };
+      const lines = takeBack > 0 ? [...giveLines, takeBackLine] : giveLines;
+      return (
+        <StepFrame
+          title={deliverTitle}
+          subtitle={order?.deliveryAddressLabel ?? undefined}
+          details={
             <>
-              <Text>{t('driver.steps.drive.body')}</Text>
-              {location ? (
-                <Button
-                  label={t('driver.steps.drive.map')}
-                  icon="navigate"
-                  variant="secondary"
-                  onPress={() =>
-                    void Linking.openURL(
-                      `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`,
-                    ).catch(() => undefined)
-                  }
-                  testID="steps.map"
-                />
+              <OnTheWayButtons stop={stop} order={order} />
+              {lines.length > 0 ? (
+                <Card>
+                  <SizeLines lines={lines} testID="steps.sizes" />
+                </Card>
               ) : null}
             </>
-          ) : null}
-        </View>
-      </Card>
+          }
+          rare={notDelivered}
+          testID="steps.drive"
+        />
+      );
+    }
+    case 'DELIVER':
+      return (
+        <StepFrame
+          title={deliverTitle}
+          count={<CountBar count={tally} total={total} verb={t('scan.verb.SCANNED')} testID="steps.count" />}
+          scan={camera}
+          details={<SizeLines lines={giveLines} testID="steps.sizes" />}
+          rare={
+            <>
+              <CallCustomerButton order={order} />
+              {notDelivered}
+            </>
+          }
+          testID="steps.deliver"
+        />
+      );
+    case 'TAKE_BACK':
+      return (
+        <StepFrame
+          notice={
+            <NoticeStrip tone="success" icon="ok" message={t('driver.steps.deliver.marked')} testID="steps.delivered" />
+          }
+          title={t('driver.steps.takeBack.title', { name })}
+          count={
+            <CountBar mode="soft" count={tally} total={total} verb={t('scan.verb.TAKE_BACK')} testID="steps.count" />
+          }
+          scan={camera}
+          rare={<CallCustomerButton order={order} />}
+          testID="steps.takeBack"
+        />
+      );
+    case 'VISIT_DONE':
+      return (
+        <StepFrame
+          title={deliverTitle}
+          count={<NoticeStrip tone="success" icon="ok" message={t('driver.steps.visitDone')} testID="steps.state" />}
+          details={<SizeLines lines={giveLines} testID="steps.sizes" />}
+          testID="steps.visitDone"
+        />
+      );
+    case 'NOT_DELIVERED':
+      return (
+        <StepFrame
+          title={deliverTitle}
+          count={
+            <NoticeStrip
+              tone="danger"
+              icon="error"
+              message={t('stages.step.NOT_DELIVERED')}
+              detail={t('driver.steps.bringBack')}
+              testID="steps.state"
+            />
+          }
+          details={<SizeLines lines={giveLines} testID="steps.sizes" />}
+          testID="steps.notDeliveredState"
+        />
+      );
+    case 'CANCELLED':
+      return (
+        <StepFrame
+          title={deliverTitle}
+          count={
+            <NoticeStrip
+              tone="neutral"
+              message={t('stages.step.CANCELLED')}
+              detail={t('driver.steps.bringBack')}
+              testID="steps.state"
+            />
+          }
+          details={<SizeLines lines={giveLines} testID="steps.sizes" />}
+          testID="steps.cancelled"
+        />
+      );
+    default:
+      return (
+        <StepFrame
+          title={deliverTitle}
+          count={<NoticeStrip tone="neutral" message={t('driver.steps.closed')} testID="steps.state" />}
+          testID="steps.closed"
+        />
+      );
+  }
+}
 
-      {phase === 'VISIT' || phase === 'DRIVE' ? (
-        <Card>
-          <View style={styles.cardBody}>
-            <View style={styles.cardHeader}>
-              <Text variant="heading" style={styles.fill}>
-                {t('driver.steps.deliver.title')}
-              </Text>
-              {handedOver ? <StatusChip tone="success" icon="ok" label={t('driver.steps.deliver.done')} /> : null}
-            </View>
-            {giveLines.map((line) => (
-              <View key={line.key} style={styles.line}>
-                <Icon name="cylinder" size={24} tone={handedOver ? 'success' : 'brand'} />
-                <Text variant="bodyStrong" tabular>
-                  {line.text}
-                </Text>
-              </View>
-            ))}
-            {phase === 'VISIT' && !handedOver ? (
-              <>
-                <Text>{t('driver.steps.deliver.body')}</Text>
-                <Button
-                  label={t('driver.steps.deliver.scan')}
-                  icon="scan"
-                  variant="secondary"
-                  onPress={() => onScan('DELIVERED')}
-                  testID="steps.scanDeliver"
-                />
-              </>
-            ) : null}
-            {handedOver ? (
-              <>
-                {recheck.error ? <ErrorBanner error={recheck.error} onRetry={recheck.run} /> : null}
-                <Button
-                  label={t('driver.steps.deliver.all')}
-                  icon="check"
-                  variant="secondary"
-                  loading={recheck.pending}
-                  loadingLabel={t('driver.steps.sending')}
-                  onPress={recheck.run}
-                  testID="steps.allDeliveredAgain"
-                />
-              </>
-            ) : null}
-            {isOrderOpen(order) ? (
-              <Button
-                label={t('driver.fail.open')}
-                icon="error"
-                variant="ghost"
-                onPress={onNotDelivered}
-                testID="steps.notDelivered"
-              />
-            ) : null}
-          </View>
-        </Card>
-      ) : null}
-
-      {phase === 'VISIT' ? (
-        <Card>
-          <View style={styles.cardBody}>
-            <Text variant="heading">{t('driver.steps.takeBack.title')}</Text>
-            <Text variant="bodyStrong" tabular>
-              {takeBack > 0
-                ? t('driver.steps.takeBack.expected', { count: takeBack })
-                : t('driver.steps.takeBack.none')}
-            </Text>
-            {handedOver ? (
-              <>
-                <Text>{t('driver.steps.takeBack.body')}</Text>
-                <Button
-                  label={t('driver.steps.takeBack.scan')}
-                  icon="scan"
-                  variant="secondary"
-                  onPress={() => onScan('PICKED_UP_EMPTY')}
-                  testID="steps.scanTakeBack"
-                />
-              </>
-            ) : (
-              <Text tone="secondary">{t('driver.steps.takeBack.afterHandover')}</Text>
-            )}
-          </View>
-        </Card>
-      ) : null}
-
-      {phase === 'VISIT_DONE' ? <NoticeStrip tone="success" icon="ok" message={t('driver.steps.visitDone')} /> : null}
-      {phase === 'SKIPPED' ? (
-        <NoticeStrip
-          tone="neutral"
-          icon="info"
-          message={order?.status === 'CANCELLED' ? t('driver.steps.cancelled') : t('driver.fail.done')}
+/** On the way (D8): "Maps" when the stop has a pin, "Call {{name}}" when the trip has the phone. */
+function OnTheWayButtons({ stop, order }: { stop: TripStop; order: TripOrder | null }) {
+  const { t } = useTranslation();
+  const location = stop.location;
+  const name = customerNameOf(order, t);
+  const phone = order?.client?.phone ?? null;
+  const mapsLabel = t('driver.steps.drive.map');
+  const callLabel = t('driver.steps.callCustomer', { name });
+  if (!location && !phone) return null;
+  // Side by side only when both labels have 12 characters or fewer (rulebook §7.2); else stacked.
+  const sideBySide = mapsLabel.length <= 12 && callLabel.length <= 12;
+  return (
+    <View style={sideBySide ? styles.pair : styles.stacked} testID="steps.onTheWay">
+      {location ? (
+        <Button
+          label={mapsLabel}
+          accessibilityLabel={t('driver.steps.drive.mapA11y')}
+          icon="navigate"
+          variant="secondary"
+          onPress={() =>
+            void Linking.openURL(
+              `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`,
+            ).catch(() => undefined)
+          }
+          style={sideBySide ? styles.half : undefined}
+          testID="steps.map"
         />
       ) : null}
-      {phase === 'CLOSED' ? <NoticeStrip tone="neutral" icon="info" message={t('driver.steps.closed')} /> : null}
+      {phone ? (
+        <Button
+          label={callLabel}
+          icon="call"
+          variant="secondary"
+          onPress={() => void Linking.openURL(telUrl(phone)).catch(() => undefined)}
+          style={sideBySide ? styles.half : undefined}
+          testID="steps.callCustomer"
+        />
+      ) : null}
     </View>
   );
 }
 
+/** "Call {{name}}" at the customer (DECIDED), when the trip has the customer's phone. */
+function CallCustomerButton({ order }: { order: TripOrder | null }) {
+  const { t } = useTranslation();
+  const phone = order?.client?.phone ?? null;
+  if (!phone) return null;
+  return (
+    <Button
+      label={t('driver.steps.callCustomer', { name: customerNameOf(order, t) })}
+      icon="call"
+      variant="secondary"
+      onPress={() => void Linking.openURL(telUrl(phone)).catch(() => undefined)}
+      testID="steps.callCustomer"
+    />
+  );
+}
+
+// Two different actions stay 16 dp apart (rulebook §9.1).
 const styles = StyleSheet.create({
-  stack: { gap: layout.cardGap },
-  cardBody: { gap: space.md },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  fill: { flex: 1 },
-  line: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  pair: { flexDirection: 'row', gap: space.lg },
+  stacked: { gap: space.lg },
+  half: { flex: 1 },
 });

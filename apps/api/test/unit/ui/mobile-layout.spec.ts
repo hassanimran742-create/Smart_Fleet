@@ -130,13 +130,13 @@ describe('REV mobile-ux-03 The cancel and "Could not deliver" sheets move above 
   });
 });
 
-describe('REV mobile-ux-04 Wallet history shows all four filters on a 360 dp phone', () => {
-  it('REV mobile-ux-04 the wallet filters are a two-column grid that wraps, not a sideways row', () => {
+describe('REV mobile-ux-04 Wallet history shows all three filters on a 360 dp phone', () => {
+  it('REV mobile-ux-04 the wallet filters are a three-column grid that wraps, not a sideways row', () => {
     const wallet = parse('screens/distributor/WalletScreen.tsx');
-    // The shop's FilterChips moved to ui/ChoiceChips.tsx (UX_PRINCIPLES §3); the old name re-exports it.
+    // The shop's FilterChips moved to ui/ChoiceChips.tsx (UX_PRINCIPLES §3); the old name is gone.
     const chips = [...jsx(wallet, 'FilterChips'), ...jsx(wallet, 'ChoiceChips')];
     expect(chips).toHaveLength(1);
-    expect(attributeValue(chips[0], 'columns')?.getText()).toBe('2');
+    expect(attributeValue(chips[0], 'columns')?.getText()).toBe('3');
 
     const filterChips = parse('ui/ChoiceChips.tsx');
     expect(styleValue(filterChips, 'grid', 'flexWrap')).toBe("'wrap'");
@@ -148,14 +148,13 @@ describe('REV mobile-ux-04 Wallet history shows all four filters on a 360 dp pho
     expect(styleValue(filterChips, 'cellLabel', 'flexShrink')).toBe('1');
   });
 
-  it('REV mobile-ux-04 the filter keeps its documented name "Top-up requests" (S7, WAL-002, WAL-006)', () => {
+  it('REV mobile-ux-04 the filters keep their documented names (S7, WAL-002, WAL-006)', () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { wallet } = require(path.join(MOBILE_SRC, 'i18n', 'en', 'wallet.ts')) as typeof import('../../../../mobile/src/i18n/en/wallet');
     expect(wallet.history.filter).toEqual({
       all: 'All',
-      topups: 'Money added',
+      topups: 'Top-ups',
       deliveryCosts: 'Delivery costs',
-      requests: 'Top-up requests',
     });
   });
 });
@@ -214,7 +213,7 @@ describe('REV mobile-ux-08 Save and Send say what is missing instead of staying 
       enabledBy: 'priced',
     },
     {
-      file: 'screens/distributor/PickAddressScreen.tsx',
+      file: 'screens/distributor/NewAddressScreen.tsx',
       key: 'customers.address.save',
       missing: ['trimmedLabel', 'label', 'canSave'],
       touched: 'setLabelTouched(true);',

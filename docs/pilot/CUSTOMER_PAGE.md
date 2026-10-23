@@ -6,7 +6,7 @@ Nothing else depends on it. With the setting off:
 - stops finish normally;
 - no link is made;
 - every screen hides its confirmation parts;
-- the shop and office confirmation routes answer 403 `FEATURE_DISABLED`, and a link already sent shows "This link is no longer active" (410) and records nothing;
+- the shop and office confirmation routes answer 403 `FEATURE_DISABLED` ("This isn't available yet."), and a link already sent shows "This link is closed" (410) and records nothing;
 - nothing is deleted and the expiry job keeps running. Switching back on makes links only for orders delivered from then on.
 
 **Record only.** The customer's answer **never moves money** (DECISIONS ADR-07, ADR-15).
@@ -80,16 +80,16 @@ Every 15 minutes: PENDING past expiresAt → EXPIRED (no money)
 | POST | `/c/:token` | records the answer, then 303 to `/c/:token?done=1` (post/redirect/get, so a refresh never posts again) |
 
 **State order**, for GET and POST:
-1. Bad format or unknown token: **404** "We can't find this link". A known token while `confirmation.enabled` is false: **410** "This link is no longer active", nothing recorded.
+1. Bad format or unknown token: **404** "We can't find this link". A known token while `confirmation.enabled` is false: **410** "This link is closed", nothing recorded.
 2. ANSWERED: GET **200**, "Thank you" if `?done=1`, otherwise "You already answered". POST of the stored answer: **303** to `/c/:token?done=1`, nothing recorded. POST of any other answer: **409** "You already answered" (`CONFIRM_ALREADY_ANSWERED`), nothing recorded.
-3. CANCELLED: **410** "This link is no longer active".
+3. CANCELLED: **410** "This link is closed".
 4. EXPIRED, or `now ≥ expiresAt`: **410** "This link has expired".
 5. PENDING: **200**, the main page.
 
 The second-step pages (`/partly`, `/not-received`, `/other`) follow the same state order: PENDING shows the form, other states their page. Any other path or method under `/c/` gets the 404 page with no database lookup.
 
 **POST validation** (zod by hand; the body typed `unknown`, as payments.controller.ts:39-41 does):
-- After the state order: `answer` must be exactly `YES`, `PARTLY`, `NO` or `OTHER`; a missing or other value gets the main page with **400** and "Please choose one of the answers below." (`role="alert"`), nothing recorded. `v` is ignored.
+- After the state order: `answer` must be exactly `YES`, `PARTLY`, `NO` or `OTHER`; a missing or other value gets the main page with **400** and "Please tap one answer below." (`role="alert"`), nothing recorded. `v` is ignored.
 - `comment`: each line break (CRLF, CR, LF) and tab becomes a space; other control characters (U+0000–U+001F, U+007F–U+009F) are removed; space runs become one; trimmed; cut to 300 code points. Empty is stored as NULL.
 - `OTHER` needs a cleaned comment of at least 3 characters. Otherwise the Other page is shown again with **400** and the error (`CONFIRM_NOTE_REQUIRED`).
 - The same answer posted again gets 303 to "Thank you"; its comment is ignored. A different answer gets **409** "You already answered".
@@ -118,18 +118,23 @@ Order: the per-IP GET/POST limit (every request); an IP with 30 misses in its 10
   - `NestFactory.create<NestExpressApplication>`, and `app.set('trust proxy', 1)`. Today main.ts:20 doesn't trust the proxy.
   - `app.setGlobalPrefix('api/v1', { exclude: [{ path: 'c/(.*)', method: RequestMethod.ALL }] })`, plus a catch-all controller route rendering the 404 page for anything that isn't one of the four routes.
 - **The controller:** `PublicConfirmController` with `@Controller('c')`, `@Public()` (public.decorator.ts:4) and `@UseFilters(PublicPageExceptionFilter)`.
-  - The filter turns every error, throttling included, into an HTML page with the code's status, never JSON, never echoing the URL: `CONFIRM_LINK_INVALID` 404 not found; `CONFIRM_LINK_INACTIVE` 410 no longer active; `CONFIRM_LINK_EXPIRED` 410 expired; `CONFIRM_ALREADY_ANSWERED` 409 already answered; `CONFIRM_NOTE_REQUIRED` 400 Other page with its error; `VALIDATION_FAILED` 400 main page with "Please choose one of the answers below."; `RATE_LIMITED` 429 too many tries; anything else 500. GET of an ANSWERED or PENDING link renders its 200 page directly.
+  - The filter turns every error, throttling included, into an HTML page with the code's status, never JSON, never echoing the URL: `CONFIRM_LINK_INVALID` 404 not found; `CONFIRM_LINK_INACTIVE` 410 closed; `CONFIRM_LINK_EXPIRED` 410 expired; `CONFIRM_ALREADY_ANSWERED` 409 already answered; `CONFIRM_NOTE_REQUIRED` 400 Other page with its error; `VALIDATION_FAILED` 400 main page with "Please tap one answer below."; `RATE_LIMITED` 429 too many tries; anything else 500. GET of an ANSWERED or PENDING link renders its 200 page directly.
   - Pages are sent with `res.status(code).type('html').send(html)`.
 - **Redaction:** `/c/<token>` becomes `/c/[token]` in:
   - the global filter's `path` (http-exception.filter.ts:33);
   - Sentry `beforeSend` for `event.request.url` and breadcrumbs (sentry.ts:15-20);
   - the Caddy access log, with `format filter { wrap json; fields { request>uri regexp "^/c/[0-9a-z]+" "/c/[token]"; request>headers>Referer delete } }` (Caddyfile:5-25).
 - **The link host** is the API host until a short domain is chosen. When it is, a Caddy site block serves only `/c/*`, `/robots.txt` (`Disallow: /`) and 404 for everything else.
-- **Test banner:** when `APP_ENV` is not `production`, a yellow strip reads "Test system — this is not a real delivery."
+- **Test banner:** when `APP_ENV` is not `production`, a yellow strip (`.strip`, first on the page) reads "Test only · not a real delivery".
 
 ## 6. The page: content, copy, design tokens, accessibility
+Designed to UX_PRINCIPLES §7.6 on 2026-10-23 (the Inc 2/3 spec §1): a two-row summary, three 64 px answer buttons with small icons, and a tap-to-call row. The words above the buttons fall from 31 to 18.
+
 Pure TypeScript template functions return escaped HTML, in `modules/confirmations/page/`:
-- `layout`, `card`, `itemList`, `stateTag`, `buttonForm` (POST), `buttonLink` (GET), `textLink`, `commentField`, `helpLine`, `safetyNote`, `statusMark`, `testBanner`.
+- `layout`, `card`, `summaryTable`, `stateTag`, `buttonForm` (POST), `buttonLink` (GET), `textLink`, `commentField`, `callRow`, `safetyNote`, `statusMark`, `icon`, `testStrip`.
+  - `callRow(label, phone)` replaces `helpLine`: a full-width 48 px `tel:` link with the phone icon and "{label} · {phone}" (the phone in `formatPkPhone` local style, the href E.164).
+  - `statusMark(kind)` draws the 64 px circle: green with the check icon, or neutral with the state's icon.
+  - `icon(name)` returns one of the inline SVG icons below.
 - All text comes from `t(key, params)` in `page/messages.en.ts` (`confirm.page.*`), and all values go through `escapeHtml`.
 - Urdu later is `messages.ur.ts`, `?l=ur`, `lang="ur" dir="rtl"`.
 
@@ -144,14 +149,33 @@ Pure TypeScript template functions return escaped HTML, in `modules/confirmation
 | line / field | #E3E4E8 / #6B6F76 | dividers / input border 5:1 |
 | positive | #15803D, white text 5.0:1 | All received, Send |
 | danger | #B91C1C, 6.5:1 | Not received |
-| link / focus | #0A55C4 6.8:1 / #0F6CF0 3 px outline | links / focus |
-| tagBg / tagInk | #EEF0F4 / #374151 | state tags |
-| safetyBg / safetyInk | #FEF3C7 / #78350F 8:1 | gas safety note |
-| okBg / okInk | #E5F6EE / #166534 | thank-you tick |
+| link / focus | #0A55C4 6.8:1 / #0F6CF0 3 px outline | links, call rows / focus |
+| tagBg / tagInk | #EEF0F4 / #374151 | state tags, the neutral status mark |
+| safetyBg / safetyInk | #FEF3C7 / #78350F 8:1 | gas safety note, the test strip |
+| okBg / okInk | #E5F6EE / #166534 | the green status mark |
 
 - **Type:** base 18 px with line height 1.5, system font stack; h1 26 px, h2 18 px, small 15 px.
 - **Layout:** max width 480 px with a 16 px gutter. Card radius 14, control radius 12.
-- **Controls:** buttons at least 56 px high, full width, 12 px apart. Text links at least 48 px high.
+- **Controls:** the answer buttons and Send are at least **64 px** high, full width, 12 px apart. Text links and call rows are at least 48 px high.
+- **Icons:** decorative inline `<svg>` with lucide 0.400.0 geometry (ISC licence, already in the repo through the website): `viewBox="0 0 24 24"`, `stroke="currentColor"`, `aria-hidden="true"`, `focusable="false"`, and **no `xmlns`** (the HTML parser puts `<svg>` in the SVG namespace anyway, so the only URLs on the page stay the `/c/` paths, the `tel:` links and the `data:,` favicon). 28 px in buttons and rows, 36 px in the 64 px status mark; under `[dir=rtl]` the margin flips. The words carry the meaning, so a browser that draws nothing loses nothing. About 2 KB at most per page (the main page's 5 icons are about 1.6 KB before gzip).
+
+  | Icon | Used on |
+  |---|---|
+  | circle-check | All received |
+  | contrast | Partly received |
+  | circle-x | Not received |
+  | message-square-warning | Other problem |
+  | phone | call rows |
+  | arrow-left | Back |
+  | check | the thank-you and already-answered mark |
+  | clock | expired |
+  | link-2-off | link closed |
+  | circle-help | not found |
+  | hourglass | too many tries |
+  | circle-alert | something went wrong |
+
+- **Test strip:** on any `APP_ENV` other than production, the strip "Test only · not a real delivery" (`.strip`) sits first.
+- **Footer line:** on every page that knows the shop, "Sent by Smart Fleet for {shop}." comes last, with the gas safety note just above it.
 
 **Main page (200)**
 - **Head**
@@ -159,58 +183,62 @@ Pure TypeScript template functions return escaped HTML, in `modules/confirmation
   - `og:title` "Confirm your delivery from {shop}".
   - `og:description` "Tap to tell us what you received."
   - Link previews show no items.
-- **Top**
+- **Card**
   - Eyebrow "{shop}".
   - H1 "Did you get your delivery?"
   - Meta "Order {orderNo} · {Wed 21 Oct, 4:12 pm}".
-- **Lists**
-  - H2 "Delivered to you", with rows "{size} cylinder … {count}".
-  - H2 "Taken back from you", with rows "[Empty | Part-filled | Full] {size} cylinder[ (no label)] … {count}". If there are none: "Nothing was taken back."
-  - The hint "Something wrong with what was taken back? Tap Other problem."
+  - **The summary table** (`<table class="sum">`, 2 rows, each a `<th scope="row">` and a `<td>`):
+    - "Delivered": one line per size, "2 × 11.8 kg", in the snapshot's order (ascending sizes);
+    - "Taken back": one line per size and state, "1 × 11.8 kg" plus the state tag (Empty, Part-filled or Full) and " · no label" for unlabelled rows; "None" when nothing was taken back.
+  - The hint "Not right? Tap Other problem." (the three answers describe only what was delivered: a wrong take-back can be reported only through Other problem).
+- **Only on 400:** a red line "Please tap one answer below." (`role="alert"`) above the buttons.
 - **Actions**
-  - **[All received]**: positive, a form POST with `answer=YES`.
-  - **[Partly received]**: outline, a link.
-  - **[Not received]**: danger outline, a link.
-  - "Other problem": a text link.
+  - **[All received]**: positive, solid, a form POST with `answer=YES`, with the circle-check icon.
+  - **[Partly received]**: white with a dark border, a link to `/c/{token}/partly`, with the contrast icon.
+  - **[Not received]**: a red border, a link to `/c/{token}/not-received`, with the circle-x icon.
+  - "Other problem": a full-width 48 px text link to `/c/{token}/other`, with the message-square-warning icon.
 - **Footer**
-  - "Questions? Call {shop}: {0321 1234567}" (`formatPkPhone` local style; the link is `tel:` plus the E.164 number).
-  - "You can answer until {expiresAt}."
-  - Safety: "Smell gas? Turn off the cylinder valve, open doors and windows, don't touch switches or flames, and call 1122."
-  - "Smart Fleet sends this message for {shop}."
+  - The call row "Call {shop} · {0321 1234567}" (`tel:` plus the E.164 number).
+  - "Answer by {expiresAt}."
+  - Safety: "Smell gas? Turn off the cylinder valve, open doors and windows, don't touch switches or flames, and call 1122." (never counted, never cut).
+  - "Sent by Smart Fleet for {shop}."
 
-**Second-step pages.** Each has the eyebrow "{shop} · Order {orderNo}" and a "Back" link.
+**Second-step pages.** Each has the eyebrow "{shop} · Order {orderNo}", the h1 with its 32 px icon (the answer they tapped, so they can see what they are sending), one note field (`maxlength="300"`, the server's own cut, so the limit needs no words), and **"Back" (with the arrow-left icon) under the button**, so a keypad's D-pad reaches the box and Send first.
 
-| Page | H1 | Text | Note field | Button |
-|---|---|---|---|---|
-| Partly received | What was missing? | Tell us what you did not get. This helps {shop} sort it out. | Your note (optional) | **[Send: partly received]** (positive, `PARTLY`) |
-| Not received | You did not get this delivery? | We will tell {shop} straight away. | Anything to add? (optional) | **[Yes, I did not get it]** (danger, `NO`) |
-| Other problem | Tell us what happened | | Your message (required, 300 characters at most) | **[Send]** (positive, `OTHER`) |
+| Page | H1 | Note field | Button |
+|---|---|---|---|
+| Partly received | Partly received | What was missing? (optional) | **[Send]** (positive, `PARTLY`) |
+| Not received | Not received | Anything to add? (optional) | **[Send]** (solid red, `NO`) |
+| Other problem | Other problem | What happened? (required) | **[Send]** (positive, `OTHER`) |
 
-A missing message on the Other page shows the error "Please write a few words, or go back and pick an answer." with `role="alert"`, `aria-invalid`, `aria-describedby` and autofocus. The box keeps the cleaned text the customer sent.
+A missing message on the Other page shows the error "Please write a few words." with `role="alert"`, `aria-invalid`, `aria-describedby` and autofocus. The box keeps the cleaned text the customer sent. The rules are unchanged: the same GET routes, POST and hidden fields; Other problem still needs at least 3 characters after cleaning; notes are still cleaned and cut to 300.
 
-**Result pages**
-- **Thank you:** a tick, H1 "Thank you!", then a line for the answer:
+**Result pages.** Each is a card with the eyebrow "{shop} · Order {orderNo}" (only when the link is known), a 64 px status mark, the h1 and at most one line; then a call row when a phone is known; the gas safety note always; and the footer line only when the shop is known.
+- **Thank you** (`aria-live="polite"`; the green mark with the check): H1 "Thank you!", then a line for the answer:
 
   | Answer | Line |
   |---|---|
-  | All received | We have told {shop} that you got everything. |
-  | Partly received | We have told {shop} that something was missing. They may call you. |
-  | Not received | We have told {shop} that you did not get this delivery. They may call you. |
-  | Other problem | We have passed your message to {shop}. They may call you. |
+  | All received | We told {shop} you got everything. |
+  | Partly received | We told {shop} something was missing. They may call you. |
+  | Not received | We told {shop} you did not get it. They may call you. |
+  | Other problem | We sent your message to {shop}. They may call you. |
 
-  Then the help line and the safety note.
-- **You already answered:** "On {respondedAt} you said: {answerLabel}." and "Wrong answer? Call {shop}: {phone}".
-- **This link has expired (410):** "Answers close {lifetime} after delivery. If something is wrong with order {orderNo}, please call {shop}: {phone}." {lifetime} is the link's own lifetime: whole days "1 day" / "{n} days" (72 h → "3 days"), otherwise "{n} hours" (36 h → "36 hours").
-- **This link is no longer active (410):** "Order {orderNo} does not need an answer any more. Questions? Call {shop}: {phone}."
-- **We can't find this link (404):** "Please open the full link from your newest message. Need help? Call Smart Fleet support: {support.phone}." The number is a `tel:` link (E.164 href for a Pakistani mobile, else the stored digits keeping a leading +). When `support.phone` is null the second sentence ("Need help? Call Smart Fleet support: …") is left out, so the page shows only "Please open the full link from your newest message."
-- **Too many tries (429):** "Please wait {minutes} minutes, then try again." ("Please wait 1 minute, then try again." for 1)
-- **Something went wrong (500):** "Your answer was not saved. Please try again." The [Try again] form posts the hidden answer and comment again.
+  Then the call row "Call {shop}".
+
+| Page (HTTP) | Mark | H1 | Line | Call row |
+|---|---|---|---|---|
+| Already answered (200 / 409) | green, check | You already answered | You said: {answerLabel} · {respondedAt} | Wrong? Call {shop} |
+| Expired (410) | grey, clock | This link has expired | Answers close {lifetime} after delivery. ({lifetime} is the link's own lifetime: whole days "1 day" / "{n} days" (72 h → "3 days"), otherwise "{n} hours" (36 h → "36 hours")) | Problem? Call {shop} |
+| No longer active (410) | grey, link-2-off | This link is closed | No answer is needed. | Questions? Call {shop} |
+| Not found (404) | grey, circle-help | We can't find this link | Open the full link in your newest message. | Call Smart Fleet support (only when `support.phone` is set; the number is a `tel:` link, E.164 for a Pakistani mobile, else the stored digits keeping a leading +). The page shows no shop, order or footer |
+| Too many tries (429) | grey, hourglass | Too many tries | Please wait {minutes} minutes, then try again. ("Please wait 1 minute, then try again." for 1) | none |
+| Something went wrong (500) | grey, circle-alert | Something went wrong | Your answer was not saved. | none; a green **[Try again]** form posts the hidden answer and comment again |
 
 **Answer labels:** YES "All received", PARTLY "Partly received", NO "Not received", OTHER "Other problem".
 
 **On every page**, state and error pages included, the gas safety note is the last block before the footer line.
 
-**Main page skeleton** (literal tokens, no JS)
+**Main page skeleton** (literal tokens, no JS; the icons' paths are shortened here to "…")
 ```html
 <!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light">
@@ -219,41 +247,48 @@ A missing message on the Other page shows the error "Please write a few words, o
 <link rel="icon" href="data:,"><title>Confirm your delivery · Ali Gas</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#F4F5F9;color:#1F2025;font:18px/1.5 -apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;-webkit-text-size-adjust:100%}
 .w{max-width:480px;margin:0 auto;padding:16px}.c{background:#FFF;border:1px solid #E3E4E8;border-radius:14px;padding:20px 16px;margin:0 0 16px}
-.s{margin:0 0 4px;font-size:15px;font-weight:700;color:#4B5563}h1{margin:0 0 6px;font-size:26px;line-height:1.25}h2{margin:20px 0 4px;font-size:18px}
-.m,.f{margin:0 0 12px;color:#4B5563;font-size:15px}ul{margin:0;padding:0;list-style:none}
-li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid #E3E4E8}li:first-child{border-top:0}
-.q{font-weight:700;margin-left:12px}.tag{display:inline-block;font-style:normal;font-size:14px;font-weight:700;padding:2px 10px;margin-right:8px;border-radius:999px;background:#EEF0F4;color:#374151}
-.b{display:block;width:100%;min-height:56px;margin:0 0 12px;padding:14px 16px;border:2px solid #1F2025;border-radius:12px;background:#FFF;color:#1F2025;font:inherit;font-weight:700;text-align:center;text-decoration:none}
+.s{margin:0 0 4px;font-size:15px;font-weight:700;color:#4B5563}h1{margin:0 0 6px;font-size:26px;line-height:1.25}
+.m,.f{margin:0 0 12px;color:#4B5563;font-size:15px}
+.sum{width:100%;border-collapse:collapse;margin:12px 0 4px}.sum th{width:34%;padding:8px 12px 8px 0;text-align:left;vertical-align:top;font-size:15px;color:#4B5563}
+.sum td{padding:8px 0;font-weight:700}.sum tr+tr th,.sum tr+tr td{border-top:1px solid #E3E4E8}
+.tag{display:inline-block;font-style:normal;font-size:14px;font-weight:700;padding:2px 10px;margin:0 8px;border-radius:999px;background:#EEF0F4;color:#374151}
+.b{display:block;width:100%;min-height:64px;margin:0 0 12px;padding:14px 16px;border:2px solid #1F2025;border-radius:12px;background:#FFF;color:#1F2025;font:inherit;font-weight:700;text-align:center;text-decoration:none}
 .p{background:#15803D;border-color:#15803D;color:#FFF}.d{border-color:#B91C1C;color:#B91C1C}.dp{background:#B91C1C;border-color:#B91C1C;color:#FFF}
-.lk{display:inline-block;min-height:48px;padding:12px 0;color:#0A55C4;font-weight:700}a:focus,button:focus,textarea:focus{outline:3px solid #0F6CF0;outline-offset:2px}
+.b svg,.blk svg,.call svg{vertical-align:middle;margin:0 10px 0 0}
+.blk{display:block;text-align:center;min-height:48px;padding:12px 0;color:#0A55C4;font-weight:700}
+.call{display:block;min-height:48px;padding:12px 0;color:#0A55C4;font-weight:700;text-decoration:none}
+a:focus,button:focus,textarea:focus{outline:3px solid #0F6CF0;outline-offset:2px}
 label{display:block;font-weight:700;margin:12px 0 6px}textarea{display:block;width:100%;min-height:120px;padding:12px;border:2px solid #6B6F76;border-radius:12px;font:inherit;color:#1F2025;background:#FFF}
 .err{color:#B91C1C;font-weight:700}.safe{padding:12px;border-radius:12px;background:#FEF3C7;color:#78350F;font-size:15px}
-.ok{width:64px;height:64px;line-height:64px;border-radius:32px;background:#E5F6EE;color:#166534;font-size:40px;text-align:center;margin:0 0 12px}</style></head>
+.mk{width:64px;height:64px;border-radius:32px;padding:14px;margin:0 0 12px;background:#EEF0F4;color:#374151}.mk.ok{background:#E5F6EE;color:#166534}
+.strip{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#FEF3C7;color:#78350F;font-size:15px;font-weight:700}
+[dir=rtl] .b svg,[dir=rtl] .blk svg,[dir=rtl] .call svg{margin:0 0 0 10px}[dir=rtl] .sum th{text-align:right;padding:8px 0 8px 12px}</style></head>
 <body><main class="w">
+<p class="strip">Test only · not a real delivery</p>
 <section class="c" aria-labelledby="h"><p class="s">Ali Gas</p><h1 id="h">Did you get your delivery?</h1>
 <p class="m">Order AG-0142 · Wed 21 Oct, 4:12 pm</p>
-<h2>Delivered to you</h2><ul><li><span>11.8 kg cylinder</span><b class="q">2</b></li></ul>
-<h2>Taken back from you</h2><ul><li><span><i class="tag">Empty</i>11.8 kg cylinder</span><b class="q">1</b></li></ul>
-<p class="f">Something wrong with what was taken back? Tap Other problem.</p></section>
+<table class="sum"><tr><th scope="row">Delivered</th><td>2 × 11.8 kg</td></tr>
+<tr><th scope="row">Taken back</th><td>1 × 11.8 kg<i class="tag">Empty</i></td></tr></table>
+<p class="f">Not right? Tap Other problem.</p></section>
 <form method="post" action="/c/{token}" accept-charset="utf-8"><input type="hidden" name="v" value="1">
-<button class="b p" name="answer" value="YES">All received</button></form>
-<a class="b" href="/c/{token}/partly">Partly received</a><a class="b d" href="/c/{token}/not-received">Not received</a>
-<a class="lk" href="/c/{token}/other">Other problem</a>
-<p class="f">Questions? Call Ali Gas: <a class="lk" href="tel:+923211234567">0321 1234567</a></p>
-<p class="f">You can answer until Sat 24 Oct, 4:12 pm.</p>
+<button class="b p" name="answer" value="YES"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">…</svg>All received</button></form>
+<a class="b" href="/c/{token}/partly"><svg …>…</svg>Partly received</a><a class="b d" href="/c/{token}/not-received"><svg …>…</svg>Not received</a>
+<a class="blk" href="/c/{token}/other"><svg …>…</svg>Other problem</a>
+<a class="call" href="tel:+923211234567"><svg …>…</svg>Call Ali Gas · 0321 1234567</a>
+<p class="f">Answer by Sat 24 Oct, 4:12 pm.</p>
 <p class="safe" role="note">Smell gas? Turn off the cylinder valve, open doors and windows, don't touch switches or flames, and call 1122.</p>
-<p class="f">Smart Fleet sends this message for Ali Gas.</p></main></body></html>
+<p class="f">Sent by Smart Fleet for Ali Gas.</p></main></body></html>
 ```
 
 **Accessibility (WCAG 2.1 AA)**
-- `lang` and `dir` set; one h1; lists as `<ul>`; real `<button>` and `<a>` elements.
+- `lang` and `dir` set; one h1; the summary as a table with row headers; real `<button>` and `<a>` elements.
 - A visible focus outline; zoom is never locked; text at least 15 px.
-- A state is never shown by colour alone (tags carry words).
+- A state is never shown by colour alone (tags carry words). Icons are `aria-hidden`, so a screen reader (TalkBack) reads only each button's words.
 - Labels are bound to their fields, and errors are announced. The thank-you page uses `aria-live="polite"`.
 - Full-width blocks suit KaiOS D-pad navigation.
 
 **Low-end budget**
-- At most 12 KB of HTML (about 4 KB gzipped), with no JavaScript, cookies, fonts or images. The favicon is a `data:` URL and the tick is a text glyph.
+- At most 12 KB of HTML (about 4 KB gzipped), with no JavaScript, cookies, fonts or image files. The favicon is a `data:` URL; the icons are inline SVG (about 2 KB at most per page), and the tick is the check icon in the green `.mk.ok` circle.
 - Server time at most 150 ms at the 95th percentile.
 - Usable within 3 seconds on 2G.
 - **Test on:** Android Go Chrome, Android 5 WebView, Opera Mini (extreme mode), UC Browser, KaiOS 2.5, iPhone Safari, and TalkBack.
@@ -308,8 +343,8 @@ export interface MessagingProvider {
   | SMS QUEUED, 2 minutes or more (lost) | Not sent |
   | SMS SENT | Text sent {time} |
   | SMS DELIVERED (later) | Text delivered {time} |
-  | SMS SKIPPED | Not sent — text messages are off |
-  | SMS FAILED | Text didn't send — {reason} |
+  | SMS SKIPPED | Not sent · text messages are off |
+  | SMS FAILED | Text didn't send · {reason} |
   | Share (SHARE_LINK) | Shared {time} by {byName} ({via}) |
 
   No message yet also reads "Not sent". Once the link is closed: "Answered {time}" or "Expired".
@@ -369,8 +404,8 @@ ConfirmationView = { orderId; orderShortCode; status: 'PENDING' | 'ANSWERED' | '
   - Returns `ConfirmationView`. Audit `confirmation.new_link` (resourceType `Order`).
 - **Order lists** (`GET /orders?tab`, `GET /orders/board`) add `confirmation: { status, response, caseOpen } | null` in one join.
 
-**The shop app card** (`apps/mobile/src/components/CustomerConfirmCard.tsx`)
-- Shown in the order detail (UX_MOBILE S14) when `features.confirmations` is on and the order's `confirmation` field is not null.
+**The shop app card** (`apps/mobile/src/components/CustomerConfirmCard.tsx`; designed to the rulebook on 2026-10-23, the Inc 2/3 spec §2.5–§2.6)
+- Shown in the order detail (UX_MOBILE S14) when `features.confirmations` is on and the order's `confirmation` field is not null. It sits under the status block, above the facts card.
 - It refetches every 20 seconds while PENDING and the screen is focused.
 - It uses only core React Native APIs, so it ships over the air:
   - `Linking.openURL(whatsappUrl or smsUrl)` (the wa.me precedent is AboutScreen.tsx:33);
@@ -378,54 +413,55 @@ ConfirmationView = { orderId; orderShortCode; status: 'PENDING' | 'ANSWERED' | '
   - `Clipboard.setString(message)`.
 
   Each action calls `share` first, with the matching `via`.
+- **Card contents:** the caption "Customer answer"; the answer chip (UX_MOBILE §3.4; "Waiting for customer" is the amber clock, never "Waiting for {{name}}"), with the answer time on the right once answered; one line by state (below); a caption while PENDING, "Link open until {{time}}"; and a ghost button: "Other ways" before the link is given, "Send again" after. Both open the Send link sheet.
+- **The screen footer holds the one main button**, by state: "Send on WhatsApp" while the link isn't given and the phone is valid; "Fix number" when the phone is wrong; "Make new link" after a number fix; nothing otherwise. If the order detail gives a delivered order another footer button, this button moves into the card as its primary. Either way the screen keeps one main button.
 
-| State | Title / pill | Body | Actions |
-|---|---|---|---|
-| Loading | "Customer confirmation" | skeleton | none |
-| Error | none | "Could not load the customer confirmation." | [Try again] |
-| PENDING, NOT_SENT, last SMS skipped | "Ask the customer to confirm" | `confirm.ask.smsOff` | **[Send on WhatsApp]** · [Send by text message] · "Share another way" · "Copy message" |
-| PENDING, NOT_SENT, no SMS or lost send | same | `confirm.ask.notSent` | same |
-| PENDING, SMS_FAILED | same | `confirm.ask.smsFailed` | same |
-| PENDING, SHARED | pill "Waiting for {{name}}" | "Link given at {{time}} ({{via}}). Make sure it was sent." | the send buttons as secondary |
-| PENDING, SMS_SENT | pill "Waiting for {{name}}" | "Link sent by text to {{phone}} at {{time}}." | "Send on WhatsApp too" · "Copy message" |
-| PENDING, SMS_SENDING | pill "Waiting for {{name}}" | `confirm.smsSending` | the send buttons as secondary |
-| ANSWERED | pill with the answer label (YES success, PARTLY warning, NO danger, OTHER warning) and the time | the comment in quotes. NO or OTHER: "The office will look into it." | none |
-| EXPIRED | pill "No answer" | none | none |
-| CANCELLED (reserved) | pill "Not needed" | "This link was closed." | none |
-| Invalid phone | warning | "This number looks wrong: {{phone}}. Fix it, then make a new link." | [Fix number] → edit customer |
+| State (`status`, `reach`) | Chip | Line | Footer | In the card |
+|---|---|---|---|---|
+| Loading | skeleton | skeleton | none | none |
+| Error | none | "Couldn't load the customer answer." + Try again | none | none |
+| PENDING, NOT_SENT (any reason: no SMS, a lost send, text messages off) | Waiting for customer | Link not sent yet · {{name}}, {{phone}} | Send on WhatsApp | Other ways |
+| PENDING, SMS_FAILED | Waiting for customer | Text didn't send: {{reason}}. | Send on WhatsApp | Other ways |
+| PENDING, SMS_SENDING | Waiting for customer | Sending text… | none | Send again |
+| PENDING, SMS_SENT | Waiting for customer | Text sent {{time}} · {{phone}} | none | Send again |
+| PENDING, SHARED | Waiting for customer | Shared {{time}} · {{via}}. Check it was sent. | none | Send again |
+| PENDING, phone not valid | Waiting for customer | a warning line "Number looks wrong: {{phone}}" | Fix number (→ Edit customer, UX_MOBILE S15b) | Other ways (Other app and Copy message only) |
+| PENDING, number just fixed | Waiting for customer | Number changed. Make a new link. | Make new link (→ the confirm below) | none |
+| ANSWERED | the answer chip + time: YES success, PARTLY warning, NO danger, OTHER warning (settled point G07-23, kept by the lead) | the comment in quotes; then "The office will look into it." while `caseOpen` | none | none |
+| EXPIRED | No answer | none | none | none |
+| CANCELLED (reserved) | grey "Not needed" | none | none | none |
 
-- The caption while PENDING: "{{name}} can answer until {{time}}."
-- "Make a new link" (low emphasis) confirms first: "Make a new link? The old link will stop working." Afterwards the card reads as not sent until the new link is sent or shared.
+- **The Send link sheet** (a PickerSheet with no search, as an action list): the title "Send link"; 56 dp rows, each an icon and a label: WhatsApp · Text message · Other app · Copy message; a divider, then "Make a new link" (only when `allowedActions` has `NEW_LINK`). A tap calls `share` with the matching `via`; the row shows a spinner until it answers, then the sheet closes and the app opens. WhatsApp and Text message are hidden when their URL is null (the phone isn't valid).
+- **Make a new link** (rule 7): the sheet closes first (never a sheet on a sheet), then a ConfirmSheet "Make a new link?" / "The old link stops working." / [Make new link] (primary) / [Keep old link] (secondary). Afterwards the toast "New link made", and the card reads "Link not sent yet" until the new link is sent or shared.
+- **Errors:** network: the footer line "Couldn't get the link. Try again." under the one "No connection · Try again" banner; `CONFIRM_CLOSED`: refetch the card and toast `errors.CONFIRM_CLOSED`; `RATE_LIMITED`: `errors.RATE_LIMITED` on the footer line.
 - **The card has no money line.** The order's delivery cost line stays as it was when the order was placed.
 - **Copy keys** (mobile namespace `confirm`):
 
   | Key | Text |
   |---|---|
-  | `confirm.title` | Customer confirmation |
-  | `confirm.ask.title` | Ask the customer to confirm |
-  | `confirm.ask.smsOff` | Text messages are not switched on yet. Send this link to {{name}} ({{phone}}). |
-  | `confirm.ask.notSent` | Send this link to {{name}} ({{phone}}). |
-  | `confirm.ask.smsFailed` | The text message didn't send: {{reason}}. Send this link to {{name}} ({{phone}}). |
+  | `confirm.title` | Customer answer |
+  | `confirm.notSent` | Link not sent yet · {{name}}, {{phone}} |
+  | `confirm.smsFailed` | Text didn't send: {{reason}}. |
   | `confirm.smsFailReason.INVALID_NUMBER` / `.REJECTED` / `.TIMEOUT` / `.AUTH` / `.UNAVAILABLE` / `.UNKNOWN` | the §8 FAILED reasons: the number looks wrong / the SMS company refused it / the SMS company did not answer / SMS account problem / the SMS company is down / something went wrong |
-  | `confirm.waiting` | Waiting for {{name}} |
-  | `confirm.shared` | Link given at {{time}} ({{via}}). Make sure it was sent. |
+  | `confirm.smsSending` | Sending text… |
+  | `confirm.smsSent` | Text sent {{time}} · {{phone}} |
+  | `confirm.shared` | Shared {{time}} · {{via}}. Check it was sent. |
   | `confirm.via.WHATSAPP` / `.SMS` / `.SHARE_SHEET` / `.COPY` | WhatsApp / text message / other app / copied |
-  | `confirm.smsSent` | Link sent by text to {{phone}} at {{time}}. |
-  | `confirm.smsSending` | Sending a text message to {{phone}}… |
-  | `confirm.until` | {{name}} can answer until {{time}}. |
-  | `confirm.answer.YES` / `.PARTLY` / `.NO` / `.OTHER` | All received / Partly received / Not received / Other problem |
-  | `confirm.noReply` | No answer |
+  | `confirm.until` | Link open until {{time}} |
+  | `stages.answer.*` | the chip words (UX_MOBILE §3.4): Customer: all received · Customer: partly received · Customer: not received · Customer sent a note · Waiting for customer · No answer |
+  | `confirm.cancelled` | Not needed |
   | `confirm.officeWillCheck` | The office will look into it. |
-  | `confirm.btn.whatsapp` | Send on WhatsApp |
-  | `confirm.btn.sms` | Send by text message |
-  | `confirm.btn.share` | Share another way |
-  | `confirm.btn.copy` | Copy message |
-  | `confirm.btn.newLink` | Make a new link |
-  | `confirm.btn.fixNumber` | Fix number |
-  | `confirm.toast.copied` | Message copied |
-  | `confirm.newLink.confirm` | Make a new link? The old link will stop working. |
-  | `confirm.loadError` | Could not load the customer confirmation. |
-  | `confirm.linkError` | Could not get the link. Check your internet and try again. |
+  | `confirm.badPhone` | Number looks wrong: {{phone}} |
+  | `confirm.numberChanged` | Number changed. Make a new link. |
+  | `confirm.btn.whatsapp` / `.otherWays` / `.sendAgain` / `.fixNumber` / `.makeNewLink` | Send on WhatsApp / Other ways / Send again / Fix number / Make new link |
+  | `confirm.sheet.title` / `.whatsapp` | Send link / WhatsApp |
+  | `confirm.btn.sms` / `.share` / `.copy` / `.newLink` | Text message / Other app / Copy message / Make a new link |
+  | `confirm.newLink.title` / `.body` / `.confirm` / `.keep` | Make a new link? / The old link stops working. / Make new link / Keep old link |
+  | `confirm.toast.copied` / `.newLink` | Message copied / New link made |
+  | `confirm.loadError` | Couldn't load the customer answer. |
+  | `confirm.linkError` | Couldn't get the link. Try again. |
+
+  Removed: `confirm.ask.title`, `confirm.ask.smsOff`, `confirm.ask.notSent`, `confirm.waiting` and `confirm.noReply` (the chip says them).
 
 **The office:** the order drawer shows the answer and "Copy customer link", and Customer problems lists the cases (UX_ADMIN §3.2–3.3).
 
@@ -458,7 +494,7 @@ Error codes are in API_CONTRACT §2.3, under "Customer confirmation and cases".
 **Unit**
 - Token: derivation is stable for the same `(id, version)`; normalising `I`, `L`, `O` and upper case; 26-character format checks; no collisions in 100,000.
 - `renderSms`: at most 160 characters across the worst-case matrix, GSM-7 only, the fallbacks work, nothing straight after the link.
-- HTML: escaping; a snapshot per state; the token appears only in `href` and `action`; no `<script>`; no page contains a cylinder number (pattern `[A-Z][A-Z0-9]{1,5}-C[0-9]{4,}`).
+- HTML: escaping; a snapshot per state; the token appears only in `href` and `action`; no `<script>`, no image file and no `xmlns` (the icons are inline SVG); every page under 12 KB; no page contains a cylinder number (pattern `[A-Z][A-Z0-9]{1,5}-C[0-9]{4,}`).
 
 **Integration** (real Postgres)
 - Issuing twice for one order gives one row.
@@ -474,11 +510,11 @@ Error codes are in API_CONTRACT §2.3, under "Customer confirmation and cases".
 
 **End to end on staging**
 1. Finish a stop.
-2. The shop card shows "Ask the customer to confirm".
+2. The shop card shows "Waiting for customer" and "Link not sent yet".
 3. Share the link.
 4. Open the page: at most 12 KB, no extra requests.
 5. Tap All received.
-6. The card shows "All received" and the wallet is unchanged.
+6. The card shows "Customer: all received" and the wallet is unchanged.
 
 ## 14. Build order and effort
 1. Migration (DATA_MODEL §4).

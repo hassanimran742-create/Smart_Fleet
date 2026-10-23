@@ -75,7 +75,7 @@ describe('REV money-data-02 a wallet below zero whose history matches is not a h
     // Below zero has its own words (a warning, not the "Tell engineering" banner).
     expect(text).toMatch(/state === 'belowZero'[\s\S]*?t\('integrity\.belowZero'\)/);
     const copy = fs.readFileSync(path.join(ADMIN_SRC, 'i18n', 'en', 'wallets.ts'), 'utf8');
-    expect(copy).toContain("belowZero: 'The balance is below zero. Record a correction to bring it to Rs 0 or more.'");
+    expect(copy).toContain("belowZero: 'Balance is below zero. Record a correction to bring it to Rs 0.'");
   });
 });
 

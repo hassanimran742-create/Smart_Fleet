@@ -84,6 +84,20 @@ export function useWalletHistory(distributorId: UUID, filters: StatementFilters)
   });
 }
 
+/**
+ * Whether the wallet has any history at all (`statement?limit=1`, no dates), asked only when the default
+ * filters show nothing: a new wallet says "No money in or out yet.", an older one "Nothing in these dates."
+ */
+export function useWalletHasHistory(distributorId: UUID, enabled: boolean) {
+  return useQuery({
+    queryKey: [...qk.wallets.statement(distributorId, { any: true })] as const,
+    queryFn: async ({ signal }) =>
+      (await api.get<Page<StatementItem>>(statementPath(distributorId), { params: { limit: 1 }, signal })).data.items.length > 0,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 /** Every history row of the filters, up to `max` (more is `{ tooMany: true }`), for the CSV download. */
 export async function fetchStatementRows(
   distributorId: UUID,
@@ -129,6 +143,37 @@ export function useInvalidateAfterCorrection(): () => Promise<void> {
       queryClient.invalidateQueries({ queryKey: qk.distributors.all }),
     ]);
   };
+}
+
+/** How many of the distributor's latest top-ups and orders the correction's picker lists, each. */
+const RELATED_LATEST = 10;
+/** The top-up search matches names by part, so read a few more rows and keep this distributor's. */
+const RELATED_TOPUP_READ = 30;
+
+/**
+ * The correction's "Top-up or order" picker (website spec W14): this distributor's 10 latest top-ups
+ * (`GET /admin/topups?tab=all&q=<name>`, kept to their own) and 10 latest orders
+ * (`GET /orders/board?tab=all&distributorId=`). It reads the existing routes: no API change.
+ */
+export function useRelatedChoices(distributorId: UUID, distributorName: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...qk.wallets.all, 'related-latest', distributorId] as const,
+    queryFn: async ({ signal }) => {
+      const [topups, orders] = await Promise.all([
+        api.get<AdminTopupsDto>('/admin/topups', {
+          params: { tab: 'all', q: distributorName || undefined, limit: RELATED_TOPUP_READ },
+          signal,
+        }),
+        api.get<OrderBoardDto>('/orders/board', { params: { tab: 'all', distributorId, limit: RELATED_LATEST }, signal }),
+      ]);
+      return {
+        topups: topups.data.items.filter((item) => item.distributor?.id === distributorId).slice(0, RELATED_LATEST),
+        orders: orders.data.items.filter((item) => !item.distributor || item.distributor.id === distributorId).slice(0, RELATED_LATEST),
+      };
+    },
+    enabled,
+    staleTime: 60_000,
+  });
 }
 
 /** A related top-up or order the correction can point at (G01-02). */

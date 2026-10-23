@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { ChevronDown, Ellipsis } from 'lucide-react';
 import { Button, cx, useOverlay } from '../../ui';
 import './orders.css';
@@ -8,8 +8,10 @@ export interface MoreMenuItem {
   label: string;
   /** A short line under the label, for example why another action isn't offered. */
   description?: string;
-  /** Destructive actions are drawn in the danger colour. */
+  /** Destructive actions are drawn in the danger colour, and come last after a divider. */
   danger?: boolean;
+  /** A thin line above this item, between routine actions and a dangerous one. */
+  dividerBefore?: boolean;
   onSelect: () => void;
 }
 
@@ -21,15 +23,19 @@ export interface MoreMenuProps {
   items: readonly MoreMenuItem[];
   /** `up` in a drawer footer, `down` under a page header. */
   placement?: 'up' | 'down';
+  /** `sm` beside the small buttons of a table row. */
+  size?: 'sm' | 'md';
   className?: string;
 }
 
 /**
- * A "More" button with a small menu of actions (UX_ADMIN §2.4, §2.5: "More: Cancel order… · …").
+ * A "More" button with a small menu of actions (UX_ADMIN §2.4, §1.5): the distributor page's Change
+ * code and Suspend…, a legacy row's rarer actions. It holds at least 2 items (a single action is its
+ * own button). The focus starts on the first item, so a dangerous last item is never focused first.
  * Arrow keys, Home and End move between items, Esc closes it and returns focus to the button, and a
  * click outside closes it. It sits on top of any open drawer, so Esc closes only the menu.
  */
-export function MoreMenu({ label, ariaLabel, items, placement = 'down', className }: MoreMenuProps) {
+export function MoreMenu({ label, ariaLabel, items, placement = 'down', size = 'md', className }: MoreMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -65,6 +71,7 @@ export function MoreMenu({ label, ariaLabel, items, placement = 'down', classNam
   return (
     <div ref={rootRef} className={cx('sf-more', className)}>
       <Button
+        size={size}
         icon={Ellipsis}
         iconEnd={ChevronDown}
         aria-haspopup="menu"
@@ -86,19 +93,21 @@ export function MoreMenu({ label, ariaLabel, items, placement = 'down', classNam
           onKeyDown={move}
         >
           {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              className={cx('sf-more__item', item.danger && 'is-danger')}
-              onClick={() => {
-                setOpen(false);
-                item.onSelect();
-              }}
-            >
-              <span className="sf-more__label">{item.label}</span>
-              {item.description ? <span className="sf-more__description">{item.description}</span> : null}
-            </button>
+            <Fragment key={item.id}>
+              {item.dividerBefore ? <div role="separator" className="sf-more__divider" /> : null}
+              <button
+                type="button"
+                role="menuitem"
+                className={cx('sf-more__item', item.danger && 'is-danger')}
+                onClick={() => {
+                  setOpen(false);
+                  item.onSelect();
+                }}
+              >
+                <span className="sf-more__label">{item.label}</span>
+                {item.description ? <span className="sf-more__description">{item.description}</span> : null}
+              </button>
+            </Fragment>
           ))}
         </div>
       ) : null}

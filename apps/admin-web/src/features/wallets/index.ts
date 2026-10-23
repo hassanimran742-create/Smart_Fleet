@@ -1,5 +1,6 @@
 /**
- * Wallets, the wallet page and the correction dialog (UX_ADMIN §2.6). Owned by the admin-web-money lane.
+ * Wallets, the wallet page and the correction dialog (website spec W12–W14, UX_ADMIN §2.6). Owned by the
+ * admin-web-money lane.
  *
  * Contract with app/router.tsx (foundation):
  * - `WalletsPage`: `/wallets` (route id '/wallets/').

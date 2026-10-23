@@ -73,7 +73,7 @@ const CATALOGUE = {
   ORDER_NOT_ON_YOUR_TRIP: [403, "This order isn't on your trip."],
   ORDER_USE_MANUAL_DELIVERY: [400, 'Use "Mark delivered by office" for this.'],
   ORDER_NOT_ASSIGNABLE: [409, "This order can't get a driver now."],
-  ASSIGN_DRIVER_NOT_AVAILABLE: [409, "{{driver}} can't take jobs right now."],
+  ASSIGN_DRIVER_NOT_AVAILABLE: [409, "{{driver}} can't take trips right now."],
   ASSIGN_DRIVER_NO_VEHICLE: [409, '{{driver}} has no van. Give them a van first.'],
   ASSIGN_ORDER_LOADED: [409, "Cylinders are already loaded on {{plateNo}}, so this order can't change driver."],
   DISPATCH_AUTO_OFF: [403, 'Automatic assignment is switched off.'],

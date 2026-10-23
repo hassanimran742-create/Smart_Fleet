@@ -1,6 +1,6 @@
 /*
- * Today (UX_ADMIN §2.1). Tokens only (src/ui/tokens.css) and logical properties, so the page works at
- * 1024×768 and 768×1024 and a right-to-left language later is a `dir` switch.
+ * Today (UX_ADMIN §2.1, website spec W05). Tokens only (src/ui/tokens.css) and logical properties, so
+ * the page works at 1024×768 and 768×1024 and a right-to-left language later is a `dir` switch.
  */
 
 .sf-today__section {
@@ -12,34 +12,44 @@
   font-size: var(--fs-16);
 }
 
-/* "Needs you": one row per card, each with one button. */
+/* "Needs you": 4 cards in a row from 1280 px, 2 from 1024 px, 1 under 768 px. */
 .sf-today__cards {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-3);
-  margin: 0;
+  margin: 0 0 var(--sp-8);
   padding: 0;
   list-style: none;
 }
 
+/* A big count, its label, one muted line and one button across the foot. No coloured edge. */
 .sf-today__card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-4) var(--sp-5);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+  padding: var(--sp-4);
   border: 1px solid var(--border);
-  border-inline-start: 4px solid var(--tone, var(--border));
   border-radius: var(--r-lg);
   background: var(--surface);
   box-shadow: var(--shadow-1);
 }
 
-.sf-today__card--skeleton {
-  border-inline-start-color: var(--border);
+.sf-today__card:hover {
+  border-color: var(--border-input);
+}
+
+.sf-today__card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-block-end: var(--sp-1);
 }
 
 .sf-today__card-icon {
   display: grid;
+  flex: none;
   place-items: center;
   inline-size: 40px;
   block-size: 40px;
@@ -48,20 +58,25 @@
   color: var(--tone, var(--neutral-fg));
 }
 
-.sf-today__card-text {
-  display: grid;
-  gap: var(--sp-1);
-  min-inline-size: 0;
+.sf-today__card-count {
+  font-size: var(--fs-28);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-.sf-today__card-title {
+.sf-today__card-label {
   font-size: var(--fs-16);
   font-weight: 600;
 }
 
 .sf-today__card-detail {
+  min-inline-size: 0;
+  overflow: hidden;
   color: var(--text-muted);
-  font-size: var(--fs-14);
+  font-size: var(--fs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sf-today__wait {
@@ -75,46 +90,81 @@
   font-weight: 600;
 }
 
+/* The button sits at the foot of the card, whatever the height of the lines above it. */
 .sf-today__card-action {
   display: flex;
-  justify-content: flex-end;
+  margin-block-start: auto;
+  padding-block-start: var(--sp-3);
 }
 
-/* "Today so far": four figures. */
+.sf-today__card-action .sf-btn {
+  inline-size: 100%;
+}
+
+/* The whole card opens the same place as its button: the button's link covers the card. */
+.sf-today__card .sf-today__card-link {
+  position: static;
+}
+
+.sf-today__card .sf-today__card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-lg);
+}
+
+/* All clear: one line with a tick, no heading and no second sentence. */
+.sf-today__clear {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--success-fg);
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+/* "Today so far": five small tiles in one row (two rows under 1280 px). */
 .sf-today__stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--sp-3);
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .sf-today__stat {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: var(--sp-1);
   min-inline-size: 0;
-  margin: 0;
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   background: var(--surface);
 }
 
-.sf-today__stat--pair {
+.sf-today__stat--link {
+  padding: 0;
+}
+
+.sf-today__stat-link {
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: var(--sp-2) var(--sp-4);
-}
-
-.sf-today__pair {
-  display: grid;
+  flex: 1;
+  flex-direction: column;
   gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  color: inherit;
+  text-decoration: none;
 }
 
-.sf-today__pair + .sf-today__pair {
-  padding-inline-start: var(--sp-4);
-  border-inline-start: 1px solid var(--border);
+.sf-today__stat-link:hover {
+  background: var(--surface-2);
+}
+
+.sf-today__stat-link:hover .sf-today__stat-label {
+  color: var(--primary);
 }
 
 .sf-today__stat-label {
@@ -124,30 +174,37 @@
 }
 
 .sf-today__stat-value {
-  margin: 0;
   font-size: var(--fs-20);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .sf-today__stat-hint {
-  margin: 0;
   color: var(--text-muted);
   font-size: var(--fs-13);
 }
 
 .sf-today__skeleton {
   display: grid;
-  gap: var(--sp-8);
+  gap: var(--sp-2);
+}
+
+@media (max-width: 1279px) {
+  .sf-today__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sf-today__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 767px) {
-  .sf-today__card {
-    grid-template-columns: auto minmax(0, 1fr);
+  .sf-today__cards {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .sf-today__card-action {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
+  .sf-today__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

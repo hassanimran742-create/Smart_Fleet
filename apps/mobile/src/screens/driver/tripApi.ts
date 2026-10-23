@@ -1,8 +1,9 @@
 import type { AxiosResponse } from 'axios';
-import type { QueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient, type UseMutationResult } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import type { DeliveryFailureReason } from '@smartfleet/shared-types';
 import { api } from '../../api/client';
+import type { ApiError } from '../../api/errors';
 import { qk } from '../../api/keys';
 import { VAN_LOAD_QUERY_KEY } from '../../components/VehicleLoad';
 import type { TripOrder, TripStop, TripView } from './tripModel';
@@ -43,9 +44,35 @@ export async function fetchTrip(tripId: string): Promise<TripView> {
   return data;
 }
 
-/** `PATCH /trips/:id/status`: the driver starts (IN_PROGRESS) or finishes (COMPLETED) the trip. */
-export function setTripStatus(tripId: string, status: 'IN_PROGRESS' | 'COMPLETED'): Promise<ActionResult<Partial<TripView>>> {
-  return action(api.patch<Partial<TripView>>(`/trips/${tripId}/status`, { status }));
+/** `PATCH /trips/:id/status IN_PROGRESS`: "Start trip". A repeat answers `X-Already-Applied`. */
+export function startTrip(tripId: string): Promise<ActionResult<Partial<TripView>>> {
+  return action(api.patch<Partial<TripView>>(`/trips/${tripId}/status`, { status: 'IN_PROGRESS' }));
+}
+
+/**
+ * `PATCH /trips/:id/status COMPLETED`: "Finish trip". `leftoverReason` is sent as `reason` only when
+ * the driver picked one on the leftovers sheet: from Inc 2 this route maps to the finish, with
+ * `reason` as the trip's `leftoverReason` (API_CONTRACT §9.3); the Inc 1 server ignores it.
+ */
+export function finishTrip(tripId: string, leftoverReason?: string): Promise<ActionResult<Partial<TripView>>> {
+  const body = leftoverReason ? { status: 'COMPLETED', reason: leftoverReason } : { status: 'COMPLETED' };
+  return action(api.patch<Partial<TripView>>(`/trips/${tripId}/status`, body));
+}
+
+/**
+ * "Start trip" (Today and Trip): starts the trip, then loads it fresh, so the caller opens its first
+ * step at once. A failure stays on the mutation for the footer's action line.
+ */
+export function useStartTrip(onStarted: (trip: TripView) => void): UseMutationResult<TripView, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<TripView, ApiError, string>({
+    mutationFn: async (tripId) => {
+      await startTrip(tripId);
+      void queryClient.invalidateQueries({ queryKey: qk.driver.trips });
+      return queryClient.fetchQuery({ queryKey: qk.trip(tripId), queryFn: () => fetchTrip(tripId), staleTime: 0 });
+    },
+    onSuccess: (trip) => onStarted(trip),
+  });
 }
 
 /** `PATCH /trips/stops/:id/arrive`. */
@@ -130,7 +157,10 @@ export function withStop(trip: TripView | undefined, stop: Partial<TripStop> | n
 }
 
 /** Lays an order answer (delivered, could not deliver) over the cached trip. */
-export function withOrder(trip: TripView | undefined, order: Partial<TripOrder> | null | undefined): TripView | undefined {
+export function withOrder(
+  trip: TripView | undefined,
+  order: Partial<TripOrder> | null | undefined,
+): TripView | undefined {
   if (!trip || !order?.id || typeof order.status !== 'string') return trip;
   const status = order.status;
   return {
@@ -145,6 +175,13 @@ export async function refreshTrip(client: QueryClient, tripId: string): Promise<
     client.invalidateQueries({ queryKey: qk.trip(tripId) }),
     client.invalidateQueries({ queryKey: qk.driver.trips }),
   ]);
+}
+
+/** After the trip finished: the trip, the list (Today's "Done today") and the van. */
+export function refreshAfterFinish(client: QueryClient, tripId: string): void {
+  void client.invalidateQueries({ queryKey: qk.trip(tripId) });
+  void client.invalidateQueries({ queryKey: qk.driver.trips });
+  void client.invalidateQueries({ queryKey: VAN_LOAD_QUERY_KEY });
 }
 
 /** After a scan: the trip (load stamps, order steps) and the van's load. */

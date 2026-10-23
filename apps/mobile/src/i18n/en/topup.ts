@@ -1,9 +1,9 @@
 /**
- * `topup.*` copy: the Add money flow and top-up reasons (UX_MOBILE §4 S3 to S6).
+ * `topup.*` copy: the Add money flow and top-up reasons (UX_MOBILE §4 S3 to S6; shop spec §F to §I).
  * Owned by the mobile-distributor lane.
  *
- * Amounts are passed in already formatted by formatRs ("Rs 5,000"); checking hours are the office's
- * "HH:mm" settings, shown as they are ("09:00").
+ * Amounts are passed in already formatted by formatRs ("Rs 5,000"); checking hours by `formatClock`
+ * from shared-utils ("9 am", "9:30 pm"), never "09:00–21:00".
  */
 export const topup = {
   flowTitle: 'Add money',
@@ -11,11 +11,14 @@ export const topup = {
   /** S3 Amount. */
   amount: {
     title: 'How much do you want to add?',
-    label: 'Amount',
-    limits: 'Minimum {{min}} · Maximum {{max}}',
+    /** The last amount chip, and the label of the field it opens. */
+    other: 'Other amount',
+    /** The Other-amount field's helper. */
+    limits: '{{min}} to {{max}}',
     tooLow: 'The minimum is {{min}}',
-    tooHigh: 'The maximum is {{max}} per top-up. Make two top-ups for more.',
-    pending: 'You have {{amount}} being checked. You can still add more.',
+    tooHigh: 'Up to {{max}} per top-up. Send two for more.',
+    pick: 'Pick an amount.',
+    hours: 'Money is checked {{from}} to {{to}}.',
   },
 
   /** `PayerChannel`: how the shop paid. */
@@ -27,43 +30,45 @@ export const topup = {
 
   /** S4 How to pay. */
   howToPay: {
-    title: 'How to pay',
+    title: 'Pay {{amount}}',
+    /** The channel segment's screen-reader label. */
     payWith: 'Pay with',
     easypaisa: 'Easypaisa',
     bankApp: 'Bank app',
-    accountName: 'Account name',
-    bank: 'Bank',
-    iban: 'IBAN',
-    amount: 'Amount',
+    checkName: 'Check this name before sending.',
     copyIban: 'Copy IBAN',
+    /** The copy icon beside the title (screen readers). */
     copyAmount: 'Copy amount',
     copied: 'Copied',
-    stepsTitle: 'Steps',
-    ep1: 'Open Easypaisa and tap Bank Transfer',
-    ep2: 'Choose the bank and paste the IBAN',
-    ep3: 'Enter {{amount}}. Any purpose is fine',
-    ep4: 'Send it, then take a screenshot',
-    bank1: 'Open your bank app and choose Transfer (Raast or IBFT)',
-    bank2: 'Paste the IBAN',
-    bank3: 'Enter {{amount}}',
-    bank4: 'Send it, then take a screenshot',
-    stepNumber: '{{number}}.',
-    warning: 'The account name must be {{accountName}}. We never send account numbers on WhatsApp.',
-    hours: 'Money is checked {{from}}–{{to}}. Send before {{to}} to use it today.',
-    paid: 'I have paid',
+    /** The path in Easypaisa: "Bank Transfer › {{bank}} › Paste IBAN". */
+    ep: {
+      transfer: 'Bank Transfer',
+      bank: '{{bank}}',
+    },
+    /** The path in a bank app: "Transfer › Paste IBAN". */
+    app: {
+      transfer: 'Transfer',
+    },
+    pasteIban: 'Paste IBAN',
+    noWhatsApp: 'We never send account numbers on WhatsApp.',
+    paid: "I've paid",
   },
 
-  /** S5 Tell us you paid. */
+  /** S5 Tell us you paid. The amount and channel come from steps 1 and 2. */
   tellUs: {
     title: 'Tell us you paid',
-    amount: 'Amount sent',
-    payerName: 'Paid from (name on the account)',
-    payerNameHelp: 'The name your bank or Easypaisa shows for you',
-    payerNameRequired: 'Write the name on the account you paid from.',
-    channel: 'Paid with',
+    summary: '{{amount}} · {{channel}}',
+    payerName: 'Name on the account',
+    /** The name field's helper follows the channel picked on step 2. */
+    payerNameHelp: {
+      EASYPAISA_APP: 'As Easypaisa shows it.',
+      BANK_APP: 'As your bank app shows it.',
+    },
+    payerNameRequired: 'Write the name on the account.',
     txnId: 'Transaction ID',
-    txnIdHelp: 'If you have it',
+    txnIdInvalid: 'Use letters, numbers and dashes only.',
     screenshot: 'Add screenshot',
+    /** The screenshot tile's screen-reader hint. */
     screenshotHelp: 'Helps us find it faster',
     screenshotUploading: 'Uploading…',
     screenshotAdded: 'Screenshot added',
@@ -72,7 +77,8 @@ export const topup = {
     submit: 'Send for checking',
     sending: 'Sending…',
     sent: 'Sent for checking',
-    notSent: "Not sent. Check your internet and tap Send again. You won't be added twice.",
+    /** The footer line when the request got no answer (UX_MOBILE S5). */
+    notSent: "Not sent. Tap again. It won't be sent twice.",
   },
 
   /** S6 Status. */
@@ -81,25 +87,24 @@ export const topup = {
     titleLoading: 'Top-up',
     sent: 'Sent',
     beingChecked: 'Being checked',
-    usually: 'Usually within 1 hour, {{from}}–{{to}}',
+    usually: 'Usually within 1 hour, {{from}} to {{to}}',
     startsAt: 'Checking starts at {{from}}.',
     addedStep: 'Added to your balance',
-    added: '{{amount}} added. Balance now: {{balance}}',
-    addedNoBalance: '{{amount}} added to your balance.',
-    addedDifferent: '{{credited}} added (you told us {{amount}}). Call the office if this is wrong.',
-    balanceNow: 'Balance now: {{balance}}',
-    notAdded: 'Not added',
+    balanceNow: 'Balance now',
+    addedAt: 'Added {{when}}',
+    addedDifferent: 'You told us {{amount}}. Call office if this is wrong.',
     officeNote: 'The office wrote: “{{note}}”',
     backHome: 'Back to home',
-    tryAgain: 'Try again',
+    /** A top-up that wasn't added: opens Tell us you paid, prefilled. */
+    tellAgain: 'Tell us again',
     notFound: "We couldn't find this top-up.",
   },
 
-  /** `TopupRejectReason` (API_CONTRACT §1.5). */
+  /** `TopupRejectReason` (API_CONTRACT §1.5). NAME_DIFFERENT matches the website's reject preview. */
   reason: {
     NOT_IN_BANK: "We can't see this payment in our bank yet.",
     AMOUNT_DIFFERENT: 'The amount in our bank is different.',
-    NAME_DIFFERENT: "The payer name doesn't match our bank.",
+    NAME_DIFFERENT: "The name on the account doesn't match our bank.",
     DUPLICATE: 'This payment was already used for another top-up.',
     OTHER: "The office couldn't approve it.",
   },

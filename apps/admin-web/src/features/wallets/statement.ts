@@ -59,8 +59,12 @@ export function historyWords(item: StatementItem): string {
       if (no && ref) return t('wallets:history.rows.topup', { no, ref });
       return no ? t('wallets:history.rows.topupNoRef', { no }) : t('wallets:history.rows.topupBare');
     }
-    case 'DELIVERY_COST':
+    case 'DELIVERY_COST': {
+      // "Delivery cost · AG-0008 · Usman": the customer tells look-alike rows apart (website spec W13).
+      const customer = item.subject?.clientName?.trim() || null;
+      if (no && customer) return t('wallets:history.rows.deliveryCostCustomer', { no, customer });
       return no ? t('wallets:history.rows.deliveryCost', { no }) : t('wallets:history.rows.deliveryCostBare');
+    }
     case 'DELIVERY_COST_RETURNED':
       return no ? t('wallets:history.rows.returned', { no }) : t('wallets:history.rows.returnedBare');
     case 'CORRECTION': {
@@ -76,6 +80,15 @@ export function historyWords(item: StatementItem): string {
     default:
       return t('wallets:history.rows.legacy');
   }
+}
+
+/** The record a history row opens: its top-up or its order (refill rows don't open, W13). */
+export type HistoryTarget = { kind: 'TOPUP' | 'ORDER'; id: string };
+
+export function historyTarget(item: StatementItem): HistoryTarget | null {
+  const subject = item.subject;
+  if (!subject?.id) return null;
+  return subject.type === 'TOPUP' || subject.type === 'ORDER' ? { kind: subject.type, id: subject.id } : null;
 }
 
 // ---- The CSV statement ------------------------------------------------------------------------------

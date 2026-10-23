@@ -232,7 +232,7 @@ describeDb('drivers: profiles and the office controls', () => {
     await http(app).delete(`/api/v1/drivers/${std.DR2.id}`).set(office()).send({ reason: 'Left the company' }).expect(200);
     // Step 4.
     const refused = await http(app).post(`/api/v1/orders/${x2.body.id}/assign-driver`).set(office()).send({ driverId: std.DR2.id }).expect(409);
-    expect(refused.body).toMatchObject({ code: 'ASSIGN_DRIVER_NOT_AVAILABLE', message: "Imran can't take jobs right now." });
+    expect(refused.body).toMatchObject({ code: 'ASSIGN_DRIVER_NOT_AVAILABLE', message: "Imran can't take trips right now." });
     expect((await db().order.findUniqueOrThrow({ where: { id: x2.body.id } })).status).toBe('PENDING');
     // Step 5.
     await http(app).patch(`/api/v1/drivers/${std.DR2.id}/reactivate`).set(office()).send({ reason: 'Back at work' }).expect(200);

@@ -1,7 +1,7 @@
 /*
  * The Orders board, the order drawer and its dialogs (UX_ADMIN §2.5), plus the small "More" menu the
- * distributor page reuses. Tokens only and logical properties: the page works at 1024×768 and
- * 768×1024 and a right-to-left language later is a `dir` switch.
+ * distributor page and the legacy screens reuse. Tokens only and logical properties: the page works at
+ * 1024×768 and 768×1024 and a right-to-left language later is a `dir` switch.
  */
 
 /* ---------- "More" menu ---------- */
@@ -22,7 +22,6 @@
   border-radius: var(--r-md);
   background: var(--surface);
   box-shadow: var(--shadow-2);
-  animation: sf-fade-in var(--dur-fast) ease-out;
 }
 
 .sf-more__menu:focus {
@@ -67,6 +66,12 @@
   color: var(--danger-fg);
 }
 
+.sf-more__divider {
+  block-size: 1px;
+  margin: var(--sp-1) var(--sp-2);
+  background: var(--border);
+}
+
 .sf-more__label {
   font-weight: 600;
 }
@@ -81,23 +86,19 @@
   overflow-y: hidden;
 }
 
-.sf-orders__filters .sf-field {
-  min-inline-size: 200px;
-}
-
 .sf-orders__filters .sf-search {
   flex: 1 1 280px;
   max-inline-size: 420px;
 }
 
-.sf-orders__no {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  white-space: nowrap;
+.sf-orders__distributor {
+  flex: 0 1 260px;
+  min-inline-size: 200px;
 }
 
 .sf-orders__two-line {
   display: grid;
+  justify-items: start;
   gap: 2px;
   min-inline-size: 0;
 }
@@ -117,6 +118,15 @@
 }
 
 /* ---------- Drawer ---------- */
+/* The outcome line is the first thing in the body, only when it applies. */
+.sf-order__outcome:empty {
+  display: none;
+}
+
+.sf-order__outcome {
+  margin-block-end: var(--sp-4);
+}
+
 .sf-order__section {
   display: grid;
   gap: var(--sp-2);
@@ -124,12 +134,9 @@
   border-block-end: 1px solid var(--border);
 }
 
-.sf-order__section:first-child {
+.sf-order__outcome + .sf-order__section,
+.sf-order__outcome:empty + .sf-order__section {
   padding-block-start: 0;
-}
-
-.sf-order__section:last-child {
-  border-block-end: 0;
 }
 
 .sf-order__section-title {
@@ -157,9 +164,9 @@
   list-style: none;
 }
 
-.sf-order__warning {
-  color: var(--danger-fg);
-  font-weight: 600;
+.sf-order__cost {
+  max-inline-size: 360px;
+  margin-block-end: 0;
 }
 
 .sf-order__skeleton {
@@ -173,42 +180,51 @@
   gap: var(--sp-4);
 }
 
+.sf-order-dialog .sf-field {
+  margin-block-end: 0;
+}
+
+/* The note is two rows high: a short "who asked, and why". */
+.sf-order-dialog .sf-textarea {
+  min-block-size: 64px;
+}
+
 .sf-order-dialog__body {
   font-size: var(--fs-14);
 }
 
-.sf-order-dialog__body.is-danger {
-  color: var(--danger-fg);
-  font-weight: 600;
+/* The facts before a decision: one line each, with its icon. */
+.sf-order-dialog__facts {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.sf-order-dialog__summary {
+.sf-order-dialog__fact {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+.sf-order-dialog__fact svg {
+  margin-block-start: 3px;
   color: var(--text-muted);
 }
 
-.sf-order-dialog__start {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-4);
-  border-radius: var(--r-md);
-  background: var(--surface-2);
+/* The assign dialog's muted lines: who, what and where, and where the trip starts. */
+.sf-order-dialog__lines {
+  display: grid;
+  gap: 2px;
+  color: var(--text-muted);
 }
 
-.sf-order-dialog__start-hint {
-  flex-basis: 100%;
+.sf-order-dialog__note {
   color: var(--text-muted);
   font-size: var(--fs-13);
 }
 
 .sf-order-dialog__drivers {
   padding: 2px;
-}
-
-.sf-order-dialog__meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--sp-1);
 }

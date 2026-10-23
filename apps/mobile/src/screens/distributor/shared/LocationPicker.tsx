@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import MapView, { Marker, type MapPressEvent, type MarkerDragStartEndEvent } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Button, colors, Field, Icon, layout, radius, sizes, space, Text } from '../../../ui';
-import { CostPanel, roundPin, type CostPanelState, type Pin } from './CostPanel';
+import { CostLine, roundPin, type CostPanelState, type Pin } from './CostPanel';
 import { PLACE_SEARCH_MIN_LENGTH, searchPlaces, type PlaceResult } from './places';
 
 /** Where the map opens when the shop's store isn't known yet: central Lahore. */
@@ -21,31 +21,18 @@ type LocateState = 'idle' | 'locating' | 'denied' | 'failed';
 export interface LocationPickerProps {
   pin: Pin | null;
   onPinChange: (pin: Pin) => void;
-  /** The "House / street" line saved as the address label (1–60 characters). */
-  label: string;
-  onLabelChange: (label: string) => void;
-  labelError?: string | null;
   /** The shop's store, so the map opens where the shop is. */
   center?: Pin | null;
   costState: CostPanelState;
-  purpose: 'customer' | 'address';
 }
 
 /**
- * The delivery spot (UX_MOBILE S8 step 2, reused by New order → Change address): search, or "Use my
- * location" (the location permission is asked on that tap only), the map with a pin to drop and drag,
- * "House / street", and the live cost panel.
+ * The delivery spot (shop spec §M items 3–5; Add customer step 2 and New address): a search box, the
+ * map with "Use my location" over its bottom-end corner (the location permission is asked on that
+ * tap only), a pin to drop and drag, and one line under the map with the result. Typed fields (House
+ * and street) sit on the form, not here.
  */
-export function LocationPicker({
-  pin,
-  onPinChange,
-  label,
-  onLabelChange,
-  labelError,
-  center,
-  costState,
-  purpose,
-}: LocationPickerProps) {
+export function LocationPicker({ pin, onPinChange, center, costState }: LocationPickerProps) {
   const { t } = useTranslation();
   const mapRef = useRef<MapView>(null);
   const [query, setQuery] = useState('');
@@ -71,6 +58,11 @@ export function LocationPicker({
       400,
     );
   }, [centerLat, centerLng, hasPin]);
+
+  // A pin on the map answers a "Use my location" that didn't work.
+  useEffect(() => {
+    if (hasPin) setLocate((current) => (current === 'denied' || current === 'failed' ? 'idle' : current));
+  }, [hasPin, pin?.lat, pin?.lng]);
 
   // Debounced place search; only the newest answer is shown.
   useEffect(() => {
@@ -140,10 +132,17 @@ export function LocationPicker({
     }
   };
 
+  const locateError =
+    locate === 'denied'
+      ? t('customers.location.locationDenied')
+      : locate === 'failed'
+        ? t('customers.location.locationFailed')
+        : null;
+
   return (
     <View style={styles.wrap}>
       <Field
-        label={t('customers.location.search')}
+        leadingIcon="search"
         value={query}
         onChangeText={setQuery}
         placeholder={t('customers.location.searchPlaceholder')}
@@ -175,57 +174,47 @@ export function LocationPicker({
         </View>
       ) : null}
 
-      <Button
-        label={t('customers.location.useMyLocation')}
-        onPress={() => void locateMe()}
-        icon="navigate"
-        variant="secondary"
-        loading={locate === 'locating'}
-        loadingLabel={t('customers.location.locating')}
-      />
-      {locate === 'denied' ? <Text tone="danger">{t('customers.location.locationDenied')}</Text> : null}
-      {locate === 'failed' ? <Text tone="danger">{t('customers.location.locationFailed')}</Text> : null}
-
-      <Text variant="caption" tone="secondary">
-        {t('customers.location.mapHint')}
-      </Text>
-      <View style={styles.map} accessible accessibilityLabel={t('customers.location.mapA11y')}>
-        <MapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFill}
-          initialRegion={initialRegion}
-          toolbarEnabled={false}
-          onPress={(event: MapPressEvent) => {
-            const { latitude, longitude } = event.nativeEvent.coordinate;
-            onPinChange(roundPin({ lat: latitude, lng: longitude }));
-          }}
-        >
-          {pin ? (
-            <Marker
-              coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-              title={t('customers.location.pin')}
-              pinColor={colors.brand}
-              draggable
-              onDragEnd={(event: MarkerDragStartEndEvent) => {
-                const { latitude, longitude } = event.nativeEvent.coordinate;
-                onPinChange(roundPin({ lat: latitude, lng: longitude }));
-              }}
-            />
-          ) : null}
-        </MapView>
+      <View style={styles.map}>
+        <View style={StyleSheet.absoluteFill} accessible accessibilityLabel={t('customers.location.mapA11y')}>
+          <MapView
+            ref={mapRef}
+            style={StyleSheet.absoluteFill}
+            initialRegion={initialRegion}
+            toolbarEnabled={false}
+            onPress={(event: MapPressEvent) => {
+              const { latitude, longitude } = event.nativeEvent.coordinate;
+              onPinChange(roundPin({ lat: latitude, lng: longitude }));
+            }}
+          >
+            {pin ? (
+              <Marker
+                coordinate={{ latitude: pin.lat, longitude: pin.lng }}
+                title={t('customers.location.pin')}
+                pinColor={colors.brand}
+                draggable
+                onDragEnd={(event: MarkerDragStartEndEvent) => {
+                  const { latitude, longitude } = event.nativeEvent.coordinate;
+                  onPinChange(roundPin({ lat: latitude, lng: longitude }));
+                }}
+              />
+            ) : null}
+          </MapView>
+        </View>
+        <View style={styles.locate} pointerEvents="box-none">
+          <Button
+            label={t('customers.location.useMyLocation')}
+            onPress={() => void locateMe()}
+            icon="navigate"
+            variant="secondary"
+            fullWidth={false}
+            loading={locate === 'locating'}
+            loadingLabel={t('customers.location.locating')}
+            style={styles.locateButton}
+          />
+        </View>
       </View>
 
-      <Field
-        label={t('customers.location.house')}
-        value={label}
-        onChangeText={onLabelChange}
-        placeholder={t('customers.location.housePlaceholder')}
-        autoCapitalize="words"
-        maxLength={60}
-        error={labelError}
-      />
-
-      <CostPanel state={costState} purpose={purpose} />
+      <CostLine state={costState} locateError={locateError} />
     </View>
   );
 }
@@ -257,4 +246,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.sunken,
   },
+  // "Use my location" over the map's bottom-end corner, 8 dp in.
+  locate: { position: 'absolute', bottom: space.sm, end: space.sm, start: space.sm },
+  // A hugging Button aligns itself to the start; this one belongs at the end.
+  locateButton: { alignSelf: 'flex-end' },
 });

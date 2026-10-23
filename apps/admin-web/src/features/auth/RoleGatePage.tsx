@@ -6,8 +6,9 @@ import { useSignedOutTitle } from './LoginPage';
 
 /**
  * The full page a saved session of any role but SUPER_ADMIN sees (UX_ADMIN §2.10): "This website is
- * for office staff. Drivers and distributors use the Smart Fleet app." with Sign out. It is only a
- * fallback: the server refuses those accounts at sign-in (`AUTH_WRONG_APP`, `AUTH_ROLE_LOCKED`).
+ * for office staff. Drivers and distributors use the Smart Fleet app on their phone." with Sign out
+ * (website spec W02; the words are `common:roleGate`). It is only a fallback: the server refuses those
+ * accounts at sign-in (`AUTH_WRONG_APP`, `AUTH_ROLE_LOCKED`).
  */
 export function RoleGatePage() {
   const { t } = useTranslation('auth');

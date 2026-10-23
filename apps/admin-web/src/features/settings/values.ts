@@ -1,6 +1,7 @@
 import { SETTING_KEYS, type SettingKey } from '@smartfleet/shared-types';
+import { formatClock } from '@smartfleet/shared-utils';
 import i18n from '../../i18n';
-import { formatRs } from '../../i18n/format';
+import { formatPhone, formatRs } from '../../i18n/format';
 
 /**
  * Settings in plain words (UX_ADMIN §2.8, §2.9): the label of every key and its value as people read it,
@@ -35,10 +36,22 @@ const textOrNotSet: Formatter = (value) => {
 
 const plainText: Formatter = (value) => (typeof value === 'string' ? value : null);
 
+/** "+92 300 1234567", or "Not set". */
+const phoneOrNotSet: Formatter = (value) => {
+  if (value === null) return i18n.t('settings:values.notSet');
+  return typeof value === 'string' ? formatPhone(value) : null;
+};
+
+/** A local "HH:mm" time in words: "3 am" (`formatClock`). */
+const clock: Formatter = (value) => (typeof value === 'string' ? formatClock(value) : null);
+
+/** "9 am–9 pm". */
 const hours: Formatter = (value) => {
   if (typeof value !== 'object' || value === null) return null;
   const { from, to } = value as { from?: unknown; to?: unknown };
-  return typeof from === 'string' && typeof to === 'string' ? i18n.t('settings:values.hours', { from, to }) : null;
+  return typeof from === 'string' && typeof to === 'string'
+    ? i18n.t('settings:values.hours', { from: formatClock(from), to: formatClock(to) })
+    : null;
 };
 
 const moneyList: Formatter = (value) => {
@@ -85,11 +98,11 @@ const FORMATTERS: { readonly [K in SettingKey]: Formatter } = {
   'topup.secondApproval': notShown,
   'refill.maxCylinders': wholeNumber,
   'refill.deliveryCost': notShown,
-  'support.phone': textOrNotSet,
-  'support.whatsApp': textOrNotSet,
+  'support.phone': phoneOrNotSet,
+  'support.whatsApp': phoneOrNotSet,
   'support.hours': textOrNotSet,
   'day.timezone': plainText,
-  'day.cutoffLocalTime': plainText,
+  'day.cutoffLocalTime': clock,
   'confirmation.enabled': onOff,
   'confirmation.linkTtlHours': wholeNumber,
   'confirmation.caseOnAnswers': notShown,

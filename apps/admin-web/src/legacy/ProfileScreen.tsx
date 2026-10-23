@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { LoginResponse } from '@smartfleet/shared-types';
+import { PASSWORD_MIN_LENGTH } from '@smartfleet/shared-validation';
 import { api } from '../api/client';
 import { messageFor, toApiError } from '../api/errors';
 import { translateDynamic } from '../i18n';
 import { formatPhone } from '../i18n/format';
 import { useAuthStore } from '../store/auth';
-import { useToast } from '../ui';
+import { Button, ErrorState, Field, InlineAlert, PageHeader, SkeletonText, TextInput, ToggleChip, useToast } from '../ui';
+import { useLegacyT } from './i18n';
+import './legacy.css';
 
 /**
  * The office user's own profile and password ("My profile"), kept inside the shell for Inc 1 (UX_ADMIN
- * §1.2). Touched for the Inc 1 API (API_CONTRACT §7.1, §7.2):
- * - `PATCH /users/me` changes only the name and email; the sign-in phone is shown, not edited (a body
- *   naming the phone or CNIC is refused whole), and no CNIC is shown at all;
+ * §1.2). Light pass (website spec W49): two cards, one form each; their buttons stay enabled and say
+ * what is missing; one "Show passwords" chip for the three boxes; the tech team, never "engineering".
+ * The API rules stay (API_CONTRACT §7.1, §7.2):
+ * - `PATCH /users/me` changes only the name and email; the sign-in phone is shown, not edited, and no
+ *   CNIC is shown at all;
  * - `POST /auth/change-password` ends every other session and returns new tokens, which this screen
- *   keeps, so the person stays signed in here;
- * - the role in words, and failures in the catalogue's words.
+ *   keeps, so the person stays signed in here.
  */
 interface Me {
   name: string | null;
@@ -24,180 +28,194 @@ interface Me {
 }
 
 export function ProfileScreen() {
-  const qc = useQueryClient();
-  const toast = useToast();
+  const lt = useLegacyT();
   const role = useAuthStore((s) => s.role);
   const roleWords = (role && translateDynamic(`common:roleName.${role}`)) || '';
+  const me = useQuery({ queryKey: ['me'], queryFn: async () => (await api.get<Me>('/users/me')).data });
 
-  const me = useQuery({
-    queryKey: ['me'],
-    queryFn: async () => (await api.get<Me>('/users/me')).data,
-  });
+  return (
+    <div className="sf-legacy-page">
+      <PageHeader title={lt('profile.title')} subtitle={roleWords ? lt('profile.signedInAs', { role: roleWords }) : undefined} />
+      <div className="sf-legacy-cards">
+        {me.isPending ? (
+          <section className="sf-legacy-card">
+            <SkeletonText lines={4} />
+          </section>
+        ) : me.isError || !me.data ? (
+          <section className="sf-legacy-card">
+            <ErrorState compact error={me.error} title={lt('profile.loadFailed')} onRetry={() => void me.refetch()} retrying={me.isFetching} />
+          </section>
+        ) : (
+          <ProfileCard me={me.data} />
+        )}
+        <PasswordCard />
+      </div>
+    </div>
+  );
+}
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [profileErr, setProfileErr] = useState<string | null>(null);
+function ProfileCard({ me }: { me: Me }) {
+  const lt = useLegacyT();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [name, setName] = useState(me.name ?? '');
+  const [email, setEmail] = useState(me.email ?? '');
+  const [pressed, setPressed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!me.data) return;
-    setName(me.data.name ?? '');
-    setEmail(me.data.email ?? '');
-  }, [me.data]);
+    setName(me.name ?? '');
+    setEmail(me.email ?? '');
+  }, [me.name, me.email]);
 
-  const saveProfile = useMutation({
+  const save = useMutation({
     mutationFn: () => api.patch('/users/me', { name: name.trim(), email: email.trim() || null }).then((r) => r.data),
     onSuccess: () => {
-      setProfileErr(null);
-      toast.success('Profile saved.');
+      setError(null);
+      toast.success(lt('profile.savedToast'));
       void qc.invalidateQueries({ queryKey: ['me'] });
     },
-    onError: (e) => setProfileErr(messageFor(e)),
+    onError: (e) => setError(messageFor(e)),
   });
 
-  const [currentPwd, setCurrentPwd] = useState('');
-  const [newPwd, setNewPwd] = useState('');
-  const [newPwd2, setNewPwd2] = useState('');
-  const [showNew, setShowNew] = useState(false);
-  const [pwdErr, setPwdErr] = useState<string | null>(null);
+  const submit = () => {
+    if (save.isPending) return;
+    if (!name.trim()) {
+      setPressed(true);
+      return;
+    }
+    if (name.trim() === (me.name ?? '') && email.trim() === (me.email ?? '')) return;
+    save.mutate();
+  };
 
-  const changePwd = useMutation({
-    mutationFn: () =>
-      api.post<LoginResponse>('/auth/change-password', { currentPassword: currentPwd, newPassword: newPwd }).then((r) => r.data),
+  return (
+    <section className="sf-legacy-card" aria-labelledby="profile-card">
+      <h2 id="profile-card" className="sf-legacy-card__title">
+        {lt('profile.profile')}
+      </h2>
+      <form
+        className="sf-legacy-form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <Field label={lt('profile.name')} error={pressed && !name.trim() ? lt('profile.nameMissing') : null}>
+          <TextInput value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
+        </Field>
+        <Field label={lt('profile.email')} optional>
+          <TextInput type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+        </Field>
+        <div className="sf-legacy-form__fact">
+          <span className="sf-field__label">{lt('profile.phone')}</span>
+          <span className="sf-legacy__strong">{formatPhone(me.phone)}</span>
+          <span className="sf-legacy__muted">{lt('profile.phoneHint')}</span>
+        </div>
+        {error ? (
+          <InlineAlert tone="danger" live>
+            {error}
+          </InlineAlert>
+        ) : null}
+        <div>
+          <Button type="submit" variant="primary" loading={save.isPending}>
+            {lt('profile.save')}
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function PasswordCard() {
+  const lt = useLegacyT();
+  const toast = useToast();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [again, setAgain] = useState('');
+  const [show, setShow] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [wrongCurrent, setWrongCurrent] = useState(false);
+
+  const change = useMutation({
+    mutationFn: () => api.post<LoginResponse>('/auth/change-password', { currentPassword: current, newPassword: next }).then((r) => r.data),
     onSuccess: (session) => {
       // The change ends every other session; keep this one going with the new tokens.
       useAuthStore.getState().setTokens({ token: session.accessToken, refreshToken: session.refreshToken, role: session.role });
-      setPwdErr(null);
-      setCurrentPwd('');
-      setNewPwd('');
-      setNewPwd2('');
-      toast.success('Password changed. Use the new one next time you sign in.');
+      setError(null);
+      setPressed(false);
+      setCurrent('');
+      setNext('');
+      setAgain('');
+      toast.success(lt('profile.passwordToast'));
     },
     onError: (e) => {
-      const wrongCurrent = toApiError(e).fields.some((field) => field.path === 'currentPassword');
-      setPwdErr(wrongCurrent ? "Your current password isn't right." : messageFor(e));
+      const wrong = toApiError(e).fields.some((field) => field.path === 'currentPassword');
+      setWrongCurrent(wrong);
+      setError(wrong ? null : messageFor(e));
     },
   });
 
-  const passwordsMatch = newPwd === newPwd2;
-  const canSubmitPwd = currentPwd.length > 0 && newPwd.length >= 8 && passwordsMatch && !changePwd.isPending;
-  const unchanged = me.data ? name.trim() === (me.data.name ?? '') && email.trim() === (me.data.email ?? '') : true;
+  const currentError = !current ? lt('profile.currentMissing') : wrongCurrent ? lt('profile.currentWrong') : null;
+  const nextError = next.length < PASSWORD_MIN_LENGTH ? lt('profile.tooShort') : null;
+  const againError = next !== again ? lt('profile.mismatch') : null;
 
+  const submit = () => {
+    if (change.isPending) return;
+    if (!current || nextError || againError) {
+      setPressed(true);
+      return;
+    }
+    setError(null);
+    setWrongCurrent(false);
+    change.mutate();
+  };
+
+  const type = show ? 'text' : 'password';
   return (
-    <>
-      <h2 style={{ marginBottom: 8 }}>My profile</h2>
-      <p className="muted" style={{ marginBottom: 18 }}>
-        Your name, email and password.{roleWords ? <> You're signed in as <strong>{roleWords}</strong>.</> : null}
-      </p>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0 }}>Profile</h3>
-        {me.isError ? (
-          <>
-            <p style={{ color: 'var(--danger-fg)' }}>{messageFor(me.error)}</p>
-            <button onClick={() => void me.refetch()}>Try again</button>
-          </>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-              <div>
-                <label htmlFor="prof-name">Name</label>
-                <input id="prof-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
-              </div>
-              <div>
-                <label htmlFor="prof-email">
-                  Email <span className="muted">(optional)</span>
-                </label>
-                <input id="prof-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-              </div>
-              <div>
-                <span className="muted" style={{ display: 'block', fontSize: 12 }}>Sign-in mobile number</span>
-                <p style={{ margin: '6px 0 0', fontWeight: 600 }}>{me.data ? formatPhone(me.data.phone) : '…'}</p>
-                <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>Engineering changes this number if it ever needs to change.</p>
-              </div>
-            </div>
-
-            {profileErr && <p style={{ color: 'var(--danger-fg)', marginTop: 12 }}>{profileErr}</p>}
-
-            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                className="primary"
-                disabled={saveProfile.isPending || !name.trim() || unchanged}
-                onClick={() => saveProfile.mutate()}
-              >
-                {saveProfile.isPending ? 'Saving…' : 'Save profile'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Change password</h3>
-        <p className="muted" style={{ marginTop: 0 }}>
-          Changing it signs you out everywhere else. If you forget it, ask engineering to set a new one.
-        </p>
-
-        <label htmlFor="pwd-curr">Current password</label>
-        <input
-          id="pwd-curr"
-          type="password"
-          autoComplete="current-password"
-          value={currentPwd}
-          onChange={(e) => setCurrentPwd(e.target.value)}
-        />
-
-        <label htmlFor="pwd-new">New password (at least 8 characters)</label>
-        <div style={{ position: 'relative' }}>
-          <input
-            id="pwd-new"
-            type={showNew ? 'text' : 'password'}
-            autoComplete="new-password"
-            value={newPwd}
-            onChange={(e) => setNewPwd(e.target.value)}
-            style={{ paddingRight: 56 }}
-          />
-          <button
-            type="button"
-            aria-label={showNew ? 'Hide the new password' : 'Show the new password'}
-            aria-pressed={showNew}
-            onClick={() => setShowNew((v) => !v)}
-            style={{
-              position: 'absolute',
-              right: 6,
-              top: 6,
-              bottom: 6,
-              padding: '0 10px',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--primary)',
-              fontSize: 12,
-              cursor: 'pointer',
+    <section className="sf-legacy-card" aria-labelledby="password-card">
+      <h2 id="password-card" className="sf-legacy-card__title">
+        {lt('profile.changePassword')}
+      </h2>
+      <p className="sf-legacy__muted">{lt('profile.passwordHint')}</p>
+      <form
+        className="sf-legacy-form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <Field label={lt('profile.current')} error={pressed || wrongCurrent ? currentError : null}>
+          <TextInput
+            type={type}
+            autoComplete="current-password"
+            value={current}
+            onChange={(event) => {
+              setWrongCurrent(false);
+              setCurrent(event.target.value);
             }}
-          >
-            {showNew ? 'Hide' : 'Show'}
-          </button>
+          />
+        </Field>
+        <Field label={lt('profile.new')} hint={lt('profile.rule')} error={pressed ? nextError : null}>
+          <TextInput type={type} autoComplete="new-password" value={next} onChange={(event) => setNext(event.target.value)} />
+        </Field>
+        <Field label={lt('profile.again')} error={pressed || (again.length > 0 && again.length >= next.length) ? againError : null}>
+          <TextInput type={type} autoComplete="new-password" value={again} onChange={(event) => setAgain(event.target.value)} />
+        </Field>
+        {error ? (
+          <InlineAlert tone="danger" live>
+            {error}
+          </InlineAlert>
+        ) : null}
+        <div className="sf-legacy-form__actions">
+          <ToggleChip label={lt('profile.showPasswords')} pressed={show} onChange={setShow} />
+          <Button type="submit" loading={change.isPending}>
+            {lt('profile.changePassword')}
+          </Button>
         </div>
-
-        <label htmlFor="pwd-new2">Type the new password again</label>
-        <input
-          id="pwd-new2"
-          type={showNew ? 'text' : 'password'}
-          autoComplete="new-password"
-          value={newPwd2}
-          onChange={(e) => setNewPwd2(e.target.value)}
-        />
-        {!passwordsMatch && newPwd2.length > 0 && (
-          <p style={{ color: 'var(--danger-fg)', fontSize: 12, marginTop: 4 }}>The two new passwords don't match.</p>
-        )}
-
-        {pwdErr && <p style={{ color: 'var(--danger-fg)', marginTop: 12 }}>{pwdErr}</p>}
-
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="primary" disabled={!canSubmitPwd} onClick={() => changePwd.mutate()}>
-            {changePwd.isPending ? 'Saving…' : 'Change password'}
-          </button>
-        </div>
-      </div>
-    </>
+      </form>
+    </section>
   );
 }

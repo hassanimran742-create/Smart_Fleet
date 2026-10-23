@@ -78,6 +78,30 @@ export function activityLine(row: AuditLogDto, context: ActivityContext = {}): s
 /** The Why column: the shared rule of `<ActivityList />` (what was typed, or the reason code in words). */
 export { activityWhy };
 
+/** The record a row opens (website spec W40): an order, a top-up, a distributor, or a wallet for its money rows. */
+export type ActivityTarget =
+  | { kind: 'order'; id: string }
+  | { kind: 'topup'; id: string }
+  | { kind: 'distributor'; id: string }
+  | { kind: 'wallet'; id: string };
+
+/** Which record a row is about, from its `resourceType` (the API writes "Order" and "order" alike); null for the rest. */
+export function activityTarget(row: AuditLogDto): ActivityTarget | null {
+  const id = row.resourceId;
+  if (!id) return null;
+  switch (row.resourceType.toLowerCase()) {
+    case 'order':
+      return { kind: 'order', id };
+    case 'payment':
+      return { kind: 'topup', id };
+    case 'distributor':
+      // A wallet correction is written against the distributor: it opens the wallet it changed.
+      return row.action.startsWith('wallet.') ? { kind: 'wallet', id } : { kind: 'distributor', id };
+    default:
+      return null;
+  }
+}
+
 /** The actions behind each "What" filter (UX_ADMIN §2.9), by their prefix. */
 const AREA_PREFIXES: { readonly [A in ActivityArea]: readonly string[] } = {
   money: ['topup.', 'wallet.', 'price.'],

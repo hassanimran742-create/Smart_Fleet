@@ -1,10 +1,12 @@
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { ApiError } from '../api/errors';
+import { useOfficeContact } from '../hooks/useAppConfig';
 import { useFocusedInterval } from '../hooks/useFocusedInterval';
-import { Card, Icon, QueryBoundary, SkeletonCard, Text, colors, space, ltr } from '../ui';
+import { Card, EmptyState, Icon, ListRow, QueryBoundary, SkeletonCard, Text, colors, ltr, radius, space } from '../ui';
 
 /** One size on the van (`GET /inventory/my-vehicle`). */
 export interface VanLoadRow {
@@ -25,9 +27,9 @@ export interface VanLoad {
   noVehicle?: boolean;
 }
 
-/** Shared by Home, My van and the scans (which refresh it after each move). */
+/** Shared by Today, My van, the Trip screen and the scans (which refresh it after each move). */
 export const VAN_LOAD_QUERY_KEY = ['driver', 'vanLoad'] as const;
-/** The counts move while the driver scans, so the card polls while it is on screen. */
+/** The counts move while the driver scans, so the van polls while a screen shows it. */
 const VAN_LOAD_POLL_MS = 10_000;
 
 export async function fetchVanLoad(): Promise<VanLoad> {
@@ -44,89 +46,125 @@ export function useVanLoad(): UseQueryResult<VanLoad, ApiError> {
   });
 }
 
+function hasVan(load: VanLoad): boolean {
+  return !load.noVehicle && Boolean(load.vehicleId);
+}
+
+/** The cylinders on the van, or null while unknown. No van counts as an empty one. */
+export function vanTotal(load: VanLoad | null | undefined): number | null {
+  if (!load) return null;
+  return hasVan(load) ? load.totalFull + load.totalEmpty : 0;
+}
+
 /**
- * The cylinders on the driver's van, full and empty, by size. `compact` is the one-line card on Home;
- * the full card (My van) lists each size. Loading, error-with-retry and stale states come from
- * QueryBoundary; without a van it says "No van is assigned to you. Call the office."
+ * "3 full · 1 empty" with the zeros hidden; "" when both are 0. Each part is a whole phrase, so " · "
+ * is the one join the copy rules allow (driver spec §6).
  */
-export function VehicleLoad({ compact = false }: { compact?: boolean }) {
+export function vanCounts(full: number, empty: number, t: TFunction): string {
+  const parts: string[] = [];
+  if (full > 0) parts.push(t('driver.van.fullCount', { count: full }));
+  if (empty > 0) parts.push(t('driver.van.emptyCount', { count: empty }));
+  return parts.join(' · ');
+}
+
+/**
+ * Today's van row (driver spec D4): the plate and what is on the van, a tap opens My van. While the
+ * van hasn't loaded it is a skeleton; when it can't load it is hidden, because the trips below already
+ * say what is wrong (one message, not two).
+ */
+export function VanRow({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
+  const query = useVanLoad();
+  const load = query.data;
+  if (!load) return query.isError ? null : <SkeletonCard lines={1} />;
+
+  if (!hasVan(load)) {
+    return (
+      <ListRow
+        title={t('driver.van.none')}
+        leadingIcon="van"
+        chevron
+        onPress={onPress}
+        style={styles.row}
+        testID="home.van"
+      />
+    );
+  }
+  const plate = load.plateNo ? ltr(load.plateNo) : t('common.menu.van');
+  const counts = vanCounts(load.totalFull, load.totalEmpty, t) || t('driver.van.noCylinders');
+  return (
+    <ListRow
+      title={plate}
+      subtitle={counts}
+      leadingIcon="van"
+      chevron
+      onPress={onPress}
+      accessibilityLabel={`${t('driver.van.plate', { plate })}, ${counts}`}
+      style={styles.row}
+      testID="home.van"
+    />
+  );
+}
+
+/**
+ * My van (driver spec D15): the plate, the big total and one row per size with its counts at the end,
+ * zeros hidden, in plain text (amber means waiting). Without a van: "No van yet." and Call office.
+ * Loading, the saved strip and errors come from QueryBoundary.
+ */
+export function VehicleLoad() {
+  const { t } = useTranslation();
+  const office = useOfficeContact();
   const query = useVanLoad();
 
   return (
-    <QueryBoundary query={query} skeleton={<SkeletonCard lines={compact ? 1 : 3} />}>
+    <QueryBoundary query={query} skeleton={<SkeletonCard lines={3} />}>
       {(load) => {
-        if (load.noVehicle || !load.vehicleId) {
+        if (!hasVan(load)) {
           return (
-            <Card testID="vanLoad.none">
-              <View style={styles.row}>
-                <Icon name="van" size={32} tone="secondary" />
-                <Text style={styles.fill}>{t('driver.van.none')}</Text>
-              </View>
-            </Card>
-          );
-        }
-
-        const plate = load.plateNo ? t('driver.van.plate', { plate: ltr(load.plateNo) }) : t('driver.van.title');
-        const counts = t('driver.van.counts', { full: load.totalFull, empty: load.totalEmpty });
-
-        if (compact) {
-          return (
-            <Card testID="vanLoad.compact" accessibilityLabel={`${plate}, ${counts}`}>
-              <View style={styles.row}>
-                <Icon name="van" size={32} tone="brand" />
-                <View style={styles.fill}>
-                  <Text variant="bodyStrong">{plate}</Text>
-                  <Text tone="secondary" tabular>
-                    {counts}
-                  </Text>
-                </View>
-              </View>
-            </Card>
+            <EmptyState
+              icon="van"
+              title={t('driver.van.none')}
+              action={
+                office.phone ? { label: t('common.actions.callOffice'), icon: 'call', onPress: office.call } : undefined
+              }
+            />
           );
         }
 
         const total = load.totalFull + load.totalEmpty;
         return (
           <Card testID="vanLoad.full">
-            <View style={styles.header}>
-              <Text variant="title">{plate}</Text>
-              <Text tone="secondary" tabular>
-                {t('driver.van.total', { count: total })}
+            <View style={styles.plateRow}>
+              <Icon name="van" size={32} tone="brand" />
+              <Text variant="title" style={styles.fill}>
+                {load.plateNo ? ltr(load.plateNo) : t('common.menu.van')}
               </Text>
             </View>
-            {load.byType.length === 0 ? (
-              <Text tone="secondary">{t('driver.van.nothing')}</Text>
+            {total === 0 ? (
+              <Text variant="bodyStrong" style={styles.nothing}>
+                {t('driver.van.nothing')}
+              </Text>
             ) : (
-              <View accessibilityRole="list">
-                <View style={[styles.tableRow, styles.tableHead]}>
-                  <Text variant="label" tone="secondary" style={styles.sizeCell}>
-                    {t('driver.van.size')}
+              <>
+                <View style={styles.total} accessible>
+                  <Text variant="display" tabular>
+                    {ltr(String(total))}
                   </Text>
-                  <Text variant="label" tone="secondary" style={styles.countCell} align="right">
-                    {t('driver.van.full')}
-                  </Text>
-                  <Text variant="label" tone="secondary" style={styles.countCell} align="right">
-                    {t('driver.van.empty')}
+                  <Text variant="heading" style={styles.totalWord}>
+                    {t('driver.van.total', { count: total })}
                   </Text>
                 </View>
-                {load.byType.map((row) => (
-                  <View
-                    key={row.cylinderTypeId}
-                    style={styles.tableRow}
-                    accessible
-                    accessibilityLabel={`${row.name}, ${t('driver.van.counts', { full: row.full, empty: row.empty })}`}
-                  >
-                    <Text style={styles.sizeCell}>{row.name}</Text>
-                    <Text variant="bodyStrong" tone="success" tabular style={styles.countCell} align="right">
-                      {row.full}
-                    </Text>
-                    <Text variant="bodyStrong" tone="warning" tabular style={styles.countCell} align="right">
-                      {row.empty}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+                <View accessibilityRole="list">
+                  {load.byType.map((row) => (
+                    <View key={row.cylinderTypeId} style={styles.sizeRow} accessible>
+                      <Text variant="bodyStrong" style={styles.fill}>
+                        {row.name}
+                      </Text>
+                      <Text tabular>{vanCounts(row.full, row.empty, t)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
             )}
           </Card>
         );
@@ -136,18 +174,18 @@ export function VehicleLoad({ compact = false }: { compact?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  row: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   fill: { flex: 1 },
-  header: { gap: space.xs, marginBottom: space.md },
-  tableRow: {
+  plateRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  nothing: { marginTop: space.md },
+  total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: space.sm, marginTop: space.md },
+  totalWord: { flexShrink: 1 },
+  sizeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: space.md,
+    paddingVertical: space.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  tableHead: { paddingTop: 0 },
-  sizeCell: { flex: 2 },
-  countCell: { flex: 1 },
 });

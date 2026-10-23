@@ -22,16 +22,6 @@ export const stages = {
     NONE: 'No delivery cost',
   },
 
-  /**
-   * @deprecated `OrderFeeStatus`, long form. The order detail no longer shows it (shop spec §T):
-   * delete once OrderDetailScreen stops reading it.
-   */
-  feeLong: {
-    DEDUCTED: 'Paid from your wallet',
-    REVERSED: 'Returned to your wallet',
-    NONE: 'No delivery cost',
-  },
-
   /** `PaymentDto.stage`. The NOT_ADDED reason comes from `topup.reason.<TopupRejectReason>`. */
   topup: {
     BEING_CHECKED: 'Being checked',
@@ -39,10 +29,7 @@ export const stages = {
     NOT_ADDED: 'Not added',
   },
 
-  /**
-   * Driver step chips. An order that FAILED is NOT_DELIVERED; a stop or order CANCELLED is CANCELLED.
-   * SKIPPED is the old single state for both: kept only until the driver screens stop sending it.
-   */
+  /** Driver step chips. An order that FAILED is NOT_DELIVERED; a stop or order CANCELLED is CANCELLED. */
   step: {
     TO_DO: 'To do',
     NEXT: 'Next',
@@ -50,8 +37,6 @@ export const stages = {
     DONE: 'Done',
     NOT_DELIVERED: 'Not delivered',
     CANCELLED: 'Cancelled',
-    /** @deprecated Use NOT_DELIVERED or CANCELLED. */
-    SKIPPED: 'Skipped',
   },
 
   /** Customer answer [Inc 2]: a separate chip, never the order stage. */

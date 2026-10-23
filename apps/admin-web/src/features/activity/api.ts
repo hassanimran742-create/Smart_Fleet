@@ -11,7 +11,6 @@ import { qk } from '../../api/keys';
 
 /** The page reads big pages, so a "What" filter fills the screen in few requests. */
 export const ACTIVITY_PAGE_SIZE = 100;
-const RECORD_PAGE_SIZE = 10;
 
 export interface ActivityQuery {
   actorUserId?: UUID;
@@ -46,24 +45,6 @@ export function useActivityLog(query: ActivityQuery) {
       ),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     placeholderData: keepPreviousData,
-  });
-}
-
-/** One record's history (a top-up request), newest first. */
-export function useRecordActivity(resourceType: string, resourceId: string) {
-  return useInfiniteQuery({
-    queryKey: [...qk.activity.all, 'record-lines', resourceType, resourceId] as const,
-    initialPageParam: null as string | null,
-    queryFn: async ({ pageParam, signal }) =>
-      asPage(
-        (
-          await api.get<Page<AuditLogDto> | AuditLogDto[]>('/audit-logs', {
-            params: { resourceType, resourceId, limit: RECORD_PAGE_SIZE, cursor: pageParam ?? undefined },
-            signal,
-          })
-        ).data,
-      ),
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
 }
 

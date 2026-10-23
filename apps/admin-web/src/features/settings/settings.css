@@ -1,7 +1,7 @@
 /*
- * Settings (UX_ADMIN §2.8): a local menu at 1024 px and up, a Select below that, rows of label,
- * description, control and "Changed … by …", and a sticky bar for unsaved changes. Tokens only and
- * logical properties, so the page works at 1024×768 and 768×1024.
+ * Settings (website spec W38): a local menu at 1024 px and up, a Select below that, rows of label,
+ * description, control and "Changed … by …" (or "Not saved"), and a sticky bar for unsaved changes.
+ * Tokens only and logical properties, so the page works at 1024×768 and 768×1024.
  */
 
 .sf-settings__layout {
@@ -51,7 +51,7 @@
   inline-size: 8px;
   block-size: 8px;
   border-radius: var(--r-pill);
-  background: var(--warning-fg);
+  background: var(--primary);
 }
 
 /* The Select replaces the menu below 1024 px. Doubled with `.sf-field`, so the field's own `display`
@@ -74,14 +74,31 @@
 }
 
 .sf-settings__row {
+  position: relative;
   max-inline-size: 640px;
   padding-block: var(--sp-4);
+  padding-inline-start: var(--sp-3);
   border-block-start: 1px solid var(--border);
 }
 
 .sf-settings__row:first-of-type {
   padding-block-start: 0;
   border-block-start: 0;
+}
+
+/* An edited row not saved yet: a 3 px edge at its start and "Not saved" in the primary colour. */
+.sf-settings__row.is-unsaved::before {
+  content: '';
+  position: absolute;
+  inset-block: var(--sp-3);
+  inset-inline-start: 0;
+  inline-size: 3px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+}
+
+.sf-settings__row:first-of-type.is-unsaved::before {
+  inset-block-start: 0;
 }
 
 .sf-settings__row .sf-field {
@@ -93,6 +110,11 @@
   font-size: var(--fs-12);
 }
 
+.sf-settings__meta.is-unsaved {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .sf-settings__short {
   max-inline-size: 260px;
 }
@@ -102,6 +124,13 @@
   max-inline-size: 260px;
 }
 
+/* "No limit" / "Set a limit", then the amount under them. */
+.sf-settings__limit {
+  display: grid;
+  gap: var(--sp-2);
+  max-inline-size: 420px;
+}
+
 .sf-settings__hours {
   display: inline-flex;
   align-items: center;
@@ -109,7 +138,7 @@
 }
 
 .sf-settings__hours .sf-input {
-  inline-size: 132px;
+  inline-size: 140px;
 }
 
 .sf-settings__locked {
@@ -119,6 +148,17 @@
   min-inline-size: 0;
 }
 
+.sf-settings__locked-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.sf-settings__lock {
+  flex: none;
+  color: var(--text-muted);
+}
+
 .sf-settings__readonly-label {
   font-size: var(--fs-13);
   font-weight: 600;
@@ -126,6 +166,15 @@
 
 .sf-settings__readonly-value {
   margin-block: var(--sp-1);
+}
+
+.sf-settings__description {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-block-end: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
 }
 
 .sf-settings__iban {
@@ -141,10 +190,16 @@
   overflow-wrap: anywhere;
 }
 
+/* The save review's warning under a feature being turned on. */
+.sf-settings__turn-on {
+  margin-block-start: var(--sp-2);
+}
+
 /* ---- The sticky bar of unsaved changes ---- */
 
-.sf-settings.has-bar {
-  padding-block-end: var(--sp-10);
+/* The bar is always laid out (hidden while idle), so it never changes the page's height. */
+.sf-settings {
+  padding-block-end: var(--sp-6);
 }
 
 .sf-settings__bar {
@@ -159,6 +214,10 @@
   box-shadow: var(--shadow-2);
 }
 
+.sf-settings__bar.is-idle {
+  visibility: hidden;
+}
+
 .sf-settings__bar-alert {
   margin-block-end: var(--sp-3);
 }
@@ -169,6 +228,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
+  min-block-size: var(--control-h);
 }
 
 .sf-settings__bar-text {
