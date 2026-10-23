@@ -496,7 +496,10 @@ describeDb('api-orders: delivery costs', () => {
     const read = await f.as(std.DA).get(`/orders/${x1.id}`).expect(200);
     expect(read.body.cancel.allowed).toBe(false);
     expect(read.body.allowedActions).not.toContain('CANCEL');
-    // Step 3.
+    // Step 3. From Inc 2 the Delivered tap needs every cylinder handed over (API_CONTRACT §9.10).
+    for (const code of ['AG-C0006', 'AG-C0031']) {
+      await f.as(std.DR1).post('/custody/scan').send({ qrCode: `${code}-QR`, eventType: 'DELIVERED', tripId: t1, orderId: x1.id }).expect(201);
+    }
     await f.as(std.DR1).patch(`/orders/${x1.id}/status`).send({ status: 'DELIVERED' }).expect(200);
     const delivered = await f.cancel(x1.id, { reasonCode: 'CUSTOMER_CANCELLED' }).expect(409);
     expect(delivered.body).toMatchObject({ code: 'ORDER_NOT_CANCELLABLE', message: 'This order is already finished.', details: { currentStatus: 'DELIVERED' } });
@@ -528,13 +531,16 @@ describeDb('api-orders: delivery costs', () => {
       await f.as(std.DR2).post('/custody/scan').send({ qrCode: `${code}-QR`, eventType: 'DELIVERED', tripId: second.tripId, orderId: x1.id }).expect(201);
     }
     const tap = await f.as(std.DR2).patch(`/orders/${x1.id}/status`).send({ status: 'DELIVERED' }).expect(200);
-    expect(tap.body.deliveryMethod).toBe('DRIVER_TAP');
+    // From Inc 2 the tap is the visit finish with matching scans (API_CONTRACT §9.10).
+    expect(tap.body.deliveryMethod).toBe('SCANNED');
     expect((await f.as(std.DR2).patch(`/orders/${x1.id}/status`).send({ status: 'DELIVERED' }).expect(200)).headers['x-already-applied']).toBe('true');
     expect(await f.balance()).toBe(412_000n);
     // Step 3.
     await f.assign(x2.id, std.DR1);
     expect((await f.as(std.SA1).post(`/orders/${x2.id}/manual-delivery`).send({ reason: 'Too short' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
-    const manual = await f.as(std.SA1).post(`/orders/${x2.id}/manual-delivery`).send({ reason: 'Driver phone broken at the door' }).expect(200);
+    // Manual delivery v2 names the cylinders (API_CONTRACT §9.5): X2's three 15 kg, from the home store.
+    const cylinders = ['AG-C0021', 'AG-C0022', 'AG-C0023'].map((code) => ({ code }));
+    const manual = await f.as(std.SA1).post(`/orders/${x2.id}/manual-delivery`).send({ reason: 'Driver phone broken at the door', cylinders }).expect(200);
     expect(manual.body).toMatchObject({ status: 'DELIVERED', deliveryMethod: 'MANUAL' });
     expect(await f.audits('order.manual_delivery', x2.id)).toHaveLength(1);
     // Step 4.
@@ -558,8 +564,8 @@ describeDb('api-orders: delivery costs', () => {
       const res = await f.fail(x1.id, body, who).expect(409);
       expect(res.body).toMatchObject({ code: 'ORDER_NOT_STARTED_USE_CANCEL', message: "Delivery hasn't started. Cancel the order instead." });
     }
-    // Step 2.
-    await f.loadScan(std.DR1, t1, 'AG-C0005').expect(201);
+    // Step 2. From Inc 2 the depart is "Done loading": everything X1 needs is loaded first (API_CONTRACT §9.10).
+    for (const code of ['AG-C0005', 'AG-C0006', 'AG-C0031']) await f.loadScan(std.DR1, t1, code).expect(201);
     const storeStop = (await f.stops(t1)).find((stop) => stop.stopType === 'STORE_PICKUP');
     await f.as(std.DR1).patch(`/trips/stops/${storeStop?.id}/depart`).expect(200);
     // Step 3.
@@ -594,7 +600,11 @@ describeDb('api-orders: delivery costs', () => {
       { name: 'one load scan', act: (tripId) => f.loadScan(std.DR1, tripId, 'AG-C0007').expect(201), refunded: false },
       {
         name: 'store stop departed',
-        act: async (tripId) => f.as(std.DR1).patch(`/trips/stops/${await stopOf(tripId, 'STORE_PICKUP')}/depart`).expect(200),
+        // From Inc 2 the depart is "Done loading": everything X1 needs is loaded first (API_CONTRACT §9.10).
+        act: async (tripId) => {
+          for (const code of ['AG-C0011', 'AG-C0012', 'AG-C0032']) await f.loadScan(std.DR1, tripId, code).expect(201);
+          return f.as(std.DR1).patch(`/trips/stops/${await stopOf(tripId, 'STORE_PICKUP')}/depart`).expect(200);
+        },
         refunded: false,
       },
       {
@@ -663,6 +673,8 @@ describeDb('api-orders: delivery costs', () => {
     expect((await f.fail(D.id, { reasonCode: 'CUSTOMER_REFUSED' }, std.DR1).expect(409)).body.code).toBe('ORDER_NOT_STARTED_USE_CANCEL');
     const E = await f.x1();
     const eTrip = await loadOnTrip(E.id, 'AG-C0010');
+    // From Inc 2 the depart is "Done loading": the rest of what E needs is loaded first (API_CONTRACT §9.10).
+    for (const code of ['AG-C0011', 'AG-C0031']) await f.loadScan(std.DR1, eTrip, code).expect(201);
     const store = (await f.stops(eTrip)).find((stop) => stop.stopType === 'STORE_PICKUP');
     await f.as(std.DR1).patch(`/trips/stops/${store?.id}/depart`).expect(200);
     expect((await refundOf(E.id)).refundedPaisa).toBe('0');

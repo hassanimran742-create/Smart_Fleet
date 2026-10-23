@@ -24,6 +24,7 @@ import type { INestApplication } from '@nestjs/common';
 import { createTestApp } from '../../helpers/app';
 import { authHeader, createStandardData, describeDb, getTestPrisma, x1OrderBody, type StandardData } from '../../helpers';
 import { http } from '../../helpers/http';
+import { createScratchDb, deployRelease, disconnectAdmin, executeSql, executeSqlFile, removeScratchRoot } from '../../helpers/migrations';
 import { setCompanyAccount } from '../../money/money-fixtures';
 import { WalletCheckJob } from '../../../src/modules/wallet/wallet-check.job';
 
@@ -70,26 +71,48 @@ describeRollback('review robustness: rolling back to the previous release after 
   afterAll(async () => {
     await old?.$disconnect();
     await app.close();
+    await disconnectAdmin();
+    removeScratchRoot();
   });
 
-  it('REV robustness-ops-01 right after inc1a is applied, with no Inc 1 traffic yet, the old code can no longer read a shop\'s old top-ups', async () => {
-    const db = getTestPrisma();
-    // A top-up as the old API stored it (BANK_MANUAL with its own id as the placeholder provider_txn_id).
-    const rows = await db.$queryRaw<Array<{ id: string }>>`
-      INSERT INTO payments (id, distributor_id, provider, provider_txn_id, amount_paisa, status, created_at)
-      VALUES (gen_random_uuid(), ${std.DB.id}::uuid, 'BANK_MANUAL', 'placeholder', 100000, 'SUCCESS', now())
-      RETURNING id`;
-    await db.$executeRaw`UPDATE payments SET provider_txn_id = id::text WHERE id = ${rows[0].id}::uuid`;
-    // inc1a backfill 3.5, verbatim (prisma/migrations/20261021195005_inc1a_foundations/migration.sql:421-422).
-    await db.$executeRawUnsafe(`UPDATE payments SET provider_txn_id = NULL
-      WHERE provider_txn_id = '' OR (provider = 'BANK_MANUAL' AND provider_txn_id = id::text)`);
+  it('REV robustness-ops-01 right after inc1a is applied, with no Inc 1 traffic yet, the old code can no longer read a shop's old top-ups', async () => {
+    // A database at inc1a (0_baseline + inc1a, as the first Inc 1 deploy left it), with today's rows: the
+    // test database itself is at the current release, where inc1b requires every payment's request_no.
+    const scratch = await createScratchDb('rollback');
+    let atInc1a: OldPrisma | undefined;
+    try {
+      const deployed = deployRelease(scratch, 'inc1a');
+      expect({ code: deployed.code, output: deployed.code === 0 ? '' : deployed.output }).toEqual({ code: 0, output: '' });
+      const load = executeSqlFile(scratch.url, path.resolve(__dirname, '../../inc2/db/fixtures/inc1-today.sql'));
+      expect({ code: load.code, output: load.code === 0 ? '' : load.output }).toEqual({ code: 0, output: '' });
+      // A top-up as the old API stored it (BANK_MANUAL with its own id as the placeholder provider_txn_id),
+      // for Bilal Gas, then inc1a backfill 3.5 verbatim (prisma/migrations/20261021195005_inc1a_foundations/migration.sql:421-422).
+      const written = executeSql(
+        scratch.url,
+        `INSERT INTO payments (id, distributor_id, provider, provider_txn_id, amount_paisa, status, created_at)
+           VALUES ('10000000-0000-4000-8000-0000000fb0f1', '10000000-0000-4000-8000-00000000db00', 'BANK_MANUAL', 'placeholder', 100000, 'SUCCESS', now());
+         UPDATE payments SET provider_txn_id = id::text WHERE id = '10000000-0000-4000-8000-0000000fb0f1';
+         UPDATE payments SET provider_txn_id = NULL
+           WHERE provider_txn_id = '' OR (provider = 'BANK_MANUAL' AND provider_txn_id = id::text);`,
+      );
+      expect({ code: written.code, output: written.code === 0 ? '' : written.output }).toEqual({ code: 0, output: '' });
 
-    const failure = await failureOf(() => old.payment.findMany({ where: { distributorId: std.DB.id }, orderBy: { createdAt: 'desc' }, take: 100 }));
-    // eslint-disable-next-line no-console
-    console.log(`[rollback] old GET /payments/mine right after the migration: ${failure}`);
-    // The migration itself writes what the old code can't read: redeploying the old image is not a rollback.
-    expect(failure).toMatch(/"providerTxnId" of expected non-nullable type "String", found incompatible value of "null"/);
-  });
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PrismaClient } = require(OLD_CLIENT) as { PrismaClient: new (o: unknown) => OldPrisma };
+      atInc1a = new PrismaClient({ datasources: { db: { url: scratch.url } } });
+      const reader = atInc1a;
+      const failure = await failureOf(() =>
+        reader.payment.findMany({ where: { distributorId: '10000000-0000-4000-8000-00000000db00' }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      );
+      // eslint-disable-next-line no-console
+      console.log(`[rollback] old GET /payments/mine right after the migration: ${failure}`);
+      // The migration itself writes what the old code can't read: redeploying the old image is not a rollback.
+      expect(failure).toMatch(/"providerTxnId" of expected non-nullable type "String", found incompatible value of "null"/);
+    } finally {
+      await atInc1a?.$disconnect();
+      await scratch.drop();
+    }
+  }, 300_000);
 
   it('REV robustness-ops-01 the old code can no longer read the shop wallet, top-ups, activity or expenses once Inc 1 wrote one ordinary day', async () => {
     const api = http(app);

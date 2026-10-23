@@ -23,6 +23,8 @@ export interface RaiseAlertInput {
   body: string;
   resourceType?: string;
   resourceId?: string;
+  /** [Inc 2] The distributor the alert belongs to, so the shop sees its own cases (`GET /alerts/mine`). */
+  distributorId?: string;
   /** Codes and values the apps render from; never free English. */
   context?: Prisma.InputJsonValue;
   /** With a key, an OPEN alert for the same resource and type is updated instead of a new one. */
@@ -109,6 +111,7 @@ export class AlertsService {
         body: input.body,
         resourceType: input.resourceType,
         resourceId: input.resourceId,
+        distributorId: input.distributorId,
         context: input.context,
       },
     });

@@ -85,9 +85,11 @@ describe('settings registry (API_CONTRACT §6)', () => {
   });
 
   it('keeps later-increment keys at their defaults until they ship', () => {
-    expect(RELEASE_INCREMENT).toBe(1);
-    expect(isShipped('confirmation.enabled')).toBe(false);
-    expect(isEditableOverApi('confirmation.enabled')).toBe(false);
+    // This build ships Increment 2 (API_CONTRACT §9.1): its keys are live; Inc 3's wait.
+    expect(RELEASE_INCREMENT).toBe(2);
+    expect(isShipped('confirmation.enabled')).toBe(true);
+    expect(isEditableOverApi('confirmation.enabled')).toBe(true);
+    expect(isShipped('dayEnd.enabled')).toBe(false);
     expect(isEditableOverApi('dayEnd.enabled')).toBe(false);
     expect(isEditableOverApi('topup.minPaisa')).toBe(true);
   });
@@ -255,8 +257,10 @@ describe('SettingsService', () => {
     const { service } = setup([
       { key: 'wallet.maxBalancePaisa', value: 10000000 },
       { key: 'support.phone', value: '0300 1234567' },
-      // Shipping in Inc 2: reported off in this build even when stored on.
+      // Shipped in Inc 2: reported as stored.
       { key: 'confirmation.enabled', value: true },
+      // Shipping in Inc 3: reported off in this build even when stored on.
+      { key: 'dayEnd.enabled', value: true },
     ]);
     const config = await service.publicConfig();
     expect(config).toMatchObject({
@@ -279,10 +283,10 @@ describe('SettingsService', () => {
       support: false,
       clientApp: false,
       refills: true,
-      scanFlow: false,
-      confirmations: false,
+      scanFlow: true,
+      confirmations: true,
       dayEnd: false,
-      typedCylinderNumber: false,
+      typedCylinderNumber: true,
       languageSwitch: false,
     });
     expect(JSON.stringify(config)).not.toMatch(/accountTitle|iban|thresholdPaisa/);
@@ -319,7 +323,7 @@ describe('SettingsService', () => {
     const { db, service } = setup();
     expect((await rejection(service.update('topup.nope', 1, office, 'a reason'))).code).toBe('SETTING_UNKNOWN');
     expect((await rejection(service.update('topup.account', 'garbage', office, 'a reason'))).code).toBe('SETTING_NOT_EDITABLE');
-    expect((await rejection(service.update('confirmation.enabled', true, office, 'a reason'))).code).toBe('SETTING_NOT_EDITABLE');
+    expect((await rejection(service.update('dayEnd.enabled', true, office, 'a reason'))).code).toBe('SETTING_NOT_EDITABLE');
     expect((await rejection(service.update('orders.maxCylindersPerOrder', 500, office, 'a reason'))).code).toBe(
       'SETTING_INVALID_VALUE',
     );

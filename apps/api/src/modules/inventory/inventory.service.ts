@@ -25,110 +25,83 @@ export class InventoryService {
   }
 
   /**
-   * Per-cylinder-type FULL / EMPTY counts currently loaded on a vehicle,
-   * with human-readable labels. Returns a tidy shape for the driver app and
-   * admin UI:
-   *   { vehicleId, plateNo, totalFull, totalEmpty, byType: [
-   *       { cylinderTypeId, code, name, full, empty } ] }
+   * What is on a van by size, counted from the cylinders themselves (Inc 2, API_CONTRACT Appendix A:
+   * `GET /inventory/my-vehicle` is "counted from cylinders"), never from the legacy lots. The shape the
+   * installed VehicleLoad screen reads is kept; `partFilled` is added (a taken-back part-filled cylinder):
+   *   { vehicleId, plateNo, totalFull, totalEmpty, totalPartFilled, byType: [
+   *       { cylinderTypeId, code, name, full, empty, partFilled } ] }
+   * Damaged or lost cylinders on the van count in none of the three.
    */
   async vehicleSummary(vehicleId: string) {
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id: vehicleId },
       select: { id: true, plateNo: true },
     });
-
-    const lots = await this.prisma.inventoryLot.findMany({
-      where: { holderType: CustodyType.VEHICLE, holderId: vehicleId },
-    });
-
-    const typeIds = [...new Set(lots.map((l) => l.cylinderTypeId))];
-    const types = typeIds.length
-      ? await this.prisma.cylinderType.findMany({ where: { id: { in: typeIds } } })
-      : [];
-    const typeMap = new Map(types.map((t) => [t.id, t]));
-
-    const byTypeMap = new Map<string, { cylinderTypeId: string; code: string; name: string; full: number; empty: number }>();
-    for (const lot of lots) {
-      const t = typeMap.get(lot.cylinderTypeId);
-      const row =
-        byTypeMap.get(lot.cylinderTypeId) ?? {
-          cylinderTypeId: lot.cylinderTypeId,
-          code: t?.code ?? '?',
-          name: t?.name ?? 'Unknown',
-          full: 0,
-          empty: 0,
-        };
-      if (lot.state === CylinderState.FULL) row.full += lot.count;
-      else if (lot.state === CylinderState.EMPTY) row.empty += lot.count;
-      byTypeMap.set(lot.cylinderTypeId, row);
-    }
-
-    const byType = [...byTypeMap.values()]
-      .filter((r) => r.full > 0 || r.empty > 0)
-      .sort((a, b) => a.code.localeCompare(b.code));
-
+    const [summary] = await this.summaries([vehicleId]);
     return {
       vehicleId: vehicle?.id ?? vehicleId,
       plateNo: vehicle?.plateNo ?? null,
-      totalFull: byType.reduce((s, r) => s + r.full, 0),
-      totalEmpty: byType.reduce((s, r) => s + r.empty, 0),
-      byType,
+      totalFull: summary?.totalFull ?? 0,
+      totalEmpty: summary?.totalEmpty ?? 0,
+      totalPartFilled: summary?.totalPartFilled ?? 0,
+      byType: summary?.byType ?? [],
     };
   }
 
   /**
-   * Fleet-wide vehicle load summary for admin: every vehicle that currently
-   * holds cylinders, with FULL/EMPTY per type. Vehicles with nothing loaded
-   * are omitted.
+   * Fleet-wide load for the office: every van holding cylinders, with full, empty and part-filled per
+   * size, counted from the cylinders. Vans with nothing on them are left out.
    */
   async allVehiclesSummary() {
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        vehicle_id: string;
-        plate_no: string;
-        cylinder_type_id: string;
-        code: string;
-        name: string;
-        state: CylinderState;
-        count: number;
-      }>
-    >`
-      SELECT v.id AS vehicle_id, v.plate_no,
-             ct.id AS cylinder_type_id, ct.code, ct.name,
-             il.state, il.count
-      FROM inventory_lots il
-      JOIN vehicles v ON v.id = il.holder_id AND il.holder_type = 'VEHICLE'
-      JOIN cylinder_types ct ON ct.id = il.cylinder_type_id
-      WHERE il.count > 0
-      ORDER BY v.plate_no, ct.code, il.state
-    `;
+    const vans = await this.prisma.cylinder.groupBy({ by: ['custodyId'], where: { custodyType: CustodyType.VEHICLE } });
+    const summaries = await this.summaries(vans.map((van) => van.custodyId));
+    return summaries.filter((summary) => summary.byType.length > 0).sort((a, b) => (a.plateNo ?? '').localeCompare(b.plateNo ?? ''));
+  }
 
-    // Pivot into { vehicleId, plateNo, totalFull, totalEmpty, byType[] }
-    const map = new Map<string, any>();
-    for (const r of rows) {
-      const v =
-        map.get(r.vehicle_id) ?? {
-          vehicleId: r.vehicle_id,
-          plateNo: r.plate_no,
-          totalFull: 0,
-          totalEmpty: 0,
-          byType: new Map<string, { cylinderTypeId: string; code: string; name: string; full: number; empty: number }>(),
-        };
-      const t =
-        v.byType.get(r.cylinder_type_id) ?? {
-          cylinderTypeId: r.cylinder_type_id,
-          code: r.code,
-          name: r.name,
+  private async summaries(vehicleIds: string[]) {
+    if (vehicleIds.length === 0) return [];
+    const [groups, vehicles] = await Promise.all([
+      this.prisma.cylinder.groupBy({
+        by: ['custodyId', 'cylinderTypeId', 'state'],
+        where: { custodyType: CustodyType.VEHICLE, custodyId: { in: vehicleIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.vehicle.findMany({ where: { id: { in: vehicleIds } }, select: { id: true, plateNo: true } }),
+    ]);
+    const typeIds = [...new Set(groups.map((group) => group.cylinderTypeId))];
+    const types = typeIds.length ? await this.prisma.cylinderType.findMany({ where: { id: { in: typeIds } } }) : [];
+    const typeMap = new Map(types.map((t) => [t.id, t]));
+    const plates = new Map(vehicles.map((v) => [v.id, v.plateNo]));
+    return vehicleIds.map((vehicleId) => {
+      const byTypeMap = new Map<string, { cylinderTypeId: string; code: string; name: string; full: number; empty: number; partFilled: number }>();
+      for (const group of groups.filter((g) => g.custodyId === vehicleId)) {
+        const t = typeMap.get(group.cylinderTypeId);
+        const row = byTypeMap.get(group.cylinderTypeId) ?? {
+          cylinderTypeId: group.cylinderTypeId,
+          code: t?.code ?? '?',
+          name: t?.name ?? 'Unknown',
           full: 0,
           empty: 0,
+          partFilled: 0,
         };
-      const n = Number(r.count);
-      if (r.state === CylinderState.FULL) { t.full += n; v.totalFull += n; }
-      else if (r.state === CylinderState.EMPTY) { t.empty += n; v.totalEmpty += n; }
-      v.byType.set(r.cylinder_type_id, t);
-      map.set(r.vehicle_id, v);
-    }
-    return [...map.values()].map((v) => ({ ...v, byType: [...v.byType.values()] }));
+        const n = group._count._all;
+        if (group.state === CylinderState.FULL) row.full += n;
+        else if (group.state === CylinderState.EMPTY) row.empty += n;
+        else if (group.state === CylinderState.PART_FILLED) row.partFilled += n;
+        byTypeMap.set(group.cylinderTypeId, row);
+      }
+      const byType = [...byTypeMap.values()]
+        .filter((r) => r.full > 0 || r.empty > 0 || r.partFilled > 0)
+        .sort((a, b) => a.code.localeCompare(b.code));
+      return {
+        vehicleId,
+        plateNo: plates.get(vehicleId) ?? null,
+        totalFull: byType.reduce((sum, r) => sum + r.full, 0),
+        totalEmpty: byType.reduce((sum, r) => sum + r.empty, 0),
+        totalPartFilled: byType.reduce((sum, r) => sum + r.partFilled, 0),
+        byType,
+      };
+    });
   }
 
   /** The signed-in driver's current vehicle load. */
@@ -138,7 +111,7 @@ export class InventoryService {
       select: { currentVehicleId: true },
     });
     if (!driver?.currentVehicleId) {
-      return { vehicleId: null, plateNo: null, totalFull: 0, totalEmpty: 0, byType: [], noVehicle: true };
+      return { vehicleId: null, plateNo: null, totalFull: 0, totalEmpty: 0, totalPartFilled: 0, byType: [], noVehicle: true };
     }
     return this.vehicleSummary(driver.currentVehicleId);
   }

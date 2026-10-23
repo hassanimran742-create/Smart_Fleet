@@ -167,6 +167,11 @@ describeDb('orders: review fixes', () => {
     return (await f.as(as).get(`/orders/${orderId}/tracking`).expect(200)).body as Tracking;
   }
 
+  /** From Inc 2 the store stop's depart is "Done loading" (API_CONTRACT §9.10): X1's three cylinders go on first. */
+  async function loadX1(driver: typeof f.std.DR1, tripId: string, codes: readonly string[]): Promise<void> {
+    for (const code of codes) await f.loadScan(driver, tripId, code).expect(201);
+  }
+
   it('REV security-01 the shop sees the driver only while its order is on the way; the shape stays the same', async () => {
     const { std } = f;
     const x1 = await f.x1();
@@ -185,13 +190,18 @@ describeDb('orders: review fixes', () => {
     expect((await trackingOf(x1.id, std.SA1)).driverLocation).toEqual({ lat: 31.521, lng: 74.221 });
 
     // The store stop departs: ON_THE_WAY, TRACK is offered, and the shop sees the driver.
+    await loadX1(std.DR1, tripId, ['AG-C0001', 'AG-C0002', 'AG-C0031']);
     const store = (await f.stops(tripId)).find((stop) => stop.stopType === 'STORE_PICKUP')!;
     await f.as(std.DR1).patch(`/trips/stops/${store.id}/depart`).expect(200);
     const dto = (await f.as(std.DA).get(`/orders/${x1.id}`).expect(200)).body as OrderBody;
     expect({ stage: dto.stage, track: dto.allowedActions.includes('TRACK') }).toEqual({ stage: 'ON_THE_WAY', track: true });
     expect((await trackingOf(x1.id)).driverLocation).toEqual({ lat: 31.521, lng: 74.221 });
 
-    // Delivered: the driver's position is never shown again, wherever he goes next.
+    // Delivered: the driver's position is never shown again, wherever he goes next. From Inc 2 the tap
+    // needs every cylinder handed over first (§9.10).
+    for (const code of ['AG-C0001', 'AG-C0002', 'AG-C0031']) {
+      await f.as(std.DR1).post('/custody/scan').send({ qrCode: `${code}-QR`, eventType: 'DELIVERED', tripId, orderId: x1.id }).expect(201);
+    }
     await f.as(std.DR1).patch(`/orders/${x1.id}/status`).send({ status: 'DELIVERED' }).expect(200);
     await reportPosition(std.DR1, std.C3.location as { lat: number; lng: number });
     const done = await trackingOf(x1.id);
@@ -217,6 +227,7 @@ describeDb('orders: review fixes', () => {
     // Failed after leaving the store.
     const failed = await f.x1();
     const failedTrip = await f.assign(failed.id, std.DR1);
+    await loadX1(std.DR1, failedTrip.tripId, ['AG-C0001', 'AG-C0002', 'AG-C0031']);
     const store = (await f.stops(failedTrip.tripId)).find((stop) => stop.stopType === 'STORE_PICKUP')!;
     await f.as(std.DR1).patch(`/trips/stops/${store.id}/depart`).expect(200);
     await f.fail(failed.id, { reasonCode: 'CUSTOMER_NOT_HOME' }, std.DR1).expect(200);
@@ -227,6 +238,7 @@ describeDb('orders: review fixes', () => {
     await f.assign(moved.id, std.DR1);
     const second = await f.assign(moved.id, std.DR2);
     expect(await trackingOf(moved.id)).toMatchObject({ status: 'ASSIGNED', driverLocation: null, driver: { id: std.DR2.id } });
+    await loadX1(std.DR2, second.tripId, ['AG-C0003', 'AG-C0004', 'AG-C0032']);
     const secondStore = (await f.stops(second.tripId)).find((stop) => stop.stopType === 'STORE_PICKUP')!;
     await f.as(std.DR2).patch(`/trips/stops/${secondStore.id}/depart`).expect(200);
     expect((await trackingOf(moved.id)).driverLocation).toEqual({ lat: 31.541, lng: 74.241 });

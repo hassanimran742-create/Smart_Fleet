@@ -38,6 +38,8 @@ import {
   normalizeConfirmationToken,
 } from '../../../src/modules/confirmation/confirmation.interface';
 import { MESSAGING_PROVIDER, MessagingService, NoopMessagingService, type MessagingProvider } from '../../../src/modules/messaging/messaging.interface';
+import { ConfirmationServiceImpl } from '../../../src/modules/confirmation/confirmation.service';
+import { MessagingServiceImpl } from '../../../src/modules/messaging/messaging.service';
 import { resetDb } from '../../helpers/db';
 
 describeDb('Increment 2 test helpers', () => {
@@ -170,7 +172,7 @@ describeDb('Increment 2 test helpers', () => {
     expect(await db().deliveryConfirmation.findUniqueOrThrow({ where: { id: answered.id } })).toMatchObject({ status: 'ANSWERED', response: 'NO' });
   });
 
-  describe('the cross-lane stubs in the running app', () => {
+  describe('the cross-lane services in the running app', () => {
     let app: INestApplication;
     beforeAll(async () => {
       app = await createTestApp();
@@ -179,15 +181,18 @@ describeDb('Increment 2 test helpers', () => {
       await app?.close();
     });
 
-    it('registers the no-op ConfirmationService and MessagingService and the mock provider', async () => {
+    it('registers the real ConfirmationService and MessagingService behind the stub tokens, and the mock provider', async () => {
+      // The confirmation lane replaced the stubs (API_CONTRACT §5.9); the Noop classes stay for unit tests.
       const confirmations = app.get(ConfirmationService);
-      expect(confirmations).toBeInstanceOf(NoopConfirmationService);
-      expect(app.get(MessagingService)).toBeInstanceOf(NoopMessagingService);
+      expect(confirmations).toBeInstanceOf(ConfirmationServiceImpl);
+      expect(confirmations).not.toBeInstanceOf(NoopConfirmationService);
+      expect(app.get(MessagingService)).toBeInstanceOf(MessagingServiceImpl);
+      expect(app.get(MessagingService)).not.toBeInstanceOf(NoopMessagingService);
       const provider = app.get<MessagingProvider>(MESSAGING_PROVIDER);
       expect(provider.name).toBe('mock');
       const order = await createOrder({ distributor: std.DA, client: std.C1, lines: [{ cylinderTypeId: std.sizes.kg11_8, fullCount: 1 }] });
       const trip = await createTrip({ driver: std.DR1, distributor: std.DA, orders: [order] });
-      // Issuing inside a transaction does nothing until the confirmation lane lands (or while confirmation.enabled is off).
+      // Issuing inside a transaction does nothing while confirmation.enabled is off (the default, ADR-15).
       const issued = await getTestPrisma().$transaction((tx) =>
         confirmations.issueForDeliveredOrder(tx, { orderId: order.id, stopId: trip.deliveryStopFor(order.id), deliveredAt: new Date() }),
       );

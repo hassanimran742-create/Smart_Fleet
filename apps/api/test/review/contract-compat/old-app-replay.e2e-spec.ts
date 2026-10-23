@@ -357,6 +357,14 @@ describeDb('REVIEW contract-compat: the installed 0.1.0 apps replayed against th
     const after = await http(app).get(`${API}/trips/${tripId}`).set(h).expect(200);
     expect(after.body.orders[0].status).toBe('DELIVERED');
     expect(after.body.stops.every((s: { departedAt: string | null }) => !!s.departedAt)).toBe(true);
+    // From Inc 2 a run finishes with an empty van (Appendix A, API_CONTRACT §9.3): the shop's new app scans
+    // the taken-back empty into its store (POST /store/scans), as the store does at the end of every run.
+    const received = await http(app)
+      .post(`${API}/store/scans`)
+      .set(authHeader(std.DA.actor))
+      .send({ scanId: 'eeeeeeee-eeee-4eee-8eee-000000000901', code: empty.qrCode, entryMethod: 'QR' })
+      .expect(201);
+    expect(received.body).toMatchObject({ result: 'RECORDED', cylinder: { holder: { type: 'STORE' } }, fromVan: { plateNo: 'LEA-101' } });
     // "✓ Finish".
     await http(app).patch(`${API}/trips/${tripId}/status`).set(h).send({ status: 'COMPLETED' }).expect(200);
 

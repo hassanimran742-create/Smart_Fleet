@@ -7,7 +7,17 @@ import { createTestApp } from '../helpers/app';
 import { SEEDED_EXPENSE_TYPES } from '../helpers/db';
 import { describeDb } from '../helpers/describe-db';
 import { http as client } from '../helpers/http';
-import { createScratchDb, disconnectAdmin, INC1A_MIGRATION, prisma, removeScratchRoot, type ScratchDb } from '../helpers/migrations';
+import {
+  createScratchDb,
+  disconnectAdmin,
+  INC1A_MIGRATION,
+  INC1B_MIGRATION,
+  INC2_MIGRATION,
+  migrationNames,
+  prisma,
+  removeScratchRoot,
+  type ScratchDb,
+} from '../helpers/migrations';
 
 describeDb('migrations: a fresh database', () => {
   let fresh: ScratchDb;
@@ -31,6 +41,9 @@ describeDb('migrations: a fresh database', () => {
     expect({ code: deploy.code, output: deploy.code === 0 ? '' : deploy.output }).toEqual({ code: 0, output: '' });
     expect(deploy.output).toContain('0_baseline');
     expect(deploy.output).toContain(INC1A_MIGRATION);
+    // From Increment 2 the history also holds inc1b and inc2 (DATA_MODEL §3.5, §4.4).
+    expect(deploy.output).toContain(INC1B_MIGRATION);
+    expect(deploy.output).toContain(INC2_MIGRATION);
     // Step 2.
     const status = prisma(['migrate', 'status'], fresh.url);
     expect(status.code).toBe(0);
@@ -59,10 +72,9 @@ describeDb('migrations: a fresh database', () => {
     const history = await db.$queryRaw<Array<{ migration_name: string; finished: boolean; rolled_back: boolean }>>`
       SELECT migration_name, finished_at IS NOT NULL AS finished, rolled_back_at IS NOT NULL AS rolled_back
       FROM _prisma_migrations ORDER BY migration_name`;
-    expect(history).toEqual([
-      { migration_name: '0_baseline', finished: true, rolled_back: false },
-      { migration_name: INC1A_MIGRATION, finished: true, rolled_back: false },
-    ]);
+    // Every migration of the release, in order: 0_baseline, inc1a, inc1b, inc2, then any later ones.
+    expect(migrationNames().slice(0, 4)).toEqual(['0_baseline', INC1A_MIGRATION, INC1B_MIGRATION, INC2_MIGRATION]);
+    expect(history).toEqual(migrationNames().map((migration_name) => ({ migration_name, finished: true, rolled_back: false })));
     // Invariant 14: the inc1a CHECK constraints exist.
     const checks = await db.$queryRaw<Array<{ conname: string }>>`SELECT conname FROM pg_constraint WHERE contype = 'c' ORDER BY conname`;
     expect(checks.map((row) => row.conname)).toEqual(

@@ -17,7 +17,9 @@ import { runBootPreflight } from '../../src/common/bootstrap/boot-preflight';
 import { checkBootEnvironment } from '../../src/common/bootstrap/boot-guards';
 
 const REPO = path.resolve(__dirname, '..', '..', '..', '..');
-const read = (...parts: string[]) => fs.readFileSync(path.join(REPO, ...parts), 'utf8');
+// The repository stores these files with LF; a Windows checkout with core.autocrlf=true has CRLF, which
+// the multi-line patterns below would not match. Read them as git stores them.
+const read = (...parts: string[]) => fs.readFileSync(path.join(REPO, ...parts), 'utf8').replace(/\r\n/g, '\n');
 
 /** The KEY=value lines of an env template. */
 function envOf(text: string): Record<string, string> {
