@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { latSchema, lngSchema, optionalTextSchema, requireBothCoordinates, textSchema, uuidSchema } from './common.schema';
-import { RETURN_STATES, TAKE_BACK_SHORT_REASONS } from './internal/codes';
+import { DRIVER_SCAN_ACTIONS, RETURN_STATES, SCAN_ENTRY_METHODS, TAKE_BACK_SHORT_REASONS } from './internal/codes';
 
 /**
  * [Inc 2 and Inc 3] Scan bodies (API_CONTRACT §9.2-§9.5, §10.1). Every one refuses `toCustodyType` and
@@ -8,8 +8,11 @@ import { RETURN_STATES, TAKE_BACK_SHORT_REASONS } from './internal/codes';
  * unknown field, so none of them is `.strict()`.
  */
 
-/** How a cylinder number reached the server: a QR read, or typed by hand (refused while typing is off). */
-export const ENTRY_METHODS = ['QR', 'TYPED'] as const;
+/**
+ * How a cylinder number reached the server: a QR read, or typed by hand (refused while typing is off).
+ * The same list as shared-types `SCAN_ENTRY_METHODS`.
+ */
+export const ENTRY_METHODS = SCAN_ENTRY_METHODS;
 export type EntryMethod = (typeof ENTRY_METHODS)[number];
 
 /** A QR value or a typed cylinder number in a §1.1 form (`42`, `0042`, `C0042`, `AG-C0042`). */
@@ -28,7 +31,7 @@ export const tripScanSchema = z
   .object({
     scanId: uuidSchema,
     stopId: uuidSchema,
-    action: z.enum(['LOAD', 'HANDOVER', 'TAKE_BACK']),
+    action: z.enum(DRIVER_SCAN_ACTIONS),
     code: cylinderCodeSchema,
     entryMethod: z.enum(ENTRY_METHODS),
     returnState: z.enum(RETURN_STATES).optional(),

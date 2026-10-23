@@ -13,8 +13,11 @@ import { z } from 'zod';
 /**
  * The increment this build ships. Keys of a later increment keep their defaults and can't be changed
  * over the API until that increment ships; `GET /app/config` reports their features as off.
+ *
+ * Increment 2 (API_CONTRACT §9.1): the Inc 2 keys are live and editable, and `features.scanFlow` is
+ * true. `confirmation.enabled` stays false by default until the owner confirms it (ADR-15).
  */
-export const RELEASE_INCREMENT = 1;
+export const RELEASE_INCREMENT = 2;
 
 /** One setting (API_CONTRACT §5.2, §6). The code holds the typed default; an `app_settings` row overrides it. */
 export interface SettingDefinition<K extends SettingKey> {

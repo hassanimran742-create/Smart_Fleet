@@ -8,12 +8,15 @@ import * as types from '../../../shared-types/src';
 import * as codes from '../internal/codes';
 import {
   cancelOrderSchema,
+  casesQuerySchema,
+  customerAnswerSchema,
   failOrderSchema,
   PROMOTED_ERROR_CODES,
   rejectTopupSchema,
   shareSchema,
   statementQuerySchema,
   topupRequestSchema,
+  tripScanSchema,
   VALIDATION_CODES,
   VALIDATION_MESSAGE_EN,
   walletCorrectionSchema,
@@ -50,6 +53,12 @@ describe('internal codes match shared-types', () => {
     expect(codes.ADMIN_TOPUP_TABS).toEqual(types.ADMIN_TOPUP_TABS);
     expect(codes.TAKE_BACK_SHORT_REASONS).toEqual(types.TAKE_BACK_SHORT_REASONS);
     expect(codes.CONFIRMATION_SHARE_VIAS).toEqual(types.CONFIRMATION_SHARE_VIAS);
+    expect(codes.CONFIRMATION_RESPONSES).toEqual(types.CONFIRMATION_RESPONSES);
+    expect(codes.CONFIRMATION_RESPONSES).toEqual(Object.values(types.ConfirmationResponse));
+    expect(codes.CASE_STATUSES).toEqual(types.CASE_STATUSES);
+    expect(codes.SCAN_ENTRY_METHODS).toEqual(types.SCAN_ENTRY_METHODS);
+    expect(codes.DRIVER_SCAN_ACTIONS).toEqual(types.DRIVER_SCAN_ACTIONS);
+    for (const action of codes.DRIVER_SCAN_ACTIONS) expect(types.SCAN_ACTIONS).toContain(action);
     const returnStates: true = true as Equals<(typeof codes.RETURN_STATES)[number], types.ReturnState>;
     expect(returnStates).toBe(true);
   });
@@ -63,6 +72,11 @@ describe('internal codes match shared-types', () => {
       true as Equals<z.infer<typeof walletCorrectionSchema>['direction'], types.CorrectionDirection>,
       true as Equals<z.infer<typeof topupRequestSchema>['payerChannel'], types.PayerChannel>,
       true as Equals<z.infer<typeof shareSchema>['via'], types.ConfirmationShareVia>,
+      true as Equals<z.infer<typeof customerAnswerSchema>['answer'], types.ConfirmationResponse>,
+      true as Equals<z.output<typeof casesQuerySchema>['status'], types.CaseStatus>,
+      true as Equals<z.infer<typeof tripScanSchema>['action'], types.DriverScanAction>,
+      true as Equals<z.infer<typeof tripScanSchema>['entryMethod'], types.ScanEntryMethod>,
+      true as Equals<NonNullable<z.infer<typeof tripScanSchema>['returnState']>, types.ReturnState>,
       true as Equals<z.output<typeof statementQuerySchema>['kind'], types.StatementKind[] | undefined>,
     ];
     expect(checks.every(Boolean)).toBe(true);

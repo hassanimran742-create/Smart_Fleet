@@ -1,7 +1,16 @@
 import {
   AUDIT_ACTIONS,
   AUDIT_ACTIONS_NEEDING_REASON,
+  CASE_STATUSES,
+  CONFIRMATION_RESPONSES,
+  CONFIRMATION_SHARE_VIAS,
+  ConfirmationResponse,
   CORRECTION_REASONS,
+  DRIVER_SCAN_ACTIONS,
+  MESSAGE_FAIL_CODES,
+  MESSAGE_SKIP_REASONS,
+  SCAN_ACTIONS,
+  SCAN_ENTRY_METHODS,
   DELIVERY_FAILURE_REASONS,
   ORDER_CANCEL_REASONS,
   ORDER_STAGES,
@@ -25,9 +34,23 @@ describe('shared unions', () => {
       TAKE_BACK_SHORT_REASONS,
       AUDIT_ACTIONS,
       SETTING_KEYS,
+      // Inc 2
+      SCAN_ACTIONS,
+      DRIVER_SCAN_ACTIONS,
+      SCAN_ENTRY_METHODS,
+      CONFIRMATION_RESPONSES,
+      CONFIRMATION_SHARE_VIAS,
+      CASE_STATUSES,
+      MESSAGE_SKIP_REASONS,
+      MESSAGE_FAIL_CODES,
     ]) {
       expect(new Set<string>(list).size).toBe(list.length);
     }
+  });
+
+  it('[Inc 2] keep the driver scan actions among the scan actions, and the answers in the page order', () => {
+    for (const action of DRIVER_SCAN_ACTIONS) expect(SCAN_ACTIONS).toContain(action);
+    expect(CONFIRMATION_RESPONSES).toEqual(Object.values(ConfirmationResponse));
   });
 
   it('end every reason list with OTHER, which needs a note', () => {

@@ -173,11 +173,7 @@ async function main() {
   }
 
   console.log('Seeded admin user:', admin.phone);
-  console.log(
-    'Seeded test distributor:',
-    testDistributor.businessName,
-    `(code ${testDistributor.code ?? 'not set'}, store ${testDistributor.homeStoreId ?? 'not set'})`,
-  );
+  console.log('Seeded test distributor:', testDistributor.businessName, `(code ${testDistributor.code}, store ${testDistributor.homeStoreId})`);
   console.log('Seeded cities:', cities.map((c) => c.name).join(', '));
   console.log('Seeded accessories:', accessories.length);
 }
@@ -185,9 +181,10 @@ async function main() {
 /**
  * The test distributor with its one store (ADR-01) and its code (ADR-22).
  *
- * Re-seeding only fills gaps: a code or store already set (by the office, or the D01... codes the
- * inc1a migration gave old rows) is never overwritten, and a code or store owned by another
- * distributor is left alone.
+ * Re-seeding never changes an existing distributor's code or store (set by the office, or the D01...
+ * codes the inc1a migration gave old rows). From inc1b every distributor has both (NOT NULL), so a new
+ * test distributor takes the first free code of TST, TST2... TST9 and the first seed store that isn't
+ * another distributor's home store.
  */
 async function seedTestDistributor(userId: string) {
   // Zones and stores have geometry columns, so they are written with raw SQL. The zone is INACTIVE:
@@ -203,45 +200,44 @@ async function seedTestDistributor(userId: string) {
     )
     ON CONFLICT (id) DO NOTHING
   `;
-  await prisma.$executeRaw`
-    INSERT INTO stores (id, name, zone_id, address, location, is_active, created_at, updated_at)
-    VALUES (
-      ${SEED_STORE_ID}::uuid, 'Test LPG Shop', ${SEED_ZONE_ID}::uuid, 'F-7 Markaz, Islamabad',
-      ST_SetSRID(ST_MakePoint(73.0535, 33.7177), 4326),
-      TRUE, NOW(), NOW()
-    )
-    ON CONFLICT (id) DO NOTHING
-  `;
 
   const existing = await prisma.distributor.findUnique({ where: { userId } });
-  const [codeOwner, storeOwner] = await Promise.all([
-    prisma.distributor.findUnique({ where: { code: TEST_DISTRIBUTOR_CODE }, select: { id: true } }),
-    prisma.distributor.findUnique({ where: { homeStoreId: SEED_STORE_ID }, select: { id: true } }),
-  ]);
-  const code = codeOwner && codeOwner.id !== existing?.id ? null : TEST_DISTRIBUTOR_CODE;
-  const homeStoreId = storeOwner && storeOwner.id !== existing?.id ? null : SEED_STORE_ID;
-
-  const distributor = existing
-    ? await prisma.distributor.update({
-        where: { id: existing.id },
-        data: {
-          status: DistributorStatus.ACTIVE,
-          ...(existing.code === null && code !== null ? { code } : {}),
-          ...(existing.homeStoreId === null && homeStoreId !== null ? { homeStoreId } : {}),
-        },
-      })
-    : await prisma.distributor.create({
-        data: { userId, businessName: 'Test LPG Shop', status: DistributorStatus.ACTIVE, code, homeStoreId },
-      });
-
-  const missing = [
-    !distributor.code && `its code (${TEST_DISTRIBUTOR_CODE} belongs to another distributor)`,
-    !distributor.homeStoreId && "its store (the seed store is another distributor's home store)",
-  ].filter(Boolean);
-  if (missing.length) {
-    console.warn(`Test distributor is missing ${missing.join(' and ')}. Set it in the office website.`);
+  if (existing) {
+    return prisma.distributor.update({ where: { id: existing.id }, data: { status: DistributorStatus.ACTIVE } });
   }
-  return distributor;
+  const code = await freeTestCode();
+  const homeStoreId = await freeSeedStore();
+  return prisma.distributor.create({
+    data: { userId, businessName: 'Test LPG Shop', status: DistributorStatus.ACTIVE, code, homeStoreId },
+  });
+}
+
+/** TST, else TST2 ... TST9: the first code no other distributor uses. */
+async function freeTestCode(): Promise<string> {
+  for (const candidate of [TEST_DISTRIBUTOR_CODE, ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `${TEST_DISTRIBUTOR_CODE}${n}`)]) {
+    const owner = await prisma.distributor.findUnique({ where: { code: candidate }, select: { id: true } });
+    if (!owner) return candidate;
+  }
+  throw new Error(`Codes ${TEST_DISTRIBUTOR_CODE} to ${TEST_DISTRIBUTOR_CODE}9 are all taken: set up the test distributor in the office website.`);
+}
+
+/** The seed store (…b001), else the next seed store (…b002 … b009) that no distributor has as its home store. */
+async function freeSeedStore(): Promise<string> {
+  for (let n = 1; n <= 9; n++) {
+    const id = `${SEED_STORE_ID.slice(0, -1)}${n}`;
+    await prisma.$executeRaw`
+      INSERT INTO stores (id, name, zone_id, address, location, is_active, created_at, updated_at)
+      VALUES (
+        ${id}::uuid, ${n === 1 ? 'Test LPG Shop' : `Test LPG Shop ${n}`}, ${SEED_ZONE_ID}::uuid, 'F-7 Markaz, Islamabad',
+        ST_SetSRID(ST_MakePoint(73.0535, 33.7177), 4326),
+        TRUE, NOW(), NOW()
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    const owner = await prisma.distributor.findUnique({ where: { homeStoreId: id }, select: { id: true } });
+    if (!owner) return id;
+  }
+  throw new Error('Every seed store is already a home store: set up the test distributor in the office website.');
 }
 
 main()

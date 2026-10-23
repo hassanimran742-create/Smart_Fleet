@@ -47,6 +47,7 @@ enum CylinderState {
   EMPTY
   FAULTY
   LOST
+  PART_FILLED // Inc 2: a taken-back cylinder that is neither full nor empty (the driver's tap)
 }
 
 enum CustodyType {
@@ -65,6 +66,51 @@ enum CylinderEventType {
   TRANSFER
   MARK_FAULTY
   MARK_LOST
+  REGISTERED // Inc 2: bulk-registered into the home store (source REGISTRATION)
+}
+
+// Inc 2: how a cylinder move was recorded.
+enum CylinderEventSource {
+  SCAN // a QR scan
+  TYPED // a cylinder number typed in (logged: audit custody.typed_entry)
+  MANUAL // the office, with a reason (cylinder_events_reason_chk)
+  REGISTRATION // bulk-register
+}
+
+// Inc 2: the two per-visit lists of a DELIVERY stop.
+enum StopCylinderDirection {
+  GIVEN
+  TAKEN_BACK
+}
+
+// Inc 2: the customer confirmation link (record only, never money).
+enum ConfirmationStatus {
+  PENDING
+  ANSWERED
+  EXPIRED
+  CANCELLED // reserved: nothing writes it in the pilot
+}
+
+enum ConfirmationResponse {
+  YES // All received
+  PARTLY // Partly received
+  NO // Not received
+  OTHER // Other problem
+}
+
+// Inc 2: the message log (outbound_messages).
+enum MessageChannel {
+  SMS
+  WHATSAPP
+  SHARE_LINK // the shop or the office passed the link on from an app
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  SKIPPED // mock provider or test mode
 }
 
 enum VehicleStatus {
@@ -272,10 +318,10 @@ model Distributor {
   userId              String            @unique @map("user_id") @db.Uuid
   businessName        String            @map("business_name")
   /// Short code for human numbers (order AG-0142, top-up AG-T031): ^[A-Z][A-Z0-9]{1,5}$, set by the
-  /// super admin, locked after the first order. Old rows are backfilled D01, D02... NOT NULL in inc1b.
-  code                String?           @unique
-  /// The distributor's one store; every trip and refill starts there. NOT NULL in inc1b.
-  homeStoreId         String?           @unique @map("home_store_id") @db.Uuid
+  /// super admin, locked after the first order. Old rows were backfilled D01, D02... (inc1a).
+  code                String            @unique
+  /// The distributor's one store; every trip and refill starts there.
+  homeStoreId         String            @unique @map("home_store_id") @db.Uuid
   /// THE wallet balance (no holds, no split). The ledger sum always equals it.
   advanceBalancePaisa BigInt            @default(0) @map("advance_balance_paisa")
   status              DistributorStatus @default(PENDING)
@@ -290,7 +336,7 @@ model Distributor {
   updatedAt           DateTime          @updatedAt @map("updated_at")
 
   user          User                   @relation(fields: [userId], references: [id])
-  homeStore     Store?                 @relation(fields: [homeStoreId], references: [id])
+  homeStore     Store                  @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
   clients       Client[]
   cylinders     Cylinder[]
   orders        Order[]
@@ -457,8 +503,9 @@ model Client {
   orders      Order[]
 
   @@unique([distributorId, clientRequestId])
+  /// One customer per phone number within a distributor (inc1b; POST /clients checks it first).
+  @@unique([distributorId, phone])
   @@index([distributorId])
-  @@index([distributorId, phone])
   @@map("clients")
 }
 
@@ -493,51 +540,85 @@ model CylinderType {
   pricingRules PricingRule[]
   fillingOrders FillingOrder[]
   zonePriceSizes DistributorZonePriceSize[]
+  stopCylinders     StopCylinder[]
+  unlabelledReturns StopUnlabelledReturn[]
 
   @@map("cylinder_types")
 }
 
+// Every cylinder has exactly one holder (custodyType + custodyId: a store, a van or a customer), and
+// only a scan, the office's logged manual delivery or an approved day-end fix changes it (ADR-13).
 model Cylinder {
   id             String        @id @default(uuid()) @db.Uuid
   serial         String        @unique
   qrCode         String        @unique @map("qr_code")
   distributorId  String        @map("distributor_id") @db.Uuid
   cylinderTypeId String        @map("cylinder_type_id") @db.Uuid
+  /// Inc 2: the number on the label, per distributor (from Distributor.nextCylinderNo). Shown AG-C0042
+  /// (formatNo(code, 'CYLINDER', shortNo)); typed 42, 0042, C0042 or AG-C0042 (parseCylinderNo).
+  shortNo        Int?          @map("short_no")
   state          CylinderState @default(EMPTY)
   custodyType    CustodyType   @map("custody_type")
   custodyId      String        @map("custody_id") @db.Uuid
+  /// Inc 2: the last move; its tripId says "loaded on this run". NULL when the newest old event didn't
+  /// end at the current holder (inc2 backfill): such a cylinder is scanned into the store before it goes out.
+  lastEventId    String?       @unique @map("last_event_id") @db.Uuid
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  distributor  Distributor     @relation(fields: [distributorId], references: [id])
-  cylinderType CylinderType    @relation(fields: [cylinderTypeId], references: [id])
-  events       CylinderEvent[]
+  distributor   Distributor     @relation(fields: [distributorId], references: [id])
+  cylinderType  CylinderType    @relation(fields: [cylinderTypeId], references: [id])
+  lastEvent     CylinderEvent?  @relation("CylinderLastEvent", fields: [lastEventId], references: [id], onDelete: SetNull)
+  events        CylinderEvent[] @relation("CylinderEvents")
   transferLines TransferLine[]
+  stopCylinders StopCylinder[]
 
+  @@unique([distributorId, shortNo])
   @@index([distributorId, cylinderTypeId, state, custodyType])
+  @@index([custodyType, custodyId])
   @@map("cylinders")
 }
 
+// One row per move. The responsible driver is read from here: the trip's or refill's driver of the newest
+// move onto a van since the cylinder last entered a store (API_CONTRACT §9.2).
 model CylinderEvent {
   id              String              @id @default(uuid()) @db.Uuid
   cylinderId      String              @map("cylinder_id") @db.Uuid
   eventType       CylinderEventType   @map("event_type")
+  /// Inc 2: SCAN, TYPED, MANUAL (the office; a reason is required) or REGISTRATION.
+  source          CylinderEventSource @default(SCAN)
   fromCustodyType CustodyType?        @map("from_custody_type")
   fromCustodyId   String?             @map("from_custody_id") @db.Uuid
   toCustodyType   CustodyType?        @map("to_custody_type")
   toCustodyId     String?             @map("to_custody_id") @db.Uuid
+  /// Inc 2: the cylinder's state before and after the move.
+  fromState       CylinderState?      @map("from_state")
+  toState         CylinderState?      @map("to_state")
+  /// Inc 2: why (required unless the source is SCAN, TYPED or REGISTRATION: cylinder_events_reason_chk).
+  reason          String?
   actorUserId     String              @map("actor_user_id") @db.Uuid
+  /// Inc 2: the app's scan id. A resend with the same (actor, scan id) returns the recorded scan.
+  clientScanId    String?             @map("client_scan_id") @db.Uuid
   photoUrl        String?             @map("photo_url")
   location        Unsupported("geometry(Point,4326)")?
   tripId          String?             @map("trip_id") @db.Uuid
+  /// Inc 2: the stop of the move (a LOAD at the STORE_PICKUP stop, a HANDOVER or TAKE_BACK at a DELIVERY stop).
+  tripStopId      String?             @map("trip_stop_id") @db.Uuid
   orderId         String?             @map("order_id") @db.Uuid
   transferId      String?             @map("transfer_id") @db.Uuid
   createdAt       DateTime            @default(now()) @map("created_at")
 
-  cylinder Cylinder @relation(fields: [cylinderId], references: [id])
-  actor    User     @relation("ActorEvents", fields: [actorUserId], references: [id])
+  cylinder      Cylinder      @relation("CylinderEvents", fields: [cylinderId], references: [id])
+  actor         User          @relation("ActorEvents", fields: [actorUserId], references: [id])
+  tripStop      TripStop?     @relation(fields: [tripStopId], references: [id], onDelete: Restrict)
+  lastEventOf   Cylinder?     @relation("CylinderLastEvent")
+  stopCylinder  StopCylinder?
 
+  @@unique([actorUserId, clientScanId])
   @@index([cylinderId, createdAt])
+  @@index([tripId])
+  @@index([orderId])
+  @@index([createdAt])
   @@map("cylinder_events")
 }
 
@@ -665,8 +746,8 @@ model Order {
   deliveryAddressLabel String              @map("delivery_address_label")
   destZoneId           String              @map("dest_zone_id") @db.Uuid
   originStoreId        String?             @map("origin_store_id") @db.Uuid
-  /// Human number per distributor, shown as AG-0142 (from Distributor.nextOrderNo). NOT NULL in inc1b.
-  orderNo              Int?                @map("order_no")
+  /// Human number per distributor, shown as AG-0142 (from Distributor.nextOrderNo).
+  orderNo              Int                 @map("order_no")
   /// The Idempotency-Key of "Place order": a retry returns the first order.
   clientRequestId      String?             @map("client_request_id") @db.Uuid
   status               OrderStatus         @default(PENDING)
@@ -713,6 +794,9 @@ model Order {
   lines       OrderLine[]
   stops       TripStop[]
   ledger      LedgerEntry[]
+  stopCylinders     StopCylinder[]
+  unlabelledReturns StopUnlabelledReturn[]
+  confirmation      DeliveryConfirmation?
 
   @@unique([distributorId, orderNo])
   @@unique([distributorId, clientRequestId])
@@ -750,6 +834,9 @@ model Trip {
   plannedAt     DateTime   @default(now()) @map("planned_at")
   startedAt     DateTime?  @map("started_at")
   completedAt   DateTime?  @map("completed_at")
+  /// Inc 2: 5–300 characters, set only by a finish with cylinders left on the van while
+  /// trip.allowFinishWithLeftovers is on (API_CONTRACT §9.3).
+  leftoverReason String?   @map("leftover_reason")
 
   driver      Driver     @relation(fields: [driverId], references: [id])
   vehicle     Vehicle    @relation(fields: [vehicleId], references: [id])
@@ -781,10 +868,129 @@ model TripStop {
   trip  Trip   @relation(fields: [tripId], references: [id])
   order Order? @relation(fields: [orderId], references: [id])
   store Store? @relation(fields: [storeId], references: [id])
+  events            CylinderEvent[]
+  stopCylinders     StopCylinder[]
+  unlabelledReturns StopUnlabelledReturn[]
 
   @@unique([tripId, seq])
   @@index([orderId])
   @@map("trip_stops")
+}
+
+// Inc 2: the two per-visit lists of a DELIVERY stop: what was given and what was taken back. A cylinder
+// given on a visit can't be taken back on it (the unique key), and a scan is never counted twice.
+model StopCylinder {
+  id             String                @id @default(uuid()) @db.Uuid
+  tripStopId     String                @map("trip_stop_id") @db.Uuid
+  orderId        String                @map("order_id") @db.Uuid
+  cylinderId     String                @map("cylinder_id") @db.Uuid
+  cylinderTypeId String                @map("cylinder_type_id") @db.Uuid
+  direction      StopCylinderDirection
+  /// TAKEN_BACK only: EMPTY, PART_FILLED or FULL, as the driver tapped (stop_cylinders_return_state_chk).
+  returnState    CylinderState?        @map("return_state")
+  /// The move that put the cylinder on this list.
+  eventId        String                @unique @map("event_id") @db.Uuid
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  tripStop     TripStop      @relation(fields: [tripStopId], references: [id], onDelete: Restrict)
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  cylinder     Cylinder      @relation(fields: [cylinderId], references: [id], onDelete: Restrict)
+  cylinderType CylinderType  @relation(fields: [cylinderTypeId], references: [id], onDelete: Restrict)
+  event        CylinderEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@unique([tripStopId, cylinderId])
+  @@index([orderId, direction])
+  @@index([cylinderId])
+  @@map("stop_cylinders")
+}
+
+// Inc 2: unlabelled or other-brand returns, counted by size and state at the door. They count as taken
+// back but never get a holder. The PUT replaces the stop's list and keeps no row for a count of 0.
+model StopUnlabelledReturn {
+  id               String        @id @default(uuid()) @db.Uuid
+  tripStopId       String        @map("trip_stop_id") @db.Uuid
+  orderId          String        @map("order_id") @db.Uuid
+  cylinderTypeId   String        @map("cylinder_type_id") @db.Uuid
+  /// EMPTY, PART_FILLED or FULL.
+  state            CylinderState
+  /// Above 0 (stop_unlabelled_returns_count_chk).
+  count            Int
+  recordedByUserId String        @map("recorded_by_user_id") @db.Uuid
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  tripStop     TripStop     @relation(fields: [tripStopId], references: [id], onDelete: Restrict)
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  cylinderType CylinderType @relation(fields: [cylinderTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([tripStopId, cylinderTypeId, state])
+  @@map("stop_unlabelled_returns")
+}
+
+// Inc 2: the customer confirmation, one per order. A record only: it never moves money
+// (docs/pilot/CUSTOMER_PAGE.md). The link token is derived, never stored: only its sha256.
+model DeliveryConfirmation {
+  id             String                @id @default(uuid()) @db.Uuid
+  orderId        String                @unique @map("order_id") @db.Uuid
+  distributorId  String                @map("distributor_id") @db.Uuid
+  /// sha256 hex of the current link token.
+  tokenHash      String                @unique @map("token_hash") @db.Char(64)
+  /// "Make a new link" bumps it, so the old link stops working.
+  tokenVersion   Int                   @default(1) @map("token_version")
+  /// The Idempotency-Key of the last new link, for its replay.
+  lastNewLinkKey String?               @map("last_new_link_key") @db.Uuid
+  status         ConfirmationStatus    @default(PENDING)
+  /// delivered_at + confirmation.linkTtlHours; never extended.
+  expiresAt      DateTime              @map("expires_at")
+  /// NULL = the customer's number is not a valid mobile; refreshed from the customer on every new link.
+  phoneE164      String?               @map("phone_e164")
+  /// What the page shows, frozen at delivery (CUSTOMER_PAGE §3).
+  snapshot       Json
+  response       ConfirmationResponse?
+  comment        String?               @db.VarChar(300)
+  respondedAt    DateTime?             @map("responded_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  order    Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  messages OutboundMessage[]
+
+  @@index([status, expiresAt])
+  @@index([distributorId, createdAt])
+  @@map("delivery_confirmations")
+}
+
+// Inc 2: every SMS attempt and every app share of a confirmation link (the message log). The link
+// token never appears here: bodyRedacted has it replaced by [link].
+model OutboundMessage {
+  id                String         @id @default(uuid()) @db.Uuid
+  channel           MessageChannel
+  /// mock | eocean | share-whatsapp | share-sms | share-sheet | share-copy
+  provider          String
+  toPhoneE164       String?        @map("to_phone_e164")
+  /// sms.deliveryConfirm.v1
+  templateKey       String         @map("template_key")
+  locale            String         @default("en")
+  bodyRedacted      String         @map("body_redacted") @db.VarChar(320)
+  status            MessageStatus  @default(QUEUED)
+  providerMessageId String?        @map("provider_message_id")
+  /// MOCK_PROVIDER, NOT_A_TEST_PHONE, INVALID_NUMBER, ...
+  errorCode         String?        @map("error_code")
+  /// confirm:<orderId>:v<n>:sms | share:<orderId>:<Idempotency-Key, or a new uuid>
+  idempotencyKey    String         @unique @map("idempotency_key")
+  confirmationId    String?        @map("confirmation_id") @db.Uuid
+  /// The link version the message carried; reach and lastMessage read only the current one.
+  tokenVersion      Int?           @map("token_version")
+  orderId           String?        @map("order_id") @db.Uuid
+  distributorId     String?        @map("distributor_id") @db.Uuid
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at")
+  sentAt            DateTime?      @map("sent_at")
+
+  confirmation DeliveryConfirmation? @relation(fields: [confirmationId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([orderId, createdAt])
+  @@map("outbound_messages")
 }
 
 // ---------- PAYMENTS / LEDGER ----------
@@ -793,8 +999,8 @@ model TripStop {
 model Payment {
   id               String              @id @default(uuid()) @db.Uuid
   distributorId    String              @map("distributor_id") @db.Uuid
-  /// Human number per distributor, shown as AG-T031 (from Distributor.nextTopupNo). NOT NULL in inc1b.
-  requestNo        Int?                @map("request_no")
+  /// Human number per distributor, shown as AG-T031 (from Distributor.nextTopupNo).
+  requestNo        Int                 @map("request_no")
   /// The Idempotency-Key of the request: a retry returns the first payment.
   clientRequestId  String?             @map("client_request_id") @db.Uuid
   amountPaisa      BigInt              @map("amount_paisa")
@@ -845,8 +1051,8 @@ model LedgerEntry {
   /// The balance after this row.
   balanceAfterPaisa BigInt          @map("balance_after_paisa")
   /// Exactly-once key: topup:<paymentId>, order:<id>:debit, order:<id>:reversal, adjust:<Idempotency-Key>,
-  /// opening:<distributorId>, legacy:<id>. NOT NULL in inc1b.
-  idempotencyKey    String?         @unique @map("idempotency_key")
+  /// opening:<distributorId>, legacy:<id>.
+  idempotencyKey    String          @unique @map("idempotency_key")
   paymentId         String?         @map("payment_id") @db.Uuid
   orderId           String?         @map("order_id") @db.Uuid
   /// Links old refill debits (legacy ADJUSTMENT rows).
@@ -967,6 +1173,8 @@ enum AlertType {
   SPECIAL_CLIENT
   OTHER
   WALLET_CHECK_MISMATCH // nightly check: ledger sum <> balance, or balance < 0
+  CUSTOMER_PROBLEM // Inc 2: a case, opened by a confirmation answer; the answer is in context
+  VAN_NOT_EMPTY // Inc 2: a van holding cylinders at the cut-off, or a run finished with leftovers
 }
 
 // User-defined alert rules. Evaluated lazily when the admin opens the
@@ -1011,13 +1219,20 @@ model Alert {
   body         String
   resourceType String?       @map("resource_type")
   resourceId   String?       @map("resource_id") @db.Uuid
+  /// Inc 2: the distributor a case belongs to, so the shop sees its own (GET /alerts/mine).
+  distributorId String?      @map("distributor_id") @db.Uuid
   context      Json?
   acknowledgedAt DateTime?   @map("acknowledged_at")
   resolvedAt   DateTime?     @map("resolved_at")
+  /// Inc 2: who closed a case (POST /alerts/:id/resolve). No foreign key (DATA_MODEL §1 rule 5).
+  resolvedByUserId String?   @map("resolved_by_user_id") @db.Uuid
+  /// Inc 2: the office's note when it closed the case.
+  resolutionNote   String?   @map("resolution_note") @db.VarChar(300)
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
   @@index([status, severity, createdAt])
+  @@index([distributorId, status, createdAt])
   @@map("alerts")
 }
 
@@ -1201,8 +1416,7 @@ model Expense {
   id               String           @id @default(uuid()) @db.Uuid
   /// Legacy; read typeId. Dropped after the pilot.
   category         ExpenseCategory?
-  /// NOT NULL in inc1b.
-  typeId           String?          @map("type_id") @db.Uuid
+  typeId           String           @map("type_id") @db.Uuid
   /// The expense's note (UI label "Note").
   description      String
   amountPaisa      BigInt           @map("amount_paisa")
@@ -1225,7 +1439,7 @@ model Expense {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  type        ExpenseType? @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  type        ExpenseType  @relation(fields: [typeId], references: [id], onDelete: Restrict)
   vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   driver      Driver?      @relation(fields: [driverId], references: [id], onDelete: Restrict)
   receiptFile StoredFile?  @relation(fields: [receiptFileId], references: [id], onDelete: Restrict)

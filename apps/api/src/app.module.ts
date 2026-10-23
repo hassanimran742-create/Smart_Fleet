@@ -57,6 +57,8 @@ import { ClientPortalModule } from './modules/client-portal/client-portal.module
 import { HealthModule } from './modules/health/health.module';
 import { HousekeepingModule } from './modules/housekeeping/housekeeping.module';
 import { CryptoModule } from './common/crypto/crypto.module';
+import { MessagingModule } from './modules/messaging/messaging.interface';
+import { ConfirmationModule } from './modules/confirmation/confirmation.interface';
 
 @Module({
   imports: [
@@ -130,6 +132,10 @@ import { CryptoModule } from './common/crypto/crypto.module';
     FuelRefillsModule,
     ExpensesModule,
     ClientPortalModule,
+    // Inc 2 cross-lane contracts (global): messaging, then the customer confirmation that uses it. Both
+    // are stubs until the confirmation lane replaces their services (API_CONTRACT §5.9).
+    MessagingModule,
+    ConfirmationModule,
   ],
   providers: [
     // The §2.1 error envelope for everything thrown.

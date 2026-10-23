@@ -44,6 +44,14 @@ export const TAKE_BACK_SHORT_REASONS = ['CUSTOMER_KEPT', 'CUSTOMER_HAD_NONE', 'O
 export const RETURN_STATES = ['EMPTY', 'PART_FILLED', 'FULL'] as const;
 /** [Inc 2] How a confirmation link is passed on (shared-types `CONFIRMATION_SHARE_VIAS`). */
 export const CONFIRMATION_SHARE_VIAS = ['WHATSAPP', 'SMS', 'SHARE_SHEET', 'COPY'] as const;
+/** [Inc 2] The customer's four answers (shared-types `CONFIRMATION_RESPONSES`). */
+export const CONFIRMATION_RESPONSES = ['YES', 'PARTLY', 'NO', 'OTHER'] as const;
+/** [Inc 2] A case is OPEN until the office resolves it (shared-types `CASE_STATUSES`). */
+export const CASE_STATUSES = ['OPEN', 'RESOLVED'] as const;
+/** [Inc 2] How a cylinder number reached the server (shared-types `SCAN_ENTRY_METHODS`). */
+export const SCAN_ENTRY_METHODS = ['QR', 'TYPED'] as const;
+/** [Inc 2] The actions a driver scans at a stop (shared-types `DRIVER_SCAN_ACTIONS`). */
+export const DRIVER_SCAN_ACTIONS = ['LOAD', 'HANDOVER', 'TAKE_BACK'] as const;
 
 /** The four driver moves the legacy `POST /custody/scan` still accepts (API_CONTRACT §7.7). */
 export const LEGACY_SCAN_EVENT_TYPES = ['SCAN_OUT', 'DELIVERED', 'PICKED_UP_EMPTY', 'SCAN_IN'] as const;

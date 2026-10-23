@@ -50,3 +50,20 @@ export type ClientsQuery = z.infer<typeof clientsQuerySchema>;
 /** `POST /clients/:id/addresses` (distributor) `{ label, lat, lng }`. */
 export const createClientAddressSchema = clientAddressInputSchema;
 export type CreateClientAddressInput = ClientAddressInput;
+
+/**
+ * [Inc 2] `PATCH /clients/:id` (the owning distributor) `{ name?, phone?, notes? }`. Absent leaves a
+ * field unchanged; blank or null `notes` clears them. The service normalises the phone
+ * (`CLIENT_PHONE_INVALID`) and keeps it unique within the distributor (`CLIENT_PHONE_EXISTS`, under the
+ * distributor-row lock, API_CONTRACT §9.4). Addresses are add-only (§7.4): `address` and any other
+ * field are dropped.
+ */
+export const updateClientSchema = z.object({
+  name: textSchema(1, 80).optional(),
+  phone: phoneInputSchema.optional(),
+  notes: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
+    textSchema(1, 200).nullable().optional(),
+  ),
+});
+export type UpdateClientInput = z.infer<typeof updateClientSchema>;

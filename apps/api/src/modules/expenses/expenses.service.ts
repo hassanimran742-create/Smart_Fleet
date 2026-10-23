@@ -24,7 +24,6 @@ import { FilesService } from '../files/files.service';
 import { SettingsService } from '../settings/settings.service';
 import { calendarRangeInstants, calendarToday, dateColumn, isoDateOf, resolveRange } from './expense-dates';
 import {
-  categoriesForTypeCode,
   EFFECTIVE_TYPE_SQL,
   EXPENSE_INCLUDE,
   EXPENSE_RESOURCE,
@@ -291,7 +290,7 @@ export class ExpensesService {
       const data: Prisma.ExpenseUncheckedUpdateInput = {};
       if (next.expenseDate !== undefined) data.expenseDate = dateColumn(next.expenseDate as string);
       if (next.amountPaisa !== undefined) data.amountPaisa = BigInt(next.amountPaisa as string);
-      if (next.typeId !== undefined) data.typeId = next.typeId;
+      if (next.typeId !== undefined) data.typeId = next.typeId as string;
       if (next.vehicleId !== undefined) data.vehicleId = next.vehicleId;
       if (next.driverId !== undefined) data.driverId = next.driverId;
       if (next.description !== undefined) data.description = next.description as string;
@@ -389,13 +388,11 @@ export class ExpensesService {
   }
 
   /**
-   * A list filter by type. It also finds rows the old API wrote after inc1a with only a category
-   * (their type comes from the category, as backfill 11 maps it).
+   * A list filter by type. From inc1b every expense has its type (`type_id` NOT NULL: the migration
+   * re-derived the rows the old API wrote with only a category), so the type alone decides.
    */
   private async typeFilter(typeId: string): Promise<Prisma.ExpenseWhereInput> {
-    const type = await this.prisma.expenseType.findUnique({ where: { id: typeId }, select: { code: true } });
-    const categories = categoriesForTypeCode(type?.code ?? null);
-    return categories.length > 0 ? { OR: [{ typeId }, { typeId: null, category: { in: categories } }] } : { typeId };
+    return { typeId };
   }
 
   /** Locks the expense row for this transaction; 404 NOT_FOUND for an unknown or malformed id. */
