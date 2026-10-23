@@ -1,6 +1,6 @@
 # Smart Fleet pilot test cases
 
-**Date:** 2026-10-23 · **Cases:** 557 (P1 266 · P2 268 · P3 23) · **Branch:** `pilot/happy-path`
+**Date:** 2026-10-23 · **Cases:** 572 (P1 266 · P2 281 · P3 25) · **Branch:** `pilot/happy-path`
 
 These cases test the whole Smart Fleet pilot as the docs in this folder describe it, Increments 1 to 3: money and expenses, orders and drivers, the one-holder rule, customer confirmation, refills, day-end, setup, quality and migrations, and the rehearsal day.
 
@@ -17,12 +17,12 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [TOP · Manual bank top-ups](#top--manual-bank-top-ups) (31)
   - [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) (19)
   - [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) (30)
-  - [CUS · Customers and zones](#cus--customers-and-zones) (13)
-  - [ORD · Order lifecycle](#ord--order-lifecycle) (21)
+  - [CUS · Customers and zones](#cus--customers-and-zones) (14)
+  - [ORD · Order lifecycle](#ord--order-lifecycle) (22)
   - [ASG · Assignment and trips](#asg--assignment-and-trips) (12)
   - [EXP · Expenses](#exp--expenses) (18)
   - [OFF · Office website](#off--office-website) (19)
-  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (50)
+  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (54)
   - [HLD · One-holder rule](#hld--one-holder-rule) (19)
   - [STR · Store receive](#str--store-receive) (13)
   - [CNF · Customer confirmation page](#cnf--customer-confirmation-page) (47)
@@ -31,7 +31,7 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [REF · Refills](#ref--refills) (31)
   - [DAY · Day-end Excel](#day--day-end-excel) (22)
   - [SET · Pilot setup and reset](#set--pilot-setup-and-reset) (12)
-  - [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) (24)
+  - [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) (33)
   - [MIG · Migrations and data safety](#mig--migrations-and-data-safety) (19)
   - [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) (20)
 - [Traceability](#traceability)
@@ -149,7 +149,7 @@ The automated tests live in `apps/api/test`, plus the pure-function tests of the
    - `npm test` in `apps/api` also runs the shared packages' tests (`packages/*/src/__tests__`). The mobile app has no test runner of its own: its rules are checked by API unit tests that load the app's modules (for example UXQ-011 and UXQ-015).
    - The nightly wallet check after all database suites (WAL-020): `test/money/wallet-check.teardown.ts`, the `globalTeardown` of `test/jest-e2e.json`. It fails the run when any wallet's ledger sum differs from its balance.
 
-The "Test file" of an automated case lists the files whose test names start with its ID. A regression case for an Increment 1 review finding (its note names the finding) lists instead the files whose test names start with "REV" and that finding, of its own kind: API cases the database suites, unit cases the others. An automated case with no such test yet keeps the path its writer suggested and is marked "Not automated yet." in its note.
+The "Test file" of an automated case lists the files whose test names start with its ID. A regression case for an Increment 1 review finding (its note names the finding) lists instead the files whose test names start with "REV" and that finding, of its own kind: API cases the database suites, unit cases the others. A case whose note names a describe block ("Its tests are the describe …") lists the files that hold that describe, in the same way. An automated case with no such test yet keeps the path its writer suggested and is marked "Not automated yet." in its note.
 
 **Test names start with the case ID**, so a failing test points straight at its case here and in the CSV:
 
@@ -267,12 +267,12 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [TOP · Manual bank top-ups](#top--manual-bank-top-ups) | 31 | 17 | 13 | 1 | 31 | 0 | 0 |
 | [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) | 19 | 12 | 6 | 1 | 19 | 0 | 0 |
 | [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) | 30 | 19 | 10 | 1 | 28 | 1 | 1 |
-| [CUS · Customers and zones](#cus--customers-and-zones) | 13 | 4 | 9 | 0 | 12 | 1 | 0 |
-| [ORD · Order lifecycle](#ord--order-lifecycle) | 21 | 6 | 14 | 1 | 21 | 0 | 0 |
+| [CUS · Customers and zones](#cus--customers-and-zones) | 14 | 4 | 10 | 0 | 13 | 1 | 0 |
+| [ORD · Order lifecycle](#ord--order-lifecycle) | 22 | 6 | 15 | 1 | 22 | 0 | 0 |
 | [ASG · Assignment and trips](#asg--assignment-and-trips) | 12 | 8 | 4 | 0 | 12 | 0 | 0 |
 | [EXP · Expenses](#exp--expenses) | 18 | 3 | 15 | 0 | 18 | 0 | 0 |
 | [OFF · Office website](#off--office-website) | 19 | 2 | 16 | 1 | 19 | 0 | 0 |
-| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 50 | 28 | 19 | 3 | 8 | 42 | 0 |
+| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 54 | 28 | 22 | 4 | 12 | 42 | 0 |
 | [HLD · One-holder rule](#hld--one-holder-rule) | 19 | 13 | 4 | 2 | 1 | 18 | 0 |
 | [STR · Store receive](#str--store-receive) | 13 | 7 | 5 | 1 | 0 | 13 | 0 |
 | [CNF · Customer confirmation page](#cnf--customer-confirmation-page) | 47 | 13 | 32 | 2 | 0 | 47 | 0 |
@@ -281,32 +281,32 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [REF · Refills](#ref--refills) | 31 | 15 | 16 | 0 | 12 | 0 | 19 |
 | [DAY · Day-end Excel](#day--day-end-excel) | 22 | 13 | 8 | 1 | 0 | 0 | 22 |
 | [SET · Pilot setup and reset](#set--pilot-setup-and-reset) | 12 | 10 | 2 | 0 | 2 | 0 | 10 |
-| [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 24 | 1 | 18 | 5 | 24 | 0 | 0 |
+| [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 33 | 1 | 26 | 6 | 30 | 2 | 1 |
 | [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 19 | 17 | 2 | 0 | 18 | 1 | 0 |
 | [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) | 20 | 20 | 0 | 0 | 0 | 0 | 20 |
-| **Total** | **557** | **266** | **268** | **23** | **326** | **159** | **72** |
+| **Total** | **572** | **266** | **281** | **25** | **338** | **161** | **73** |
 
 ### Cases by type
 
 | Type | Who runs it | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 59 | 17 | 34 | 8 |
+| AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 60 | 17 | 35 | 8 |
 | AUTO-API | Developers and CI: HTTP against a real test database | 361 | 214 | 142 | 5 |
-| MAN-SHOP | A tester with the shop app on a phone | 54 | 14 | 37 | 3 |
-| MAN-DRIVER | A tester with the driver app on a phone | 20 | 5 | 13 | 2 |
-| MAN-WEB | An office user on the website | 45 | 6 | 34 | 5 |
-| MAN-PAGE | A tester playing the customer, in a phone browser | 7 | 1 | 6 | 0 |
+| MAN-SHOP | A tester with the shop app on a phone | 60 | 14 | 42 | 4 |
+| MAN-DRIVER | A tester with the driver app on a phone | 26 | 5 | 18 | 3 |
+| MAN-WEB | An office user on the website | 46 | 6 | 35 | 5 |
+| MAN-PAGE | A tester playing the customer, in a phone browser | 8 | 1 | 7 | 0 |
 | MAN-OPS | Engineering or operations: bank app, command line, server or database | 11 | 9 | 2 | 0 |
-| **Total** |  | **557** | **266** | **268** | **23** |
+| **Total** |  | **572** | **266** | **281** | **25** |
 
 ### Cases by increment
 
 | Increment | What it covers | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| Inc 1 | Foundations, money and expenses | 326 | 155 | 156 | 15 |
-| Inc 2 | Driver flow on scans, store receive and customer confirmation | 159 | 61 | 91 | 7 |
-| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 72 | 50 | 21 | 1 |
-| **Total** |  | **557** | **266** | **268** | **23** |
+| Inc 1 | Foundations, money and expenses | 338 | 155 | 166 | 17 |
+| Inc 2 | Driver flow on scans, store receive and customer confirmation | 161 | 61 | 93 | 7 |
+| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 73 | 50 | 22 | 1 |
+| **Total** |  | **572** | **266** | **281** | **25** |
 
 ## FND · Platform foundations
 
@@ -406,15 +406,15 @@ Steps:
 1. On the phone, as DA, tap Add money.
 2. In the API container, run the settings CLI (scripts/set-setting.ts) for topup.account with the value { accountTitle: "Smart Fleet (Pvt) Ltd", bankName: \<test bank>, iban: "PK00TEST0000000000000000", accountNumber: \<test number> }, without --reason.
 3. Run the same command again, adding --reason "Owner's written request, dummy test account".
-4. On the phone, go back and tap Add money again. Enter 5,000, tap Next and look at How to pay.
+4. On the phone, go back and tap Add money again. Tap the "Rs 5,000" chip, tap Next and look at How to pay.
 5. On the website, open Settings and find Company account. Then open the Activity log.
 
 Expect:
 
-- Step 1: the screen says "Top-ups aren't open yet. Call the office." and Next stays blocked.
+- Step 1: the screen says "Top-ups aren't open yet. Call the office." with "Call office", and Next stays blocked.
 - Step 2: the CLI refuses with a one-line message that a reason is needed. Nothing is saved.
 - Step 3: the CLI says the setting was saved.
-- Step 4: the account card shows Account name "Smart Fleet (Pvt) Ltd" and the IBAN in groups of 4 ("PK00 TEST 0000 0000 0000 0000"), with "Copy IBAN" and "Copy amount".
+- Step 4: "Pay Rs 5,000" with a copy button beside it (no separate "Copy amount" button); the account card shows the name "Smart Fleet (Pvt) Ltd" in bold with "Check this name before sending." and the IBAN in groups of 4 ("PK00 TEST 0000 0000 0000 0000") with "Copy IBAN".
 - Step 5: Company account is shown read-only, with no edit control. The Activity log has a row for the change with Who "System" and Why the reason from step 3.
 - In the database, that audit row has action setting.update, actor_kind SYSTEM, actor_user_id NULL and actor_label "cli:settings".
 
@@ -577,7 +577,7 @@ Spec: API_CONTRACT §1.2, §6 (app.minVersion.\*, 426 gate), Appendix A; UX_MOBI
 
 Note: admin-web has no minimum key, so it is never gated.
 
-### FND-011 · The shop app shows "Please update the app" when it is below the minimum version
+### FND-011 · The shop app shows "Update the app" when it is below the minimum version
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (DA)
 
@@ -586,20 +586,20 @@ Before: DA is signed in on the shop app. The office phone (support.phone) is set
 Steps:
 
 1. On the phone, open the menu, then Help. Write down the app version shown (for example 0.1.0).
-2. On the website, open Settings > App versions. Set the shop app minimum one step above the phone's version (for example 0.1.1), with the reason "Update screen test".
+2. On the website, open Settings > Tech team. Set "Lowest distributor app version" one step above the phone's version (for example 0.1.1), with the reason "Update screen test".
 3. On the phone, close the app fully and open it again.
-4. Tap "Call the office".
-5. On the website, set the shop app minimum back to 0.0.0 with a reason. Close the app and open it again.
+4. Tap "Call office".
+5. On the website, set "Lowest distributor app version" back to 0.0.0 with a reason. Close the app and open it again.
 
 Expect:
 
-- Step 3: a full screen "Please update the app" with the text "This version is too old to use. Ask the office for the new version." and one button, "Call the office". No other screen can be reached. No number like 426 and no code like APP_UPDATE_REQUIRED shows.
+- Step 3: a full screen "Update the app" with "This version is too old." and one button, "Call office" (the test server sets no update link). No other screen can be reached. No number like 426 and no code like APP_UPDATE_REQUIRED shows.
 - Step 4: the phone's dialler opens with the office number.
 - Step 5: the app opens on Home with the balance, as before.
 
-Spec: API_CONTRACT §6 (426 gate); UX_MOBILE §3.2 (UPDATE_APP), §3.6 (RootNavigator gates), S1 (UpdateRequired), S12 (Help); UX_ADMIN §2.8 (App versions)
+Spec: API_CONTRACT §6 (426 gate); UX_MOBILE §3.2 (UPDATE_APP), §3.6 (RootNavigator gates, support.contact), S1 (UpdateRequired), S12 (Help); UX_ADMIN §2.8 (Tech team)
 
-Note: Repeat the same check on the driver app with the driver minimum. The docs don't say what "Call the office" does when support.phone isn't set.
+Note: Repeat the same check on the driver app with "Lowest driver app version". With links.updateUrl set, "Get new version" is the main button and "Call office" sits above it. "Call office" uses the office number saved on the phone (support.contact), so it works offline too.
 
 ### FND-012 · Installed 0.1.0 apps keep working: the old order body, bare-array lists and the transfers poll
 
@@ -1732,7 +1732,7 @@ Steps:
 
 Expect:
 
-- Writes (POST, PATCH, DELETE): 403 FEATURE_DISABLED "This is switched off for the pilot." with the header X-Feature-Disabled naming the module (transfers, accessories, support or clientApp).
+- Writes (POST, PATCH, DELETE): 403 FEATURE_DISABLED "This isn't available yet." with the header X-Feature-Disabled naming the module (transfers, accessories, support or clientApp).
 - Lists (GET): 200 [] with the X-Feature-Disabled header.
 - A GET of one record (GET /transfers/\<id>, /transfers/\<id>/progress, /accessories/\<id>, /client-portal/orders/\<id>): 403 FEATURE_DISABLED with the X-Feature-Disabled header, never [].
 - No transfer, accessory, ticket or client-portal row is created, and no cylinder changes holder through /transfers.
@@ -1752,15 +1752,15 @@ Steps:
 
 1. Look at the menu on the left.
 2. In the address bar, add /transfers to the end of the site address and press Enter. Then try /accessories and /reports.
-3. Open Settings and find Modules.
+3. Open Settings and find Features.
 
 Expect:
 
 - Step 1: no Reports, Inventory roll plan, Accessories, Stores or Pricing placeholder in the menu. Fuel logs appear as a tab inside Expenses.
-- Step 2: /transfers and /accessories show a page saying the module is switched off, with "Open settings". /reports opens the old Reports screen inside the new layout: it is in no menu, and its figures come from the office-only /reports API.
-- Step 3: switches for Store-to-store transfers, Driver fuel logs, Accessories, Support tickets and Customer app sign-in, all Off. Customer app sign-in says "Customers confirm by link instead".
+- Step 2: /transfers and /accessories show a page saying the feature is switched off ("Store-to-store transfers is switched off" with "Turn it on in Settings."), with "Open settings". /reports opens the old Reports screen inside the new layout: it is in no menu, and its figures come from the office-only /reports API.
+- Step 3: switches for Store-to-store transfers, Driver fuel logs, Accessories, Support tickets and Customer app sign-in, all Off. Customer app sign-in says "Customers confirm by link instead."
 
-Spec: ADR-04; UX_ADMIN §1.2 (switched-off routes), §1.3 (removed from navigation), §2.8 (Modules), §2.11
+Spec: ADR-04; UX_ADMIN §1.2 (switched-off routes), §1.3 (removed from navigation), §2.8 (Features), §2.11
 
 ### SEC-022 · Switch-over: the two office logins come from the CLI, and the seeded logins can't sign in on live
 
@@ -1973,14 +1973,14 @@ Before: Signed in to the office website as Owner on a laptop. A watch or the lap
 
 Steps:
 
-1. Open Top-up requests and leave the laptop untouched for 28 minutes.
+1. Open Top-ups and leave the laptop untouched for 28 minutes.
 2. Move the mouse, then leave the laptop untouched again for 30 minutes.
 3. Read the page you land on.
 4. Sign in again.
 
 Expect:
 
-- Step 1: at 28 minutes a toast says "You'll be signed out in 2 minutes. Keep working to stay signed in."
+- Step 1: at 28 minutes a toast at the top centre says "You'll be signed out in 2 minutes. Keep working to stay signed in."
 - Step 2: moving the mouse restarts the timer; after 30 more idle minutes the website signs you out.
 - Step 3: the sign-in page says "You were signed out after 30 minutes without activity." It never says "10 minutes".
 - Step 4: sign-in works.
@@ -2158,16 +2158,16 @@ Before: DA is signed in to the shop app. Balance Rs 5,000. No top-up requests wa
 
 Steps:
 
-1. Open the Home screen and look at the Wallet card.
-2. Tap 'Add money' and send a top-up request for Rs 2,000 (any payer name). Go back to Home.
-3. Look at the Wallet card again. Tap the 'Being checked' row.
+1. Open the Home screen and look at the wallet card.
+2. Tap 'Add money' and send a top-up request for Rs 2,000 (any name on the account). Go back to Home.
+3. Look at the wallet card again. Tap the 'Being checked' row.
 4. Go back. Send a second request for Rs 3,000. Go back to Home and tap the 'Being checked' row again.
 
 Expect:
 
-- Step 1: the card shows 'Balance' and 'Rs 5,000', with the buttons 'Add money' and 'History'. There is no 'Being checked' row.
+- Step 1: the card shows 'Balance' and 'Rs 5,000' with one button, 'Add money'. 'History' is a tile under the card, not a button on it. There is no 'Being checked' row.
 - Step 3: the balance still reads 'Rs 5,000'. A row with a clock icon reads 'Being checked' and 'Rs 2,000'. Tapping it opens the status screen of that top-up.
-- Step 4: the row reads 'Being checked' and 'Rs 5,000'. Tapping it opens Wallet history with the 'Top-up requests' filter chosen.
+- Step 4: the row reads 'Being checked' and 'Rs 5,000'. Tapping it opens History with the 'Top-ups' filter chosen.
 - No screen shows 'On hold', 'held', 'Rs.' or a code such as PENDING.
 
 Spec: ADR-06; UX_MOBILE §0, S2, S7; API_CONTRACT §7.3
@@ -2189,16 +2189,16 @@ Steps:
 Expect:
 
 - Step 1: grey placeholder bars show inside the card while it loads. It never shows 'Rs 0'.
-- Step 2: the balance already shown stays on screen with 'Updated' and a time (for example 'Updated 4:12 pm').
-- Step 3: the strip 'No internet. We'll keep trying.' shows at the top.
+- Step 2: the balance already shown stays on screen, stamped 'Saved' and a time inside the wallet card (for example 'Saved 4:12 pm'), with the history icon.
+- Step 3: one banner at the top, 'No connection' with 'Try again'. The card keeps its 'Saved …' stamp and adds no error of its own.
 - Step 4: if no saved balance is available, the card says 'Couldn't load your balance.' with a 'Try again' button. It never shows 'Rs 0'.
-- Step 5: the card shows 'Rs 5,000' again and the offline strip goes away.
+- Step 5: the card shows 'Rs 5,000' again and the banner goes away.
 
 Spec: UX_MOBILE §2.2 (OfflineBanner, QueryBoundary), §3.5, S2, §6
 
 Note: Whether a cold start offline shows the last saved balance depends on query persistence, which the docs do not specify; either the stale balance or the error card is acceptable, never 'Rs 0'.
 
-### WAL-004 · Low-balance flag follows wallet.lowBalancePaisa and is true only below it
+### WAL-004 · The low-balance flag follows wallet.lowBalancePaisa, is true only below it, and the office wallet list carries the same flag
 
 **P2** · AUTO-API · Inc 1 · Role: Developer (API test) as SA1, DA and DB
 
@@ -2206,23 +2206,25 @@ Before: Standard test data. DA Rs 5,000, DB Rs 0. wallet.lowBalancePaisa at its 
 
 Steps:
 
-1. As DB, GET /wallet.
-2. As SA1, record a correction on DA: TAKE 400000, reasonCode OTHER, note 'test setup low balance' (DA now Rs 1,000). As DA, GET /wallet.
-3. As SA1, TAKE 100 more (DA now Rs 999). As DA, GET /wallet.
-4. As SA1, PATCH /settings/wallet.lowBalancePaisa {value: 50000, reason: 'test lower warning'}. Right after it, as DA GET /wallet.
-5. GET /app/config without signing in. Then set the setting back to 100000 with a reason.
+1. As DB, GET /wallet. As SA1, GET /admin/wallets.
+2. As SA1, record a correction on DA: TAKE 400000, reasonCode OTHER, note 'test setup low balance' (DA now Rs 1,000). As DA, GET /wallet; as SA1, GET /admin/wallets.
+3. As SA1, TAKE 100 more (DA now Rs 999). As DA, GET /wallet; as SA1, GET /admin/wallets.
+4. As SA1, PATCH /settings/wallet.lowBalancePaisa {value: 50000, reason: 'test lower warning'}. Right after it, as DA GET /wallet; as SA1, GET /admin/wallets.
+5. GET /app/config without signing in.
+6. As SA1, set wallet.lowBalancePaisa to 0 with a reason. As DB, GET /wallet; as SA1, GET /admin/wallets. Then set the setting back to 100000 with a reason.
 
 Expect:
 
-- Step 1: DB lowBalance true (Rs 0 is below Rs 1,000).
-- Step 2: DA at exactly Rs 1,000: lowBalance false.
-- Step 3: DA at Rs 999: lowBalance true.
-- Step 4: with the threshold at Rs 500, DA at Rs 999: lowBalance false. An audit row setting.update records {key: 'wallet.lowBalancePaisa', from: 100000, to: 50000} with the reason and actor SA1.
+- Step 1: DB lowBalance true (Rs 0 is below Rs 1,000); the office list carries the same flags: Ahmed Gas false, Bilal Gas true.
+- Step 2: DA at exactly Rs 1,000: lowBalance false, on GET /wallet and on the office list.
+- Step 3: DA at Rs 999: lowBalance true on both.
+- Step 4: with the threshold at Rs 500, DA at Rs 999: lowBalance false on both (Bilal Gas still true). An audit row setting.update records {key: 'wallet.lowBalancePaisa', from: 100000, to: 50000} with the reason and actor SA1.
 - Step 5: /app/config wallet.lowBalancePaisa shows the new value 50000.
+- Step 6: with the threshold at Rs 0, DB at Rs 0 shows lowBalance false on GET /wallet and on the office list: Rs 0 turns the warning off.
 
-Spec: API_CONTRACT §5.2, §6, §7.8, Appendix B; UX_ADMIN §2.8; UX_MOBILE S2 · Test file: `apps/api/test/money/wallet-routes.e2e-spec.ts`
+Spec: API_CONTRACT §5.2, §6, §7.8 (WalletSummary.lowBalance, AdminWalletRow.lowBalance), Appendix B; UX_ADMIN §2.6, §2.8; UX_MOBILE S2 · Test file: `apps/api/test/money/wallet-routes.e2e-spec.ts`
 
-Note: A balance exactly at the threshold is not low: lowBalance is balance \< wallet.lowBalancePaisa, strictly below, and Rs 0 turns the warning off (API_CONTRACT §7, UX_ADMIN §2.8). The shop app shows the card 'Your balance is low. New orders need enough money for the delivery cost.' with 'Add money' whenever lowBalance is true (UX_MOBILE S2).
+Note: A balance exactly at the threshold is not low: lowBalance is balance \< wallet.lowBalancePaisa, strictly below, and Rs 0 turns the warning off (API_CONTRACT §7.8, UX_ADMIN §2.8). The office Wallets list (GET /admin/wallets) uses the same rule. The shop app shows the chip "Low balance" on the wallet card whenever lowBalance is true (UX_MOBILE S2), and the website a red "Low" chip on the Wallets list (UX_ADMIN §2.6).
 
 ### WAL-005 · Wallet history maps every ledger row to a plain statement kind
 
@@ -2251,7 +2253,7 @@ Spec: ADR-06; ADR-10; ADR-11; API_CONTRACT §1.4 (StatementKind), §5.4, §7.8; 
 
 Note: Balance path: 5,050 opening, -50 legacy = 5,000; +2,000 = 7,000; -480 = 6,520; +480 = 7,000; -100 = 6,900.
 
-### WAL-006 · Wallet history screen shows every movement in plain words
+### WAL-006 · History shows every movement in plain words
 
 **P2** · MAN-SHOP · Inc 1 · Role: Distributor DA (shop app)
 
@@ -2259,24 +2261,24 @@ Before: DA's wallet holds the rows from WAL-005 (balance Rs 6,900) and one rejec
 
 Steps:
 
-1. Open the menu and tap 'Wallet'.
+1. On Home, tap the 'History' tile.
 2. Read each row with the 'All' filter, from the top.
-3. Tap the 'Delivery cost returned' row.
-4. Go back and choose the filter 'Top-up requests'.
+3. Tap the 'Refund' row.
+4. Go back and choose the filter 'Top-ups'.
 5. Choose the filter 'Delivery costs'.
 
 Expect:
 
-- The summary at the top shows 'Balance' 'Rs 6,900' and no 'Being checked' line.
-- Rows are grouped by day ('Today' first), newest first: 'Correction by the office' with the label 'System error' and '−Rs 100' (the office note is not shown); 'Delivery cost returned (order cancelled) · AG-0nnn · Sana' with '+Rs 480' in green and 'Balance after Rs 7,000'; 'Delivery cost · AG-0nnn · Sana' with '−Rs 480' and 'Balance after Rs 6,520'; 'Money added · AG-T001' with '+Rs 2,000'; 'Older entry' with '−Rs 50'; 'Opening balance' with '+Rs 5,050'.
-- Tapping the returned row opens that order, whose timeline ends 'Cancelled · Rs 480 returned'.
-- 'Top-up requests' lists AG-T001 as 'Added' and the Rs 1,000 request as 'Not added', although the rejected request never appears under 'All'.
-- Step 5: 'Delivery costs' lists exactly 'Delivery cost returned (order cancelled) · AG-0nnn · Sana' and 'Delivery cost · AG-0nnn · Sana'.
+- The title is 'History'. The summary at the top shows 'Balance' 'Rs 6,900' and no 'Being checked' line.
+- Rows are grouped by day ('Today' first), newest first. Each row's title is the kind, its grey line the number and the customer, and the signed amount with its time is on the right: 'Office correction' with 'Mistake fixed' and '−Rs 100' (the office note is not shown); 'Refund' with 'AG-0nnn · Sana' and '+Rs 480' in green; 'Delivery cost' with 'AG-0nnn · Sana' and '−Rs 480'; 'Top-up' with 'AG-T001' and '+Rs 2,000'; 'Older entry' with '−Rs 50'; 'Opening balance' with '+Rs 5,050'. No row shows 'Balance after'.
+- Step 3: the Refund row opens that order, which reads 'Cancelled' with the cost chip 'Rs 480 returned'.
+- Step 4: 'Top-ups' lists every request as a row titled 'Top-up' with 'AG-T00n · \<the name on the account>' and the amount on the right: 'Rs 2,000' with the chip 'Added' and 'Rs 1,000' with the chip 'Not added', although the rejected request never appears under 'All'.
+- Step 5: 'Delivery costs' lists exactly the 'Refund' and 'Delivery cost' rows for Sana.
 - No code (DEBIT_ORDER, SYSTEM_ERROR), UUID or 'Rs.' appears anywhere.
 
 Spec: UX_MOBILE §0, §3.4 (statement kinds, correction reasons), §3.7, S7; API_CONTRACT §1.4, §7.8
 
-Note: The ' · Sana' part of each order row comes from subject.clientName (API_CONTRACT §7, StatementItem).
+Note: The customer's name in the grey line comes from subject.clientName (API_CONTRACT §7, StatementItem). The website keeps the office's words for the same correction ('System error') and its own Balance after column (UX_ADMIN §2.6).
 
 ### WAL-007 · Only the owning distributor reads a wallet; wrong roles are refused
 
@@ -2318,7 +2320,7 @@ Steps:
 
 Expect:
 
-- Step 1: one row per distributor: Ahmed Gas {code 'AG', balancePaisa '500000', checkingPaisa '200000', checkingCount 1, lastTopupAt null} and Bilal Gas {balancePaisa '0', checkingPaisa '0', checkingCount 0}.
+- Step 1: one row per distributor: Ahmed Gas {code 'AG', balancePaisa '500000', lowBalance false, checkingPaisa '200000', checkingCount 1, lastTopupAt null} and Bilal Gas {balancePaisa '0', lowBalance true, checkingPaisa '0', checkingCount 0}.
 - Step 2: WalletSummary plus integrity {ok: true, ledgerSumPaisa '500000', differencePaisa '0', checkedAt about now}.
 - Step 3: every one of DA's 251 rows comes back across the pages (no 200-row cap), at most 100 per page, each with 'note' and 'by'.
 - Step 4: 404 NOT_FOUND.
@@ -2340,24 +2342,24 @@ Steps:
 
 1. Sign in to the office website as SA1 'Owner'. Open 'Wallets'.
 2. Open Ahmed Gas.
-3. Read the History table with type 'All', then choose 'Returned delivery costs'.
+3. Read the History with the type chip 'All', then choose 'Returned costs'.
 4. Ask the engineer to add Rs 120 to Ahmed Gas's balance directly in the database, without a history row. Refresh the page.
 5. Ask the engineer to undo that change. Refresh the page.
 6. Ask the engineer to put Bilal Gas at −Rs 300 with one matching history row (an ADJUSTMENT of −Rs 300 with balance after −Rs 300, like an old unguarded refill debit). Open Wallets, then Bilal Gas.
-7. Click 'Record correction': Add money, Rs 300, reason 'System error', note 'Clear the old refill debit'. Continue, then confirm.
+7. Click 'Record correction…': Add money, Rs 300, reason 'System error', note 'Clear the old refill debit'. Press 'Continue', then 'Add Rs 300' on the confirm step.
 
 Expect:
 
-- Step 1: header 'Wallets' with 'Each distributor's prepaid balance for delivery costs.'; Ahmed Gas shows Balance 'Rs 6,900' and Being checked 'Rs 2,000'; Bilal Gas shows 'Rs 0'.
-- Step 2: title 'Ahmed Gas · Wallet'; one large balance 'Rs 6,900'; the muted line 'Rs 2,000 in top-ups being checked (not added yet)'; the green line 'History matches the balance (checked just now)'; buttons 'Record correction' and 'Download statement'.
-- Step 3: 'What happened' reads 'Top-up · AG-T001 · ref \<bank reference>', 'Delivery cost · AG-0nnn', 'Delivery cost returned · AG-0nnn (cancelled before delivery started)', 'Correction: System error — Duplicate test correction', 'Opening balance' and 'Older entry (before the pilot)'. Change is signed ('+Rs 2,000', '−Rs 480'); 'By' shows 'Owner' on the correction. The filter leaves only the returned row.
-- Step 4: a red banner reads "The history doesn't match the balance by Rs 120. Tell engineering, and don't record corrections until it's fixed." 'Record correction' is disabled with the reason 'Fix the history mismatch first.' Opening the page raises no WALLET_CHECK_MISMATCH alert (only the nightly job raises one).
-- Step 5: the green line 'History matches the balance (checked just now)' is back and 'Record correction' is enabled again.
-- Step 6: an amber banner reads "The balance is below zero. Record a correction to bring it to Rs 0 or more." (not the red mismatch banner), and 'Record correction' is enabled.
-- Step 7: the dialog previews 'Balance: −Rs 300 → Rs 0'; after saving, the toast reads 'Correction saved. Bilal Gas balance: Rs 0.', the balance is 'Rs 0' and the green line 'History matches the balance (checked just now)' shows.
+- Step 1: header 'Wallets' with 'Prepaid balances for delivery costs.'; Ahmed Gas shows Balance 'Rs 6,900' and To check 'Rs 2,000 · 1 top-up' (a link to the top-ups waiting); Bilal Gas shows 'Rs 0' with the red chip 'Low' (below the Rs 1,000 low-balance warning).
+- Step 2: the back link '← Wallets' and the title 'Ahmed Gas wallet'; one balance card with 'Balance' 'Rs 6,900', the link 'Rs 2,000 in top-ups to check' and the green chip 'History adds up'; buttons 'Record correction…' and 'Download statement'.
+- Step 3: the rows are grouped by day; 'What happened' reads 'Top-up · AG-T001 · ref \<bank reference>', 'Delivery cost · AG-0nnn · Sana', 'Delivery cost returned · AG-0nnn (cancelled before delivery started)', 'Correction: System error — Duplicate test correction', 'Opening balance' and 'Older entry'. Change is signed ('+Rs 2,000', '−Rs 480'); 'By' shows 'Owner' on the correction. The 'Returned costs' chip leaves only the returned row.
+- Step 4: a red banner reads "History is Rs 120 off. Tell the tech team before any correction." 'Record correction…' is disabled with 'Fix the history first.' shown beside it. Opening the page raises no WALLET_CHECK_MISMATCH alert (only the nightly job raises one).
+- Step 5: the green chip 'History adds up' is back and 'Record correction…' is enabled again.
+- Step 6: an amber banner reads "Balance is below zero. Record a correction to bring it to Rs 0." (not the red mismatch banner), and 'Record correction…' is enabled.
+- Step 7: the dialog previews 'Balance: −Rs 300 → Rs 0'; after saving, the toast reads 'Correction saved. Bilal Gas balance: Rs 0.', the balance is 'Rs 0' with the chip 'History adds up', and the balance card and the new row are tinted for 2 seconds.
 - No raw code, UUID, 'Rs.' or 'on hold' anywhere.
 
-Spec: ADR-06; API_CONTRACT §7.8 (integrity); UX_ADMIN §1.5, §2.6, §2.12; DATA_MODEL §3.5, §3.6
+Spec: ADR-06; API_CONTRACT §7.8 (integrity, AdminWalletRow.lowBalance); UX_ADMIN §1.5, §2.6, §2.12; DATA_MODEL §3.5, §3.6
 
 Note: The page only reads: the live integrity check never raises, changes or resolves an alert (API_CONTRACT §7.8).
 
@@ -2487,23 +2489,25 @@ Before: SA1 'Owner' is signed in to the office website. DA balance Rs 5,000.
 
 Steps:
 
-1. Open Wallets, then Ahmed Gas, then 'Record correction'.
-2. Without choosing a direction, try to continue.
-3. Choose 'Take money from the wallet' and type amount 6000.
-4. Choose 'Add money to the wallet', type amount 330, reason 'System error', note 'short'.
-5. Change the note to 'Cost was taken twice for one order'. Click the confirm button, read the dialog and double-click 'Add Rs 330'.
+1. Open Wallets, then Ahmed Gas, then 'Record correction…'.
+2. Without choosing a direction, press 'Continue'.
+3. Choose 'Take money' and type amount 6000. Press 'Continue'.
+4. Choose 'Add money', type amount 330, pick the reason 'System error', type the note 'short' and press 'Continue'.
+5. Open '+ Link a top-up or order' and look at the list. Then type BG-0001.
+6. Clear the link. Change the note to 'Cost was taken twice for one order'. Press 'Continue', read the confirm step and double-click 'Add Rs 330'.
 
 Expect:
 
-- Step 1: dialog title 'Record a correction for Ahmed Gas'. Direction has no option chosen.
-- Step 2: it can't be confirmed without a direction.
-- Step 3: 'Ahmed Gas has only Rs 5,000. You can't take more than that.' and the confirm button is disabled.
-- Step 4: preview 'Balance: Rs 5,000 → Rs 5,330'; the note shows an error (at least 10 characters needed).
-- Step 5: the dialog asks 'Add Rs 330 to Ahmed Gas wallet as a correction?'. After confirming, the toast says 'Correction saved. Ahmed Gas balance: Rs 5,330.' Only one new history row appears ('Correction: System error — Cost was taken twice for one order'), even after the double-click. The shop app shows it as 'Correction by the office' with the label 'System error' and no note.
+- Step 1: the dialog 'Record a correction for Ahmed Gas' with 'For mistakes only.'; 'Add money' and 'Take money' with neither chosen.
+- Step 2: it doesn't move on and says 'Pick add or take.'.
+- Step 3: the hint 'Up to Rs 5,000, the balance.' and the error 'Ahmed Gas has only Rs 5,000. You can't take more than that.'; Continue doesn't move on.
+- Step 4: the preview 'Balance: Rs 5,000 → Rs 5,330'; the note shows 'Write what went wrong, at least 10 characters.' and Continue doesn't move on.
+- Step 5: the list shows Ahmed Gas's latest top-ups, then its latest orders; BG-0001 shows 'Ahmed Gas has no top-up or order BG-0001.' under the field.
+- Step 6: the confirm step, in the same dialog, asks 'Add Rs 330 to Ahmed Gas wallet as a correction?' with 'Back' focused. After confirming, the toast says 'Correction saved. Ahmed Gas balance: Rs 5,330.' Only one new history row appears ('Correction: System error — Cost was taken twice for one order'), even after the double-click. The shop app shows it as 'Office correction' with 'Mistake fixed' and no note.
 
-Spec: ADR-10; UX_ADMIN §1.5 (ConfirmDialog), §1.7, §2.6, §2.12; UX_MOBILE §3.4
+Spec: ADR-10; UX_ADMIN §1.5 (ConfirmDialog, SearchSelect), §1.7, §2.6, §2.12; UX_MOBILE §3.4
 
-Note: The shop app has no correction screen (ADR-10).
+Note: The shop app has no correction screen (ADR-10). One Idempotency-Key per dialog, so the double-click records one correction.
 
 ### WAL-016 · Nightly wallet check: clean wallets raise nothing; a mismatch raises one alert and fixes nothing
 
@@ -2639,7 +2643,7 @@ Spec: UX_ADMIN §2.6 (Download statement), §5 (cut list: the CSV)
 
 Note: The CSV is on the cut list (UX_ADMIN §5). If it was cut, skip steps 1-3 and keep the print check.
 
-### WAL-022 · The low-balance card on Home follows the balance and the setting
+### WAL-022 · The "Low balance" chip on Home follows the balance and the setting
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas); SUPER_ADMIN (Owner)
 
@@ -2648,15 +2652,15 @@ Before: Shop app signed in as Ahmed Gas. "Low-balance warning" is at its default
 Steps:
 
 1. Ask Owner to bring Ahmed Gas to Rs 999 with a correction (Take money, reason Other, with a note). Pull down on Home.
-2. Tap "Add money" on the warning card, then go back.
+2. Tap "Add money" on the wallet card, then go back.
 3. Ask Owner to set "Low-balance warning" to Rs 500 in Settings, with a reason. Then pull down on Home.
 4. Ask Owner to put the setting and the balance back.
 
 Expect:
 
-- Step 1: the wallet card shows "Rs 999", and below it a warning card "Your balance is low. New orders need enough money for the delivery cost." with "Add money".
+- Step 1: the wallet card shows "Rs 999" with the amber chip "Low balance" beside it. There is no separate warning card and no second "Add money" button.
 - Step 2: Add money opens on "How much do you want to add?".
-- Step 3: the warning card is gone (Rs 999 isn't below Rs 500).
+- Step 3: the "Low balance" chip is gone (Rs 999 isn't below Rs 500).
 - No pop-up box and no code appear at any point.
 
 Spec: UX_MOBILE S2 (Low balance); API_CONTRACT §6 (wallet.lowBalancePaisa), §7.8 (WalletSummary.lowBalance); UX_ADMIN §2.8
@@ -2679,7 +2683,7 @@ Expect:
 
 - Step 1: belowZero.
 - Step 2: mismatch for both differences and for the unparseable value (the safe side); ok for ok true.
-- Step 3: only a mismatch shows the red banner and disables Record correction ("Fix the history mismatch first."); belowZero shows the warning "The balance is below zero. Record a correction to bring it to Rs 0 or more." and keeps the button on. The API is unchanged: integrity.ok stays false for the nightly check.
+- Step 3: only a mismatch shows the red banner and disables Record correction ("Fix the history first."); belowZero shows the warning "Balance is below zero. Record a correction to bring it to Rs 0." and keeps the button on. The API is unchanged: integrity.ok stays false for the nightly check.
 
 Spec: UX_ADMIN §2.6 (Integrity line); API_CONTRACT §7.8, §8.5; DATA_MODEL §3.5 (inc1b pre-check: fix negative balances with a super-admin correction) · Test file: `apps/api/test/unit/ui/admin-web-wallet.spec.ts`
 
@@ -2709,27 +2713,27 @@ Spec: ADR-21; API_CONTRACT §7.8 (statement from/to are business days), §7.12; 
 
 Note: Regression case for review finding money-data-07 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-07 …". apps/api/test/review/money-data/wallet-today-preset.e2e-spec.ts runs the website's preset on the real statement with the server's GET /app/config day.
 
-### WAL-025 · The shop's wallet history shows all four filters on a 360 dp phone, in two rows of two
+### WAL-025 · The shop's History shows all three filters on a 360 dp phone, in one row of three
 
 **P2** · AUTO-UNIT · Inc 1 · Role: DEVELOPER
 
-Before: Static test of the shop app's WalletScreen.tsx, shared/FilterChips.tsx and its English copy.
+Before: Static test of the shop app's WalletScreen.tsx, ui/ChoiceChips.tsx and its English copy.
 
 Steps:
 
 1. Read how WalletScreen lays out its filters.
-2. Read FilterChips' grid branch.
-3. Read the four labels.
+2. Read ChoiceChips' grid.
+3. Read the three labels.
 
 Expect:
 
-- Step 1: FilterChips with columns 2.
-- Step 2: a radiogroup View with flexWrap wrap, equal cells and labels that wrap inside the chip, not a row that scrolls sideways.
-- Step 3: All, Money added, Delivery costs and Top-up requests, unchanged.
+- Step 1: one ChoiceChips with columns 3.
+- Step 2: a radiogroup View with flexWrap wrap and labels that shrink and wrap inside the chip, not a row that scrolls sideways.
+- Step 3: All, Top-ups and Delivery costs ('Money added' and 'Top-up requests' are merged into Top-ups).
 
-Spec: UX_MOBILE S7 (filter chips), S2 (Being checked opens Top-up requests), §6 · Test file: `apps/api/test/unit/ui/mobile-layout.spec.ts`
+Spec: UX_MOBILE S7 (filter chips), S2 (Being checked opens the Top-ups filter), §2.2 #26 (ChoiceChips), §6 · Test file: `apps/api/test/unit/ui/mobile-layout.spec.ts`
 
-Note: Regression case for review finding mobile-ux-04 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-04 …". On a phone: WAL-002 step 4 opens Wallet on Top-up requests, which now shows selected.
+Note: Regression case for review finding mobile-ux-04 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-04 …". On a phone: WAL-002 step 4 opens History on Top-ups, which shows selected.
 
 ## TOP · Manual bank top-ups
 
@@ -2913,38 +2917,40 @@ Before: Training server with the dummy company account 'Smart Fleet (Pvt) Ltd', 
 Steps:
 
 1. On Home, tap 'Add money'.
-2. Type 300 in the amount field. Then tap the 'Rs 5,000' chip.
-3. Tap 'Next'. Choose 'Easypaisa'. Tap 'Copy IBAN', then 'Copy amount'.
-4. Tap 'I have paid'. In 'Paid from (name on the account)' type 'ahmed raza'. Leave 'Transaction ID' empty. Tap 'Add screenshot' and pick the picture.
+2. Tap 'Other amount' and type 300. Tap Next. Then tap the 'Rs 5,000' chip.
+3. Tap 'Next'. Keep 'Easypaisa'. Tap 'Copy IBAN', then the copy icon beside 'Pay Rs 5,000'.
+4. Tap "I've paid". In 'Name on the account' type 'ahmed raza'. Tap 'Add screenshot' and pick the picture.
 5. Tap 'Send for checking'. When the next screen opens, press the phone's Back button.
 
 Expect:
 
-- Step 1: 'Step 1 of 3' and 'How much do you want to add?'; chips 'Rs 2,000', 'Rs 5,000', 'Rs 10,000'; helper 'Minimum Rs 500 · Maximum Rs 50,000'; 'Next' is disabled.
-- Step 2: 300 shows 'The minimum is Rs 500' and Next stays disabled; the chip fills Rs 5,000 and enables Next.
-- Step 3: 'Step 2 of 3', 'How to pay'; account name 'Smart Fleet (Pvt) Ltd' in bold; IBAN shown in groups of 4 ('PK00 TEST 0000 0000 0000 0000'); a 'Copied' message after each copy; steps 'Open Easypaisa and tap Bank Transfer' ... 'Enter Rs 5,000. Any purpose is fine'; warning 'The account name must be Smart Fleet (Pvt) Ltd. We never send account numbers on WhatsApp.'; the checking-hours line; the 'TRAINING · test money only' strip at the top.
-- Step 4: 'Step 3 of 3', 'Tell us you paid'; 'Amount sent' is 'Rs 5,000'; 'Paid with' shows Easypaisa; the name shows as 'Ahmed Raza'; Transaction ID is marked '(optional)'; the screenshot shows a spinner, then a thumbnail with 'Remove'.
+- Step 1: 'Step 1 of 3' and 'How much do you want to add?'; the chips 'Rs 2,000', 'Rs 5,000', 'Rs 10,000' and 'Other amount' in two rows; 'Money is checked 9 am to 9 pm.'; no keyboard opens; Next can be tapped.
+- Step 2: 300 shows 'The minimum is Rs 500' and Next doesn't move on; the field's helper reads 'Rs 500 to Rs 50,000'. The chip then selects Rs 5,000 with a tick, and no chip moves.
+- Step 3: 'Step 2 of 3' and 'Pay Rs 5,000' with a copy icon beside it; the account name 'Smart Fleet (Pvt) Ltd' in bold with 'Check this name before sending.'; the IBAN in groups of 4 ('PK00 TEST 0000 0000 0000 0000') with 'Copy IBAN'; 'Copied' after each copy; the path 'Bank Transfer › \<the account's bank> › Paste IBAN'; 'We never send account numbers on WhatsApp.'; the strip 'Training · test money only' at the top.
+- Step 4: 'Step 3 of 3' and 'Tell us you paid'; the line 'Rs 5,000 · Easypaisa'; the name shows as 'Ahmed Raza' with the helper 'As Easypaisa shows it.'; no 'Amount sent' or 'Paid with' field, and no Transaction ID field until '+ Add more' is tapped; the screenshot shows a spinner, then a thumbnail with 'Remove'.
 - Step 5: the button shows 'Sending…', then the status screen opens with the message 'Sent for checking'. Back goes to Home, not to the form. Home shows 'Balance Rs 5,000' and 'Being checked Rs 5,000'.
 
 Spec: ADR-09; UX_MOBILE §2.2, §3.7, S2, S3, S4, S5; API_CONTRACT §7.9, §7.10
+
+Note: The hours line follows topup.checkingHours (default 09:00 to 21:00), written in 12-hour words. The channel picked on How to pay is the one sent; 'Other' is no longer offered.
 
 ### TOP-010 · Sending a top-up with no signal, then again, creates only one request
 
 **P1** · MAN-SHOP · Inc 1 · Role: Distributor DA (shop app); SA1 on the website to check
 
-Before: DA signed in, balance Rs 5,000, nothing being checked. SA1 can open Top-up requests on the website.
+Before: DA signed in, balance Rs 5,000, nothing being checked. SA1 can open Top-ups on the website.
 
 Steps:
 
-1. Go through Add money for Rs 2,000 up to 'Tell us you paid' and fill the payer name.
+1. Go through Add money for Rs 2,000 up to 'Tell us you paid' and fill in the name on the account.
 2. Switch on airplane mode. Tap 'Send for checking'.
 3. Read the message. Check the form still holds your entries.
 4. Switch off airplane mode. Tap 'Send for checking' again.
-5. Ask SA1 to open Top-up requests, tab 'To check'.
+5. Ask SA1 to open Top-ups, tab 'To check'.
 
 Expect:
 
-- Step 3: 'Not sent. Check your internet and tap Send again. You won't be added twice.' The amount and name are kept.
+- Step 3: just above the button, the line 'Not sent. Tap again. It won't be sent twice.', and the banner 'No connection' with 'Try again' at the top. The amount and name are kept.
 - Step 4: the status screen opens with 'Sent for checking'.
 - Step 5: exactly one Rs 2,000 request from Ahmed Gas is waiting. Home shows 'Being checked Rs 2,000', not Rs 4,000.
 
@@ -2964,40 +2970,40 @@ Steps:
 2. If it is outside 09:00-21:00, read the middle step; otherwise ask engineering to set topup.checkingHours to a window that has already passed today, and pull to refresh.
 3. Restore the hours. Ask SA1 to approve R1 with bank amount Rs 5,000. Stay on the screen for up to 30 seconds without touching it.
 4. Ask SA1 to approve R2 with bank amount Rs 4,500. Open R2's status.
-5. Open Wallet history.
+5. Open History.
 
 Expect:
 
-- Step 1: the title is 'Rs 5,000'; timeline 'Sent' with a time, then 'Being checked' (current) with 'Usually within 1 hour, 09:00–21:00', then 'Added to your balance'.
-- Step 2: 'Checking starts at 09:00.' (the configured start time).
-- Step 3: within 30 seconds the screen shows 'Rs 5,000 added. Balance now: Rs 10,000'.
-- Step 4: 'Rs 4,500 added (you told us Rs 5,000). Call the office if this is wrong.'
-- Step 5: two 'Money added' rows, '+Rs 5,000' and '+Rs 4,500'; balance Rs 14,500.
+- Step 1: the big amount 'Rs 5,000' with the chip 'Being checked'; the timeline 'Sent' with a time, then 'Being checked' (current) with 'Usually within 1 hour, 9 am to 9 pm', then 'Added to your balance'.
+- Step 2: 'Checking starts at 9 am.' (the configured start time, in 12-hour words).
+- Step 3: within 30 seconds the chip turns 'Added' and a card shows 'Balance now Rs 10,000'; the timeline is gone.
+- Step 4: the big amount 'Rs 4,500' with 'You told us Rs 5,000. Call office if this is wrong.' and a 'Call office' button.
+- Step 5: two 'Top-up' rows, '+Rs 5,000' and '+Rs 4,500'; balance Rs 14,500.
 
 Spec: ADR-09; UX_MOBILE §3.4 (top-up stage), S6, S7; API_CONTRACT §1.4, §6 (topup.checkingHours), §7.9
 
-Note: The time format inside 'Usually within 1 hour, {{from}}–{{to}}' is not specified (09:00 or 9 am).
+Note: Checking hours read in 12-hour words through formatClock (shared-utils): "9 am", "9:30 pm".
 
-### TOP-012 · Rejected top-up shows the reason, 'Call office' and 'Try again'
+### TOP-012 · Rejected top-up shows the reason, 'Call office' and 'Tell us again'
 
 **P2** · MAN-SHOP · Inc 1 · Role: Distributor DA (shop app); SA1 rejects on the website
 
-Before: DA balance Rs 5,000. DA sent a Rs 1,000 request with payer name 'Ahmed Raza'. support.phone is set.
+Before: DA balance Rs 5,000. DA sent a Rs 1,000 request with the name on the account 'Ahmed Raza'. support.phone is set.
 
 Steps:
 
 1. Ask SA1 to reject it with 'Money not found in the bank' and note 'No payment from Ahmed Raza today'.
 2. On the phone, open the request's status.
-3. Tap 'Call office'. Hang up and come back.
-4. Tap 'Try again'.
-5. Go back to Home and open Wallet history, filter 'Top-up requests'.
+3. Tap 'Call office' at the bottom. Hang up and come back.
+4. Tap 'Tell us again'.
+5. Go back to Home and open History, filter 'Top-ups'.
 
 Expect:
 
-- Step 2: a red card reads 'We can't see this payment in our bank yet.' with the office note 'No payment from Ahmed Raza today'. The balance is still Rs 5,000.
+- Step 2: a red card reads 'We can't see this payment in our bank yet.' with 'The office wrote: “No payment from Ahmed Raza today”'. 'Call office' sits at the bottom, above 'Tell us again'. The balance is still Rs 5,000.
 - Step 3: the phone dialler opens with the office number.
-- Step 4: a new Add money flow starts with Rs 1,000 and 'Ahmed Raza' filled in. The old request stays 'Not added'.
-- Step 5: the old request shows 'Not added'. There is no 'Money added' row for it under 'All'.
+- Step 4: 'Tell us you paid' opens with 'Rs 1,000 · …' and 'Ahmed Raza' filled in. The back arrow shows How to pay, then the amount step with Rs 1,000. The old request stays 'Not added'.
+- Step 5: the old request shows 'Not added'. There is no 'Top-up' row for it under 'All'.
 
 Spec: ADR-09; API_CONTRACT §1.5 (TopupRejectReason), §8.2; UX_MOBILE §3.4, S6, S7
 
@@ -3021,7 +3027,7 @@ Expect:
 
 Spec: API_CONTRACT §1.6, §7.9 (GET /admin/topups); UX_ADMIN §2.2 · Test file: `apps/api/test/money/money-rules.spec.ts, apps/api/test/money/topup-review.e2e-spec.ts`
 
-### TOP-014 · Office 'Top-up requests' page lists waiting requests in plain words and refreshes itself
+### TOP-014 · Office 'Top-ups' page lists waiting requests in plain words and refreshes itself
 
 **P2** · MAN-WEB · Inc 1 · Role: Super admin SA1 (website); DA on the phone
 
@@ -3029,7 +3035,7 @@ Before: The waiting and approved requests from TOP-013 exist. SA1 is signed in. 
 
 Steps:
 
-1. Open 'Top-up requests'.
+1. Open 'Top-ups'.
 2. Read the 'To check' table.
 3. Keep the page open. Ask DA to send a new Rs 2,000 request from the phone. Wait 20 seconds.
 4. Type 'Raza' in the search box.
@@ -3037,11 +3043,11 @@ Steps:
 
 Expect:
 
-- Step 1: title 'Top-up requests'; subtitle 'Approve only after you see the money in the company bank app.'; the line 'Approved today: Rs 5,000 · 1 top-up — compare with the bank app'; tabs 'To check (3)', 'Approved', 'Rejected', 'All'.
-- Step 2: columns Waiting (for example '45 min', shown as a warning from 60 minutes), Distributor 'Ahmed Gas', Amount 'Rs 3,000', Paid from 'Ahmed Raza · Easypaisa', Transaction ID 'EP-5566' or '—', Screenshot (a small picture or 'None'), and a 'Review' button. No codes or UUIDs.
+- Step 1: the title 'Top-ups' with 'Updated …'; the subtitle 'Approve only after you see the money in the company bank app.'; the line 'Approved today: Rs 5,000 · 1 top-up'; tabs 'To check (3)', 'Approved', 'Rejected', 'All'.
+- Step 2: columns Waiting (for example '45 min', shown as a warning from 60 minutes), Distributor 'Ahmed Gas', Amount 'Rs 3,000', Paid from 'Ahmed Raza · Easypaisa', Transaction ID 'EP-5566' or '—', and a 'Review' button. There is no Screenshot column, and no codes or UUIDs.
 - Step 3: the new request appears without reloading, and the count becomes 4.
 - Step 4: only Ahmed Raza's request stays in the list.
-- Step 5: 'No top-ups to check' with 'New requests from distributors show up here. This list refreshes every 20 seconds.'
+- Step 5: one line, 'No top-ups to check', with a green tick and no second sentence.
 
 Spec: UX_ADMIN §1.5, §1.7 (polling), §1.9, §2.2; API_CONTRACT §7.9
 
@@ -3104,7 +3110,7 @@ Steps:
 Expect:
 
 - Step 1: 200.
-- Step 2: 409 TOPUP_BANK_REFERENCE_USED, details {paymentShortCode: P1's AG-T number, distributorName: 'Ahmed Gas', approvedAt}, message 'This bank reference was already used for AG-T0nn (Ahmed Gas). Each bank payment can be used once.' P2 stays PENDING.
+- Step 2: 409 TOPUP_BANK_REFERENCE_USED, details {paymentShortCode: P1's AG-T number, distributorName: 'Ahmed Gas', approvedAt}, message 'Already used for AG-T0nn (Ahmed Gas). Check it, or reject as a duplicate.' P2 stays PENDING.
 - Step 3: the same 409 for DB's request; DB's balance stays Rs 0.
 - Step 4: one approval succeeds and the other gets 409 TOPUP_BANK_REFERENCE_USED; only one CREDIT_TOPUP is written.
 
@@ -3127,7 +3133,7 @@ Expect:
 
 - Step 1: 200 with amountDiffered true; payment amountPaisa '500000', creditedPaisa '450000', bankAmountPaisa '450000'; balance +Rs 4,500; one CREDIT_TOPUP +450000.
 - Step 2: 200 with amountDiffered true; Rs 5,500 is credited.
-- Step 3: Rs 4,500 gives 409 TOPUP_AMOUNT_MISMATCH 'The bank amount must equal the requested amount. Reject it and ask for a new request.' and P3 stays PENDING with no ledger row; Rs 5,000 gives 200 with amountDiffered false.
+- Step 3: Rs 4,500 gives 409 TOPUP_AMOUNT_MISMATCH 'Amounts must match. Reject and ask for a new request.' and P3 stays PENDING with no ledger row; Rs 5,000 gives 200 with amountDiffered false.
 - Step 4: 409 TOPUP_AMOUNT_MISMATCH; P4 stays PENDING.
 - The setting change writes setting.update with the reason; each approval writes one topup.approve audit row.
 
@@ -3211,21 +3217,21 @@ Before: DA balance Rs 5,000. DA sent a Rs 5,000 request: paid from 'Ahmed Raza',
 
 Steps:
 
-1. SA1: open 'Top-up requests', tab 'To check', and click 'Review' on the Ahmed Gas row.
+1. SA1: open 'Top-ups', tab 'To check', and click 'Review' on the Ahmed Gas row.
 2. Read the drawer. Click the screenshot, then click it again.
-3. Look at the main button before typing anything.
-4. Type Bank reference 'FT-7781-4402', Amount in the bank 'Rs 5,000', Time in the bank today 10:05.
+3. Press the main button 'Add Rs 5,000 to Ahmed Gas wallet' before typing anything.
+4. Type Bank reference 'FT-7781-4402' and the Amount 'Rs 5,000'; tap the Date chip 'Today' and type the Time 10:05 am.
 5. SA2: open the same request on browser B and type the same details. Do not click yet.
 6. SA1: click 'Add Rs 5,000 to Ahmed Gas wallet'. Read the dialog. Click 'Yes, add Rs 5,000'.
 7. SA2: now click 'Add Rs 5,000 to Ahmed Gas wallet' and confirm.
 
 Expect:
 
-- Step 1: header 'Ahmed Gas asks for Rs 5,000' with the chip 'To check', and a line with the AG-T number, 'sent' time and 'waiting' minutes.
-- Step 2: 'What Ahmed Gas told us' shows Rs 5,000, 'Ahmed Raza', Easypaisa and 'EP-123456789' with a copy button. The screenshot opens to fit the window and zooms to 2x on a click.
-- Step 3: the button is disabled with 'Type the bank details first'. The rule box says 'Approve only from a payment you saw in the company bank app. Never from a screenshot or a WhatsApp message. A bank reference that has already been used is refused.' A muted line shows 'Company account: Smart Fleet (Pvt) Ltd · \<bank> · ending 0000'.
-- Step 6: the dialog 'Add Rs 5,000 to Ahmed Gas wallet?' lists the reference, bank amount and bank time, says 'This can't be undone here. If it's a mistake, record a wallet correction.', and starts with 'Go back' focused. After confirming: 'Rs 5,000 added to Ahmed Gas wallet. Balance now: Rs 10,000.' and the row leaves 'To check'.
-- Step 7: SA2 sees a message at the top that Owner already approved it (for example 'Owner approved this at 10:20 am'); nothing more is added. DA's balance stays Rs 10,000.
+- Step 1: the header 'Ahmed Gas · Rs 5,000' with the chip 'To check', and a line with the AG-T number, the 'sent' time and the 'waiting' minutes.
+- Step 2: 'From Ahmed Gas' shows the Amount Rs 5,000, Paid from 'Ahmed Raza', Paid with Easypaisa and the Transaction ID 'EP-123456789' with a copy button. The screenshot opens to fit the window and zooms to 2x on a click.
+- Step 3: nothing is added. Each empty field says what to type ('Type the bank reference from the company bank app.', 'Type the amount the bank shows.', 'Pick the date.', 'Type the time.') and the focus moves to Bank reference. The right column 'In the company bank app' shows 'Never copy from the screenshot or WhatsApp.' and the account line 'Smart Fleet (Pvt) Ltd · \<bank> · ending 0000'; there is no rule box.
+- Step 6: the dialog 'Add Rs 5,000 to Ahmed Gas wallet?' lists Bank reference, Bank amount and Bank time, says "This can't be undone. A mistake needs a wallet correction.", and starts with 'Go back' focused. After confirming: the toast 'Rs 5,000 added to Ahmed Gas wallet. Balance now: Rs 10,000.' and the row leaves 'To check'.
+- Step 7: SA2 sees that Owner already approved it (for example 'Owner approved this at 10:20 am.'); nothing more is added. DA's balance stays Rs 10,000.
 - Activity shows one 'Approved top-up AG-T0nn: Rs 5,000 for Ahmed Gas (bank ref ...)'.
 
 Spec: ADR-09; UX_ADMIN §1.5, §1.7, §2.2 (Review drawer, Approve), §2.9, §2.12; API_CONTRACT §7.9
@@ -3238,17 +3244,17 @@ Before: DA sent a new Rs 5,000 request today (Thu 22 Oct). Reference 'FT-7781-44
 
 Steps:
 
-1. Open the request. Type reference 'FT-5555', amount in the bank 'Rs 4,500' and today's time.
-2. Change the bank time to Tue 20 Oct, 10:00.
-3. In Settings, change 'Bank amount differs from the request' to refuse, with a reason. Reopen the request and type the same details.
-4. Set the setting back to 'add the bank amount'. Reopen the request; type amount 'Rs 5,000', today's time and the used reference 'FT-7781-4402'; confirm.
+1. Open the request. Type reference 'FT-5555' and the bank amount 'Rs 4,500'; tap the Date chip 'Today' and type the time.
+2. Tap 'Pick date' and choose Tue 20 Oct; type the time 10:00 am.
+3. In Settings, change 'If the bank amount differs' to 'Refuse, so the distributor makes a new request', with a reason. Reopen the request and type the same details.
+4. Set the setting back to 'Add the bank amount (after a warning)'. Reopen the request; type the amount 'Rs 5,000', today's date and time, and the used reference 'FT-7781-4402'; confirm.
 
 Expect:
 
-- Step 1: warning 'The bank shows Rs 4,500 but Ahmed Gas asked for Rs 5,000. Only Rs 4,500 will be added.' The button reads 'Add Rs 4,500 to Ahmed Gas wallet' and its dialog lists 'Asked for Rs 5,000'.
-- Step 2: 'This payment is from Tue 20 Oct, more than a day before the request. Make sure it's the right one.' Approving is still possible.
-- Step 3: red alert 'Amounts must match. Reject and ask for a new request.' and the button is disabled.
-- Step 4: under the reference field: 'This bank reference was already used for AG-T0nn (Ahmed Gas). Each bank payment can be used once.' Nothing is added and the typed entries stay.
+- Step 1: the check line 'The bank shows Rs 4,500, not Rs 5,000. Only Rs 4,500 will be added.' The button reads 'Add Rs 4,500 to Ahmed Gas wallet' and its dialog lists 'Asked for Rs 5,000 · different'.
+- Step 2: 'Paid Tue 20 Oct, over a day before the request. Is it the right one?' Approving is still possible.
+- Step 3: the red line 'Amounts must match. Reject and ask for a new request.' and the button is disabled with 'Amounts must match' shown beside it.
+- Step 4: under the reference field: 'Already used for AG-T0nn (Ahmed Gas). Check it, or reject as a duplicate.' Nothing is added and the typed entries stay.
 
 Spec: ADR-09; UX_ADMIN §2.2 (If the amounts differ, Errors), §2.8; API_CONTRACT §6, §7.9
 
@@ -3261,16 +3267,16 @@ Before: DA sent a Rs 1,000 request. DA balance Rs 5,000.
 Steps:
 
 1. Open the request and click 'Reject…'.
-2. Choose 'Other' and leave the note empty. Try to confirm.
+2. Press 'Reject request' without a reason. Then choose 'Other' and press 'Reject request' with the note empty.
 3. Type the note 'Payer name and amount both differ'. Read the preview. Click 'Reject request'.
 4. Open the 'Rejected' tab and the Activity page.
 
 Expect:
 
-- Step 1: title "Reject Ahmed Gas's request for Rs 1,000?" with choices 'Money not found in the bank', 'Amount doesn't match', 'Payer name doesn't match', 'Duplicate request', 'Other'. The note says 'Ahmed Gas sees this in the app'.
-- Step 2: it can't be confirmed; 'Other' needs a note.
-- Step 3: the preview shows what the distributor will read ('The office couldn't approve it.' plus the note). After confirming, a success message shows and the request leaves 'To check'.
-- Step 4: the Rejected tab lists the request with Distributor 'Ahmed Gas', Amount asked 'Rs 1,000', a reason in words and By 'Owner'. Activity shows 'Rejected top-up AG-T0nn (...)' with the reason. DA's balance is still Rs 5,000.
+- Step 1: the title "Reject Ahmed Gas's request for Rs 1,000?" with the reasons in two columns: 'Money not found in the bank', 'Amount doesn't match', 'Name on the account doesn't match', 'Duplicate request', 'Other'. No note box shows until a reason is picked.
+- Step 2: with no reason, 'Pick a reason.' shows. With 'Other', the note 'Note to Ahmed Gas' (no 'Optional' tag) says 'Write a short note, at least 3 characters.' and nothing is sent.
+- Step 3: the preview 'Ahmed Gas will see:' shows 'The office couldn't approve it.' and 'The office wrote: “Payer name and amount both differ”'. After confirming, the toast 'Rejected. Ahmed Gas sees the reason.' and the request leaves 'To check'.
+- Step 4: the Rejected tab lists the request with Rejected · Distributor 'Ahmed Gas' · Amount 'Rs 1,000' · the reason in words · By 'Owner'. Activity shows 'Rejected top-up AG-T0nn (Other)'. DA's balance is still Rs 5,000.
 
 Spec: ADR-09; UX_ADMIN §2.2 (Reject), §2.9; UX_MOBILE S6; API_CONTRACT §1.5, §7.9
 
@@ -3370,17 +3376,17 @@ Before: Ahmed Gas has a Rs 2,000 top-up request waiting. Owner is on the website
 
 Steps:
 
-1. Open the request. Type the reference "FT-3030", the amount Rs 2,000 and the time 11:00 today.
+1. Open the request. Type the reference "FT-3030" and the amount Rs 2,000; tap the Date chip "Today" and type the time 11:00 am.
 2. Click "Add Rs 2,000 to Ahmed Gas wallet". Turn the laptop's Wi-Fi off, then click "Yes, add Rs 2,000" straight away.
 3. Read the message. Check that the typed details are still there.
 4. Turn Wi-Fi on. Click the approve button again and confirm.
-5. Open Wallets, then Ahmed Gas, then History. Ask Ahmed Gas to open the shop app's wallet history.
+5. Open Wallets, then Ahmed Gas, then its History. Ask Ahmed Gas to open the shop app's History.
 
 Expect:
 
-- Step 3: "Couldn't reach the server. Your entries are kept — try again." at the top of the drawer; the reference, amount and time are still filled in.
+- Step 3: "Couldn't reach the server. Your entries are kept — try again." at the top of the drawer; the reference, amount, date and time are still filled in.
 - Step 4: "Rs 2,000 added to Ahmed Gas wallet. Balance now: …" shows once, or a message that it was already approved if the first click had reached the server. No error.
-- Step 5: exactly one top-up row of +Rs 2,000 on the website and one "Money added" row in the shop app; the balance went up by Rs 2,000 once.
+- Step 5: exactly one top-up row of +Rs 2,000 on the website and one "Top-up" row in the shop app; the balance went up by Rs 2,000 once.
 
 Spec: ADR-09; UX_ADMIN §1.7 (useApiMutation: one Idempotency-Key per dialog, reused on retry), §1.9 (Failed submit), §2.2 (Errors), §2.12 (a retry after a network drop adds money once); API_CONTRACT §4.2, §7.9
 
@@ -3755,8 +3761,8 @@ Steps:
 
 Expect:
 
-- Step 1: 'Rs 250 per order + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg) = Rs 480'.
-- Step 3: a warning 'The delivery cost changed to Rs 530. Check it and tap Place order again.'; the breakdown now reads '... = Rs 530'; the button reads 'Place order · pay Rs 530'; the balance is still Rs 5,000.
+- Step 1: 'Delivery cost' 'Rs 480' with 'Rs 250 + 2 × Rs 40 + 1 × Rs 150' under it.
+- Step 3: just above the button, 'The delivery cost is now Rs 530. Check it, then tap again.'; the total 'Rs 530' with 'Rs 300 + 2 × Rs 40 + 1 × Rs 150'; the button 'Place order · pay Rs 530'; the balance is still Rs 5,000.
 - Step 4: the order is placed with the message 'Order placed · Rs 530 paid'; the balance is Rs 4,470.
 
 Spec: ADR-08; UX_MOBILE S9 (Submit); API_CONTRACT §7.6 (rule 5)
@@ -3771,15 +3777,15 @@ Steps:
 
 1. Open 'Delivery prices' and choose Ahmed Gas.
 2. Read the grid.
-3. Click 'Set price' on East. Type base 200, 11.8 kg 50, and leave the other sizes blank. Read the example and the note. Type '250.5' in the base field, then set it back to 200. Click 'Save price'.
+3. Click 'Set price' on East. Press 'Save price' with the base blank. Type base 200, open '+ Add per-cylinder amounts' and type 11.8 kg 50, leaving the other sizes blank. Read the example and the note. Type '250.5' in the base field, then set it back to 200. Click 'Save price'.
 4. Open East again and click 'Remove price…'. Give the reason 'Restore test data' and confirm.
 
 Expect:
 
-- Step 1: subtitle 'What each distributor pays per order, by the customer's zone: a base per order, plus an optional amount per cylinder size.'; the switcher shows Ahmed Gas '2/3' and Bilal Gas '1/3' as warnings; the alert '1 of 3 zones has no price for Ahmed Gas. Customers in that zone can't be added, and orders there are blocked.' with 'Show only missing'.
-- Step 2: North 'Rs 250', 6 kg 'Rs 30', 11.8 kg 'Rs 40', 15 kg 'Rs 80', 45.4 kg 'Rs 150', 'Set'; South 'Rs 400' with '—' in every size column, 'Set'; East 'Not set' with 'Set price'; 'Last changed' like '22 Oct by Owner'.
-- Step 3: drawer 'Ahmed Gas · Zone East'; example 'An order of 2 × 11.8 kg costs Rs 200 + 2 × Rs 50 = Rs 300'; note 'New prices apply to orders placed from now on. Orders already placed keep their cost.'; '250.5' shows 'Whole rupees only'; after saving 'Price saved for Zone East. New orders use it now.', East shows 'Set' and coverage '3/3'.
-- Step 4: the dialog says 'Customers in East will be blocked until a new price is set.' and needs the reason; East shows 'Not set' again.
+- Step 1: the subtitle 'What a distributor pays per order, by customer zone.'; the distributor chips Ahmed Gas '1 missing' and Bilal Gas '2 missing' (red); the alert '1 zone has no price. Customers there are blocked.' with the chip 'Missing (1)'.
+- Step 2: the columns Zone · Base per order · Per cylinder · Status · Action: North 'Rs 250' with '6 kg Rs 30 · 11.8 kg Rs 40 · 15 kg Rs 80 · 45.4 kg Rs 150' and 'Set'; South 'Rs 400' with '—' and 'Set'; East 'Not set' in red with 'Set price'.
+- Step 3: the drawer 'Ahmed Gas · Zone East' with the subtitle 'Lahore'; the blank base shows 'Type the base per order.'; once 200 is typed, the example '2 × 11.8 kg: Rs 200 + 2 × Rs 50 = Rs 300' and the note 'New orders use this price. Placed orders don't change.'; '250.5' stays in the box with 'Whole rupees only'; after saving, the toast 'Price saved for Zone East.', East shows 'Set' and the chip turns 'All set'.
+- Step 4: the dialog 'Remove the price for Zone East?' says 'Customers in East will be blocked until a new price is set.' and needs a reason under 'Why?'; the toast 'Price removed for Zone East.'; East shows 'Not set' again.
 
 Spec: ADR-08; UX_ADMIN §1.5 (MoneyInput), §2.3, §2.12; API_CONTRACT §7.5
 
@@ -3829,7 +3835,7 @@ Spec: ADR-08; API_CONTRACT §4, §5.6, §7.5 (PUT /pricing/prices, POST /orders/
 
 Note: Regression case for review finding money-data-04 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-04 …". A unit test checks that the lookup sends one statement (apps/api/test/orders/review-fixes.spec.ts). Confirming test: apps/api/test/review/money-data/price-torn-read.e2e-spec.ts.
 
-### PRC-019 · The price drawer's example waits for a base per order instead of saying 'costs Rs 0'
+### PRC-019 · The price drawer shows no example until a base per order is typed, and never 'costs Rs 0' for a blank base
 
 **P3** · AUTO-UNIT · Inc 1 · Role: DEVELOPER
 
@@ -3838,16 +3844,16 @@ Before: Unit test of priceExample (apps/admin-web/src/features/prices/example.ts
 Steps:
 
 1. Ask for the example with no base yet.
-2. Ask with a typed base of Rs 250, and with Rs 0 typed on purpose.
+2. Ask with a typed base of Rs 250 (no sizes priced; 11.8 kg priced; 6 kg and 11.8 kg priced), and with Rs 0 typed on purpose (no sizes priced; 6 kg priced).
 3. Read what the drawer passes and shows.
 
 Expect:
 
 - Step 1: no example.
-- Step 2: "An order of 2 × 6 kg costs Rs 250"; a typed Rs 0 still reads "costs Rs 0" (Rs 0 is a real price).
-- Step 3: the base only when it is an amount, and otherwise the hint "Type the base per order to see an example." in its place.
+- Step 2: 'Every order: Rs 250'; '2 × 11.8 kg: Rs 250 + 2 × Rs 40 = Rs 330' (11.8 kg is used whenever it has an amount); a typed Rs 0 reads 'Every order: Rs 0', or '2 × 6 kg: 2 × Rs 30 = Rs 60' with 6 kg priced (Rs 0 is a real price).
+- Step 3: the drawer passes the base only when it is an amount and shows no example otherwise; the old "Type the base per order to see an example." hint is gone.
 
-Spec: UX_ADMIN §2.3 (Price drawer: live example) · Test file: `apps/api/test/unit/ui/admin-web-badges-prices.spec.ts`
+Spec: UX_ADMIN §2.3 (Price drawer: example) · Test file: `apps/api/test/unit/ui/admin-web-badges-prices.spec.ts`
 
 Note: Regression case for review finding web-ux-07 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-07 …".
 
@@ -3917,7 +3923,7 @@ Expect:
 
 Spec: ADR-06 (a cost of zero writes no ledger row); API_CONTRACT §5.4, §5.5, §8.1; DATA_MODEL §3.6; UX_MOBILE §3.4 (fee NONE), S9, S11 · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
-Note: The shop-app wording for a zero cost (button 'Place order', wallet lines hidden, cancel sheet 'Yes, cancel order') is the manual case FEE-025.
+Note: The shop-app wording for a zero cost (button 'Place order', wallet lines hidden, cancel sheet 'Cancel order') is the manual case FEE-025.
 
 ### FEE-004 · A distributor that isn't active can't place an order, and nothing is deducted
 
@@ -3997,21 +4003,21 @@ Before: DA signed in, balance Rs 5,000. orders.deliveryStartedAt is FIRST_LOAD_S
 
 Steps:
 
-1. On Home tap 'New order'. Search 'Sana', choose her, tap Next.
-2. Set 11.8 kg 'Deliver' to 2 and 45.4 kg 'Deliver' to 1. Look under the steppers. Tap Next.
+1. On Home tap 'New order'. Search 'Sana' and tap her row (it opens the next step).
+2. Every count starts at 0. Set 11.8 kg to 2 and 45.4 kg to 1 with the + buttons. Look at the footer. Tap Next.
 3. Read the 'Check and place' screen.
 4. Tap 'Place order · pay Rs 480'.
-5. Go to Home, then Wallet.
+5. Go to Home, then History.
 6. Ask SA1 to set 'When delivery counts as started' to 'Driver assigned' on the website. Start a new order for Sana as in steps 1 and 2, and open 'Check and place'. Go back without placing it, and ask SA1 to set the setting back to 'First load scan at the store'.
 
 Expect:
 
-- Step 1: Sana's row shows '0300 1234567' and a zone chip 'North'.
-- Step 2: 'Take back' starts at 2 and 1; the line reads 'Delivery cost about Rs 480'.
-- Step 3: 'Customer Sana · 0300 1234567'; 'Deliver to' her address with '(Zone North)'; the cylinders with take-back counts; 'Delivery cost Rs 250 per order + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg) = Rs 480'; 'Your wallet Balance now Rs 5,000 · After this order Rs 4,520'; and 'Rs 480 is taken from your wallet now. If you cancel before the driver starts loading, you get it back. After loading starts, it isn't returned, even if the customer refuses.'
-- Step 4: the button shows a spinner, then the order screen opens with 'Order placed · Rs 480 paid' and 'The office will assign a driver.'; the fee chip reads 'Rs 480 paid'.
-- Step 5: Home shows 'Rs 4,520'. Wallet's top row is 'Delivery cost · AG-0nnn · Sana' with '−Rs 480' and 'Balance after Rs 4,520'.
-- Step 6: at once (this step reads the app config fresh), the note reads 'Rs 480 is taken from your wallet now. If you cancel before a driver is assigned, you get it back. After that, it isn't returned, even if the customer refuses.'
+- Step 1: Sana's row shows '0300 1234567 · Model Town' with no zone chip; tapping it opens 'Cylinders to deliver' for her.
+- Step 2: every count starts at 0; 'Take back' follows Deliver to 2 and 1; the footer reads 'Delivery cost about Rs 480'.
+- Step 3: 'Sana · 0300 1234567'; her address with no zone; '2 × 11.8 kg · take back 2' and '1 × 45.4 kg · take back 1'; 'Delivery cost' 'Rs 480' with 'Rs 250 + 2 × Rs 40 + 1 × Rs 150'; 'Balance now Rs 5,000' and 'After this order Rs 4,520'; and the line 'Refund only if cancelled before loading.'
+- Step 4: the button shows 'Placing order…', then the order screen opens with 'Order placed · Rs 480 paid' and 'The office will assign a driver.'; the cost chip reads 'Rs 480 paid'.
+- Step 5: Home shows 'Rs 4,520'. History's top row is 'Delivery cost' with 'AG-0nnn · Sana' and '−Rs 480', with no 'Balance after'.
+- Step 6: at once (this step reads the app config fresh), the line reads 'Refund only if cancelled before a driver is assigned.'
 
 Spec: ADR-06; ADR-07; UX_MOBILE §0, §3.4 (fee), S9, S10, S11; API_CONTRACT §7.5, §7.6
 
@@ -4023,19 +4029,19 @@ Before: DA signed in. SA1 sets DA's balance to Rs 300.
 
 Steps:
 
-1. Start a new order for Sana with 10 x 15 kg. Go to 'Check and place'.
+1. Start a new order for Sana with 10 × 15 kg. Go to 'Check and place'.
 2. Read the screen and the bottom button. Tap the bottom button.
 3. Read the amount on 'How much do you want to add?'. Go back.
-4. Ask SA1 to set DA to Rs 479. Make an order like X1 (2 x 11.8 kg, 1 x 45.4 kg) and tap the bottom button.
+4. Ask SA1 to set DA to Rs 479. Make an order like X1 (2 × 11.8 kg, 1 × 45.4 kg) and tap the bottom button.
 
 Expect:
 
-- Step 2: a red card 'You need Rs 1,050 but have Rs 300. Add money to place this order.'; the bottom button is 'Add money' (there is no Place button).
-- Step 3: the amount is Rs 800 (Rs 750 short, rounded up to the next Rs 100, and above the Rs 500 minimum).
-- Step 4: the card reads 'You need Rs 480 but have Rs 479. Add money to place this order.' and Add money opens with Rs 500 (the minimum).
+- Step 2: just above the button, the red line 'You need Rs 1,050. You have Rs 300.'; the bottom button is 'Add money' (there is no Place button).
+- Step 3: 'Other amount' is chosen with Rs 800 filled in (Rs 750 short, rounded up to the next Rs 100, and above the Rs 500 minimum).
+- Step 4: the line reads 'You need Rs 480. You have Rs 479.' and Add money opens with 'Other amount' Rs 500 (the minimum).
 - No order is created; the balance is unchanged.
 
-Spec: ADR-06; UX_MOBILE §3.2 (errorAction), S3 (Prefill), S9 (Not enough money); API_CONTRACT §7.5 (wallet.enough), §7.6
+Spec: ADR-06; UX_MOBILE §3.2 (errorAction), S3 (Prefill), S9 (footer lines); API_CONTRACT §7.5 (wallet.enough), §7.6
 
 ### FEE-009 · X3: the distributor cancels before the first load scan and gets Rs 480 back
 
@@ -4155,7 +4161,7 @@ Steps:
 
 Expect:
 
-- Step 2: 409 ORDER_CANCEL_TERMS_CHANGED, details {refundPaisa '0'}, message 'Delivery has just started, so the refund is now Rs 0. Check and confirm again.'; O1 is not cancelled and the balance is unchanged.
+- Step 2: 409 ORDER_CANCEL_TERMS_CHANGED, details {refundPaisa '0'}, message 'Delivery has just started. The refund is now Rs 0.'; O1 is not cancelled and the balance is unchanged.
 - Step 3: 200 with refundedPaisa '0'.
 - Step 4: 409 ORDER_CANCEL_TERMS_CHANGED {refundPaisa '48000'}; O2 is not cancelled.
 
@@ -4207,15 +4213,15 @@ Before: DA signed in. Two orders: O1 like X1 for Sana, assigned to DR1, not load
 
 Steps:
 
-1. Open 'My orders', then O1, then 'Cancel'.
+1. Open 'My orders', then O1, then tap 'Cancel order' (below the order's details).
 2. Read the sheet. Choose 'Customer cancelled'. Tap the confirm button twice quickly.
-3. Open O2 and tap 'Cancel'.
-4. Read the sheet. Choose 'Other' and try to confirm without a note. Type 'Customer moved house' and confirm.
+3. Open O2 and tap 'Cancel · no refund'.
+4. Read the sheet. Choose 'Other' and press the confirm without a note. Type 'Customer moved house' and confirm.
 
 Expect:
 
-- Step 2: title 'Cancel order AG-0nnn?', text 'Rs 480 comes back to your wallet.', button 'Yes, cancel and get Rs 480 back'; reasons 'Customer cancelled', 'Wrong order', 'Duplicate order', 'Out of stock at the store', 'Other'. After confirming: 'Order cancelled · Rs 480 returned'; the timeline ends 'Cancelled · Rs 480 returned'; the chip reads 'Rs 480 returned'; the balance rises by Rs 480 once.
-- Step 4: a red sheet 'Cancel without refund?' with 'Delivery has started. If you cancel now, the Rs 400 is not returned.' and button 'Cancel without refund'. 'Other' needs a note first. After confirming: 'Order cancelled · no refund'; the timeline ends 'Cancelled · no refund'; the chip stays 'Rs 400 paid'; the balance does not change.
+- Step 2: the title 'Cancel order AG-0nnn?'; 'Back to your wallet' with 'Rs 480' large; 'Why?' above the reasons 'Customer cancelled', 'Wrong order', 'Duplicate order', 'Out of stock' and 'Other'; the button 'Cancel · get Rs 480 back' and an outlined 'Keep order'. After confirming: the toast 'Order cancelled · Rs 480 returned'; the status 'Cancelled' with the cost chip 'Rs 480 returned'; the balance rises by Rs 480 once.
+- Step 4: 'Cancel without refund?' with 'Delivery has started.' and 'Not returned' 'Rs 400'; the red 'Cancel without refund' and an outlined 'Keep order'. With 'Other' and no note, pressing the confirm shows the note's error and sends nothing. After confirming: 'Order cancelled · no refund'; the cost chip stays 'Rs 400 paid' with 'No refund. Delivery had started.'; the balance does not change.
 
 Spec: ADR-07; UX_MOBILE §2.2 (ConfirmSheet, double-tap guard), §3.4 (fee), S10, S11; API_CONTRACT §1.5, §7.6
 
@@ -4227,15 +4233,15 @@ Before: SA1 signed in. X1 for Sana assigned to DR1 by Owner, not loaded. X2 for 
 
 Steps:
 
-1. Open 'Orders' and X1's drawer. Read 'Delivery cost' and the timeline. Open 'More'.
-2. Choose 'Cancel order…'. Read it. Pick a reason, leave the note empty and try to confirm. Type 'Shop asked by phone' and confirm.
-3. Open X2's drawer and 'More'. Choose 'Cancel order…', read it and click 'Go back'.
+1. Open 'Orders' and X1's drawer. Read 'Delivery cost', the timeline and the footer.
+2. Click 'Cancel order…' in the footer. Read it. Pick a reason, leave the note empty and press the confirm. Type 'Shop asked by phone' and confirm.
+3. Open X2's drawer. Click 'Cancel order…', read it and click 'Go back'.
 
 Expect:
 
-- Step 1: the fee chip 'Rs 480 paid'; 'Base Rs 250 + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg) = Rs 480 · taken from the wallet when the order was placed'; timeline 'Placed · Rs 480 taken from wallet' and 'Driver assigned (by Owner)'; 'Could not deliver…' is not offered.
-- Step 2: 'Rs 480 goes back to Ahmed Gas's wallet.' with the button 'Cancel and return Rs 480'; the note is required. Afterwards the chip reads 'Rs 480 returned', the timeline ends 'Cancelled · Rs 480 returned', and Activity shows 'Cancelled AG-0nnn · Rs 480 returned'.
-- Step 3: a danger dialog 'Delivery has started. Cancelling now returns nothing.' with 'Cancel without refund'; 'Could not deliver…' is offered for X2; X2's timeline shows 'Loading started', and its Delivery cost section shows 'Cancelling now returns nothing: delivery has started.'
+- Step 1: the fee chip 'Rs 480 paid' and the rows 'Base Rs 250', '11.8 kg 2 × Rs 40' and '45.4 kg 1 × Rs 150' (no formula sentence); the timeline 'Placed · Rs 480 taken from wallet' and 'Driver assigned (by Owner)'; the footer has 'Cancel order…' at the start and no More menu; 'Could not deliver…' is not offered.
+- Step 2: 'Rs 480 goes back to Ahmed Gas's wallet.' with the button 'Cancel and return Rs 480'; with no note it shows 'Write a note of at least 5 characters.'. Afterwards the outcome line 'Rs 480 returned to the wallet · \<the reason>' sits at the top of the drawer, the chip reads 'Rs 480 returned', the timeline ends 'Cancelled · Rs 480 returned', and Activity shows 'Cancelled AG-0nnn · Rs 480 returned'.
+- Step 3: X2's drawer starts with 'Cancelling now returns nothing: delivery has started.' and offers 'Could not deliver…' in the footer; the dialog says 'Delivery has started. Cancelling now returns nothing.' with 'Cancel without refund'; X2's timeline shows 'Loading started'.
 
 Spec: ADR-07; UX_ADMIN §1.5 (FeeChip), §2.5 (Order drawer, Cancel order, Could not deliver), §2.9, §2.12; API_CONTRACT §7.6
 
@@ -4386,14 +4392,14 @@ Steps:
 
 1. Start a new order for Usman: 3 × 15 kg. Go to "Check and place".
 2. Tap the bottom button.
-3. Open the order and tap Cancel. Read the sheet, pick "Duplicate order" and confirm.
+3. Open the order and tap "Cancel order". Read the sheet, pick "Duplicate order" and confirm.
 4. Ask Owner to set the South price back to Rs 400.
 
 Expect:
 
-- Step 1: no "Delivery cost about …" line and no wallet lines; the button reads "Place order", not "Place order · pay Rs 0".
+- Step 1: the cylinders step shows no "Delivery cost about …" line; Check and place shows "No delivery cost" with no wallet lines and no refund line; the button reads "Place order", not "Place order · pay Rs 0".
 - Step 2: the order opens with the chip "No delivery cost"; the balance stays Rs 5,000.
-- Step 3: the sheet "Cancel order AG-…?" with the button "Yes, cancel order" and no refund wording. After confirming, the balance is still Rs 5,000.
+- Step 3: the sheet "Cancel order AG-…?" with the button "Cancel order" and no refund wording. After confirming, the balance is still Rs 5,000.
 
 Spec: ADR-06 (a cost of zero writes no ledger row); UX_MOBILE §3.4 (fee NONE), S9 (a zero cost), S11 (cancel with no cost)
 
@@ -4512,7 +4518,7 @@ Note: Regression case for review finding money-data-03 (CHANGELOG, "Review fixes
 
 ## CUS · Customers and zones
 
-Adding customers with a phone number and a map pin, zone lookup, duplicates, editing (Inc 2) and ownership. 13 cases: P1 4 · P2 9 · P3 0.
+Adding customers with a phone number and a map pin, zone lookup, duplicates, editing (Inc 2) and ownership. 14 cases: P1 4 · P2 10 · P3 0.
 
 ### CUS-001 · Add a customer with a North pin: phone saved as +923001234567, with its zone and price
 
@@ -4553,7 +4559,7 @@ Steps:
 
 Expect:
 
-- Steps 1 and 2 each return 400 CLIENT_PHONE_INVALID with the message "Enter a mobile number like 0300 1234567." (one plain string). Nothing is saved.
+- Steps 1 and 2 each return 400 CLIENT_PHONE_INVALID with the message "Enter a number like 300 1234567." (one plain string). Nothing is saved.
 - Step 3 returns 409 CLIENT_PHONE_EXISTS with details.clientId = Sana's id and details.name "Sana", and the message "Sana already has this number. Pick them from the list." No new DA customer is made.
 - Step 4 returns 201 with client.phone "+923001234567". The response never mentions Sana or Ahmed Gas (no leak across shops).
 - Step 5 has exactly one customer with +923001234567 (Sana), and no "Test Landline", "Test Short" or "Sana B".
@@ -4666,35 +4672,35 @@ Note: Placing the order and the deduction are covered by the money cases. Addres
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas)
 
-Before: Shop app on a test phone, signed in as Ahmed Gas. The test lead has given you a map printout with zones North, South and East and the Outside point marked. Use a mobile number Ahmed Gas hasn't used yet, for example 0312 4445556 (change the last digit on a repeat run).
+Before: Shop app on a test phone, signed in as Ahmed Gas. The test lead has given you a map printout with zones North, South and East and the Outside point marked. Use a mobile number Ahmed Gas hasn't used yet, for example 312 4445556 after the fixed +92 (change the last digit on a repeat run).
 
 Steps:
 
-1. On Home, tap New order, then tap "Add new customer".
-2. Type Name "Test Pin" and Mobile "0312 4445556". Tap Next.
-3. Drop the pin inside zone North. Read the panel under the map while it loads, and again when it settles.
-4. Drag the pin into zone South. Read the panel.
-5. Drag the pin into zone East. Read the panel. Tap "Call office", then come back to the app.
-6. Drag the pin to the Outside point. Read the panel.
-7. Switch on airplane mode and drag the pin a little, staying inside South. Read the panel. Switch airplane mode off and tap "Try again".
-8. Type House / street "House 1". Tap "Save customer".
+1. On Home, tap New order, then tap '+ Add customer'.
+2. Type Name 'Test Pin', Mobile number '312 4445556' (after the fixed +92) and House and street 'House 1'. Tap Next.
+3. Drop the pin inside zone North. Read the line under the map while it loads, and again when it settles.
+4. Drag the pin into zone South. Read the line.
+5. Drag the pin into zone East. Read the line. Tap 'Call office', then come back to the app.
+6. Drag the pin to the Outside point. Read the line.
+7. Switch on airplane mode and drag the pin a little, staying inside South. Read the line. Switch airplane mode off and tap 'Try again'.
+8. Tap 'Save customer'.
 
 Expect:
 
-- While loading, the panel says "Checking delivery area…".
-- North: a green card "Zone North · Delivery cost Rs 250 per order", followed by the lines "+ Rs 30 per 6 kg cylinder", "+ Rs 40 per 11.8 kg cylinder", "+ Rs 80 per 15 kg cylinder" and "+ Rs 150 per 45.4 kg cylinder". "Save customer" can be tapped.
-- South: "Zone South · Delivery cost Rs 400 per order" and no per-cylinder lines.
-- East: a red card "No delivery price is set for zone East yet. You can't add this customer until the office sets it." with a "Call office" button that opens the phone dialler with the office number. "Save customer" is greyed out.
-- Outside: a red card "This location is outside our delivery area. Move the pin or call the office." "Save customer" is greyed out.
-- Offline: a red error banner with "Try again" (no pop-up box); after the retry the panel shows "Zone South · Delivery cost Rs 400 per order" again.
-- After saving in South, the message "Customer saved" shows for a few seconds.
-- No screen shows "client", "admin", "Rs.", a code such as PRICING_PRICE_NOT_SET, or a long ID.
+- While loading, the line says 'Checking delivery area…'.
+- North: 'Delivery cost Rs 250 per order' with a tick, and '+ Rs 30 to Rs 150 per cylinder' under it. 'Save customer' can be tapped.
+- South: 'Delivery cost Rs 400 per order' with no second line.
+- East: 'No delivery price here yet.' with a 'Call office' button that opens the phone dialler with the office number. 'Save customer' is greyed out.
+- Outside: 'Outside our delivery area. Move the pin.' 'Save customer' is greyed out.
+- Offline: the 'No connection' banner, and under the map 'Couldn't check this spot.' with 'Try again' (no pop-up box); after the retry the line shows 'Delivery cost Rs 400 per order' again.
+- After saving in South, the message 'Customer saved' shows for a few seconds.
+- No screen shows 'zone', 'client', 'admin', 'Rs.', a code such as PRICING_PRICE_NOT_SET, or a long ID.
 
 Spec: ADR-08; UX_MOBILE S8, §0 (plain words), §2.2 (Toast, Field); API_CONTRACT §7.5 (GET /pricing/quote), §7.4
 
-Note: The panel refreshes about half a second after the pin stops moving.
+Note: The line under the map refreshes about half a second after the pin stops moving.
 
-### CUS-008 · Add customer screen: a wrong or already-used mobile shows a clear message, and "Use Sana" picks the existing customer
+### CUS-008 · Add customer screen: a wrong or already-used mobile number shows a clear message, and "Use Sana" picks the existing customer
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas)
 
@@ -4702,20 +4708,20 @@ Before: Shop app signed in as Ahmed Gas. The customer Sana exists with mobile 03
 
 Steps:
 
-1. Tap New order, then "Add new customer".
-2. Type Name "Test Phone" and Mobile "0423 1234567". Tap the next field.
-3. Clear the Mobile field and type "03001234567". Tap the next field.
-4. Tap Next. Drop the pin inside North, type House / street "House 2" and tap "Save customer".
-5. Tap "Use Sana".
+1. Tap New order, then '+ Add customer'.
+2. Type Name 'Test Phone' and Mobile number '423 1234567' (after the fixed +92). Tap the next field.
+3. Clear the Mobile number field and type '03001234567'. Tap the next field.
+4. Type House and street 'House 2' and tap Next. Drop the pin inside North and tap 'Save customer'.
+5. Tap 'Use Sana'.
 
 Expect:
 
-- After step 2, the Mobile field turns red with "Enter a mobile number like 0300 1234567." You can't go on.
-- After step 3, the field shows "0300 1234567" and the red message is gone.
-- After step 4, the app goes back to step 1 with "Sana already has this number." and a "Use Sana" button. No new customer is made.
-- After step 5, New order continues with Sana selected. The customer list still has only one Sana.
+- After step 2, the Mobile number field turns red with 'Enter a number like 300 1234567.' Next doesn't move on.
+- After step 3, the field shows '300 1234567' after the +92 (the typed leading 0 is dropped) and the red message is gone.
+- After step 4, the app goes back to step 1 with 'Sana already has this number.' and a 'Use Sana' button. No new customer is made.
+- After step 5, New order opens on 'Cylinders to deliver' for Sana. The customer list still has only one Sana.
 
-Spec: UX_MOBILE S8, S9 step 1, §2.2 (Field); API_CONTRACT §7.4 rules 1-2, §2.3
+Spec: UX_MOBILE S8, S9 (step 2), §2.2 (PhoneField); API_CONTRACT §7.4 rules 1-2, §2.3 (CLIENT_PHONE_INVALID)
 
 ### CUS-009 · New order: the customer list shows only Ahmed Gas's customers, and search finds them by name, number or area
 
@@ -4734,15 +4740,15 @@ Steps:
 
 Expect:
 
-- Each row shows the name, the mobile written like "0300 1234567", the area and a zone chip: Sana with "North" and Usman with "South".
-- "san", "1234567" and "Model" each show Sana.
-- "Hina" shows no customer. Hina never appears in Ahmed Gas's app.
-- No row shows "+923001234567", a long ID or the word "client".
-- An "Add new customer" button is offered on this step.
+- Each row shows the name and the grey line '0300 1234567 · Model Town' (the mobile and the area), with no zone chip. When Ahmed Gas has orders, a 'Recent' section comes first, then 'All customers' A–Z.
+- 'san', '1234567' and 'Model' each show Sana.
+- 'Hina' shows 'No customer matches “Hina”.' Hina never appears in Ahmed Gas's app.
+- No row shows '+923001234567', a long ID, a zone or the word 'client'.
+- A floating '+ Add customer' button is offered on this step, and there is no Next button: a tap on a row goes on.
 
-Spec: ADR-02; UX_MOBILE S9 (step 1), §0; API_CONTRACT §7.4 (GET /clients), §3.2
+Spec: ADR-02; UX_MOBILE S8b (Customers), S9 (step 1), §0; API_CONTRACT §7.4 (GET /clients), §3.2
 
-Note: GET /clients has no search parameter, so search is assumed to filter the downloaded list on the phone.
+Note: GET /clients has no search parameter, so search filters the downloaded list on the phone (UX_MOBILE S8b).
 
 ### CUS-010 · Ahmed Gas can never see or use Bilal Gas's customers; the office only reads customers, by distributorId
 
@@ -4790,11 +4796,11 @@ Expect:
 - Step 1: 403 PERMISSION_DENIED.
 - Step 2: 400 ZONE_INVALID_SHAPE "This zone shape isn't valid." for both; no zone row and no audit row are written.
 - Step 3: 201 { id }; the zone is active, and one zone.create audit row by SA1.
-- Step 4: the first DELETE gives 200 { ok: true } and one zone.archive audit row; the second gives 200 with X-Already-Applied: true and no second row. The locate finds no zone for the point (archived zones are left out), and the office list with includeArchived shows West Test as archived.
+- Step 4: the first DELETE gives 200 { ok: true } and one zone.archive audit row; the second gives 200 with X-Already-Applied: true and no second row. The locate finds no zone for the point (archived zones are left out), and the office list with includeArchived shows West Test as archived. The listed West Test row also carries polygon, equal to its MultiPolygon, and centroid, a GeoJSON Point at its centre (74.025, 31.525).
 - Step 5: one zone.reactivate audit row; the locate finds West Test again.
 - Step 6: 404 NOT_FOUND with details.field 'cityId'; no zone row is written.
 
-Spec: API_CONTRACT §2.3 (ZONE_INVALID_SHAPE), §7.2 (POST/PATCH/DELETE /zones, PATCH /zones/:id/reactivate: office; valid non-empty MultiPolygon; GET /zones/locate; includeArchived); DATA_MODEL §6 (6: active zones only) · Test file: `apps/api/test/orders/customers.e2e-spec.ts`
+Spec: API_CONTRACT §2.3 (ZONE_INVALID_SHAPE), §7.2 (POST/PATCH/DELETE /zones, PATCH /zones/:id/reactivate: office; valid non-empty MultiPolygon; GET /zones/locate; includeArchived; GET /zones/city/:cityId rows with polygon and centroid, ZoneListRow); DATA_MODEL §6 (6: active zones only) · Test file: `apps/api/test/orders/customers.e2e-spec.ts`
 
 Note: The setup CLI's shape checks are SET-004.
 
@@ -4847,9 +4853,38 @@ Spec: API_CONTRACT §9.4 (PATCH /clients/:id), §3.2, Appendix B (client.update 
 
 Note: Editing doesn't touch the address; a customer moves zone by getting a new address (CUS-006), which is re-quoted. Not automated yet.
 
+### CUS-014 · Customers list: search, call, add and start an order
+
+**P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas)
+
+Before: Shop app signed in as Ahmed Gas. Sana (North) and Usman (South) exist, and Rashid Khan has an address in East, where Ahmed Gas has no price. Ahmed Gas has at least one order for Usman.
+
+Steps:
+
+1. On Home, tap the "Customers" tile.
+2. Type "san" in the search box, then clear it.
+3. Tap the call button on Sana's row, then come back.
+4. Tap Rashid Khan.
+5. Tap Usman.
+6. Go back to Customers and tap "+ Add customer". Add "Test List" with a pin in South and save.
+
+Expect:
+
+- Step 1: "Recent" lists Usman first, then "All customers" A–Z. Each row shows the mobile and the area on the grey line (for example "0300 1234567 · Model Town"), with no zone chip. Rashid shows the red chip "No price yet".
+- Step 2: only Sana shows.
+- Step 3: the dialler opens with Sana's number.
+- Step 4: the row opens in place with "No delivery price here yet.", and "Change address" and "Call office" stacked; it scrolls into view above "+ Add customer". No order screen opens.
+- Step 5: New order opens on "Cylinders to deliver" with "For Usman · …".
+- Step 6: the toast "Customer saved", back on Customers with "Test List" listed.
+- No screen shows "client", "zone" or a long ID.
+
+Spec: UX_MOBILE S8b (Customers), S9 (step 1); API_CONTRACT §7.4
+
+Note: Customers and New order step 1 share one list (screens/distributor/shared/CustomerList.tsx); a row tap starts a New order for that customer (DECIDED, 2026-10-23).
+
 ## ORD · Order lifecycle
 
-Placing, reading, cancelling and delivering orders, their stages and allowed actions, the order screens, the office board, and the switch-over checks. 21 cases: P1 6 · P2 14 · P3 1.
+Placing, reading, cancelling and delivering orders, their stages and allowed actions, the order screens, the office board, and the switch-over checks. 22 cases: P1 6 · P2 15 · P3 1.
 
 ### ORD-001 · Place order X1 (2 × 11.8 kg + 1 × 45.4 kg for Sana): it waits for a driver and keeps its own copy of the cost
 
@@ -4913,30 +4948,30 @@ Note: The body schema runs first: no lines, a fullCount below 1 or a repeated si
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas)
 
-Before: Shop app signed in as Ahmed Gas, balance Rs 5,000. Sana has two saved addresses: "House 14, Street 5" (North) and "Shop, Main Market" (South); add the second with Change address → new pin if it's missing. The setting "When delivery counts as started" is the default (first load scan).
+Before: Shop app signed in as Ahmed Gas, balance Rs 5,000. Sana has two saved addresses: "House 14, Street 5" (North) and "Shop, Main Market" (South); add the second through "Change" → "+ New address" if it's missing. The setting "When delivery counts as started" is the default (first load scan).
 
 Steps:
 
-1. Tap New order. Pick Sana. Tap Next.
-2. Set Deliver for 11.8 kg to 2 and for 45.4 kg to 1. Don't touch Take back. Read the cost line. Tap Next.
-3. If asked, pick "House 14, Street 5". Read the whole Check and place screen.
-4. Tap "Change address" and pick "Shop, Main Market". Read the screen again.
-5. Change back to "House 14, Street 5". Then tap Back to leave without placing.
+1. Tap New order. Tap Sana (it goes on by itself).
+2. Set 11.8 kg to 2 and 45.4 kg to 1. Don't touch Take back. Read the footer line. Tap Next.
+3. Read the whole Check and place screen. If the address isn't "House 14, Street 5", tap "Change" and pick it.
+4. Tap "Change" and pick "Shop, Main Market" in the sheet. Read the screen again.
+5. Change back to "House 14, Street 5". Then press Back until New order closes.
 
 Expect:
 
-- Step 2: Take back follows Deliver (2 and 1), and a line says "Delivery cost about Rs 480".
-- Step 3: Customer "Sana · 0300 1234567"; Deliver to "House 14, Street 5 (Zone North)"; Cylinders 2 × 11.8 kg and 1 × 45.4 kg, taking back 2 and 1.
-- Delivery cost "Rs 250 per order + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg) = Rs 480". Sizes that weren't ordered aren't listed.
-- Your wallet: "Balance now Rs 5,000 · After this order Rs 4,520".
-- The note: "Rs 480 is taken from your wallet now. If you cancel before the driver starts loading, you get it back. After loading starts, it isn't returned, even if the customer refuses."
+- Step 2: every count starts at 0 (when Sana has an earlier order, the chip "Same as last time" offers to fill its sizes and counts); Take back follows Deliver (2 and 1), and the footer says "Delivery cost about Rs 480".
+- Step 3: "Sana · 0300 1234567"; "House 14, Street 5" with "Change" (no zone); "2 × 11.8 kg · take back 2" and "1 × 45.4 kg · take back 1".
+- "Delivery cost" "Rs 480" with "Rs 250 + 2 × Rs 40 + 1 × Rs 150" under it. Sizes that weren't ordered aren't listed.
+- "Balance now Rs 5,000" and "After this order Rs 4,520".
+- The line "Refund only if cancelled before loading."
 - The button reads "Place order · pay Rs 480".
-- Step 4: Deliver to "Shop, Main Market (Zone South)", Delivery cost "Rs 400", After this order Rs 4,600, and the button "Place order · pay Rs 400".
-- Step 5: the screen goes back to Rs 480. Leaving asks "Leave without saving?". No order is placed.
+- Step 4: the sheet "Deliver to" lists the addresses with a tick on the current one. After the pick: "Shop, Main Market", "Delivery cost" "Rs 400", "After this order Rs 4,600" and the button "Place order · pay Rs 400". No zone shows.
+- Step 5: the screen goes back to Rs 480. Back goes one step at a time, then asks "Leave without saving?". No order is placed.
 
-Spec: ADR-06, ADR-07, ADR-08; UX_MOBILE S9 (steps 2-3, refund rule), §2.2 (screen rules), §3.7; API_CONTRACT §7.5 (POST /orders/quote)
+Spec: ADR-06, ADR-07, ADR-08; UX_MOBILE S9 (steps 1-3, refund rule, address PickerSheet), §2.2 (screen rules), §3.7; API_CONTRACT §7.5 (POST /orders/quote)
 
-Note: The cost line for two sizes is assumed to extend the doc's one-size example. With the setting changed to "Driver assigned" or "Van leaves the store", the note must change to the matching sentence (UX_MOBILE S9 refundRule keys).
+Note: With the setting changed to "Driver assigned" or "Van leaves the store", the line changes to the matching sentence (UX_MOBILE S9 refundRule keys).
 
 ### ORD-004 · Placing an order creates exactly one order, even after a double tap or a lost signal
 
@@ -4946,30 +4981,30 @@ Before: Shop app signed in as Ahmed Gas. Usman (South, Rs 400 flat) exists. Note
 
 Steps:
 
-1. Tap New order → Usman → 3 × 15 kg → Next → Check and place. Tap "Place order · pay Rs 400" twice, quickly.
+1. Tap New order → tap Usman → set 15 kg to 3 → Next → Check and place. Tap "Place order · pay Rs 400" twice, quickly.
 2. Read the screen that opens. Then open My orders.
 3. Start another order for Usman with 1 × 15 kg and go to Check and place. Switch on airplane mode. Tap "Place order · pay Rs 400".
-4. Read the screen. Switch airplane mode off. Tap "Try again".
+4. Read the screen. Switch airplane mode off. Tap "Place order · pay Rs 400" again.
 5. Open My orders → Active.
 6. With a developer's help, start one more order for Usman (1 × 15 kg), cut the network right after tapping "Place order · pay Rs 400" (the server gets the order but the phone gets no reply), then reconnect and tap the button again.
-7. Open Wallet history and count the new "Delivery cost" rows.
-8. Clean up: open each of the three new orders and cancel it (reason Other, note "Test order").
+7. Open History and count the new "Delivery cost" rows.
+8. Clean up: open each of the three new orders and tap "Cancel order" (reason Other, note "Test order").
 
 Expect:
 
-- Step 1: the button shows a spinner and ignores the second tap. The order screen opens with the title "Order AG-…" and the message "Order placed · Rs 400 paid". It says "The office will assign a driver." and never "A driver will be assigned shortly".
+- Step 1: the button shows "Placing order…" and ignores the second tap. The order screen opens with the title "Order AG-…" and the message "Order placed · Rs 400 paid". It says "The office will assign a driver." and never "A driver will be assigned shortly".
 - Step 2: exactly one new order for Usman with 3 × 15 kg.
-- Step 4, in airplane mode: a red banner "No internet connection. Check your signal and try again." with "Try again". The order details stay on the screen, and a top strip "No internet. We'll keep trying." may show. No pop-up box.
-- After "Try again": "Order placed · Rs 400 paid" shows once.
+- Step 4, in airplane mode: the banner "No connection" with "Try again" at the top, and the line "Not sent. Tap again. It won't be sent twice." just above the main button. The order details stay on the screen. No pop-up box.
+- After tapping the button again: "Order placed · Rs 400 paid" shows once.
 - Step 5: exactly one new 1 × 15 kg order for Usman (not two), whether or not the first attempt reached the server.
 - Step 6: the second tap shows the same order with "Order placed · Rs 400 paid" once; My orders has one order from that attempt, not two.
 - Step 7: exactly three new "Delivery cost" rows of −Rs 400, one per order placed in this case.
 
-Spec: API_CONTRACT §4 (2), §1.2; UX_MOBILE S9 (submit, success), §2.2 (Button double-tap guard, ErrorBanner, OfflineBanner), §3.1 (one key per intent), §3.5, §6 (a retry never creates a second order)
+Spec: API_CONTRACT §4 (2), §1.2; UX_MOBILE S9 (submit, footer lines, success), §2.2 (Button double-tap guard, ActionLine, OfflineBanner), §3.1 (one key per intent), §3.5, §6 (a retry never creates a second order)
 
 Note: Step 7 checks the wallet rows. Cancelling before a driver is assigned returns each cost, so the clean-up leaves the balance where it was.
 
-### ORD-005 · My orders: Active and Done lists with plain status words, fee chips and empty states
+### ORD-005 · My orders: Active and Done lists with plain status words, cost chips and empty states
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas, Bilal Gas)
 
@@ -4984,15 +5019,15 @@ Steps:
 
 Expect:
 
-- Active shows "Active (n)", where n is the number of rows. Each row has the customer's name as the title and a subtitle with the order number, the cylinders and the time, like "AG-0007 · 2 × 11.8 kg · Today, 4:12 pm".
-- Each row has a status chip with one of: "Waiting for driver", "Driver assigned", "Loading at your store", "On the way". A second line shows the fee chip, like "Rs 480 paid".
-- Done shows "Delivered" rows (green) and "Cancelled" rows. The X1 order cancelled before loading shows the fee chip "Rs 480 returned".
+- Active shows "Active (n)", where n is the number of rows. Each row has the customer's name as the title, the grey line "2 × 11.8 kg · AG-0007", the time on the right (for example "4:12 pm") and one chip under the grey line.
+- The chips: "Waiting for driver" (amber, with the clock), "Driver assigned", "Loading" or "On the way". Active rows have no cost chip.
+- Done shows "Delivered" rows (green) and "Cancelled" rows (grey). The X1 order cancelled before loading shows the cost chip "Rs 480 returned"; a cancelled order whose cost was kept shows "No refund".
 - No row shows PENDING, PAID_VIA_LEDGER, a long ID or "Rs.".
-- Bilal Gas: Active says "No active orders." with a "New order" button; Done says "No finished orders yet." No Ahmed Gas order appears.
+- Bilal Gas: Active says "No active orders." with the floating "+ New order"; Done says "No finished orders yet." No Ahmed Gas order appears.
 
 Spec: ADR-02; UX_MOBILE S10, §3.4 (order stage and fee words), §0; API_CONTRACT §7.6 (GET /orders?tab), §1.4
 
-Note: How two sizes are joined in the subtitle isn't specified.
+Note: Several sizes are joined with a comma, for example "1 × 6 kg, 2 × 11.8 kg · AG-0007".
 
 ### ORD-006 · Order detail shows the timeline, cost, items and driver, and keeps working without signal
 
@@ -5004,20 +5039,19 @@ Steps:
 
 1. Open My orders and tap the X1 order.
 2. Read the whole screen.
-3. Tap "Call driver", then come back to the app.
+3. Tap "Call driver" at the bottom, then come back to the app.
 4. Switch on airplane mode and pull the screen down to refresh.
-5. Switch airplane mode off and tap "Try again" (or pull down again).
+5. Switch airplane mode off and pull down again.
 
 Expect:
 
 - The header reads "Order AG-…" (the order's number).
-- Timeline: "Placed · Rs 480 paid" and "Driver assigned", each with a time, then "Loading at your store", "On the way" and "Delivered" still to come.
-- Cost card: "Delivery cost Rs 480" with the chip "Rs 480 paid" and the breakdown Rs 250 + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg).
-- Items: "Deliver 2 × 11.8 kg · take back 2" and "Deliver 1 × 45.4 kg · take back 1".
-- Driver card: Kashif, van LEA-101 and "Call driver", which opens the dialler with Kashif's number.
-- Offline: the screen keeps the saved order and shows "Showing saved info from … Couldn't refresh." (or a red banner with "Try again" if nothing was saved). Back online, it refreshes.
+- The timeline: "Placed · Rs 480 paid" and "Driver assigned", each with a time, then "Loading", "On the way" and "Delivered" still to come.
+- One facts card: "Sana · 0300 1234567" with a call button and her address; "Kashif · Van LEA-101"; "Deliver 2 × 11.8 kg · take back 2" and "Deliver 1 × 45.4 kg · take back 1"; and "Delivery cost" with the chip "Rs 480 paid" and "Rs 250 + 2 × Rs 40 + 1 × Rs 150".
+- "Call driver" is the button at the bottom; it opens the dialler with Kashif's number. "Cancel order" is a red-outlined button at the end of the content, never at the bottom.
+- Offline: the screen keeps the saved order, stamped "Saved …", under the one banner "No connection" with "Try again" (or "Nothing saved yet." if nothing was saved). Back online, it refreshes.
 
-Spec: UX_MOBILE S11 (layout, states), §2.2 (QueryBoundary, Timeline), §3.4; API_CONTRACT §7.6 (GET /orders/:id), §3.2
+Spec: UX_MOBILE S11 (layout, states), §2.2 (QueryBoundary, Timeline, OfflineBanner), §3.4; API_CONTRACT §7.6 (GET /orders/:id), §3.2
 
 Note: "We couldn't find this order." for a missing order is checked by the 404 in ORD-009.
 
@@ -5029,19 +5063,19 @@ Before: Shop app signed in as Ahmed Gas. Place a new X2 order for Usman (3 × 15
 
 Steps:
 
-1. Open the X2 order. Tap "Cancel order".
+1. Open the X2 order. Tap "Cancel order" (below the details).
 2. Read the sheet and its list of reasons.
-3. Pick "Other" and, without typing a note, try to confirm.
+3. Pick "Other" and, without typing a note, press the confirm.
 4. Type the note "Test cancel" and confirm.
 5. Open the delivered order.
 
 Expect:
 
-- The sheet is titled "Cancel order AG-…?" and lists: Customer cancelled · Wrong order · Duplicate order · Out of stock at the store · Other.
-- With Other and no note, the sheet asks for a note and doesn't confirm.
-- After confirming, the message "Order cancelled · Rs 400 returned" shows. The chip says "Cancelled", the timeline ends with "Cancelled · Rs 400 returned", and the Cancel button is gone.
-- The delivered order has no Cancel button.
-- No pop-up box is used; if sending fails, the sheet stays open with a red banner inside.
+- The sheet is titled "Cancel order AG-…?" and lists, under "Why?": Customer cancelled · Wrong order · Duplicate order · Out of stock · Other. "Keep order" is an outlined button the same size as the confirm.
+- Step 3: pressing the confirm shows the note's error and doesn't confirm.
+- After confirming, the message "Order cancelled · Rs 400 returned" shows. The status reads "Cancelled", the cost chip "Rs 400 returned", and the "Cancel order" button is gone.
+- The delivered order has no "Cancel order" button.
+- No pop-up box is used; if sending fails, the sheet stays open with the message on one line above its buttons ("No connection. Try again." with no connection).
 
 Spec: ADR-07; UX_MOBILE S11 (Cancel), §2.2 (ConfirmSheet); API_CONTRACT §1.5 (OrderCancelReason), §7.6 (cancel), §1.6
 
@@ -5062,15 +5096,15 @@ Steps:
 
 Expect:
 
-- The header says "Orders" with "Orders come from the distributor app. Assign a driver to each new order." The tabs are: Needs a driver · In progress · Done today · Cancelled & failed · All, with counts.
-- X2's row: the order number AG-…, the stage chip "Needs a driver", the customer Usman with his area, "3 × 15 kg", the fee chip "Rs 400 paid", an "Assign driver" button and "… min ago".
-- Each search finds X1.
-- The drawer shows "Order AG-…" with the stage "Driver assigned" and "Ahmed Gas · placed …"; Sana with a phone link, address and zone North; the cylinders; "Base Rs 250 + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg) = Rs 480 · taken from the wallet when the order was placed"; driver and van "Kashif · LEA-101" and "Starts at Ahmed Gas Store · …"; a timeline with "Placed · Rs 480 taken from wallet" and "Driver assigned (by Owner)"; and Activity.
+- Step 1: the header says "Orders" with "Updated …" and no subtitle. The tabs are: Needs a driver · In progress · Done today · Cancelled or not delivered · All, with counts.
+- Step 2: X2's row: the order number AG-… with "Placed … min ago" under it; Usman with "South" muted under his name ("South · Ahmed Gas" while more than one distributor is listed and no distributor filter is on); "3 × 15 kg"; the fee chip "Rs 400 paid"; and an "Assign driver" button. "Needs a driver" has no Status column.
+- Step 3: each search finds X1.
+- Step 4: the drawer "Order AG-…" with the stage "Driver assigned" and "Ahmed Gas · placed …"; Sana with a phone link, the address and "Zone North"; the cylinders; the Delivery cost rows "Base Rs 250", "11.8 kg 2 × Rs 40" and "45.4 kg 1 × Rs 150"; the "Driver" section with "Kashif · LEA-101" and "Starts at Ahmed Gas Store"; a timeline with "Placed · Rs 480 taken from wallet" and "Driver assigned (by Owner)"; and "Activity (n)", which opens on a click.
 - Nowhere: PENDING, ASSIGNED, PAID_VIA_LEDGER, a UUID, "Rs." or "on hold".
 
 Spec: UX_ADMIN §2.5 (board, stages, drawer), §1.5 (FeeChip, StatusChip), rules on every screen; API_CONTRACT §7.6 (GET /orders/board), §1.4
 
-Note: With two distributors on the server, the Distributor filter is shown.
+Note: With two distributors on the server, the distributor filter chips show.
 
 ### ORD-009 · Order reads are scoped: the owner, the office and the trip's driver can see an order; anyone else gets 404
 
@@ -5177,7 +5211,7 @@ Spec: ADR-07; API_CONTRACT §1.5 (OrderCancelReason), §7.6 (cancel body), §2.2
 
 Note: The refund values are checked in the money cases.
 
-### ORD-013 · Office order drawer: "Cancel order" and "Mark delivered by office" ask for a reason and show the result
+### ORD-013 · Office order drawer: "Cancel order…" and "Mark delivered…" ask for a reason and show the result
 
 **P2** · MAN-WEB · Inc 1 · Role: SUPER_ADMIN (Owner)
 
@@ -5185,22 +5219,22 @@ Before: Office website signed in as Owner. Ahmed Gas has O1 (a new order for Usm
 
 Steps:
 
-1. Open O1. Click More → "Cancel order…". Read the dialog. Try to confirm without a note.
+1. Open O1. Click "Cancel order…" in the footer. Read the dialog. Press the confirm without a note.
 2. Pick the reason "Wrong order", type the note "Placed twice by the shop" and confirm.
-3. Open O2. Click More → "Mark delivered by office…". Type "Phone" as the reason.
+3. Open O2. Click "Mark delivered…" in the footer. Type "Phone" as the reason and press "Mark delivered".
 4. Change the reason to "Driver phone broke at the door" and confirm.
 5. Look at O2's Activity section.
 
 Expect:
 
-- Step 1: the dialog says "Rs 400 goes back to Ahmed Gas's wallet." and the confirm button reads "Cancel and return Rs 400". The default focus is "Go back". It can't be confirmed without a note.
-- Step 2: a toast confirms it. O1 shows "Cancelled", and its timeline ends with "Cancelled · Rs 400 returned".
-- Step 3: the dialog says "Use this only when the driver can't mark it in the app. It's logged with your name. No money moves." With only 5 characters the confirm button stays disabled (the reason needs at least 10).
-- Step 4: O2 shows "Delivered".
+- Step 1: the dialog says "Rs 400 goes back to Ahmed Gas's wallet." and the confirm button reads "Cancel and return Rs 400". The default focus is "Go back". Pressed without a note, it shows "Write a note of at least 5 characters." and doesn't confirm.
+- Step 2: the toast "AG-… cancelled · Rs 400 returned". O1 shows "Cancelled", and its timeline ends with "Cancelled · Rs 400 returned".
+- Step 3: the dialog "Mark AG-… delivered?" says "Only when the driver can't do it in the app. No money moves." With 5 characters, pressing "Mark delivered" shows "Write a reason of at least 10 characters." and nothing is sent.
+- Step 4: the toast "AG-… marked delivered by the office."; O2 shows "Delivered".
 - Step 5: Activity shows "Recorded delivery of AG-… by office" by Owner, with the reason.
 - No browser pop-up (alert, confirm or prompt) appears at any point.
 
-Spec: ADR-07; UX_ADMIN §2.5 (Cancel order, Mark delivered by office), §1.5 (ConfirmDialog, Toast), §2.9; API_CONTRACT §7.6 (cancel, manual-delivery), Appendix B
+Spec: ADR-07; UX_ADMIN §2.5 (Cancel order…, Mark delivered…), §1.5 (ConfirmDialog, Toast), §2.9; API_CONTRACT §7.6 (cancel, manual-delivery), Appendix B
 
 Note: O2's Rs 480 is not returned (it was delivered), so Ahmed Gas's test balance goes down by Rs 480.
 
@@ -5328,7 +5362,7 @@ Expect:
 
 Spec: ADR-01; API_CONTRACT §2.3 (DISTRIBUTOR_NO_STORE), §7.3 (GET /distributor/home storeSet), §7.6 (POST /orders rule 1); DATA_MODEL §3.5 (inc1b pre-check: distributors without a store); UX_MOBILE S2 (Store not set) · Test file: `apps/api/test/orders/orders.e2e-spec.ts`
 
-Note: In the shop app the New order button is disabled with "Your store isn't set up yet. Call the office." (UX_MOBILE S2); check it on a phone with the same fixture. After inc1b no distributor can be without a store.
+Note: In the shop app the Home footer shows "Your store isn't set up yet." above a primary "Call office" instead of "New order" (UX_MOBILE S2); check it on a phone with the same fixture. After inc1b no distributor can be without a store.
 
 ### ORD-019 · The office's manual delivery and the driver's Delivered tap at the same moment record one delivery
 
@@ -5391,6 +5425,30 @@ Expect:
 Spec: UX_MOBILE S10 (Active (n), polls every 30 s), Appendix C · Test file: `apps/api/test/unit/ui/mobile-logic.spec.ts`
 
 Note: Regression case for review finding mobile-ux-09 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-09 …". ORD-005 expects n to be the number of rows.
+
+### ORD-022 · New order step 2 starts at 0, and "Same as last time" fills the last order
+
+**P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas)
+
+Before: Shop app signed in as Ahmed Gas. Sana has an earlier order of 2 × 11.8 kg (take back 2) and 1 × 45.4 kg (take back 1). A customer who has never ordered exists (for example Test List from CUS-014).
+
+Steps:
+
+1. Tap New order, then tap Sana.
+2. Look at the counts, the chip above the sizes and the footer.
+3. Tap "Same as last time".
+4. Go back to step 1 and tap the customer who has never ordered.
+
+Expect:
+
+- Step 2: every count is 0; the footer says "Add at least 1 cylinder." and "Next" is disabled; the chip "Same as last time" shows.
+- Step 3: the sizes, counts and take-back of Sana's last order fill in (11.8 kg 2, take back 2; 45.4 kg 1, take back 1), the chip hides, and the footer shows "Delivery cost about Rs 480".
+- Step 4: every count is 0 and there is no "Same as last time" chip.
+- Nothing is filled in without a tap.
+
+Spec: UX_MOBILE S9 (step 2); UX_PRINCIPLES §2 (rule 10)
+
+Note: The lead's decision of 2026-10-23: never prefill silently, so no wrong order goes out by accident. The chip reads the customer's newest order in the cached first pages of Active and Done.
 
 ## ASG · Assignment and trips
 
@@ -5462,7 +5520,7 @@ Expect:
 
 - Step 1: both 403 PERMISSION_DENIED.
 - Step 2: both 409 ORDER_NOT_ASSIGNABLE ("This order can't get a driver now.").
-- Step 3: 409 ASSIGN_DRIVER_NOT_AVAILABLE with the message "Imran can't take jobs right now."
+- Step 3: 409 ASSIGN_DRIVER_NOT_AVAILABLE with the message "Imran can't take trips right now."
 - Step 4: 409 ASSIGN_DRIVER_NO_VEHICLE with the message "Imran has no van. Give them a van first."
 - After every refusal O1 is still PENDING with no trip, and no order.assign row was written.
 
@@ -5645,16 +5703,15 @@ Before: Office website signed in as Owner. Ahmed Gas has a new order X2 for Usma
 Steps:
 
 1. Open Orders → "Needs a driver". Click "Assign driver" on X2.
-2. Read the dialog.
+2. Read the dialog. Press "Assign driver" before picking anyone.
 3. Choose Kashif and click "Assign to Kashif".
 4. Open X2 again. Click "Change driver". Read it. Choose Imran and click "Assign to Imran".
 5. Ask Imran to load one 15 kg cylinder for X2 at Ahmed Gas Store. Then open X2 again.
 
 Expect:
 
-- The dialog is titled "Assign a driver to AG-…" and shows "Starts at: Ahmed Gas Store · …" as plain text. There is no store picker and no Auto-dispatch button.
-- Driver cards show the name, the van and "On duty" or "Offline". A driver who can't take the job is greyed out with a reason, for example "No van — give one in Vans".
-- Step 3: the toast "AG-… assigned to Kashif. He sees it in his app now." The order moves to "In progress" and shows "Kashif · LEA-101".
+- Step 2: the dialog is titled "Assign a driver to AG-…" and shows "Starts at: Ahmed Gas Store" as plain text. There is no store picker and no Auto-dispatch button. Driver cards show the name, "Van LEA-101" (with " · on a trip" for a driver on another trip) and one chip, "On duty" or "Offline"; a driver who can't take the order is greyed out with a reason, for example "No van — give one in Vans". With no pick, the button shows "Pick a driver.".
+- Step 3: the toast "AG-… assigned to Kashif"; the drawer closes, and the order moves to "In progress" with "Kashif · LEA-101".
 - Step 4: the dialog says "Kashif's stop will be cancelled. Only the new driver can deliver this order." Afterwards the driver column shows "Imran · LEB-202".
 - Step 5: once loading has started, "Change driver" is no longer offered, and the stage reads "Loading".
 
@@ -6026,22 +6083,22 @@ Before: Office website signed in as Owner. A receipt photo (JPG under 5 MB) is o
 Steps:
 
 1. Open Expenses. Click "Add expense".
-2. Open the Type list and look at it. Try to pick tomorrow's date.
-3. Fill in: Date today, Amount 2,500, Type Petrol, Van LEA-101, Driver Kashif, Note "Fuel for LEA-101". Attach the receipt photo. Click "Save expense".
+2. Look at the Type chips. Open "Pick date" and try to pick tomorrow.
+3. Keep the date "Today"; pick the Type chip Petrol; type the Amount 2,500 and the Note "Fuel for LEA-101". Open "+ Add van, driver or receipt", pick Van LEA-101 and Driver Kashif, and attach the receipt photo. Click "Save expense".
 4. Open the new row, change the Amount to 3,000 and save.
-5. Click "Remove expense…". Type "Test" as the reason. Then change it to "Entered twice" and confirm.
-6. Switch on "Show removed".
+5. Click "Remove expense…". Choose "Other", type "Test" under "Why?" and try to confirm. Then pick "Entered twice" and confirm.
+6. Turn on the "Show removed" chip.
 
 Expect:
 
-- Step 2: the Type list shows only active types (no "Driver meals"). A future date can't be chosen.
-- Step 3: the toast "Expense saved". The table shows the date, "Petrol", "Rs 2,500", LEA-101, Kashif, the note, a receipt thumbnail and "Owner".
+- Step 2: the Type chips show only active types (no "Driver meals"). Tomorrow can't be picked.
+- Step 3: the toast "Petrol Rs 2,500 saved". The row shows the date, "Petrol", "Rs 2,500", "LEA-101 · Kashif" and the note with a receipt icon. There is no By column.
 - Step 4: the row shows "Rs 3,000".
-- Step 5: the dialog says "The expense stays in the activity log and is left out of totals." It won't confirm with fewer than 5 characters. After confirming, the row leaves the list and the Petrol total drops by Rs 3,000.
+- Step 5: the dialog lists the date, type and amount and says "It's left out of totals. The activity log keeps it." With "Other", "Test" is too short (5 characters at least) and it won't confirm. After "Entered twice", the toast "Expense removed"; the row leaves the list and the Petrol total drops by Rs 3,000.
 - Step 6: the row is back, struck through, with the chip "Removed".
-- The Note field counts up to 200 characters. Money always shows like "Rs 3,000", never "Rs." or paisa.
+- The Note counter shows from 160 of its 200 characters. Money always shows like "Rs 3,000", never "Rs." or paisa.
 
-Spec: ADR-14; UX_ADMIN §2.7 (Add / edit drawer, Remove expense, Table), §1.5 (MoneyInput, DateInput, ConfirmDialog); API_CONTRACT §7.12
+Spec: ADR-14; UX_ADMIN §2.7 (Add / edit drawer, Remove expense, Table), §1.5 (MoneyInput, DateChips, AddMore, ConfirmDialog); API_CONTRACT §7.12
 
 ### EXP-016 · Manage expense types on the website: add, rename, archive and restore
 
@@ -6051,28 +6108,28 @@ Before: Office website signed in as Owner. No type called "Staff meals" exists.
 
 Steps:
 
-1. Open Expenses and click "Manage types".
-2. Click "Add type", type "Petrol" and save.
+1. Open Expenses and click "Expense types".
+2. Click "+ Add type", type "Petrol" and click "Save type".
 3. Add the type "Driver meals".
 4. Rename "Driver meals" to "Staff meals".
-5. Archive "Staff meals". Open "Add expense", look at the Type list, then close it.
-6. With "Staff meals" archived, click "Add type", type "staff meals" and save.
+5. Archive "Staff meals". Open "Add expense", look at the Type chips, then close it.
+6. With "Staff meals" archived, click "+ Add type", type "staff meals" and save.
 7. Restore "Staff meals" with the Restore button.
 8. Look at the Petrol and Other rows.
 
 Expect:
 
-- Step 1: the list shows each type's name, how many expenses use it, and its status.
+- Step 1: each type shows its name in bold and how many expenses use it (for example "2 expenses"), with no "In use" chip; archived types sit under "Archived".
 - Step 2: the message "There's already a type called Petrol."
 - Steps 3-4: the new name shows straight away.
-- Step 5: "Staff meals" shows as archived and isn't in the Type list.
+- Step 5: the toast "Staff meals archived"; "Staff meals" sits under "Archived" and isn't among the Type chips.
 - Step 6: the message "There's already an archived type called Staff meals. Restore it instead." with a Restore button on that row.
 - Step 7: it's active again.
 - Step 8: Petrol and Other show the lock "Can't be archived" and have no Archive action.
 
-Spec: ADR-14; UX_ADMIN §2.7 (Manage types); API_CONTRACT §7.12 (Types)
+Spec: ADR-14; UX_ADMIN §2.7 (Expense types); API_CONTRACT §7.12 (Types)
 
-### EXP-017 · Expense totals on the website: a card per type, the drivers' fuel logs beside them, and the include switch off by default
+### EXP-017 · Expense totals on the website: a card per type, the drivers' fuel logs beside them, and the fuel-log chip off by default
 
 **P2** · MAN-WEB · Inc 1 · Role: SUPER_ADMIN (Owner)
 
@@ -6080,18 +6137,18 @@ Before: Office website signed in as Owner. Engineering has loaded the expense sa
 
 Steps:
 
-1. Open Expenses. Choose Custom dates from 1 Sep 2026 to 31 Oct 2026.
+1. Open Expenses. Tap the "Custom" date chip and choose 1 Sep 2026 to 31 Oct 2026.
 2. Read the cards and the month table below them.
-3. Turn on "Include driver fuel logs in totals". Read the total. Turn it off again.
+3. Turn on the "Add driver fuel logs" chip beside Total. Read the total. Turn it off again.
 4. Open the "Driver fuel logs" tab.
 
 Expect:
 
-- Cards: Petrol Rs 4,500 (2), Maintenance Rs 1,200 (1), Toll/Parking Rs 300 (1); the total is Rs 6,000. The removed Rs 1,800 isn't counted.
+- Step 2: cards only for types with expenses: Petrol Rs 4,500 (2), Maintenance Rs 1,200 (1), Toll/Parking Rs 300 (1); the total is Rs 6,000. The removed Rs 1,800 isn't counted.
 - A muted card beside them: "Petrol · driver fuel logs Rs 2,500 (2 logs)".
 - The month table: Sep 2026 Petrol Rs 2,000; Oct 2026 Petrol Rs 2,500, Maintenance Rs 1,200, Toll/Parking Rs 300.
-- The switch is Off when the page opens. On, the total becomes Rs 8,500, labelled as including fuel logs. Off again, it's Rs 6,000.
-- The fuel logs tab is read-only: a table per van with litres, cost, km and km per litre.
+- Step 3: the "Add driver fuel logs" chip is off when the page opens, with "Off, so bills aren't counted twice." beside it. On, the total becomes Rs 8,500, labelled as including the fuel logs. Off again, it's Rs 6,000.
+- Step 4: the fuel logs tab is read-only: a table per van with litres, cost, km and km per litre.
 
 Spec: ADR-14; UX_ADMIN §2.7 (Totals, Driver fuel logs tab); API_CONTRACT §7.12 (GET /expenses/summary, GET /reports/fuel-consumption)
 
@@ -6114,7 +6171,7 @@ Steps:
 Expect:
 
 - Step 1: features.fuelRefills is false.
-- Step 2: the POST gives 403 FEATURE_DISABLED "This is switched off for the pilot." with the header X-Feature-Disabled: fuelRefills; the list gives 200 [] with the same header. No fuel_refills row is added.
+- Step 2: the POST gives 403 FEATURE_DISABLED "This isn't available yet." with the header X-Feature-Disabled: fuelRefills; the list gives 200 [] with the same header. No fuel_refills row is added.
 - Step 3: 403 PERMISSION_DENIED for every call.
 - Step 4: 200 with the old log while the switch is off (the office reads don't depend on it). The driver appears with safe fields only (no user row, passwordHash or cnic).
 - Step 5: while on, the POST gives 201 and the summary counts the new log under fuelLogs, not inside Petrol. After switching off, the POST gives 403 FEATURE_DISABLED again. Two setting.update audit rows exist.
@@ -6136,7 +6193,7 @@ Before: The office website on the test server, on a laptop. You have the logins 
 Steps:
 
 1. Open the website address.
-2. Look at the sign-in page.
+2. Look at the sign-in page. In the mobile number field, type "0321 1234567", then clear it.
 3. Sign in with Ahmed Gas's mobile and password.
 4. Sign in with Kashif's mobile and password.
 5. Sign in as Owner with a wrong password.
@@ -6144,10 +6201,10 @@ Steps:
 
 Expect:
 
-- The page is titled "Smart Fleet · Office" and says "Drivers and distributors use the Smart Fleet app." The mobile field is empty (nothing prefilled) and shows the number like "+92 300 1234567" after you type it.
-- Ahmed Gas: the sign-in form shows "This account is for the Smart Fleet shop app."; Kashif: "This account is for the Smart Fleet Driver app." No office page opens and nobody stays signed in.
-- Wrong password: "Wrong phone number or password." under the form. The word "OTP" never appears.
-- Owner: the Today page opens. The browser tab title ends with "Smart Fleet Office" and starts with "[TEST]" on the test server, and a strip says "Test server — not real money".
+- Step 2: the title "Smart Fleet · Office" with no subtitle; "Mobile number" with "+92" fixed and the example "300 1234567" (nothing prefilled); while typing, the box reads "321 1234567" (the typed 0 is dropped); the line "Forgot your password? Ask the tech team."; and under the card "Drivers and distributors use the Smart Fleet app."
+- Steps 3-4: Ahmed Gas: "This account is for the Smart Fleet shop app." with a second line "Use the Smart Fleet app on your phone."; Kashif: "This account is for the Smart Fleet Driver app." with the same second line. The password box is cleared. No office page opens and nobody stays signed in.
+- Step 5: "Wrong phone number or password." under the form, and the password box is cleared. The word "OTP" never appears.
+- Step 6: the Today page opens. The browser tab title ends with "Smart Fleet Office" and starts with "[TEST]" on the test server, and a strip says "Test server — not real money".
 
 Spec: ADR-02; UX_ADMIN §2.10 (login, role gate, EnvBadge), §1.3 (title); API_CONTRACT §7.1, §2.3
 
@@ -6184,22 +6241,22 @@ Steps:
 
 1. Open Today.
 2. Read the cards from top to bottom.
-3. Click "Assign drivers", then go back. Click "Set prices" on the Ahmed Gas card, then go back.
+3. Click "Assign drivers", then go back. Click "Set prices", then go back.
 4. Wait 30 seconds without touching anything.
 5. Read the "Today so far" row.
 
 Expect:
 
-- The header reads "Today · " plus today's date (for example "Today · Thu 22 Oct"), with "Updated … ago".
-- Cards, each with one button: "1 top-up to check" with "Oldest waiting … min" and "Check top-ups"; "2 orders need a driver" with "Oldest placed … ago" and "Assign drivers"; "Ahmed Gas: 1 zone has no delivery price" with "Customers there can't be added and orders are blocked." and "Set prices" (and a similar card for Bilal Gas with 2 zones); "City Gas hasn't started yet" with "Finish the checklist and activate." and "Open".
-- "Assign drivers" opens Orders on "Needs a driver". "Set prices" opens Ahmed Gas's delivery prices.
-- "Updated … ago" refreshes by itself (about every 20 seconds), and the menu badges match the cards.
-- "Today so far" shows "Orders placed 3 · Delivered 0", "Delivery costs taken Rs 800", today's approved top-ups, and "Drivers on duty 1 of 2".
+- Step 1: the header reads "Today · " plus today's date (for example "Today · Thu 22 Oct"), with "Updated … ago".
+- Step 2: cards, each with one button: "1" "top-up to check" with "Oldest … min" and "Check top-ups"; "2" "orders need a driver" with "Oldest … min" and "Assign drivers"; "3" "zones have no price" with "Ahmed Gas 1 · Bilal Gas 2" and "Set prices"; "1" "distributor to activate" with "City Gas" and "Finish setup".
+- Step 3: "Assign drivers" opens Orders on "Needs a driver". "Set prices" opens Bilal Gas's delivery prices (the most missing) with "Missing" picked.
+- Step 4: "Updated … ago" refreshes by itself (about every 20 seconds). The Today badge equals top-ups to check + orders needing a driver (3, the same number as the browser tab's "(3)"), and the Orders and Top-ups badges match their cards.
+- Step 5: "Today so far" shows Orders placed 3, Delivered 0, "Delivery costs Rs 800", today's approved top-ups and "Drivers on duty 1 of 2".
 - No raw codes, IDs or "Rs." anywhere.
 
 Spec: UX_ADMIN §2.1 (Today), §1.3 (badges), §1.7 (summary polls every 20 s); API_CONTRACT §7.13 (GET /admin/summary)
 
-Note: "All caught up" only shows when nothing waits, including missing prices, so check it on a server where every zone is priced.
+Note: "All caught up." shows only when no card shows, the Prices card included, so check it on a server where every zone is priced. The lead kept the Today badge on 2026-10-23 (UX_ADMIN §1.3).
 
 ### OFF-004 · Create a distributor with exactly one store and a shop code
 
@@ -6293,21 +6350,23 @@ Before: Office website signed in as Owner. The mobile 0321 5550002 and the code 
 Steps:
 
 1. Open Distributors. Read the table.
-2. Click "Add distributor". Fill in Business name "Noor Gas", contact name "Noor Ahmed", phone "0321 5550002" and shop code "NG".
-3. In the Store part, click the map at the Outside point. Read the zone line. Then click inside North.
-4. Click "Create distributor".
-5. Open Noor Gas's page.
+2. Click "Add distributor" and press "Create distributor" at once.
+3. Fill in Business name "Noor Gas", Contact name "Noor Ahmed" and Mobile number "321 5550002" (after the fixed +92). Look at the Distributor code and the store name.
+4. In the Store part, type the store address, click the map at the Outside point and read the zone line. Then click inside North.
+5. Click "Create distributor".
+6. Open Noor Gas's page.
 
 Expect:
 
-- The table has the columns Distributor, Code (AG, BG), Phone, Store (with its zone), Status ("Active"), Balance ("Rs 5,000" for Ahmed Gas) and Prices ("2 of 3" as a warning for Ahmed Gas, because East has no price).
-- The code field explains "Used in order numbers like AG-0142. It can't change after the first order." The store name fills in as "Noor Gas store".
-- Outside: "This spot is outside every active zone. Move the pin or ask engineering to load the zone." North: "Zone: North (from the pin)", which can't be edited.
-- After creating: the toast "Noor Gas created. Next: set delivery prices, then activate."
-- Noor Gas's page shows the name, code NG and "Waiting to start"; the readiness card shows ✓ Store set (North), ✗ Delivery prices 0 of 3 with "Set prices", ✗ App password set, and "Balance Rs 0 — they can top up after activation."; "Activate distributor" is disabled; "Change code" is offered.
+- Step 1: the columns Distributor, Phone, Status, Balance and Prices; Ahmed Gas shows "Active", "Rs 5,000" and a red "1 not set" (East has no price).
+- Step 2: nothing is created; each required field says what to type ("Type the business name.", "Type the contact name.", "Type the mobile number.", "Type the store address." and so on) and the focus moves to the first one.
+- Step 3: the Distributor code fills in as "NG" by itself, with the hint "Starts order numbers (AG-0142). Fixed after the first order."; the store name fills in as "Noor Gas store".
+- Step 4: the map opens fitted to the zones, with their outlines and names. Outside: "Outside every zone. Move the pin into a shaded zone."; North: "Zone: North".
+- Step 5: the toast "Noor Gas created. Next: set delivery prices.", and the new row is tinted at the top of the list.
+- Step 6: Noor Gas's page shows "Code NG · +92 321 5550002" and "Waiting to start"; the checklist "Before Noor Gas can start" shows ✓ "Store · Zone North", ✗ "Delivery prices · 0 of 3 set" with "Set prices" and ✗ "App password · not set" with "Set password"; there is no balance line; "Activate distributor" is disabled with "Finish the checklist first" shown beside it.
 - No field suggests or copies another person's phone, CNIC or email.
 
-Spec: ADR-01, ADR-22; UX_ADMIN §2.4 (list, add drawer, distributor page); API_CONTRACT §7.3
+Spec: ADR-01, ADR-22; UX_ADMIN §2.4 (list, add drawer, distributor page), §1.5 (StoreMapPicker); API_CONTRACT §7.2 (zone outlines), §7.3
 
 ### OFF-008 · Settings: the office sees every setting, and a change applies right away with an audit row
 
@@ -6341,22 +6400,22 @@ Before: Office website signed in as Owner. All settings are at their defaults. T
 
 Steps:
 
-1. Open Settings. Read the "Orders and delivery", "Refills" and "Company account" sections.
+1. Open Settings. Read the section menu and the "Orders and delivery", "Company account" and "Tech team" sections.
 2. Change "Max cylinders per order" from 30 to 40, and under Money change "Top-up maximum" from 50,000 to 75,000.
-3. Click "Review and save". Read the dialog. Try to save without a reason. Then type "Testing bigger orders" and double-click the save button quickly.
+3. Click "Review and save". Read the dialog. Try to save without a reason. Then type "Testing bigger orders" under "Why?" and double-click the save button quickly.
 4. Read the "Max cylinders per order" row.
 5. Open Activity.
-6. In Modules, turn on "Store-to-store transfers". Read what appears, then click "Go back".
+6. In Features, turn on "Store-to-store transfers". Click "Review and save" and read it. Then click "Go back", and "Discard" in the bar.
 7. Set both values back (30 and Rs 50,000), with a reason.
 
 Expect:
 
-- Step 1: "When delivery counts as started" offers First load scan at the store (selected), Driver assigned and Van leaves the store, with "After this point, cancelling an order returns nothing." Automatic assignment shows Off with "When off, every new order waits for you to assign a driver. Keep off for the pilot." Refill delivery cost reads "Off · waiting for the owner's decision". The company account shows the name and IBAN with a Copy button, can't be edited, and says "Changed only on the owner's written request…".
-- Step 2: a sticky bar "2 changes not saved · Discard · Review and save".
-- Step 3: the dialog lists "Max cylinders per order: 30 → 40" and "Top-up maximum: Rs 50,000 → Rs 75,000", and won't save without a reason. After saving: the toast "Settings saved. The server uses them now; the apps show them within 5 minutes." shows once, and each change is saved once.
+- Step 1: the sections read Money · Orders and delivery · Features · Support · Company account · Tech team. "When delivery counts as started" offers First load scan at the store (selected), Driver assigned and Van leaves the store, with "After this, cancelling returns nothing. Changes apply to unstarted orders too." "Automatic driver assignment" shows Off with "Keep off: the office assigns every order by hand." "Refill delivery cost" sits under Orders and delivery and reads "Off · waiting for the owner's decision". The company account shows the name and IBAN with "Copy IBAN", can't be edited, and says "Only the tech team changes this, on the owner's request." Tech team has "Lowest driver app version" and "Lowest distributor app version". No row has a "Default" line.
+- Step 2: each edited row shows "Not saved", and a sticky bar reads "2 changes not saved · Discard · Review and save".
+- Step 3: the dialog lists "Max cylinders per order: 30 → 40" and "Top-up maximum: Rs 50,000 → Rs 75,000", asks "Why?" and won't save without a reason. After saving, the toast "Settings saved. Apps update within 5 minutes." shows once, and each change is saved once.
 - Step 4: the row says "Changed 22 Oct by Owner" (today's date).
 - Step 5: "Changed Max cylinders per order from 30 to 40" and "Changed Top-up maximum from Rs 50,000 to Rs 75,000", each with the reason, and no key names (such as topup.maxPaisa) or paisa numbers.
-- Step 6: turning a module on asks for its own confirmation; after "Go back" it stays Off.
+- Step 6: no separate dialog opens; the save review shows "Store-to-store transfers opens in the apps within 5 minutes."; after "Go back" the change stays unsaved, and "Discard" puts the switch back to Off.
 
 Spec: UX_ADMIN §2.8 (Settings), §2.9; API_CONTRACT §7.13, §6; DECISIONS defaults table, ADR-04, ADR-12
 
@@ -6396,18 +6455,19 @@ Steps:
 
 1. Open Activity.
 2. Read the newest rows.
-3. Filter "What" to Orders; then Expenses; then Settings.
-4. Filter "Who" to Ops.
-5. Pick a date with no activity.
+3. Tap the What chips Orders, then Expenses, then Settings.
+4. In "Who", pick Ops.
+5. Tap the date chip "Custom" and pick a date with no activity.
+6. Clear the filters. Click the "Cancelled AG-0013 · Rs 400 returned" row, then close it.
 
 Expect:
 
-- The columns are When · Who · What happened · Why.
-- Sentences like "Assigned AG-0012 to Kashif", "Moved AG-0012 from Kashif to Imran", "Cancelled AG-0013 · Rs 400 returned", "Added Petrol expense Rs 2,500" and "Changed Max cylinders per order from 30 to 40", with the reason under Why where one was given.
-- The settings tool's row shows Who as "System".
-- Each filter shows only matching rows; Ops shows nothing if Ops did nothing.
-- A date with no activity shows a plain empty message, with no developer text.
-- No raw action codes such as order.reassign, and no IDs.
+- Step 1: the columns are When · Who · What happened · Why, with the rows grouped by day and only the time in When.
+- Step 2: sentences like "Assigned AG-0012 to Kashif", "Moved AG-0012 from Kashif to Imran", "Cancelled AG-0013 · Rs 400 returned", "Added Petrol expense Rs 2,500" and "Changed Max cylinders per order from 30 to 40", with the reason under Why where one was given. The settings tool's row shows Who as "System".
+- Step 3: each chip shows only matching rows.
+- Step 4: Ops shows nothing if Ops did nothing.
+- Step 5: "Nothing matches these filters" with "Clear filters"; no developer text.
+- Step 6: the order's drawer opens (a wallet correction row would open the wallet page). No raw action codes such as order.reassign, and no IDs, appear anywhere.
 
 Spec: UX_ADMIN §2.9 (Activity log), §1.9; API_CONTRACT §7.13 (GET /audit-logs), Appendix B
 
@@ -6421,19 +6481,19 @@ Before: Office website signed in as Owner. The modules are off (default).
 
 Steps:
 
-1. From the menu, open in turn: Drivers, Vans, Zones, Cylinders & labels, Live map, Alerts, My profile, Refills, Refill stations.
+1. From the menu, open in turn: Drivers, Vans, Zones, Cylinders & labels, Live map and Refill stations (under "Setup"; open it if it is closed), Alerts and Refills (under Work), and My profile (in the account menu at the foot of the menu).
 2. Look in the menu for Stores, Inventory roll plan, Fuel & km, Reports, Accessories and Pricing.
 3. Type the website address followed by /transfers in the browser's address bar. Then try /reports, and then /nothing-here.
 
 Expect:
 
-- Step 1: each opens inside the new layout (menu and top bar), with no error or blank page.
+- Step 1: each opens inside the new layout (the menu, with the top bar only below 1024 px), with no error or blank page. The legacy pages use the new words: Drivers "Edit" / "Password" / "More"; Vans tabs "Vans · Give vans to drivers"; Cylinders & labels "In stores · On vans · Add stock"; Alerts "Rules" and "Check now".
 - Step 2: none of these are in the menu.
-- Step 3: "Store-to-store transfers is switched off" with an "Open settings" button. /reports opens the old Reports screen inside the new layout (it is in no menu). /nothing-here shows "We couldn't find this page" with "Go to Today".
+- Step 3: "Store-to-store transfers is switched off" with "Turn it on in Settings." and an "Open settings" button. /reports opens the old Reports screen inside the new layout (it is in no menu). /nothing-here shows "We couldn't find this page" with "Go to Today".
 
 Spec: ADR-04; UX_ADMIN §2.11 (Legacy cleanup), §1.2 (switched-off route), §1.3 (removed from navigation); API_CONTRACT §3.4
 
-Note: The refill and station screens are checked in REF-010.
+Note: The refill and station screens are checked in REF-010. The menu group is "Setup" (the website never says "shop" in its own labels).
 
 ### OFF-013 · A CNIC can belong to only one account, and it never comes back in a response
 
@@ -6507,7 +6567,7 @@ Expect:
 
 Spec: API_CONTRACT §2.3 (USER_PHONE_IN_USE), §3.5, §7.2 (POST /drivers: office; phone normalised and unique; audited; GET /drivers), Appendix B (driver.create); DATA_MODEL §7 (users_phone_key) · Test file: `apps/api/test/security/drivers.e2e-spec.ts, apps/api/test/security/security-units.spec.ts`
 
-### OFF-016 · Archiving a driver needs a reason, ends their sessions, and keeps them off new jobs until reactivated
+### OFF-016 · Archiving a driver needs a reason, ends their sessions, and keeps them off new trips until reactivated
 
 **P2** · AUTO-API · Inc 1 · Role: SUPER_ADMIN (SA1), DRIVER (DR2)
 
@@ -6527,7 +6587,7 @@ Expect:
 - Step 1: 400 VALIDATION_FAILED (an archive needs a reason); Imran is unchanged.
 - Step 2: 200. Imran is archived: his user is SUSPENDED, his van is released and his token_version goes up by 1.
 - Step 3: token A is refused with 401 AUTH_SESSION_REVOKED within 60 seconds, and the new sign-in is refused with 403 AUTH_ACCOUNT_NOT_ACTIVE "This account isn't active. Call the office."
-- Step 4: 409 ASSIGN_DRIVER_NOT_AVAILABLE "Imran can't take jobs right now." X2 still needs a driver.
+- Step 4: 409 ASSIGN_DRIVER_NOT_AVAILABLE "Imran can't take trips right now." X2 still needs a driver.
 - Step 5: 200; Imran can sign in again, and the assignment succeeds.
 - Step 6: one driver.archive row and one driver.reactivate row, each with actor SA1 and its reason.
 
@@ -6542,21 +6602,21 @@ Before: Office website signed in as Owner. Noor Gas (NG) from OFF-007 exists, wa
 Steps:
 
 1. Open Distributors, then Noor Gas.
-2. On the Contact card click Edit, change the email, and save.
-3. On the Store card click "Edit store" and move the pin into South. Read the message, then save.
-4. Open More, then "Set app password". Set a password and confirm.
+2. On the Contact card click Edit, change the email, and click "Save".
+3. On the Store card click "Edit store" and move the pin into South. Read the message, then click "Save store".
+4. In the checklist, click "Set password". Click "Make one for me", then Copy, and confirm.
 5. Set prices for Noor Gas in every zone. Then click "Activate distributor" and confirm.
-6. Open More, then "Suspend…". Try to confirm without a reason, then type "Test suspend" and confirm. Ask the test lead to watch Noor Gas's phone for a minute, then try to sign in again.
+6. Look at the page header. Open More, then "Suspend…". Try to confirm without a reason, then type "Test suspend" under "Why?" and confirm. Ask the test lead to watch Noor Gas's phone for a minute, then try to sign in again.
 7. Open More, then "Reactivate…", give a reason and confirm.
 
 Expect:
 
 - Step 2: the new email shows, and Activity lists the change.
-- Step 3: "The store moves from zone North to South. New trips start from the new place." After saving, the store card shows zone South.
-- Step 4: the dialog "Set app password for Noor Gas" with the helper "Tell Noor Gas this password by phone or in person. It isn't shown again." After confirming, the toast "App password set for Noor Gas. They must sign in again with it." and the readiness card ticks "App password set". The password never appears in Activity.
-- Step 5: the dialog "Activate Noor Gas? They can place orders and top up from now on." After confirming, the status reads "Active".
-- Step 6: the reason is required. The dialog says "They are signed out of the shop app and can't sign in until you reactivate them, so they can't place new orders or refills or send top-up requests. Orders already out continue. Their balance stays as it is, and you can still approve or reject top-ups they already sent." On the phone Noor Gas is signed out within 60 seconds, and signing in again shows "This account isn't active. Call the office."
-- Step 7: the status reads "Active" again, and Activity shows "Reactivated Noor Gas" (the button sends PATCH /distributors/:id/approve with the reason).
+- Step 3: "Moves from zone North to South. New trips start here." After saving, the store card shows zone South.
+- Step 4: the dialog "Set app password for Noor Gas" with "At least 8 characters." and "Tell Noor Gas by phone. It isn't shown again."; "Make one for me" fills a 10-character password and shows it, and Copy copies it. After confirming, the toast "App password set for Noor Gas." and the checklist shows "App password · set". The password never appears in Activity.
+- Step 5: the dialog "Activate Noor Gas?" with "They can place orders and top up from now on." After confirming, the toast "Noor Gas is active." and the status reads "Active".
+- Step 6: "Set app password" is a visible button in the header. The suspend dialog lists 4 points ("Signed out until you reactivate them", "No new orders, refills or top-ups", "Orders already out continue", "Balance stays. You can still check their sent top-ups.") and needs a reason under "Why?". After confirming, the toast "Noor Gas is suspended."; on the phone Noor Gas is signed out within 60 seconds, and signing in again shows "This account isn't active. Call the office."
+- Step 7: the toast "Noor Gas is active again." and the status reads "Active"; Activity shows "Reactivated Noor Gas" (the button sends PATCH /distributors/:id/approve with the reason).
 
 Spec: UX_ADMIN §2.4 (Distributor page: Edit store, Set app password, Activate, Suspend), §2.9; API_CONTRACT §7.2 (POST /users/:id/password), §7.3 (PATCH /distributors/:id, /store, /approve, /suspend), Appendix B (distributor.update, distributor.store_update, distributor.activate, distributor.suspend\*, user.password_reset)
 
@@ -6610,7 +6670,7 @@ Note: Regression case for review finding web-ux-04 (CHANGELOG, "Review fixes, 20
 
 ## DRV · Driver app and runs
 
-The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 50 cases: P1 28 · P2 19 · P3 3.
+The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 54 cases: P1 28 · P2 22 · P3 4.
 
 ### DRV-001 · Legacy scan route accepts only drivers (no super-admin bypass)
 
@@ -6738,32 +6798,34 @@ Expect:
 
 Spec: ADR-02; API_CONTRACT §3.1, §3.2, §7.6 (fail, PATCH status), §8.6 · Test file: `apps/api/test/orders/driver-scans.e2e-spec.ts`
 
-### DRV-006 · Inc 1 driver app: scans open only from a delivery step, and "All delivered" asks first
+### DRV-006 · Inc 1 driver app: the camera is on the step screen, and "All delivered" asks first
 
 **P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 1 driver app on a pilot phone. Kashif can sign in. At the start no job is assigned to him. AG-C0011 is with Sana (earlier delivery).
+Before: Inc 1 driver app on a pilot phone. Kashif can sign in. At the start no trip is assigned to him. AG-C0011 is with Sana (earlier delivery).
 
 Steps:
 
 1. Sign in to the Smart Fleet Driver app as Kashif. Look at the home screen.
 2. Ask the office to assign order X1 to Kashif. Wait 30 seconds or pull down to refresh.
-3. Open the trip, then Sana's delivery steps.
-4. On the loading step, tap the scan button and look at the scan screen.
+3. Tap "Start trip".
+4. On the "Load at Ahmed Gas Store" step (header "Step 1 of 3"), look at the camera on that screen.
 5. Point the camera at the label of AG-C0011 and watch the result.
-6. Go to the last step and tap "All delivered". Read the sheet, then confirm.
-7. Tap "All delivered" again.
+6. Open Sana's step, tap "I've arrived", then "All delivered". Read the sheet, then confirm.
+7. Open Sana's step again.
 
 Expect:
 
-- Home has no free scan tiles, no "Nearby orders" and no "Transfer tasks". With no job it reads "No jobs yet. The office will assign your next job."
-- The trip appears, with a step chip in words (for example "Next").
-- The scan screen opens already set for this step. There is no list for choosing a scan type.
-- A red strip under the camera says "This cylinder isn't in Ahmed Gas Store's stock. Load only from this store." No pop-up box and no code such as SCAN_NOT_AT_STORE.
-- The sheet reads "Mark all delivered? Only do this after you have handed over every cylinder." While sending, the button shows it is busy and can't be pressed twice.
-- The second tap shows "Already marked delivered". No pop-up box appears at any point.
+- Step 1: Today has no free scan tiles, no "Nearby orders" and no "Transfer tasks". With no trip it reads "Nothing to do." and "New trips appear by themselves." with "Call office".
+- Step 2: the trip appears as "Deliver to Sana" with the chip "Next" and the footer "Start trip".
+- Step 4: the step screen has the camera already set for loading, "0 of 3 scanned" and the strip "Scan each full cylinder.". There is no separate scan screen and no list of scan types.
+- Step 5: a red strip under the camera says "This cylinder isn't in Ahmed Gas Store's stock. Load only from this store." No pop-up box and no code such as SCAN_NOT_AT_STORE.
+- Step 6: with fewer scanned than the order, "All delivered" is outlined and opens "Only 0 of 3 scanned. Continue?" with "Only if the customer has every cylinder.", [Yes, all delivered] and [Keep scanning] (with all scanned it is the filled button and asks "All delivered?" with [Yes, all delivered] and [Not yet]). While sending, the button shows it is busy and can't be pressed twice. After confirming: the green strip "All delivered" and "Take back from Sana" with "0 taken back · N expected" (N is the order's take-back count).
+- Step 7: Sana's step opens on "Take back from Sana" with the "All delivered" strip; nothing asks again. No pop-up box appears at any point.
 
-Spec: ADR-13; UX_MOBILE §5, §2.2 (ConfirmSheet, ErrorBanner, Button), §6; API_CONTRACT §7.7
+Spec: ADR-13; UX_MOBILE §5 (Today, the step screens, the Inc 1 count, the early press), §2.2 (ConfirmSheet, CountBar, Button), §6; API_CONTRACT §7.7
+
+Note: The Inc 1 count is the screen's tally of the cylinders the server confirmed, labelled "scanned"; it never blocks a button (UX_PRINCIPLES §9.2). Inc 2 enforces the count on the server.
 
 ### DRV-007 · Could not deliver records a valid reason and moves no money
 
@@ -6823,21 +6885,21 @@ Steps:
 
 1. Open the trip and tap "Deliver to Sana".
 2. Before scanning anything, tap "Could not deliver".
-3. Read the sheet. Choose "Customer not home" and confirm.
+3. Read the sheet. Tap "Mark not delivered" without a reason. Then choose "Customer not home" and confirm.
 4. Look at the trip screen.
-5. Open Usman's visit, scan one of his cylinders to hand it over, then look at the "Could not deliver" button.
+5. Open Usman's visit, tap "I've arrived", scan one of his cylinders to deliver it, then look at the "Could not deliver" button.
 
 Expect:
 
-- The sheet title is "Couldn't deliver to Sana?". Reasons are in words (Customer not home, Customer refused, Wrong address, Not reachable, Van problem, Other).
-- The body says "The cylinders stay on your van. Bring them back to the store today." No rupee amount or money word appears.
-- After confirming, the line "Marked could not deliver." appears. No pop-up box.
-- Sana's step shows "Skipped".
-- At Usman's visit, once a cylinder is handed over, "Could not deliver" is disabled.
+- Step 3: the sheet title is "Couldn't deliver to Sana?" with "Bring the cylinders back to the store."; "Why?" sits above the six reasons (Customer not home, Customer refused, Wrong address, Not reachable, Van problem, Other); "Go back" is an outlined button the same size as the confirm. No rupee amount or money word appears.
+- Step 3: tapping "Mark not delivered" with no reason picked turns "Why?" into "Pick a reason." and sends nothing.
+- After confirming, the red card "Not delivered" with "Bring the cylinders back to the store." appears. No pop-up box.
+- Step 4: Sana's step shows "Not delivered" in red.
+- Step 5: once a cylinder is delivered, "Could not deliver" is disabled with the line "You already gave some. Call office."
 
-Spec: ADR-07; UX_MOBILE §7.2 (R5, R6), §3.4 (stages.step); API_CONTRACT §1.5
+Spec: ADR-07; UX_MOBILE §7.2 (R5, R6), §5 (Could not deliver), §3.4 (stages.step), §2.2 #19 (ConfirmSheet); API_CONTRACT §1.5
 
-Note: Reason labels are not listed word for word in UX_MOBILE; the ones above are assumed from the DeliveryFailureReason codes.
+Note: The reason words are listed in UX_MOBILE §5 (Could not deliver).
 
 ### DRV-010 · Load moves a full cylinder from the store onto this trip's van and shows progress
 
@@ -6907,7 +6969,7 @@ Steps:
 Expect:
 
 - Steps 1-2: 409 SCAN_NOT_FULL ("This cylinder isn't full. Load only full cylinders.").
-- Steps 3-4: 409 SCAN_CYLINDER_BLOCKED ("This cylinder is marked damaged or lost. Put it aside and call the office.").
+- Steps 3-4: 409 SCAN_CYLINDER_BLOCKED ("Marked damaged or lost. Put it aside. Call office.").
 - All four stay in Ahmed Gas Store with their states unchanged. No event written. X1 loadStartedAt is still empty, so a cancel would still return Rs 480.
 
 Spec: ADR-13; API_CONTRACT §2.3, §9.2 (common step 9, LOAD) · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
@@ -7028,12 +7090,12 @@ Steps:
 
 Expect:
 
-- The screen lists one row per size: "11.8 kg · 0 of 2" and "45.4 kg · 0 of 1", with a big "0 of 3". A link reads "Store doesn't have them all? Call the office".
-- "Done loading" is disabled.
-- A green tick and the strip "✓ AG-C0001 · 11.8 kg loaded"; the counter shows "1 of 3 loaded"; a short buzz and a beep. No pop-up box.
-- Holding it in front of the camera does nothing. The later scan shows a neutral strip "Already scanned · AG-C0001", with no buzz, and the counter stays at 1.
-- After AG-C0031 the card turns green with "All 3 loaded", a longer buzz and a chime; the camera stops; "Done loading" is enabled.
-- The trip screen now offers "Deliver to Sana".
+- Step 1: a big "0 of 3" with "loaded", and the lines "11.8 kg · 0 of 2" and "45.4 kg · 0 of 1". At the end, the ghost link "Missing some? Call office".
+- Step 2: "Done loading" is disabled, with "3 more to load" above it.
+- Step 3: a green strip "AG-C0001 · 11.8 kg loaded" with a tick; the count shows "1 of 3" loaded; a short buzz and a beep. No pop-up box.
+- Step 4: holding it in front of the camera does nothing. The later scan shows a grey strip "Already scanned · AG-C0001", with no buzz, and the count stays at 1.
+- Step 5: after AG-C0031 the count turns green with "All 3 loaded", a longer buzz and a chime; the camera stops; "Done loading" is enabled.
+- Step 6: the card "Loading done" and the footer "Deliver to Sana".
 
 Spec: UX_MOBILE §7.1 (read loop, feedback, scan copy), §7.2 (R4 Load), §7.4
 
@@ -7121,7 +7183,7 @@ Steps:
 
 Expect:
 
-- Step 1: 409 DELIVERY_SCANS_INCOMPLETE ("Scan the remaining cylinders before finishing this stop."), details.missing [{ sizeLabel: "45.4 kg", needed: 1, given: 0 }].
+- Step 1: 409 DELIVERY_SCANS_INCOMPLETE ("Scan every cylinder before you finish the visit."), details.missing [{ sizeLabel: "45.4 kg", needed: 1, given: 0 }].
 - Step 2: X1 is still IN_TRANSIT, not delivered; the stop is still ARRIVED.
 
 Spec: ADR-13; API_CONTRACT §9.3 (DELIVERY finish), §9.11 (A stop can't finish with scans short) · Test file: `apps/api/test/e2e/stop-finish.e2e-spec.ts`
@@ -7195,7 +7257,7 @@ Spec: ADR-13; API_CONTRACT §9.2, §9.10, Appendix A · Test file: `apps/api/tes
 
 Note: Not automated yet.
 
-### DRV-025 · Deliver screen: one row per size, and refusals in plain words with "Call the office"
+### DRV-025 · Deliver screen: one line per size, and refusals in plain words with "Call office"
 
 **P2** · MAN-DRIVER · Inc 2 · Role: DRIVER (DR1 Kashif)
 
@@ -7203,17 +7265,17 @@ Before: Inc 2 driver app (0.2.0) on a pilot phone, sound on. Kashif's trip has X
 
 Steps:
 
-1. Tap "Deliver to Sana".
+1. Tap "Deliver to Sana" and, at her door, "I've arrived".
 2. Scan AG-C0021 (a 15 kg cylinder loaded for Usman).
 3. Scan AG-C0005 (the cylinder that was never loaded).
 4. Scan AG-C0001.
 
 Expect:
 
-- The screen shows "Give 2 × 11.8 kg" and "Give 1 × 45.4 kg" with a big "0 of 3".
-- A red strip says "This is 15 kg. This order doesn't need it." with a double buzz and an error tone. The counter stays at 0.
-- A red strip says "This cylinder wasn't loaded on your van. Don't hand it over. Call the office." with a "Call the office" button.
-- The red strip stays until the good scan of AG-C0001, which shows a green tick, "✓ AG-C0001 · 11.8 kg delivered" and "1 of 3 delivered".
+- Step 1: the lines "11.8 kg · 0 of 2" and "45.4 kg · 0 of 1", with a big "0 of 3" and "delivered".
+- Step 2: a red strip "This is 15 kg. This order doesn't need it." with a double buzz and an error tone. The count stays at 0.
+- Step 3: a red strip "Not loaded on your van. Don't deliver it. Call office." with a "Call office" button.
+- Step 4: the red strip stays until the good scan of AG-C0001, which shows a green strip "AG-C0001 · 11.8 kg delivered" and "1 of 3" delivered.
 - No pop-up box, no code (such as SCAN_SIZE_NOT_IN_ORDER) and no HTTP number appears.
 
 Spec: ADR-13; UX_MOBILE §3.2 (errorAction), §7.1 (feedback), §7.2 (R5 Visit phase 1), §7.4
@@ -7259,7 +7321,7 @@ Steps:
 Expect:
 
 - Step 1: 201.
-- Step 2: 409 SCAN_GIVEN_THIS_VISIT ("You just gave this cylinder. It can't be taken back on the same visit.").
+- Step 2: 409 SCAN_GIVEN_THIS_VISIT ("You just delivered this one. You can't take it back now.").
 - Step 3: AG-C0001 is with Sana, state FULL; it is only in the given list; no TAKEN_BACK row.
 - Step 4: 201 on the later visit: the rule is per visit.
 
@@ -7307,7 +7369,7 @@ Expect:
 - Step 1: 409 TAKE_BACK_SHORT, details { expected: 3, taken: 1 }, message "The customer gave back 1 of 3. Say why to finish."
 - Step 2: 400 VALIDATION_FAILED (OTHER needs a note of 3–300 characters).
 - Step 3: 200; X1 DELIVERED (SCANNED); the stop is DONE.
-- Step 4: 409 SCAN_STOP_CLOSED ("This stop is already finished."); AG-C0012 stays with Sana.
+- Step 4: 409 SCAN_STOP_CLOSED ("This step is already done."); AG-C0012 stays with Sana.
 - Balance still Rs 4,520: a short return moves no money.
 
 Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §2.3 (TAKE_BACK_SHORT, SCAN_STOP_CLOSED), §9.2, §9.3 (DELIVERY finish) · Test file: `apps/api/test/e2e/stop-finish.e2e-spec.ts`
@@ -7353,20 +7415,20 @@ Steps:
 1. Move to the "Take back" part of the visit. Look at "This cylinder is:".
 2. Without changing it, scan AG-C0011.
 3. Tap "Part-filled", scan AG-C0012. Then scan AG-C0032 without tapping again.
-4. Tap "No label or other brand". Look at the sheet, then close it without saving.
+4. Tap "No label". Look at the sheet, then close it without saving.
 5. Tap "Finish visit".
 
 Expect:
 
-- "This cylinder is: Empty | Part-filled | Full" shows Empty selected. The counter reads "0 taken back · 3 expected".
-- AG-C0011 lands in the Empty list.
-- AG-C0012 lands in Part-filled; AG-C0032 also lands in Part-filled (the choice stays until changed). Three lists are shown: Empty, Part-filled, Full. The counter reads "3 taken back · 3 expected".
-- The sheet asks for size, state and count. Closing it saves nothing.
-- The visit finishes and the screen reads "Visit done" with "Gave 3 · Took back 3 (1 empty, 2 part-filled, 0 full)". There is no share button and no link. The footer offers the next step.
+- Step 1: "This cylinder is: Empty | Part-filled | Full" shows Empty selected. The count reads "0 taken back · 3 expected".
+- Step 2: AG-C0011 lands in the Empty list; the strip reads "AG-C0011 · Empty".
+- Step 3: AG-C0012 lands in Part-filled with the strip "AG-C0012 · Part-filled"; AG-C0032 also lands in Part-filled (the choice stays until changed). The lists read "Empty · 1" and "Part-filled · 2" (an empty list is hidden). The count reads "3 taken back · 3 expected".
+- Step 4: the sheet "No label or other brand" asks for the size, the state and how many. Closing it saves nothing.
+- Step 5: "Visit done", then "Gave 3 · Took back 3" and, on the next line, "1 empty · 2 part-filled · 0 full". There is no share button and no link. The footer offers the next step.
 
 Spec: ADR-13; UX_MOBILE §7.1 (stateSelector, scan copy), §7.2 (R5 phases 2 and 3); CUSTOMER_PAGE §10
 
-Note: If a fourth return is expected instead, the short-return sheet "Took back 3 of 4. Why?" must offer Customer kept them, Customer had none, Other.
+Note: If a fourth return is expected instead, the short-return sheet reads "Took back 3 of 4" with "Why?" above Customer kept them, Customer had none, Other.
 
 ### DRV-032 · A typed cylinder number resolves only within the distributor and is audited
 
@@ -7388,7 +7450,7 @@ Expect:
 - Step 1: 201; cylinder.shortCode "AG-C0001" (never BG-C0001); the event source is TYPED.
 - Step 2: 200 ALREADY_RECORDED with X-Already-Applied: true for each: they all resolve to AG-C0001, which is already loaded.
 - Step 3: 404 SCAN_CYLINDER_UNKNOWN for both; no event and no audit row.
-- Step 4: 404 SCAN_CYLINDER_UNKNOWN ("We don't know this cylinder. Check the label or type its number."); no audit row.
+- Step 4: 404 SCAN_CYLINDER_UNKNOWN ("We don't know this cylinder. Check the label."); no audit row.
 - Step 5: 201; AG-C0001 is back in Ahmed Gas Store; the event source is TYPED.
 - Two custody.typed_entry audit rows: one with actor DR1 (DRIVER), one with actor DA (DISTRIBUTOR), both for AG-C0001 and distributor DA (the repeats and refusals of steps 2-4 write none). BG-C0001 has no new event.
 
@@ -7431,16 +7493,16 @@ Before: Inc 2 driver app (0.2.0) on a pilot phone. Typed numbers are on. Order X
 Steps:
 
 1. Open "Load at store". Tap "Type number".
-2. Type 0001 and send it.
+2. Type 0001 and tap "Load".
 3. In the phone settings, block the camera for the app. Open "Load at store" again.
 4. Ask the office to switch typed numbers off. Wait one minute and reopen the screen.
 
 Expect:
 
-- A field opens under the camera with the hint "e.g. C0042".
-- A green tick and "✓ AG-C0001 · 11.8 kg loaded"; the counter moves to "1 of 3 loaded".
-- The screen shows "Open settings" and "Type number instead".
-- "Type number" is no longer shown; scanning a label still works.
+- Step 1: a field "Cylinder number" opens under the camera with "e.g. 42" on the number keypad, and a send button "Load".
+- Step 2: a green strip "AG-C0001 · 11.8 kg loaded"; the count moves to "1 of 3" loaded.
+- Step 3: "Camera blocked. Allow it in settings." with "Open settings" and "Type number instead".
+- Step 4: "Type number" is no longer shown; scanning a label still works.
 
 Spec: ADR-13; UX_MOBILE §7.1 (typed number, camera permission); API_CONTRACT §6 (PublicAppConfig.features.typedCylinderNumber)
 
@@ -7484,17 +7546,17 @@ Steps:
 2. Scan AG-C0001, then AG-C0002.
 3. Tap back to leave the screen.
 4. Tap "Stay and retry". Turn airplane mode off.
-5. Tap "Retry all".
+5. Tap "Retry".
 6. Ask the office to open Find cylinder for AG-C0001 on the website.
 
 Expect:
 
-- The banner "No internet. We'll keep trying." appears.
-- Each scan adds an amber row under "Not saved (2)" with "Retry"; the counter stays at "0 of 3 loaded"; no green tick.
-- A sheet says "2 scans are not saved" with "Stay and retry" and "Leave".
-- The banner goes away.
-- Both rows clear; the counter shows "2 of 3 loaded", once each.
-- AG-C0001 shows exactly one "Loaded onto van LEA-101 at Ahmed Gas Store" line (no duplicate).
+- Step 1: the banner "No connection" with "Try again" appears.
+- Step 2: the scans make one amber row "Not saved: 2" with one "Retry"; the count stays at "0 of 3" loaded; no green tick.
+- Step 3: a sheet says "2 scans not saved" with "Leave now and they're lost.", "Stay and retry" and "Leave".
+- Step 4: the banner goes away.
+- Step 5: the row clears; the count shows "2 of 3" loaded, once each.
+- Step 6: AG-C0001 shows exactly one "Loaded onto van LEA-101 at Ahmed Gas Store" line (no duplicate).
 
 Spec: ADR-13; UX_MOBILE §2.2 (OfflineBanner), §7.1 (Not sent, Leaving with unsaved scans), §7.4; API_CONTRACT §9.2 (replay by scanId)
 
@@ -7620,7 +7682,7 @@ Spec: ADR-12; API_CONTRACT §2.3 (ASSIGN_ORDER_LOADED), §7.6 (assign-driver rul
 
 Note: Step 3 follows §7.6 rule 4 and ADR-12: once anything was loaded, the order can't change driver, even after the store scans it back in. Not automated yet.
 
-### DRV-042 · Hand back screen updates by itself as the shop scans, then allows "Finish trip"
+### DRV-042 · Unload screen updates by itself as the shop scans, then allows "Finish trip"
 
 **P2** · MAN-DRIVER · Inc 2 · Role: DRIVER (DR1 Kashif), DISTRIBUTOR (DA)
 
@@ -7628,7 +7690,7 @@ Before: Inc 2 driver app on Kashif's phone and Inc 2 shop app on Ahmed Gas's pho
 
 Steps:
 
-1. On the driver app, open "Hand back at Ahmed Gas Store".
+1. On the driver app, open "Unload at Ahmed Gas Store".
 2. Tap "Finish trip".
 3. On the shop app, scan AG-C0011 and AG-C0032. Watch the driver's screen for 10 seconds.
 4. On the shop app, scan AG-C0021, AG-C0022 and AG-C0023.
@@ -7636,13 +7698,13 @@ Steps:
 
 Expect:
 
-- The screen says "Give each cylinder to the shop. They scan it in their app. This page updates by itself." Groups: Not delivered (full) 3, Empty 1, Full (taken back) 1, with "0 of 5 received".
-- The trip is not finished: "Finish trip" is disabled, or, if it can be tapped, the screen says exactly "The store still needs to scan in the cylinders on your van (5 left)." No pop-up box.
-- Within about 5 seconds the driver's screen shows "2 of 5 received", with no refresh needed.
-- "5 of 5 received" and "Finish trip" is enabled.
-- The trip is finished and Today shows it as done.
+- Step 1: "Unload at Ahmed Gas Store" with "Give each cylinder to the shop to scan." Groups: Not delivered 3, Empty 1, Full 1, with "0 of 5" unloaded.
+- Step 2: the trip is not finished: "Finish trip" can be tapped (it is outlined while cylinders are left), and the line above it says exactly "The store must scan in 5 more from your van." No pop-up box.
+- Step 3: within about 5 seconds the driver's screen shows "2 of 5" unloaded, with no refresh needed.
+- Step 4: the count reaches "All 5 unloaded" and "Finish trip" is the filled main button.
+- Step 5: the trip is finished and Today counts it under "Done today".
 
-Spec: ADR-13; UX_MOBILE §7.2 (R3, R7), Appendix C (trip polls 5 s on Hand back); API_CONTRACT §2.3 (TRIP_VAN_NOT_EMPTY), §9.3
+Spec: ADR-13; UX_MOBILE §7.2 (R3, R7), Appendix C (qk.trip polls 5 s on Unload); API_CONTRACT §2.3 (TRIP_VAN_NOT_EMPTY), §9.3
 
 ### DRV-043 · The 03:00 van check raises a van-not-empty alert only for vans still holding cylinders
 
@@ -7696,7 +7758,7 @@ Note: Not automated yet.
 
 **P2** · MAN-DRIVER · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 driver app (0.2.0) on a pilot phone. Kashif has van LEA-101 and no job. Imran exists; the office can take his van away for one step.
+Before: Inc 2 driver app (0.2.0) on a pilot phone. Kashif has van LEA-101 and no trip. Imran exists; the office can take his van away for one step.
 
 Steps:
 
@@ -7709,14 +7771,14 @@ Steps:
 
 Expect:
 
-- Grey placeholder blocks show while loading; the header reads "Today · \<date>" with "Call office".
-- Before the job: "No jobs yet. The office will assign your next job. This page updates by itself." The new trip then appears by itself as "Trip · 1 customer · load at Ahmed Gas Store" with "Start".
-- The saved list stays, with "Showing saved info from \<time>. Couldn't refresh." and "No internet. We'll keep trying."
-- The strip goes away and the list refreshes.
-- The van card reads "LEA-101" and "3 full · 0 empty · 0 part-filled".
-- Imran sees "No van is assigned to you. Call the office."
+- Step 1: grey placeholder blocks show while loading; the header reads "Today · \<date>" with "Call office".
+- Step 2: before the trip: "Nothing to do." and "New trips appear by themselves." with a "Call office" button. The new trip then appears by itself as "Deliver to Sana" and "3 cylinders · load at Ahmed Gas Store" with the chip "Next" and the footer "Start trip".
+- Step 3: the saved list stays, stamped "Saved \<time>", under one banner "No connection" with "Try again".
+- Step 4: the banner goes away and the list refreshes.
+- Step 5: the van row reads "LEA-101" and "3 full" (zeros hidden).
+- Step 6: Imran sees "No van yet." in the van row, and My van shows "No van yet." with "Call office".
 
-Spec: UX_MOBILE §2.2 (QueryBoundary, OfflineBanner), §3.5, §7.2 (R2 Today); API_CONTRACT §9.3 (GET /driver/home)
+Spec: UX_MOBILE §2.2 (QueryBoundary, OfflineBanner), §3.5, §5 (Today), §7.2 (R2 Today); API_CONTRACT §9.3 (GET /driver/home)
 
 ### DRV-046 · A full run has one main button per screen and no system words
 
@@ -7735,8 +7797,8 @@ Steps:
 
 Expect:
 
-- The footer reads "Load at store", then "Deliver to Sana", then "Deliver to Usman", then "Hand back at store", then "Finish trip": one main button per screen.
-- Steps show "To do", "Next", "Done" or "Skipped" (Usman's visit shows "Skipped").
+- The footer reads "Load at store", then "Deliver to Sana", then "Deliver to Usman", then "Unload at store", then "Finish trip", never "Next:": one main button per screen.
+- The steps show "To do", "Next", "In progress", "Done", "Not delivered" (red) or "Cancelled" (grey); Usman's visit shows "Not delivered" in red.
 - No screen shows a raw code (EMPTY, PART_FILLED, SCAN_OUT, IN_TRANSIT, FAILED), a long id, "Rs." or a money amount. Cylinders show as "AG-C0011", sizes as "11.8 kg".
 - No pop-up box appears at any point.
 
@@ -7764,7 +7826,7 @@ Spec: ADR-02; ADR-13; API_CONTRACT §3.1, §3.2 (canActOnTrip), §9.3 (driver en
 
 Note: Not automated yet.
 
-### DRV-048 · A new job sends the driver a push message that opens Today
+### DRV-048 · A new trip sends the driver a push message that opens Today
 
 **P3** · MAN-DRIVER · Inc 2 · Role: DRIVER (Kashif); SUPER_ADMIN (Owner)
 
@@ -7779,11 +7841,11 @@ Steps:
 
 Expect:
 
-- Step 2: a notification reads "New job · 1 customer · load at Ahmed Gas Store".
+- Step 2: a notification "New trip" with "Sana · load at Ahmed Gas Store".
 - Step 3: the app opens on Today with the new trip.
 - Step 4: no notification arrives on the signed-out phone, because Sign out removed its push token (DELETE /push-tokens).
 
-Spec: UX_MOBILE §7.0 (FCM for the new-job push), §7.2 (R8 New-job push); API_CONTRACT §7.2 (POST /push-tokens, DELETE /push-tokens)
+Spec: UX_MOBILE §7.0 (FCM for the new-trip push), §7.2 (R8 New-trip push); API_CONTRACT §7.2 (POST /push-tokens, DELETE /push-tokens)
 
 ### DRV-049 · The Van screen lists the real cylinders on the van by size and state
 
@@ -7793,15 +7855,15 @@ Before: Inc 2 driver app. Kashif's van LEA-101 holds AG-C0001 and AG-C0002 (11.8
 
 Steps:
 
-1. Open the menu, then Van.
+1. Open the menu, then My van.
 2. Read the screen.
 
 Expect:
 
-- The plate LEA-101, and the cylinders grouped by size and state: 11.8 kg Full 2 and 11.8 kg Empty 1, with their numbers (AG-C0001, AG-C0002, AG-C0011).
+- "LEA-101", a big "3" with "cylinders", the group "Full" with "11.8 kg · 2" and AG-C0001, AG-C0002, and the group "Empty" with "11.8 kg · 1" and AG-C0011.
 - No capacity bar or percentage, no raw words (FULL, EMPTY, VEHICLE) and no money.
 
-Spec: UX_MOBILE §7.2 (R9 Van), §0; API_CONTRACT §9.3 (GET /driver/home van counts), Appendix A (GET /inventory/my-vehicle counted from cylinders in Inc 2)
+Spec: UX_MOBILE §7.2 (R9 My van), §5 (My van), §0; API_CONTRACT §9.3 (GET /driver/home van counts), Appendix A (GET /inventory/my-vehicle counted from cylinders in Inc 2)
 
 ### DRV-050 · The driver's trip and stop rows put the step chip under the text, so the customer's name keeps the row's width
 
@@ -7821,7 +7883,112 @@ Expect:
 
 Spec: UX_MOBILE §2.2 #13 (ListRow), §5 (driver Home trip rows), §6 · Test file: `apps/api/test/unit/ui/mobile-layout.spec.ts`
 
-Note: Regression case for review finding mobile-ux-05 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-05 …". The wallet history rows are unchanged until the owner chooses a kind-only title or a 3-line title (CHANGELOG, Review fixes 2026-10-23).
+Note: Regression case for review finding mobile-ux-05 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-05 …". The shop's History rows were then decided (2026-10-23): the kind as the title, the number and the customer on the grey line, the amount on the right (UX_MOBILE S7).
+
+### DRV-051 · Inc 1 Unload step counts the van down to "Nothing on the van."
+
+**P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
+
+Before: Inc 1 driver app on a pilot phone. Kashif's trip for X1 is in progress: the store stop is done and Sana's visit ended as not delivered, so AG-C0001, AG-C0002 and AG-C0031 (full) are still on van LEA-101. Kashif is back at Ahmed Gas Store.
+
+Steps:
+
+1. On the trip, tap "Unload at store".
+2. Look at the step screen.
+3. Tap "Finish trip" before scanning. Read the sheet and tap "Not yet".
+4. Scan AG-C0001, then AG-C0002 and AG-C0031.
+5. Tap "Finish trip" and confirm.
+
+Expect:
+
+- Step 2: the header "Step 3 of 3", the title "Unload at Ahmed Gas Store", a big "3" with "on the van" and "3 full" under it, the strip "Scan each cylinder you bring back." and an outlined "Finish trip".
+- Step 3: the sheet "Finish this trip?" with "Unload at Ahmed Gas Store first. You can't scan for this trip after.", [Finish trip] and [Not yet].
+- Step 4: each scan shows the green strip "Unloaded" and the count goes down to the green "Nothing on the van."; "Finish trip" becomes the filled main button.
+- Step 5: Today opens with the toast "Trip done" and "Done today: 1".
+- No pop-up box and no code appear.
+
+Spec: UX_MOBILE §5 (Unload at {{store}}, Trip), §2.2 #29 (CountBar, countdown); API_CONTRACT §7.7
+
+Note: The Inc 1 count is the van's own count (GET /inventory/my-vehicle, refreshed after each scan); with two loaded trips on one van it can't tell whose cylinders are whose (accepted for Inc 1). Inc 2 makes this step passive: the shop scans (DRV-042).
+
+### DRV-052 · Inc 1 Refills: the list and one refill, step by step, with no money
+
+**P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
+
+Before: Inc 1 driver app. Ahmed Gas refill AG-R001 (6 × 11.8 kg, Lahore Filling Station) is assigned to Kashif, with nothing picked up yet.
+
+Steps:
+
+1. Open the menu, then Refills.
+2. Tap the refill.
+3. Tap "Picked up 6 empties".
+4. At the station, tap "I've arrived".
+5. Keep "Cylinders filled" at 6 and tap "Mark 6 filled".
+6. Back at the store, tap "Brought back".
+
+Expect:
+
+- Step 1: the row "6 × 11.8 kg · Ahmed Gas" with the chip "Pick up empties". No money anywhere.
+- Step 2: the header "Refill", the title "Pick up empties at Ahmed Gas Store", the stepper "Empties picked up" with "Up to 6", and the footer "Picked up 6 empties".
+- Step 3: the title "Go to Lahore Filling Station" and the footer "I've arrived".
+- Step 4: the title "Fill at Lahore Filling Station", the stepper "Cylinders filled" with "Out of 6 picked up", and the footer "Mark 6 filled".
+- Step 5: the title "Bring them back to Ahmed Gas Store", "Filled 6 of 6", and the footer "Brought back".
+- Step 6: the title "Back at Ahmed Gas Store" with "The office will finish this refill." and no footer; in the list the chip reads "Back at store".
+- No rupee amount, raw status word or pop-up box appears.
+
+Spec: ADR-16; UX_MOBILE §5 (Refills, Refill), §3.6 (the side menu); API_CONTRACT §7.11
+
+Note: Inc 3 puts scans on this same screen (UX_MOBILE §8.2; REF-025).
+
+### DRV-053 · Driver Help, with the profile merged in: the office, who you are and the app version, even offline
+
+**P3** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
+
+Before: Inc 1 driver app signed in as Kashif (van LEA-101). support.phone, support.whatsApp and support.hours are set.
+
+Steps:
+
+1. Open the menu and read it.
+2. Tap Help and read the screen.
+3. Tap "Call office", then come back.
+4. Turn on airplane mode, close the app fully and open it again. Open Help and tap "Call office".
+
+Expect:
+
+- Step 1: the header shows Kashif's name and "LEA-101"; the rows are My van · Refills · Help · Sign out, with no second lines and no Profile row.
+- Step 2: the office number with "Office hours \<hours>" and a secondary "WhatsApp office"; a card with Name "Kashif", Mobile and Van "LEA-101" (no licence number); "App version 0.1.0" (with the update id when there is one); the footer "Call office".
+- Step 3: the dialler opens with the office number.
+- Step 4: Help still shows the office number, and "Call office" opens the dialler: the number is saved on the phone (support.contact).
+- No pop-up box appears.
+
+Spec: UX_MOBILE §5 (Help, with the profile merged in), §3.6 (the side menu, support.contact), §2.2 #4 (Call office never disappears)
+
+Note: The Profile route is retired (DECIDED, 2026-10-23). "The office number isn't loaded yet." shows only when the number has never loaded.
+
+### DRV-054 · An early "Done loading" asks first, and nothing blocks
+
+**P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
+
+Before: Inc 1 driver app. Kashif's trip for X1 (2 × 11.8 kg + 1 × 45.4 kg) has started; AG-C0001, AG-C0002 and AG-C0031 are in Ahmed Gas Store.
+
+Steps:
+
+1. On "Load at Ahmed Gas Store", scan AG-C0001.
+2. Tap "Done loading".
+3. Tap "Keep scanning". Scan AG-C0002 and AG-C0031.
+4. Tap "Done loading".
+
+Expect:
+
+- Step 1: "1 of 3 scanned" and the green strip "Loaded"; "Done loading" is outlined.
+- Step 2: the sheet "Only 1 of 3 scanned. Continue?" with [Done loading] and [Keep scanning].
+- Step 3: the count reaches "All 3 scanned" and "Done loading" becomes the filled main button.
+- Step 4: it acts at once, with no sheet: the success card "Loading done" and the footer "Deliver to Sana".
+- No hard block and no pop-up box at any point.
+
+Spec: UX_MOBILE §5 (the step screens, the early press); UX_PRINCIPLES §9.2, §2 (rule 7)
+
+Note: The Inc 1 server allows an early finish, so the sheet asks once and never blocks (DECIDED, 2026-10-23). Inc 2 enforces the full load on the server (DRV-017).
 
 ## HLD · One-holder rule
 
@@ -7867,7 +8034,7 @@ Expect:
 
 - Step 1: 400 VALIDATION_FAILED; AG-C0001 is not moved and never reaches Hina.
 - Step 2: the plain load is 201 (AG-C0001 on LEA-101). The receive with the extra field is 400 VALIDATION_FAILED and AG-C0001 stays on LEA-101; it can never land in Bilal Gas's store.
-- Step 3: 403 FEATURE_DISABLED ("This is switched off for the pilot.") for both; AG-C0002 stays in Ahmed Gas Store.
+- Step 3: 403 FEATURE_DISABLED ("This isn't available yet.") for both; AG-C0002 stays in Ahmed Gas Store.
 - Step 4: 200 [] with header X-Feature-Disabled: transfers.
 
 Spec: ADR-04; ADR-13; API_CONTRACT §3.4, §5.9 (destination derived on the server), §7.2 (/transfers), §7.7, §9.2 · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
@@ -7888,7 +8055,7 @@ Steps:
 
 Expect:
 
-- Steps 1-2: 409 SCAN_NOT_ON_YOUR_VAN, message "This cylinder wasn't loaded on your van. Don't hand it over. Call the office."
+- Steps 1-2: 409 SCAN_NOT_ON_YOUR_VAN, message "Not loaded on your van. Don't deliver it. Call office."
 - AG-C0005 is still in Ahmed Gas Store; AG-C0003 is still on LEB-202. No GIVEN row; give progress still "0 of 3".
 
 Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.11 (A hand-over of a cylinder not on the van gives 409); UX_MOBILE §7.4 · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
@@ -7969,7 +8136,7 @@ Spec: ADR-02; ADR-13; API_CONTRACT §3.1, §7.6 (manual-delivery: office), §9.5
 
 Note: Not automated yet.
 
-### HLD-007 · Office website: "Record manual delivery" checks each cylinder number and says no money moves
+### HLD-007 · Office website: "Mark delivered…" checks each cylinder number and says no money moves
 
 **P2** · MAN-WEB · Inc 2 · Role: SUPER_ADMIN (SA1)
 
@@ -7978,22 +8145,22 @@ Before: Inc 2 office website. Order X1 for Sana is assigned to Kashif and shows 
 Steps:
 
 1. Sign in as Owner. Open Orders, then order X1.
-2. Open More and choose "Record manual delivery…". Read the info text.
+2. Click "Mark delivered…" in the drawer's footer. Read the dialog.
 3. Type AG-C0001 and press Enter. Type AG-C0014 and press Enter.
 4. Remove the AG-C0001 chip and type 1. Remove it again and type C0001.
-5. Remove AG-C0014. Type AG-C0002, then AG-C0031.
-6. Choose the reason "Not scanned IN at the store" and press "Record delivery".
+5. Remove AG-C0014. Press "Mark delivered". Then type AG-C0002, then AG-C0031.
+6. Choose the reason "Not scanned at the store" and press "Mark delivered".
 
 Expect:
 
-- The info reads "Use this when the driver can't scan at the door, for example a cylinder that wasn't scanned IN at the store. It's logged as an office exception with your name."
-- AG-C0001 shows as a chip "AG-C0001 · 11.8 kg ✓". AG-C0014 shows an error chip "AG-C0014 — with another customer". Progress reads like "1 of 2 entered (11.8 kg)".
-- Step 4: both give the same chip "AG-C0001 · 11.8 kg ✓": a typed short number is written out in full with the order's distributor code.
-- With the right three numbers, the progress for every size is complete.
-- The toast reads "Delivery recorded for \<X1 number>. Cylinders moved to the customer." The order shows "Delivered". No money line or rupee amount appears in the dialog.
+- Step 2: the dialog "Mark \<X1 number> delivered?" says "Only when the driver can't scan. No money moves." "Mark delivered…" is a footer button, never in a More menu.
+- Step 3: AG-C0001 shows as a chip "AG-C0001 · 11.8 kg" with a green tick. AG-C0014 shows an error chip "AG-C0014 · with another customer". The progress chip reads "11.8 kg · 1 of 2".
+- Step 4: both give the same chip "AG-C0001 · 11.8 kg": a typed short number is written out in full with the order's distributor code.
+- Step 5: pressing "Mark delivered" before every size is named turns "Still needed: …" red and sends nothing; with the right three numbers, every size's progress is complete.
+- Step 6: the toast "\<X1 number> delivered · cylinders moved to the customer". The order shows "Delivered". No money line or rupee amount appears in the dialog.
 - Activity shows "Recorded delivery of \<X1 number> by office".
 
-Spec: ADR-13; UX_ADMIN §2.5 (Mark delivered by office), §2.9, §3.4
+Spec: ADR-13; UX_ADMIN §2.5 (Mark delivered…), §2.9, §3.4
 
 Note: \<X1 number> is X1's order number, for example AG-0001 if it is DA's first order.
 
@@ -8102,7 +8269,7 @@ Steps:
 
 Expect:
 
-- Step 2: 409 SCAN_TAKEN_BACK_NOT_UNLOADED ("This cylinder was taken back from a customer. It must go to the store first."); AG-C0011 stays on LEA-101.
+- Step 2: 409 SCAN_TAKEN_BACK_NOT_UNLOADED ("Taken back from a customer. Unload it at the store first."); AG-C0011 stays on LEA-101.
 - Step 3: 201; Y1 can be finished.
 - Step 4: 201; AG-C0011 is in Ahmed Gas Store with state FULL (unchanged).
 - Step 5: 201; a taken-back Full cylinder can go out again only after the store has scanned it in.
@@ -8500,12 +8667,12 @@ Steps:
 
 Expect:
 
-- The tile "Receive from driver" shows the badge "3 coming back".
-- Two rows: "Kashif · LEA-101" with "2 to receive · 0 received" and "Imran · LEB-202" with "1 to receive · 0 received".
-- A green tick and "✓ AG-C0011 · 11.8 kg received"; the counter reads "1 of 2 received".
-- A neutral strip "Already in your store"; the counter stays at 1; no error sound.
-- "All 2 received". Kashif's row now reads "2 to receive · 2 received" or leaves the list.
-- The badge is gone. (With only one van coming back, the list opens straight into the scan.)
+- Step 1: the Home row "Receive from driver" shows "3 coming back".
+- Step 2: two rows: "Kashif · LEA-101" with "0 of 2 received" and "Imran · LEB-202" with "0 of 1 received".
+- Step 3: a green strip "AG-C0011 · 11.8 kg received"; the count reads "1 of 2" received.
+- Step 4: a grey strip "Already in your store"; the count stays at 1; no error sound.
+- Step 5: "All 2 received". Kashif's row then reads "All received" or leaves the list.
+- Step 6: the Home row reads "Nothing coming back". (With only one van coming back, the list opens straight into the scan.)
 
 Spec: ADR-13; UX_MOBILE §7.1 (scan.verb.RECEIVE), §7.3 (S13 Receive from driver)
 
@@ -8525,11 +8692,11 @@ Steps:
 
 Expect:
 
-- "No driver is bringing cylinders back right now."
-- An error strip with "Try again" (or the saved list with "Showing saved info from \<time>. Couldn't refresh."); "No internet. We'll keep trying." shows.
-- Kashif's van appears.
-- AG-C0012: red strip "This cylinder isn't on a van." BG-C0001: red strip "This cylinder belongs to another shop." No code and no pop-up box.
-- AG-C0011 first shows in "Not saved (1)" with "Retry"; after Retry it shows the green tick and "1 of 1 received", once.
+- Step 1: "Nothing coming back right now."
+- Step 2: the saved list stays, stamped "Saved \<time>", under the one banner "No connection" with "Try again" (or "Nothing saved yet." when nothing was saved).
+- Step 3: Kashif's van appears.
+- Step 4: AG-C0012: a red strip "This cylinder isn't on a van." BG-C0001: a red strip "This cylinder belongs to another shop." No code and no pop-up box.
+- Step 5: AG-C0011 first shows as one amber row "Not saved: 1" with "Retry"; after Retry it shows the green strip and "1 of 1" received, once.
 
 Spec: UX_MOBILE §2.2 (QueryBoundary, OfflineBanner), §7.1 (feedback), §7.3 (S13); API_CONTRACT §2.3
 
@@ -8541,16 +8708,16 @@ Before: Inc 2 office website. AG-C0001 was loaded by Kashif onto LEA-101 at Ahme
 
 Steps:
 
-1. Right after the hand-over to Sana, open "Find cylinder" and search AG-C0001.
+1. Right after the delivery to Sana, open "Find cylinder" at the top of the menu and search AG-C0001.
 2. After the store scan-in, search AG-C0001 again and read the history.
 3. Read every line on the page.
 
 Expect:
 
-- The holder reads like "With customer Sana (\<X1 number>) since \<time>" and "Responsible driver: Kashif (last scanned it onto a van)".
+- Step 1: the holder reads "With Sana · \<X1 number> · since \<time>", and "Responsible driver: Kashif" with the muted line "Last loaded it onto a van".
 - Step 2: the page reads "Responsible driver: none".
-- The history reads, in order: "Loaded onto van LEA-101 at Ahmed Gas Store", "Handed to Sana (\<X1 number>)", "Taken back from Sana · empty", "Scanned into Ahmed Gas Store". Each line shows who and when.
-- No raw code (SCAN_OUT, DELIVERED, PICKED_UP_EMPTY, SCAN_IN, VEHICLE), no raw source word (SCAN, TYPED, MANUAL), no "Older record" line, no long id and no "Rs." appears.
+- Step 2: the history reads, in order: "Loaded onto van LEA-101 at Ahmed Gas Store", "Delivered to Sana · \<X1 number>", "Taken back from Sana · Empty", "Unloaded at Ahmed Gas Store". Each line shows who and when.
+- No raw code (SCAN_OUT, DELIVERED, PICKED_UP_EMPTY, SCAN_IN, VEHICLE), no raw source word (SCAN, TYPED, MANUAL), no "Older record", "Handed", "Scanned into" or "pilot", no long id and no "Rs." appears.
 
 Spec: ADR-13; UX_ADMIN §3.5 (Find cylinder), §2.12 (no system words); API_CONTRACT §9.4 (history)
 
@@ -8569,8 +8736,8 @@ Steps:
 
 Expect:
 
-- "Delivered" shows by size against the order: 2 × 11.8 kg and 1 × 45.4 kg.
-- "Taken back" shows lists by state: Empty: AG-C0011; Full: AG-C0032; plus "Unlabelled: 1 × 11.8 kg".
+- Step 2: "Delivered" shows one line per size: "2 × 11.8 kg" and "1 × 45.4 kg".
+- "Taken back" shows one line per state with the numbers: "Empty · AG-C0011" and "Full · AG-C0032", plus "Empty · No label · 1 × 11.8 kg".
 - The cost line reads "Delivery cost Rs 480 · paid when the order was placed". No other money line appears.
 
 Spec: ADR-07; ADR-13; UX_MOBILE §7.3 (S14 Order detail additions)
@@ -8623,10 +8790,10 @@ Steps:
 
 Expect:
 
-- Steps 1-4 each return 403 with code FEATURE_DISABLED, message "This is switched off for the pilot." and the header X-Feature-Disabled: confirmations.
+- Steps 1-4 each return 403 with code FEATURE_DISABLED, message "This isn't available yet." and the header X-Feature-Disabled: confirmations.
 - No outbound_messages or delivery_confirmations row is written for D1.
 - Step 5: features.confirmations is false.
-- Step 6: both 410 with the page "This link is no longer active"; nothing is recorded (T2 stays PENDING, no audit row).
+- Step 6: both 410 with the page "This link is closed"; nothing is recorded (T2 stays PENDING, no audit row).
 - Step 7: GET /orders/{D1}/confirmation answers 404 NOT_FOUND and D1's confirmation is null (switching on never back-fills); GET /c/T2 answers 200 with its main page.
 
 Spec: ADR-15; API_CONTRACT §2.3, §3.4, §6, §9.7; CUSTOMER_PAGE §10, §11 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
@@ -8697,7 +8864,7 @@ Expect:
 - The order is DELIVERED with deliveryMethod 'MANUAL'; no ledger row; DA balance still Rs 4,520.
 - One PENDING confirmation with snapshot.delivered [{ '11.8 kg', 2 }, { '45.4 kg', 1 }] and snapshot.takenBack [].
 - One SMS row with key 'confirm:\<orderId>:v1:sms'.
-- The page shows "Nothing was taken back." under "Taken back from you".
+- The page shows "None" in the "Taken back" row of its summary table.
 
 Spec: ADR-15; CUSTOMER_PAGE §1, §3, §6; API_CONTRACT §9.5, §9.8 · Test file: `apps/api/test/e2e/confirmation-issue.e2e-spec.ts`
 
@@ -8725,7 +8892,7 @@ Spec: CUSTOMER_PAGE §10; API_CONTRACT §2.3, §9.7 · Test file: `apps/api/test
 
 Note: Not automated yet.
 
-### CNF-007 · Main page shows the shop, the order number and both lists
+### CNF-007 · Main page shows the shop, the order number and the summary table
 
 **P2** · MAN-PAGE · Inc 2 · Role: Customer (public link, no login)
 
@@ -8735,23 +8902,23 @@ Steps:
 
 1. On Sana's phone, open WhatsApp and tap the link from Ahmed Gas.
 2. Read the whole page from top to bottom. Do not tap any answer.
-3. Tap the shop's phone number near the bottom, then go back without calling.
-4. In the shop app, open D1 and look at the "Customer confirmation" card.
+3. Tap the call row "Call Ahmed Gas · 0321 1234567" near the bottom, then go back without calling.
+4. In the shop app, open D1 and look at the "Customer answer" card.
 
 Expect:
 
-- A yellow strip at the top says "Test system — this is not a real delivery."
+- A yellow strip at the top says "Test only · not a real delivery".
 - At the top: "Ahmed Gas", then the big heading "Did you get your delivery?", then "Order AG-0001 · Thu 22 Oct, 4:12 pm" (D1's number and its delivery day and time in Pakistan time; it matches the shop app).
-- Under "Delivered to you": "11.8 kg cylinder" with 2 on the right, then "45.4 kg cylinder" with 1 (smaller size first).
-- Under "Taken back from you": a grey tag "Empty" then "11.8 kg cylinder (no label)" with 1, and a tag "Part-filled" then "11.8 kg cylinder (no label)" with 1.
-- The line "Something wrong with what was taken back? Tap Other problem."
-- Buttons in this order: green "All received", white "Partly received", red-outlined "Not received", then the blue text link "Other problem".
-- "Questions? Call Ahmed Gas:" followed by Ahmed Gas's number, 0321 1234567 (its sign-in phone, never Sana's 0300 1234567); tapping it opens the phone dialler with that number.
-- "You can answer until" the same clock time 3 days after delivery (for example "Sun 25 Oct, 4:12 pm").
+- A two-row summary table: "Delivered" with "2 × 11.8 kg" and "1 × 45.4 kg" (smaller size first).
+- "Taken back" with "1 × 11.8 kg" and the tag "Empty" with " · no label", and "1 × 11.8 kg" with the tag "Part-filled" and " · no label".
+- The line "Not right? Tap Other problem."
+- Buttons in this order, each with a small icon: green "All received", white "Partly received", red-outlined "Not received", then the full-width link "Other problem".
+- The call row "Call Ahmed Gas · 0321 1234567" (its sign-in phone, never Sana's 0300 1234567); tapping it opens the phone dialler with that number.
+- "Answer by" the same clock time 3 days after delivery (for example "Answer by Sun 25 Oct, 4:12 pm.").
 - A pale yellow box: "Smell gas? Turn off the cylinder valve, open doors and windows, don't touch switches or flames, and call 1122."
-- The last line: "Smart Fleet sends this message for Ahmed Gas."
+- The last line: "Sent by Smart Fleet for Ahmed Gas."
 - Nowhere on the page: Sana's name, her phone or address, any rupee amount, or a cylinder number.
-- Step 4: the card still waits for Sana; opening the page recorded nothing.
+- Step 4: the card shows the chip "Waiting for customer"; opening the page recorded nothing.
 
 Spec: ADR-15; CUSTOMER_PAGE §3, §5 (test banner), §6, §12
 
@@ -8793,13 +8960,13 @@ Steps:
 Expect:
 
 - Each output matches its approved snapshot file.
-- No output contains '\<script'. The only URLs are relative /c/\<token> paths, 'tel:' links and the 'data:,' favicon.
+- No output contains '\<script' or 'xmlns', and none links an image file: the icons are inline SVG. The only URLs are relative /c/\<token> paths, 'tel:' links and the 'data:,' favicon. Every page is under 12 KB.
 - The token appears only inside href and form action attributes.
-- The main page with no taken-back rows shows "Nothing was taken back."
-- Thank-you lines: YES "We have told Ahmed Gas that you got everything."; PARTLY "We have told Ahmed Gas that something was missing. They may call you."; NO "We have told Ahmed Gas that you did not get this delivery. They may call you."; OTHER "We have passed your message to Ahmed Gas. They may call you."
-- Every page has \<html lang="en" dir="ltr"> and exactly one \<h1>; the thank-you page uses aria-live="polite".
-- The meta line reads "Order AG-0001 · Thu 22 Oct, 4:12 pm" and the deadline "You can answer until Sun 25 Oct, 4:12 pm."
-- The staging render shows "Test system — this is not a real delivery."; the production render has no such text.
+- The main page with no taken-back rows shows "None" in the "Taken back" row.
+- Thank-you lines: YES "We told Ahmed Gas you got everything."; PARTLY "We told Ahmed Gas something was missing. They may call you."; NO "We told Ahmed Gas you did not get it. They may call you."; OTHER "We sent your message to Ahmed Gas. They may call you."
+- Every page has \<html lang="en" dir="ltr"> and exactly one \<h1>; the thank-you page uses aria-live="polite"; every state page has the 64 px status mark.
+- The meta line reads "Order AG-0001 · Thu 22 Oct, 4:12 pm" and the deadline "Answer by Sun 25 Oct, 4:12 pm."
+- The staging render shows "Test only · not a real delivery"; the production render has no such text.
 - Every page, the state and error pages included, has the gas safety note as its last block before the footer line.
 
 Spec: CUSTOMER_PAGE §5 (test banner), §6, §13 · Test file: `apps/api/test/unit/confirm-page-render.spec.ts`
@@ -8894,10 +9061,10 @@ Steps:
 Expect:
 
 - Each POST returns 303 with Location '/c/\<same token>?done=1'.
-- D1: the GET returns 200 with "Thank you!" and "We have told Ahmed Gas that you got everything."; the refresh shows the same page and changes nothing (respondedAt unchanged).
-- The D2 form page has the heading "What was missing?"; the D3 form page has "You did not get this delivery?" and the button "Yes, I did not get it".
+- D1: the GET returns 200 with "Thank you!" and "We told Ahmed Gas you got everything."; the refresh shows the same page and changes nothing (respondedAt unchanged).
+- The D2 form page has the heading "Partly received" and the note "What was missing? (optional)"; the D3 form page has the heading "Not received", the note "Anything to add? (optional)" and the button "Send".
 - Rows: D1 ANSWERED YES, comment NULL; D2 PARTLY with its note; D3 NO, comment NULL; D4 OTHER with its note; respondedAt set on each.
-- Thank-you lines: D2 "We have told Ahmed Gas that something was missing. They may call you."; D3 "We have told Ahmed Gas that you did not get this delivery. They may call you."; D4 "We have passed your message to Ahmed Gas. They may call you."
+- Thank-you lines: D2 "We told Ahmed Gas something was missing. They may call you."; D3 "We told Ahmed Gas you did not get it. They may call you."; D4 "We sent your message to Ahmed Gas. They may call you."
 - Each answer wrote exactly one confirmation.answer audit row.
 
 Spec: ADR-15; CUSTOMER_PAGE §4, §6, §7; API_CONTRACT §9.7, §9.8 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
@@ -8921,8 +9088,8 @@ Steps:
 
 Expect:
 
-- Steps 1-4: 400, HTML (not JSON): the Other page again with "Please write a few words, or go back and pick an answer." in an element with role="alert"; the textarea has aria-invalid="true", aria-describedby pointing at the error, and autofocus.
-- Step 5: 400 HTML: the main page again with "Please choose one of the answers below." in an element with role="alert"; nothing recorded. The answer is matched exactly, so 'yes' is refused.
+- Steps 1-4: 400, HTML (not JSON): the Other page again with "Please write a few words." in an element with role="alert"; the textarea has aria-invalid="true", aria-describedby pointing at the error, and autofocus.
+- Step 5: 400 HTML: the main page again with "Please tap one answer below." in an element with role="alert"; nothing recorded. The answer is matched exactly, so 'yes' is refused.
 - After steps 1-5 the row is still PENDING, with no audit row and no alert.
 - Step 6: 303 to ?done=1; the row is ANSWERED OTHER with comment 'Gas'.
 
@@ -8970,7 +9137,7 @@ Steps:
 Expect:
 
 - Step 1: 303 with Location '/c/T?done=1'.
-- Step 2: 200 with "Thank you!" and "We have told Ahmed Gas that you got everything."
+- Step 2: 200 with "Thank you!" and "We told Ahmed Gas you got everything."
 - respondedAt is still T1; there is still one confirmation.answer audit row; no alert.
 
 Spec: CUSTOMER_PAGE §4, §7 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
@@ -8991,7 +9158,7 @@ Steps:
 
 Expect:
 
-- Steps 1-2: HTTP 409 with the "You already answered" page: "On Thu 22 Oct, 4:20 pm you said: All received." and "Wrong answer? Call Ahmed Gas:" with DA's phone.
+- Steps 1-2: HTTP 409 with the "You already answered" page: "You said: All received · Thu 22 Oct, 4:20 pm" and the call row "Wrong? Call Ahmed Gas" with DA's phone.
 - Step 3: 200 with the same page.
 - The row is still YES with comment NULL; no new audit row; no CUSTOMER_PROBLEM alert.
 
@@ -9038,8 +9205,8 @@ Expect:
 
 - A: GET 200 "You already answered".
 - B: the first GET is 200 with the main page; after 2 seconds GET is 410 "This link has expired" (now >= expiresAt), before any job run.
-- C and D: GET and POST are 410 "This link has expired" with "Answers close 3 days after delivery. If something is wrong with order \<that link's order number>, please call Ahmed Gas:" and DA's phone. The POST records nothing; C stays PENDING until the job.
-- E: GET and POST are 410 "This link is no longer active" with "Order \<its number> does not need an answer any more. Questions? Call Ahmed Gas:" and DA's phone.
+- C and D: GET and POST are 410 "This link has expired" with only "Answers close 3 days after delivery." and the call row "Problem? Call Ahmed Gas" with DA's phone. The POST records nothing; C stays PENDING until the job.
+- E: GET and POST are 410 "This link is closed" with "No answer is needed." and the call row "Questions? Call Ahmed Gas" with DA's phone.
 - F: GET 200 "You already answered" (answered is checked before expired).
 - No POST in this case writes an audit row.
 - Step 3: each shows its link's state page (A "You already answered", D "This link has expired"), never the form.
@@ -9146,12 +9313,12 @@ Steps:
 
 Expect:
 
-- Steps 1-2: 404 HTML with the same body every time: "We can't find this link" and "Please open the full link from your newest message. Need help? Call Smart Fleet support:" followed by support.phone.
+- Steps 1-2: 404 HTML with the same body every time: "We can't find this link" and "Open the full link in your newest message.", with the call row "Call Smart Fleet support" (a tel: link to support.phone).
 - The body never contains the requested path or token, a shop name, an order number, JSON or a stack trace.
 - For the bad-format requests (wrong length, over 64 characters) no database query runs.
 - Step 3: the same 404 page for both, with no database lookup.
 - Step 4: 404 from the API (JSON error whose path is '/api/v1/c/[token]'); D1 stays PENDING.
-- Step 5: the 404 body reads only "Please open the full link from your newest message.": no "Call Smart Fleet support" sentence and no placeholder.
+- Step 5: the 404 body has only "We can't find this link" and "Open the full link in your newest message.": no "Call Smart Fleet support" row and no placeholder.
 
 Spec: CUSTOMER_PAGE §2, §4, §5, §6, §13; API_CONTRACT §2.1 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
 
@@ -9371,9 +9538,11 @@ Expect:
 - No sideways scrolling; buttons fill the width and are big enough for a thumb; text is readable without zooming; zoom still works.
 - "Thank you!" shows within about 3 seconds.
 - Step 5 ends on "Thank you!".
-- The shop card shows one answer, "All received", for the second order.
+- The shop card shows one answer, the chip "Customer: all received", for the second order.
 
 Spec: CUSTOMER_PAGE §6 (layout, controls, low-end budget)
+
+Note: The page loads no image file and stays under 12 KB with its inline icons (CUSTOMER_PAGE §6, low-end budget); the 3-second 2G check is unchanged.
 
 ### CNF-033 · The page works on basic browsers, a keypad phone and with TalkBack
 
@@ -9383,9 +9552,9 @@ Before: Five delivered orders like D1, each with a fresh link. Phones: Opera Min
 
 Steps:
 
-1. Opera Mini: open link 1 → "Partly received" → type "One cylinder missing" → "Send: partly received".
+1. Opera Mini: open link 1 → "Partly received" → type "One cylinder missing" → "Send".
 2. UC Browser: open link 2 → "All received".
-3. KaiOS: open link 3 and use only the D-pad → "Not received" → "Yes, I did not get it".
+3. KaiOS: open link 3 and use only the D-pad → "Not received" → "Send".
 4. Android 5 (inside an app): open link 4 → "Other problem" → type "Valve is loose" → "Send".
 5. iPhone Safari: open link 5 and read it. Do not answer.
 6. TalkBack: open link 5 on Android, swipe through the page, open "Other problem" and tap "Send" with the box empty.
@@ -9393,9 +9562,9 @@ Steps:
 Expect:
 
 - Every browser shows the same cards, colours and full-width buttons, and each answer ends on "Thank you!" (no JavaScript needed).
-- On KaiOS the D-pad moves through the buttons in order, with a clear blue outline on the one in focus.
+- On KaiOS the D-pad moves through the buttons in order, with a clear blue outline on the one in focus; on the second-step page it reaches the box and "Send" before "Back".
 - Within 20 seconds the shop app shows the four answers, with their notes.
-- TalkBack reads the heading, the lists with their counts, and each button by its words; the tags are read as "Empty" and "Part-filled", not as colours.
+- TalkBack reads the heading, the summary rows with their counts, and each button by its words only (the icons are silent); the tags are read as "Empty" and "Part-filled", not as colours.
 - TalkBack reads the empty-message error at once and focus moves to the message box.
 
 Spec: CUSTOMER_PAGE §6 (accessibility, low-end budget)
@@ -9416,11 +9585,11 @@ Steps:
 
 Expect:
 
-- A green tick, "Thank you!" and "We have told Ahmed Gas that you got everything.", then the help line and the gas safety box.
-- The refresh shows the same page, with no "resubmit the form?" question.
-- The second tap shows "Thank you!" again.
-- The card shows a green pill "All received" with the answer time; no comment; no money line.
-- The order row shows the chip "Customer: all received" next to "Delivered".
+- Step 1: a green tick, "Thank you!" and "We told Ahmed Gas you got everything.", then the call row and the gas safety box.
+- Step 2: the refresh shows the same page, with no "resubmit the form?" question.
+- Step 3: the second tap shows "Thank you!" again.
+- Step 4: the card shows the green chip "Customer: all received" with the answer time; no comment; no money line.
+- Step 5: the order row shows the chip "Customer: all received" next to "Delivered".
 - The Home balance is the same as before; D1 still says "Delivery cost Rs 480 · paid when the order was placed".
 
 Spec: ADR-07, ADR-15; CUSTOMER_PAGE §6, §10, §13 (end to end); UX_MOBILE §3.4, §7.3
@@ -9436,19 +9605,21 @@ Steps:
 1. Open the link and tap "Other problem".
 2. Tap "Send" with the box empty.
 3. Type "ok" and tap "Send".
-4. Tap "Back" and look at the page.
+4. Tap "Back" (under "Send") and look at the page.
 5. Tap "Other problem" again, type "Gas smell from the new cylinder" and tap "Send".
 6. In the shop app, open the order.
 
 Expect:
 
-- The Other page shows "Ahmed Gas · Order \<number>" at the top, a "Back" link, the heading "Tell us what happened", the box "Your message (required, 300 characters at most)" and a green "Send".
-- Steps 2 and 3: the red message "Please write a few words, or go back and pick an answer." and the cursor in the box; nothing is sent (the shop card still waits).
+- Step 1: the Other page shows "Ahmed Gas · Order \<number>" at the top, the heading "Other problem", the box "What happened? (required)", a green "Send" and, under it, "Back".
+- Steps 2 and 3: the red message "Please write a few words." and the cursor in the box; nothing is sent (the shop card still waits).
 - Step 4: back on the main page.
-- Step 5: "Thank you!" and "We have passed your message to Ahmed Gas. They may call you."
-- Shop card: amber pill "Other problem", the message in quotes, and "The office will look into it."
+- Step 5: "Thank you!" and "We sent your message to Ahmed Gas. They may call you."
+- Step 6: the shop card shows the amber chip "Customer sent a note" (with the warning icon, not the clock), the message in quotes, and "The office will look into it."
 
 Spec: CUSTOMER_PAGE §4, §6, §10
+
+Note: The answer tones follow settled point G07-23, which the lead kept on 2026-10-23: Partly and Other amber, Not received red.
 
 ### CNF-036 · A forwarded link answered on two phones keeps the first answer
 
@@ -9459,16 +9630,16 @@ Before: A delivered order like D1 with a fresh link. Sana forwarded the link to 
 Steps:
 
 1. On Sana's phone, tap "All received".
-2. On the son's phone (page still open from before), tap "Not received", then "Yes, I did not get it".
-3. On the son's phone, tap the shop's phone number on that page; go back without calling.
-4. On the website, open Problems.
+2. On the son's phone (page still open from before), tap "Not received", then "Send".
+3. On the son's phone, tap the call row "Wrong? Call Ahmed Gas"; go back without calling.
+4. On the website, open Customer problems.
 
 Expect:
 
-- Sana's phone: "Thank you!".
-- Son's phone: "You already answered" with "On \<time> you said: All received." and "Wrong answer? Call Ahmed Gas:" with the shop's number.
-- Step 3 opens the dialler with Ahmed Gas's number.
-- The shop card still shows "All received"; no new problem appears on the website.
+- Step 1: Sana's phone shows "Thank you!".
+- Step 2: the son's phone shows "You already answered" with "You said: All received · \<time>" and the call row "Wrong? Call Ahmed Gas".
+- Step 3: the dialler opens with Ahmed Gas's number.
+- Step 4: the shop card still shows "Customer: all received"; no new problem appears on the website.
 
 Spec: CUSTOMER_PAGE §3 (the link can be forwarded), §4, §6
 
@@ -9621,13 +9792,15 @@ Steps:
 
 Expect:
 
-- Chips: "Waiting for customer"; green "Customer: all received"; amber "Customer: partly received"; red "Customer: not received"; amber "Customer sent a note"; "No answer".
+- Step 2: chips: amber "Waiting for customer" (with the clock); green "Customer: all received"; amber "Customer: partly received" (with the warning icon); red "Customer: not received"; amber "Customer sent a note" (with the warning icon); grey "No answer".
 - Every stage chip still says "Delivered".
-- Drawer: the red chip, the answer time, the comment in quotes "Nothing came", and the link status (for example "Answered 11:20").
-- Delivery cost: "Base Rs 250 + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg) = Rs 480 · taken from the wallet when the order was placed" — unchanged by the answer.
+- Step 3: the drawer shows the red chip, the answer time, the comment in quotes "Nothing came", and the link status (for example "Answered 11:20").
+- Delivery cost: the fee chip and the rows "Base Rs 250", "11.8 kg 2 × Rs 40" and "45.4 kg 1 × Rs 150", unchanged by the answer.
 - No raw words (NO, ANSWERED, PENDING, SKIPPED) and no IDs anywhere.
 
 Spec: ADR-15; UX_ADMIN §2.5, §3.1, §3.2; CUSTOMER_PAGE §10
+
+Note: The answer tones follow settled point G07-23, which the lead kept on 2026-10-23: Yes green, Partly and Other amber with the warning icon, No red, waiting the amber clock, expired grey (UX_ADMIN §3.1).
 
 ### CNF-044 · Shop card after a "Not received" answer
 
@@ -9638,14 +9811,14 @@ Before: Customer confirmation is on. A delivered order like D1 for Sana; Sana an
 Steps:
 
 1. Open the order in the shop app.
-2. Read the "Customer confirmation" card.
+2. Read the "Customer answer" card.
 3. Open My orders → Done and find the order row. Open Home.
 
 Expect:
 
-- Card: a red pill "Not received" with the answer time; the note in quotes "Nothing came"; "The office will look into it."
+- Step 2: the card shows the red chip "Customer: not received" with the answer time, the note in quotes "Nothing came", and "The office will look into it." while the problem is open.
 - No send buttons, no "Make a new link" and no money line in the card.
-- The order row shows the chip "Customer: not received" next to "Delivered".
+- Step 3: the order row shows the chip "Customer: not received" next to "Delivered".
 - The Home balance is unchanged; the order still says "Delivery cost Rs 480 · paid when the order was placed".
 
 Spec: ADR-07, ADR-15; CUSTOMER_PAGE §10; UX_MOBILE §3.4, §7.3
@@ -9659,26 +9832,26 @@ Before: Fresh test server with the default settings. Signed in as Owner.
 Steps:
 
 1. Open Settings → Customer messages and read each setting and its description.
-2. Turn on the confirmation switch, tick "Partly", set the link lifetime to 48 and add the team phone 0300 1234567 to the test phones. Click away from the phone field.
-3. Click "Review and save". Try to save without a reason. Then type "Pilot test of customer confirmation" and save.
+2. Turn on "Customer confirmation", turn on the "Partly received" chip under "Answers that open a problem", set "How long the link works" to 48, and under "Team phones" click "+ Add phone" and type 0300 1234567. Click away from the phone field.
+3. Click "Review and save". Try to save without a reason. Then type "Trying customer confirmation" under "Why?" and save.
 4. Open Activity.
-5. Set the link lifetime to 200 and try to save.
-6. Put things back with a reason: untick "Partly", lifetime 72, remove the phone. Leave the confirmation switch on for the next cases.
+5. Set "How long the link works" to 200 and try to save.
+6. Put things back with a reason: turn off "Partly received", set "How long the link works" to 72 and remove the phone. Leave "Customer confirmation" on for the next cases.
 
 Expect:
 
-- Confirmation switch, off by default: "Ask customers to confirm deliveries by link. A record only; it never changes money."
-- Answers that open a case: checkboxes "Not received" and "Other" ticked, "Partly" not ticked.
-- Link lifetime: 72 (hours).
-- Test mode is on by default: "Send real texts only to the team phones", with an empty phone list.
-- The phone shows as "+92 300 1234567" after leaving the field.
-- The save dialog lists each change and won't save without a reason; then the toast "Settings saved. The server uses them now; the apps show them within 5 minutes."
-- Activity lists each change with its reason in plain words (no "true"/"false" or key names).
-- Lifetime 200 is refused at the field ("This value isn't allowed here.").
+- Step 1: "Customer confirmation", a switch, off by default, with "Customers confirm by link. It never changes money." No row has a "Default" line, and no label says "case" or "lifetime".
+- Step 1: "Answers that open a problem" shows the toggle chips "Not received" and "Other problem" on and "Partly received" off.
+- Step 1: "How long the link works" reads 72 with "hours" after the box.
+- Step 1: "Test mode" is on by default with "Send real texts only to the team phones.", and "Team phones" is empty with "+ Add phone".
+- Step 2: the phone field shows "300 1234567" after the fixed "+92"; the typed leading 0 is dropped.
+- Step 3: the save review lists each change (the phone as "+92 300 1234567") and won't save without a reason; then the toast "Settings saved. Apps update within 5 minutes."
+- Step 4: Activity lists each change with its reason in plain words, for example "Changed How long the link works from 72 to 48", with no "true"/"false" and no key names.
+- Step 5: 200 is refused at the field ("This value isn't allowed here.") and nothing is saved.
 
 Spec: ADR-15; UX_ADMIN §2.8, §2.9, §3.6; API_CONTRACT §6, §7.13; CUSTOMER_PAGE §11
 
-Note: UX_ADMIN §2.9 gives only "Changed {{setting}} from {{from}} to {{to}}"; plain words for these keys are assumed. The shop app caches settings for up to 5 minutes, so the card may appear a few minutes after switching on.
+Note: The Activity sentences use the setting labels of UX_ADMIN §3.6 (§2.9). The shop app caches settings for up to 5 minutes, so the shop card may appear a few minutes after switching on.
 
 ### CNF-046 · A server error page lets the customer send the same answer again
 
@@ -9693,7 +9866,7 @@ Steps:
 
 Expect:
 
-- Step 1: 500 HTML "Something went wrong" and "Your answer was not saved. Please try again.", with a "Try again" form that posts hidden answer=OTHER and comment 'Valve is loose' to /c/T; no stack trace, no JSON.
+- Step 1: 500 HTML "Something went wrong" and "Your answer was not saved.", with a "Try again" form that posts hidden answer=OTHER and comment 'Valve is loose' to /c/T; no stack trace, no JSON.
 - After step 1 nothing is recorded and there is no audit row.
 - Step 2: 303 then "Thank you!"; D1 is ANSWERED OTHER with comment 'Valve is loose'; one audit row; one CUSTOMER_PROBLEM case.
 
@@ -9717,10 +9890,10 @@ Expect:
 
 - CONFIRM_LINK_INVALID: 404 with the "We can't find this link" page and the support number.
 - CONFIRM_LINK_EXPIRED: 410 with the "This link has expired" page and the shop's phone.
-- CONFIRM_NOTE_REQUIRED: 400 with the Other page and "Please write a few words, or go back and pick an answer." in an element with role="alert".
+- CONFIRM_NOTE_REQUIRED: 400 with the Other page and "Please write a few words." in an element with role="alert".
 - CONFIRM_ALREADY_ANSWERED: 409 with the "You already answered" page.
-- CONFIRM_LINK_INACTIVE: 410 with the "This link is no longer active" page. VALIDATION_FAILED: 400 with the main page and "Please choose one of the answers below."
-- RATE_LIMITED: 429 with the "Too many tries" page. A plain Error: 500 with "Something went wrong" and "Your answer was not saved. Please try again."
+- CONFIRM_LINK_INACTIVE: 410 with the "This link is closed" page. VALIDATION_FAILED: 400 with the main page and "Please tap one answer below."
+- RATE_LIMITED: 429 with the "Too many tries" page. A plain Error: 500 with "Something went wrong" and "Your answer was not saved."
 - Every response is text/html; charset=utf-8. No body is JSON, echoes the URL or the token, or contains a stack trace.
 
 Spec: API_CONTRACT §2.3 (Customer confirmation and cases); CUSTOMER_PAGE §4 (state order), §5 (PublicPageExceptionFilter), §6 (result pages), §13 · Test file: `apps/api/test/unit/public-page-filter.spec.ts`
@@ -9819,7 +9992,7 @@ Steps:
 
 Expect:
 
-- Step 1: the 500 page "Something went wrong" with "Your answer was not saved. Please try again."
+- Step 1: the 500 page "Something went wrong" with "Your answer was not saved."
 - Step 2: the row is still PENDING; no confirmation.answer audit row and no CUSTOMER_PROBLEM case: the answer and the case share one transaction.
 - Step 3: 303, then "Thank you!".
 - Step 4: the row is ANSWERED NO, with exactly one audit row and one case.
@@ -9885,7 +10058,7 @@ Steps:
 
 Expect:
 
-- Step 1: the repeat returns 200 with X-Already-Applied: true and the case unchanged. Step 2: 409 CASE_ALREADY_RESOLVED with details { by: 'Owner', currentStatus: 'RESOLVED' } and message "This case was already closed by Owner."
+- Step 1: the repeat returns 200 with X-Already-Applied: true and the case unchanged. Step 2: 409 CASE_ALREADY_RESOLVED with details { by: 'Owner', currentStatus: 'RESOLVED' } and message "This problem was already sorted by Owner."
 - Step 3: exactly one 200 and one 409 CASE_ALREADY_RESOLVED naming the winner.
 - Each case has exactly one case.resolve audit row and keeps the winner's note.
 
@@ -9947,24 +10120,24 @@ Before: Customer confirmation is on. Two open problems on Ahmed Gas orders: AG-0
 
 Steps:
 
-1. Sign in as Owner and open Problems (in the Work menu). Watch the page while it loads.
+1. Sign in as Owner and open "Customer problems" (in the Work menu). Watch the page while it loads.
 2. Read the table.
 3. Turn off the laptop's Wi-Fi and refresh the page.
 4. Turn Wi-Fi back on and click "Try again".
-5. After both problems are marked as sorted (see the "Mark a case as sorted" case), open Problems again.
+5. After both problems are marked as sorted (CAS-011), open Customer problems again.
 
 Expect:
 
-- While loading: grey placeholder rows in the table's shape, never "No customer problems".
-- Columns: Order · Answer · Customer's note · Customer · Since · Distributor. Rows show AG-0001 and AG-0002, "Not received" and "Other problem", the two notes, "Sana", a wait such as "12 min", and "Ahmed Gas".
+- Step 1: while loading, grey placeholder rows in the table's shape, never "No customer problems".
+- Step 2: the columns Waiting · Order · Customer · Answer · Customer's note, with "Mark as sorted…" on each row. The rows show a wait such as "12 min", AG-0001 and AG-0002 as links (with more than one distributor, its name muted under the number), "Sana", the chips "Customer: not received" and "Customer sent a note", and the two notes in quotes.
 - AG-0003 is not listed.
 - No raw words (NO, OTHER, CUSTOMER_PROBLEM, OPEN) and no IDs.
-- With Wi-Fi off: an error message with "Try again" and a reference code; "Try again" works once online.
-- Empty: "No customer problems" and "When a customer reports a problem on their delivery link, it shows up here."
+- Step 3: an error panel with "Try again" and no reference code; "Try again" works once online.
+- Step 5: one line, "No customer problems".
 
 Spec: ADR-15; UX_ADMIN §1.9, §3.3; API_CONTRACT §9.6
 
-Note: The page calls GET /alerts?type=CUSTOMER_PROBLEM&status=OPEN, so it lists open cases only. The Distributor column may hide on screens under 1280 px (priority 3).
+Note: The page calls GET /alerts?type=CUSTOMER_PROBLEM&status=OPEN, so it lists open cases only. The order number opens the order drawer. The Customer's note column may hide under 1280 px (priority 2).
 
 ### CAS-011 · Mark a case as sorted, with a note and no money choices
 
@@ -9974,20 +10147,20 @@ Before: Two open problems: AG-0001 "Not received" and AG-0002 "Other problem". O
 
 Steps:
 
-1. As Owner, click "Mark as sorted" on AG-0001.
+1. As Owner, click "Mark as sorted…" on AG-0001.
 2. Type "Ok" and try to confirm.
 3. Type "Called Sana, she has the cylinder" and confirm.
 4. Look for any money option in the dialog and on the page.
-5. On Ops's laptop (not refreshed), click "Mark as sorted" on AG-0001 and confirm with "Checked again".
+5. On Ops's laptop (not refreshed), click "Mark as sorted…" on AG-0001 and confirm with "Checked again".
 6. As Owner, open Activity, then Wallets.
 
 Expect:
 
-- Step 2: the dialog doesn't accept a note under 5 characters (inline message).
+- Step 2: the dialog "Mark AG-0001 as sorted?" with "What did you do?" doesn't accept a note under 5 characters (an inline message).
 - Step 3: the dialog closes, the toast reads "Problem on AG-0001 marked as sorted.", and AG-0001 leaves the list.
-- Step 4: no refund, charge, return or correction option anywhere; "Mark as sorted" is the only action.
-- Step 5: Ops sees that Owner already closed it ("This case was already closed by Owner.") and the list refreshes without AG-0001; it isn't closed twice.
-- Activity shows "Marked the problem on AG-0001 as sorted" by Owner with the note, and the earlier "Customer answered “Not received” for AG-0001" with Who "Customer".
+- Step 4: no refund, charge, return or correction option anywhere; "Mark as sorted…" is the only action.
+- Step 5: Ops sees "This problem was already sorted by Owner." in the dialog, its button becomes "Close", and the list refreshes without AG-0001; it isn't closed twice.
+- Step 6: Activity shows "Marked the problem on AG-0001 as sorted" by Owner with the note, and the earlier "Customer answered “Not received” for AG-0001" with Who "Customer".
 - Ahmed Gas's balance on Wallets is unchanged.
 
 Spec: ADR-15; UX_ADMIN §1.5, §2.9, §3.3; API_CONTRACT §9.6
@@ -10006,9 +10179,9 @@ Steps:
 
 Expect:
 
-- Home shows "1 customer problem", and tapping it opens order AG-0001 (there is only one case).
-- The order shows "Not received" and "The office will look into it."; there is no close or sort button.
-- After the office closes it, the problems line is gone from Home; the order still shows the customer's answer "Not received".
+- Step 1: Home shows the red row "1 customer problem" with "The office will look into it", and tapping it opens order AG-0001 (there is only one).
+- Step 2: the order shows the chip "Customer: not received" and "The office will look into it."; there is no close or sort button.
+- Step 3: after the office sorts it, the Home row is gone and the order's line "The office will look into it." goes; the chip "Customer: not received" stays.
 
 Spec: ADR-15; UX_MOBILE §7.3 (S15); API_CONTRACT §9.4, §9.6
 
@@ -10318,7 +10491,7 @@ Expect:
 - Step 1: the confirmation is PENDING with phone_e164 NULL; there is no SMS row and the provider was not called.
 - Step 2: customer.phoneValid false; reach 'NOT_SENT'; lastMessage null.
 - Step 3: 200 with url and message, and whatsappUrl null and smsUrl null for both.
-- Step 4: 400 CLIENT_PHONE_INVALID "Enter a mobile number like 0300 1234567."; tokenVersion unchanged (the phone is checked before rotating); no SMS row.
+- Step 4: 400 CLIENT_PHONE_INVALID "Enter a number like 300 1234567."; tokenVersion unchanged (the phone is checked before rotating); no SMS row.
 
 Spec: CUSTOMER_PAGE §1, §10; API_CONTRACT §2.3, §9.7; DATA_MODEL §3.4 (customer phones), §4.3 · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
 
@@ -10371,18 +10544,18 @@ Before: Customer confirmation is on. A delivered order like D1 for Sana (0300 12
 Steps:
 
 1. In the shop app, open My orders → Done → the order.
-2. In the "Customer confirmation" card, tap "Send on WhatsApp".
+2. Tap the bottom button "Send on WhatsApp".
 3. Check which chat opens and read the message. Press Send.
 4. Wait for WhatsApp to show the link preview. Do not open the link.
 5. Go back to the shop app and read the card; wait 1 minute and read it again.
 
 Expect:
 
-- WhatsApp opens straight into the chat with +92 300 1234567 (no contact picker).
+- Step 3: WhatsApp opens straight into the chat with +92 300 1234567 (no contact picker).
 - The message reads "Ahmed Gas: Order AG-xxxx delivered. Did you get it? Tap https://…/c/… Help:" followed by Ahmed Gas's number.
-- The preview shows "Confirm your delivery from Ahmed Gas" and "Tap to tell us what you received.", with no items and no customer name.
-- The card shows the pill "Waiting for Sana" and "Link given at \<time> (WhatsApp). Make sure it was sent."; the send buttons are now secondary.
-- After 1 minute it still says "Waiting for Sana": the preview recorded no answer.
+- Step 4: the preview shows "Confirm your delivery from Ahmed Gas" and "Tap to tell us what you received.", with no items and no customer name.
+- Step 5: the card shows the chip "Waiting for customer" and "Shared \<time> · WhatsApp. Check it was sent."; the bottom button is gone and "Send again" sits in the card.
+- After 1 minute it still says "Waiting for customer": the preview recorded no answer.
 
 Spec: ADR-15; CUSTOMER_PAGE §1, §6, §10; UX_MOBILE §7.3 (S14)
 
@@ -10394,9 +10567,9 @@ Before: As for "Send on WhatsApp", on a fresh delivered order for Sana.
 
 Steps:
 
-1. Tap "Send by text message". Check the SMS app, then go back without sending.
-2. Tap "Share another way". Check the share sheet, then close it.
-3. Tap "Copy message". Paste it into a notes app.
+1. Tap "Other ways", then "Text message". Check the SMS app, then go back without sending.
+2. Tap "Send again", then "Other app". Check the share sheet, then close it.
+3. Tap "Send again", then "Copy message". Paste it into a notes app.
 4. Return to the order after each step and read the card.
 
 Expect:
@@ -10404,7 +10577,7 @@ Expect:
 - Step 1: the phone's SMS app opens addressed to +923001234567 with the same message text.
 - Step 2: the Android share sheet opens with the message.
 - Step 3: the toast "Message copied"; the pasted text is the whole message, link included.
-- After each, the card shows "Link given at \<time> (…)" for that way: "(text message)", "(other app)" and "(copied)"; no money line appears.
+- Step 4: after each, the card reads "Shared \<time> · \<way>. Check it was sent.", with the way "text message", "other app" and "copied"; no money line appears.
 
 Spec: CUSTOMER_PAGE §9, §10; UX_MOBILE §7.3 (S14)
 
@@ -10417,17 +10590,17 @@ Before: Customer confirmation is on (mock provider, so no text message is sent).
 Steps:
 
 1. Open the first order and watch the card while it loads.
-2. Read the card.
+2. Read the card and the bottom of the screen. Tap "Other ways", read the sheet, then close it.
 3. Open the expired order and read its card.
 
 Expect:
 
-- While loading: the title "Customer confirmation" with grey placeholder bars.
-- Then: "Ask the customer to confirm" and "Text messages are not switched on yet. Send this link to Sana (0300 1234567)."
-- Buttons: "Send on WhatsApp" (main), "Send by text message", "Share another way", "Copy message"; a small "Make a new link".
-- Caption: "Sana can answer until \<day and time 3 days after delivery>."
+- Step 1: while loading, the caption "Customer answer" with grey placeholder bars.
+- Step 2: the chip "Waiting for customer" and "Link not sent yet · Sana, 0300 1234567".
+- Step 2: the bottom button "Send on WhatsApp" and, in the card, the ghost "Other ways", which opens the sheet "Send link" with Text message, Other app, Copy message and Make a new link.
+- Step 2: the caption "Link open until \<day and time 3 days after delivery>".
 - No raw words (PENDING, NOT_SENT, SKIPPED, MOCK_PROVIDER) and no money line in the card; the order still says "Delivery cost Rs 480 · paid when the order was placed".
-- The expired order shows the pill "No answer" and no send buttons.
+- Step 3: the expired order shows the chip "No answer" and no send buttons.
 
 Spec: CUSTOMER_PAGE §8, §10; UX_MOBILE §0, §3.4, §7.3 (S14)
 
@@ -10447,11 +10620,11 @@ Steps:
 
 Expect:
 
-- Step 1: "Could not get the link. Check your internet and try again."; WhatsApp does not open.
-- Step 2: "Could not load the customer confirmation." with "Try again".
+- Step 1: "Couldn't get the link. Try again." on the line above the button, under the banner "No connection" with "Try again"; WhatsApp does not open.
+- Step 2: "Couldn't load the customer answer." with "Try again".
 - Step 3: the card loads.
 - Step 4: WhatsApp opens with the message.
-- The drawer shows one share (the one that worked).
+- Step 5: the drawer shows one share (the one that worked).
 
 Spec: CUSTOMER_PAGE §10; UX_MOBILE §3.1, §3.5
 
@@ -10459,23 +10632,23 @@ Spec: CUSTOMER_PAGE §10; UX_MOBILE §3.1, §3.5
 
 **P2** · MAN-SHOP · Inc 2 · Role: DISTRIBUTOR DA (shop app); Customer
 
-Before: A delivered order like D1 for Sana; its link was sent to her on WhatsApp but not answered. Note "Sana can answer until …" on the card. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: A delivered order like D1 for Sana; its link was sent to her on WhatsApp but not answered. Note "Link open until …" on the card. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
-1. In the card, tap "Make a new link".
+1. In the card, tap "Send again", then "Make a new link".
 2. Read the question and confirm.
 3. On Sana's phone, open the old link from WhatsApp.
-4. Tap the support number on that page; go back without calling.
+4. Tap the "Call Smart Fleet support" row on that page; go back without calling.
 5. In the shop app, tap "Send on WhatsApp" again; on Sana's phone, open the new link.
 
 Expect:
 
-- Step 2: "Make a new link? The old link will stop working." After confirming, the card is back to "Ask the customer to confirm" with "Send this link to Sana (0300 1234567)."
-- Step 3: "We can't find this link" and "Please open the full link from your newest message. Need help? Call Smart Fleet support:" with the support number; nothing about the order or the shop.
-- Step 4: the support number is a tap-to-call (tel:) link, and the dialler opens with it.
+- Step 2: the sheet closes first, then "Make a new link?" with "The old link stops working.", [Make new link] and [Keep old link]. After confirming, the toast "New link made" and the card reads "Link not sent yet · Sana, 0300 1234567".
+- Step 3: "We can't find this link" and "Open the full link in your newest message.", with the "Call Smart Fleet support" row; nothing about the order or the shop.
+- Step 4: the row is a tap-to-call (tel:) link, and the dialler opens with the support number.
 - Step 5: the new link opens the order's main page.
-- "Sana can answer until …" is the same time as before (a new link adds no time).
+- "Link open until …" is the same time as before (a new link adds no time).
 
 Spec: CUSTOMER_PAGE §2, §6, §10
 
@@ -10488,15 +10661,15 @@ Before: Before delivery, ops changed Sana's stored number in the database to the
 Steps:
 
 1. Open the order and read the card.
-2. Tap "Fix number", enter 0300 1234567 and save.
-3. Read the message. Go back to the order, tap "Make a new link" and confirm.
+2. Tap the bottom button "Fix number", enter 300 1234567 after the fixed +92 and tap "Save customer".
+3. Back on the order, read the sheet that opens and confirm it.
 4. Tap "Send on WhatsApp".
 
 Expect:
 
-- Step 1: a warning "This number looks wrong: 042 35551234. Fix it, then make a new link." with "Fix number".
-- Step 2: the customer screen opens in edit mode and saves; then "The customer has a pending link on the old number. Make a new link from the order."
-- Step 3: the card now reads "Send this link to Sana (0300 1234567)."
+- Step 1: the warning line "Number looks wrong: 042 35551234" and the bottom button "Fix number".
+- Step 2: "Edit customer" opens and saves; back on the order the sheet "Make a new link?" opens at once (no long message).
+- Step 3: after confirming, the card reads "Link not sent yet · Sana, 0300 1234567".
 - Step 4: WhatsApp opens the chat with +92 300 1234567.
 
 Spec: CUSTOMER_PAGE §1, §10; UX_MOBILE §7.3 (S15b)
@@ -10517,9 +10690,9 @@ Steps:
 
 Expect:
 
-- Step 1: the link status says "Not sent — text messages are off" (the mock run's SMS row is SKIPPED).
-- Step 2: "Text didn't send — the number looks wrong".
-- Step 3: the toast "Link copied. Send it to the customer by WhatsApp or SMS."; the pasted link opens the customer page and records nothing.
+- Step 1: the link status says "Not sent · text messages are off" (the mock run's SMS row is SKIPPED).
+- Step 2: "Text didn't send · the number looks wrong".
+- Step 3: "Copy customer link" sits in the Customer answer section, not in the footer. The toast "Link copied"; the pasted link opens the customer page and records nothing.
 - Step 4: the status says "Shared \<time> by Owner (copied)".
 - Step 5: the link shows in a box you can select and copy by hand.
 
@@ -10538,7 +10711,7 @@ Steps:
 
 Expect:
 
-- "Visit done" and "Gave 3 · Took back 2 (1 empty, 1 part-filled, 0 full)".
+- "Visit done", then "Gave 3 · Took back 2" and, on the next line, "1 empty · 1 part-filled · 0 full".
 - No share button, no link, no QR for the customer, and no text such as "message sent to the customer" on any screen.
 - No confirmation item in the menu.
 
@@ -10756,7 +10929,7 @@ Spec: ADR-16; API_CONTRACT §7.11, §8.4, §8.6 (refill complete never creates l
 
 Note: Inc 1 only: from Inc 3 these routes give 410 (REF-024).
 
-### REF-009 · Shop app refill screen (Inc 1) has no do-it-yourself option and no money
+### REF-009 · Shop app Refills (Inc 1) have no do-it-yourself option and no money
 
 **P2** · MAN-SHOP · Inc 1 · Role: Distributor (Ahmed Gas)
 
@@ -10764,20 +10937,20 @@ Before: Shop app, Inc 1 build, signed in as Ahmed Gas. Active refill station "La
 
 Steps:
 
-1. On Home, tap "Refill cylinders".
-2. Look at the request form from top to bottom.
-3. Choose 11.8 kg. Press + on the number until it stops.
-4. Set the number to 2 and send the request.
-5. Open the new request and tap Cancel. Read the sheet, then confirm.
-6. Make another request. Ask the office to assign Kashif, and ask Kashif to mark "picked empties" in his app. Then try to cancel this request.
+1. On Home, tap "Refills", then "+ New refill".
+2. Look at the New refill screen from top to bottom.
+3. Choose 11.8 kg. Press + on "How many" until it stops.
+4. Set the number to 2 and tap "Request refill · 2 × 11.8 kg".
+5. On the new row, tap the red outlined "Cancel" (after the chip). Read the sheet, then confirm.
+6. Make another refill. Ask the office to assign Kashif, and ask Kashif to record the pickup in his app ("Picked up 2 empties"). Then try to cancel this refill.
 
 Expect:
 
-- Step 2: no "do it yourself" or own-station choice, no price per cylinder, no total cost and no balance line.
+- Step 2: the size chips with "One size per refill.", "How many" with "Up to 30 per refill." and the station; no "do it yourself" or own-station choice, no price per cylinder, no total cost and no balance line.
 - Step 3: the number stops at 30.
-- Step 4: the request shows in the list with the chip "Waiting for driver". No amount appears, and the Home balance stays Rs 5,000.
-- Step 5: a sheet "Cancel this refill?". After confirming, the request shows the chip "Cancelled".
-- Step 6: the Cancel button is gone, or pressing it shows "This refill can't be cancelled after pickup."
+- Step 4: the toast "Refill requested"; Refills lists "2 × 11.8 kg" with the refill number as the grey line, the time on the right and the amber chip "Waiting for driver". No amount appears, and the Home balance stays Rs 5,000.
+- Step 5: the sheet "Cancel this refill?" with "Cancel refill" and an outlined "Keep refill". After confirming, the row shows the chip "Cancelled".
+- Step 6: the row's Cancel is gone, or pressing it shows "This refill can't be cancelled after pickup."
 - No "Rs" amount, raw status word (such as PENDING or EMPTIES_PICKED) or pop-up box appears on these screens.
 
 Spec: ADR-16; UX_MOBILE S12b, §0, §6; API_CONTRACT §7.11
@@ -10791,21 +10964,21 @@ Before: Office website, Inc 1 build, signed in as Owner. Ahmed Gas has one refil
 Steps:
 
 1. Open the Refills page.
-2. Look at the columns and the buttons on each row.
+2. Look at the filter chips, the columns and the buttons on each row.
 3. On the returned refill, press "Mark complete" and confirm.
-4. Open Wallets, then Ahmed Gas, then History.
+4. Open Wallets, then Ahmed Gas, then its History.
 5. Open Refill stations, then Lahore Filling Station.
-6. Open Settings and find the refill section.
+6. Open Settings → Orders and delivery and find "Refill delivery cost".
 
 Expect:
 
-- Step 2: no "Place a filling order" form, no cost column and no Cancel button. Statuses are chips with the stage words, for example "Back at store" for the returned refill and "Needs a driver" for the waiting one, never raw values.
-- Step 3: the button reads "Mark complete" (not "Complete + debit"), and the refill shows as completed.
+- Step 2: the title "Refills" with "Refills carry no money."; the filter chips Active · Done · All; no "Place a filling order" form, no cost column and no Cancel button. Statuses are chips with the stage words, for example "Back at store" for the returned refill and "Needs a driver" for the waiting one, never raw values.
+- Step 3: the button reads "Mark complete" (not "Complete + debit"), and the refill shows as done.
 - Step 4: no new history row. Balance Rs 5,000.
 - Step 5: no price field.
-- Step 6: the refill delivery cost reads "Off · waiting for the owner's decision" and can't be edited.
+- Step 6: "Refill delivery cost" reads "Off · waiting for the owner's decision" and can't be edited.
 
-Spec: ADR-16; UX_ADMIN §2.11 (Refills, Refill stations), §2.8 (Refills); API_CONTRACT §7.11
+Spec: ADR-16; UX_ADMIN §2.11 (Refills, Refill stations, the light pass), §2.8 (Orders and delivery); API_CONTRACT §7.11
 
 ### REF-011 · Only the office assigns a refill, only while it is waiting, and only to an active driver with a van
 
@@ -10947,7 +11120,7 @@ Steps:
 
 Expect:
 
-- Step 1: one 201 RECORDED and one 409 REFILL_COUNT_REACHED { requested: 2 } "All cylinders for this refill are already picked up (2)." R1 has picked exactly 2, and the refused cylinder is still in the store with no event.
+- Step 1: one 201 RECORDED and one 409 REFILL_COUNT_REACHED { requested: 2 } "All picked up: 2 of 2." R1 has picked exactly 2, and the refused cylinder is still in the store with no event.
 - Step 2: 409 REFILL_COUNT_REACHED.
 - Step 3: one 201 and one 409 REFILL_CYLINDER_ON_OTHER_REFILL ("This cylinder is already on another refill.").
 - Step 4: AG-C0009 has exactly one PICKED_UP line across R2 and R3, one SCAN_OUT event, and one holder: the winning driver's van.
@@ -11162,7 +11335,7 @@ Spec: ADR-16; API_CONTRACT §10.1 (Retired), Appendix A, §2.3 · Test file: `ap
 
 Note: Not automated yet.
 
-### REF-025 · Driver refill run: pick up, fill and hand back by scans, including a scan without signal
+### REF-025 · Driver refill run: pick up, fill and unload by scans, including a scan without signal
 
 **P2** · MAN-DRIVER · Inc 3 · Role: Driver (Imran)
 
@@ -11170,23 +11343,23 @@ Before: Inc 3 apps. Ahmed Gas refill AG-R001 (2 × 11.8 kg, Lahore Filling Stati
 
 Steps:
 
-1. Imran opens the refill job in the driver app.
+1. Imran opens the refill in the driver app.
 2. At the store, scan AG-C0004.
 3. Scan AG-C0001. Turn on airplane mode, then scan AG-C0002.
 4. Turn airplane mode off and tap "Retry".
 5. Tap "Done picking up".
 6. At the station, scan AG-C0001 and AG-C0002 after the station fills each one.
-7. Tap "Done filling". Back at the store, open the hand-back view and give both cylinders to the shop.
+7. Tap "Done filling". Back at the store, look at the "Unload at Ahmed Gas Store" step and give both cylinders to the shop.
 
 Expect:
 
-- Step 1: the first step reads "Pick up empties at Ahmed Gas Store" with "0 of 2 picked up".
-- Step 2: a red strip "Only empty or part-filled cylinders go for refill." with a double vibration. The counter stays at 0.
-- Step 3: a green tick "✓ AG-C0001 · 11.8 kg picked up" and "1 of 2 picked up". AG-C0002 shows as an amber row "Not saved (1)" with "Retry", and the counter doesn't move.
-- Step 4: the tick appears once, the counter reads "2 of 2 picked up", the card turns green and "Not saved" disappears.
-- Step 5: the next step is "Fill at Lahore Filling Station", with the line "Scan each cylinder after the station fills it".
-- Step 6: "2 of 2 filled".
-- Step 7: "Hand back at Ahmed Gas Store" says "Give each cylinder to the shop. They scan it in their app. This page updates by itself." and updates as the shop scans.
+- Step 1: the first step reads "Pick up empties at Ahmed Gas Store" with "0 of 2 picked up" and the hint "Scan each cylinder you pick up."; "Done picking up" is off at 0, with "Scan a cylinder first." above it.
+- Step 2: a red strip "Only empty or part-filled cylinders go for refill." with a double vibration. The count stays at 0.
+- Step 3: a green strip "AG-C0001 · 11.8 kg picked up" and "1 of 2 picked up". AG-C0002 shows as one amber row "Not saved: 1" with "Retry", and the count doesn't move.
+- Step 4: the tick appears once, the count reads "All 2 picked up" in green and "Not saved" disappears.
+- Step 5: the next step is "Fill at Lahore Filling Station", with the hint "Scan each filled cylinder."
+- Step 6: "All 2 filled".
+- Step 7: "Unload at Ahmed Gas Store" with "Give each cylinder to the shop to scan." and "0 of 2 unloaded", which updates as the shop scans. There is no button while the shop scans; when the shop finishes, "Refill done" and the footer "Back to refills".
 - No money, raw status word or pop-up box appears on any refill screen.
 
 Spec: ADR-16; UX_MOBILE §8.2 (R10), §7.1 (ScanPanel), §7.2 (R7), §8.4
@@ -11199,20 +11372,20 @@ Before: Inc 3 apps. Ahmed Gas has no refills yet. Lahore Filling Station is the 
 
 Steps:
 
-1. On Home, tap "Refill cylinders".
+1. On Home, tap "Refills".
 2. Read the empty list.
 3. Tap "New refill". Read the screen.
 4. Pick 11.8 kg. Press + until it stops, then press − back to 2.
-5. Tap "Request refill".
+5. Tap "Request refill · 2 × 11.8 kg".
 6. Turn on airplane mode and pull the list down to refresh. Turn airplane mode off and tap "Try again".
 
 Expect:
 
-- Step 2: "No refills yet. Send empty cylinders to be filled." with a "New refill" button.
-- Step 3: size chips with "One size per refill. For two sizes, make two requests.", the station as plain text (there is only one) and "Up to 30 per refill."
+- Step 2: "No refills yet." with a "New refill" button.
+- Step 3: size chips that wrap, with "One size per refill."; the station as plain text (there is only one); and "Up to 30 per refill."
 - Step 4: the number stops at 30, and only one size can be chosen.
-- Step 5: the button shows it is sending, then the Toast "Refill requested". The list shows "2 × 11.8 kg · Lahore Filling Station" with the chip "Waiting for driver". No money appears anywhere, and Home still shows Rs 5,000.
-- Step 6: the saved list stays, with "Showing saved info from \<time>. Couldn't refresh." or "No internet. We'll keep trying." After "Try again" the list loads normally.
+- Step 5: the button shows "Sending…", then the toast "Refill requested". The list shows "2 × 11.8 kg" with "AG-R001" as the grey line, the time on the right and the amber chip "Waiting for driver". No money appears anywhere, and Home still shows Rs 5,000.
+- Step 6: the saved list stays, stamped "Saved \<time>", under the banner "No connection" with "Try again". After "Try again" the list loads normally.
 
 Spec: ADR-16; UX_MOBILE §8.1 (S16, S17), §2.2 (QueryBoundary, OfflineBanner, Toast), §3.5, §8.4
 
@@ -11224,21 +11397,21 @@ Before: Inc 3 apps. Refill AG-R001 (2 × 11.8 kg) assigned to Imran. Refill AG-R
 
 Steps:
 
-1. Open AG-R002, tap "Cancel refill", read the sheet and confirm.
+1. Open AG-R002, tap the red outlined "Cancel refill" (in the content, not the footer), read the sheet and confirm.
 2. After Imran has picked up AG-C0001 and AG-C0002 and tapped "Done picking up", open AG-R001.
-3. Look for the Cancel button. If it is there, tap it.
+3. Look for "Cancel refill". If it is there, tap it.
 4. After Imran has filled both and is back at the store, open "Receive from driver".
 5. Scan AG-C0001 and AG-C0002.
 6. Open AG-R001 again.
 
 Expect:
 
-- Step 1: the sheet "Cancel this refill?". After confirming, the chip reads "Cancelled".
-- Step 2: the chip "Empties picked up" and the timeline Requested → Driver assigned → "Picked up 2 of 2" → "Filled 0 of 2" → "Back in your store 0 of 2" → Done, with a driver card for Imran and "Call".
-- Step 3: no Cancel button after pickup, or the message "This refill can't be cancelled after pickup."
-- Step 4: while Imran is at the station, the chip reads "At the station"; once he has left it, "Coming back filled". Receive shows a row "Refill · Imran · 2 to receive".
-- Step 5: a tick for each, then "All 2 back in your store · Refill done".
-- Step 6: the chip "Done" and "Back in your store 2 of 2". No amount appears anywhere.
+- Step 1: the sheet "Cancel this refill?" with [Cancel refill] and an outlined [Keep refill]. After confirming, the chip reads "Cancelled".
+- Step 2: the chip "Empties picked up", the count "2 of 2 picked up", and the timeline Requested · Driver assigned · Picked up · Filled · Back at store · Done, each with its time and its count; a driver card for Imran with "Call".
+- Step 3: no "Cancel refill" after pickup, or the message "This refill can't be cancelled after pickup."
+- Step 4: while Imran is at the station, the chip reads "At the station"; once he has left it, "Coming back". Receive shows the row "Imran · LEB-202" with a "Refill" chip and "0 of 2 received".
+- Step 5: a tick for each, then "All 2 back · Refill done".
+- Step 6: the chip "Done" and "Back at store" in the timeline. No amount appears anywhere.
 
 Spec: ADR-16; UX_MOBILE §8.1 (S18, Returns), §7.3 (S13)
 
@@ -11259,10 +11432,10 @@ Steps:
 
 Expect:
 
-- Step 2: tabs Needs a driver · In progress · Done · Cancelled. Columns: Refill ("AG-R001") · Stage · Distributor · Station · Cylinders ("2 × 11.8 kg") · Driver (the "Assign driver" button) · Requested.
+- Step 2: tabs Needs a driver · In progress · Done · Cancelled. Columns: Refill ("AG-R001" with "2 × 11.8 kg" muted under it) · Status · Distributor · Driver (the "Assign driver" button) · Requested; the Station column shows only with more than one station.
 - Step 3: the same assign dialog as for orders. AG-R001 moves to In progress with "Driver assigned".
-- Step 4: the stage reads in turn "Picking up empties · 1 of 2", "Empties picked up · 2 of 2", "At the station", "Filled · 2 of 2", "Back at store · 1 of 2 scanned in", then "Done" in the Done tab.
-- Step 5: a stepper with counts and the scan list. No cancel or "Could not deliver", and the note "Only Ahmed Gas can cancel, before pickup". No fee lines.
+- Step 4: the status reads in turn "Picking up empties · 1 of 2", "Empties picked up · 2 of 2", "At the station", "Coming back · 2 of 2 filled", "Back at store · 1 of 2 in", then "Done" in the Done tab.
+- Step 5: a timeline with counts and a ghost "Show cylinders" that opens the scan list. No cancel or "Could not deliver", and the line "Only Ahmed Gas can cancel, before pickup." No fee lines.
 - Step 6: name, address, location and active only. No price.
 
 Spec: ADR-16; UX_ADMIN §4.1, §4.2, §1.9
@@ -11305,7 +11478,7 @@ Expect:
 
 - Each code has the HTTP status from API_CONTRACT §2.3: 410 for REFILL_DIY_RETIRED, REFILL_USE_SCANS and REFILL_AUTO_COMPLETES; 400 for REFILL_TOO_MANY and REFILL_INVALID_COUNT; 409 for the other eight REFILL codes; 404 for DAY_NOT_FOUND; 422 for DAY_SHEET_UNREADABLE, DAY_SHEET_WRONG_DISTRIBUTOR, DAY_SHEET_WRONG_DATE, DAY_SHEET_ROW_ERRORS and DAY_SHEET_OUTDATED; 409 for DAY_LOCKED, DAY_ALREADY_SUBMITTED, DAY_NOT_SUBMITTED, DAY_VERSION_CHANGED and DAY_SHEET_NOT_UPLOADED ('Upload the filled sheet first.'); 410 for RECONCILIATION_RETIRED.
 - Each code has exactly the §2.3 English text and an errors.\<CODE> key in both apps.
-- The rendered messages read, for example, "This refill is for 11.8 kg only.", "All cylinders for this refill are already picked up (2).", "Too many cylinders. A refill can have at most 30." and "This sheet is for Tue 20 Oct. Upload the sheet for Wed 21 Oct.", with no {{…}} left in them.
+- The rendered messages read, for example, "This refill is for 11.8 kg only.", "All picked up: 2 of 2.", "Too many cylinders. A refill can have at most 30." and "This sheet is for Tue 20 Oct. Upload the sheet for Wed 21 Oct.", with no {{…}} left in them.
 
 Spec: ADR-18; API_CONTRACT §2.1, §2.3 (Refills, Day-end, Settings and legacy), §8.6 (shared rules); UX_MOBILE §3.2, §3.3; UX_ADMIN §1.6 · Test file: `apps/api/test/unit/error-catalogue-inc3.spec.ts`
 
@@ -11407,7 +11580,7 @@ Expect:
 - Step 2: 200 with version 2 and one difference (AG-C0005).
 - Step 3: 35 lines, with only AG-C0005 not MATCH. No line from version 1 is left: AG-C0010, AG-C0012 and AG-C0015 are MATCH. lastUpload.version is 2.
 - The holder data is still unchanged.
-- Step 4: 422 DAY_SHEET_OUTDATED "This is an older copy of the sheet. Download the sheet again and fill in that one."; the version and the lines don't change.
+- Step 4: 422 DAY_SHEET_OUTDATED "This is an old copy. Download a new sheet and use that."; the version and the lines don't change.
 
 Spec: ADR-17; API_CONTRACT §10.2 (upload replaces the day's lines and bumps upload_version) · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
 
@@ -11479,13 +11652,13 @@ Steps:
 
 Expect:
 
-- Step 2: 422 DAY_SHEET_ROW_ERRORS with rows [{ sheet 'CYLINDERS', row 8, code 'PLACE_UNKNOWN' }, { sheet 'CYLINDERS', row 9, code 'STATE_UNKNOWN' }, { sheet 'CYLINDERS', row 10, code 'REASON_REQUIRED' }, { sheet 'EXTRA', row 2, code 'SIZE_UNKNOWN' }] and total 4, each with its English message (for example "Your count: where must be In my store, On driver's van, With customer or Missing."). Nothing is stored: the version, the lines and the stage are unchanged.
+- Step 2: 422 DAY_SHEET_ROW_ERRORS with rows [{ sheet 'CYLINDERS', row 8, code 'PLACE_UNKNOWN' }, { sheet 'CYLINDERS', row 9, code 'STATE_UNKNOWN' }, { sheet 'CYLINDERS', row 10, code 'REASON_REQUIRED' }, { sheet 'EXTRA', row 2, code 'SIZE_UNKNOWN' }] and total 4, each with its English message (for example "Where: use In my store, On driver's van, With customer or Missing."). Nothing is stored: the version, the lines and the stage are unchanged.
 - Step 3: 409 DAY_SHEET_NOT_UPLOADED "Upload the filled sheet first." (nothing valid was uploaded from the newest sheet). The status stays OPEN.
 - Step 4: the upload answers 200 with no errors field, and the submit gives 200 with SUBMITTED.
 
 Spec: ADR-17; API_CONTRACT §10.2 (upload errors, submit "Row errors block it"), §2.3; UX_MOBILE S20 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: The row texts are the shorter ones of UX_MOBILE §8.3 (shared-types DAY_END_ROW_ERROR_EN, changed when Inc 3 is built). Not automated yet.
 
 ### DAY-007 · Extra cylinders: an unknown number is added on approval, and another shop's number is never touched
 
@@ -11503,14 +11676,14 @@ Steps:
 
 Expect:
 
-- Step 2: 422 DAY_SHEET_ROW_ERRORS with rows [{ sheet 'EXTRA', row 3, code 'OTHER_SHOP_NUMBER', message "This number is another shop's label. Call the office." }] and total 1. The response shows no Bilal Gas data, and nothing is stored.
+- Step 2: 422 DAY_SHEET_ROW_ERRORS with rows [{ sheet 'EXTRA', row 3, code 'OTHER_SHOP_NUMBER', message "Another shop's label. Call the office." }] and total 1. The response shows no Bilal Gas data, and nothing is stored.
 - Step 3: 200; AG-C0099 is an UNKNOWN_CYLINDER line (cylinder_id null) with fix REGISTER.
 - Step 4: 200; the approve answer lists the new cylinder in registered.
 - Step 5: a new 11.8 kg Empty cylinder AG-C0036, owned by Ahmed Gas, in Ahmed Gas Store with one REGISTERED event; the line has sheet_key 'AG-C0099' and applied_event_id. BG-C0001's owner, holder, state and last event are unchanged, with no new event, and Bilal Gas's day-end is untouched.
 
 Spec: ADR-17; API_CONTRACT §10.2 (Extra cylinders), §3.2; DATA_MODEL §5.3, §5.4 (unknown cylinder with a size → REGISTERED); UX_ADMIN §4.3 · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: The row texts are the shorter ones of UX_MOBILE §8.3 (shared-types DAY_END_ROW_ERROR_EN, changed when Inc 3 is built). Not automated yet.
 
 ### DAY-008 · Sending for approval: the day is submitted once and the office is told
 
@@ -11793,7 +11966,7 @@ Steps:
 Expect:
 
 - Step 1: features.dayEnd is false.
-- Step 2: 403 FEATURE_DISABLED "This is switched off for the pilot." with the header X-Feature-Disabled: dayEnd for every call; the two lists answer 403 too, never []. No day row is created.
+- Step 2: 403 FEATURE_DISABLED "This isn't available yet." with the header X-Feature-Disabled: dayEnd for every call; the two lists answer 403 too, never []. No day row is created.
 - Step 3: 200, and an audit row setting.update with the reason.
 - Step 4: features.dayEnd is true, the sheet downloads, and the upload is accepted.
 
@@ -11810,20 +11983,20 @@ Before: The 0.2.0 shop app (or later) on the pilot shop phone, with the spreadsh
 Steps:
 
 1. On Home, tap "Day-end sheet".
-2. Read the header card and the three numbered cards.
-3. Tap "Download today's sheet" and choose the spreadsheet app.
+2. Read the status row and the three step rows.
+3. Tap "Download sheet" and choose the spreadsheet app.
 4. Find AG-C0020. Set "Your count: where" to "In my store", "Your count: state" to "Damaged" and "Why different" to "Valve damaged". Save the file.
-5. Back in the shop app, tap "Choose file" and pick the saved file.
-6. Read the preview.
-7. Tap "Send for approval", read the sheet, then confirm.
+5. Back in the shop app, tap "Upload filled sheet" and pick the saved file.
+6. Read the "Check and send" screen.
+7. Tap "Send for approval · 1 difference", read the sheet, then confirm.
 
 Expect:
 
-- Step 2: today's date with the chip "Not sent yet". Card 1 "Download today's sheet": "One row per cylinder. Fill in only the rows that differ from your register." Card 2 "Fill it in": "For each cylinder that isn't where the sheet says, choose where it really is and why." Card 3 "Upload the filled sheet".
-- Step 3: the phone offers "Open with Excel, WPS or Sheets", and the sheet has 35 rows, one per cylinder.
-- Step 5: "Checking your sheet…", then the preview.
-- Step 6: "35 cylinders checked · 1 difference". The row reads "AG-C0020 · 11.8 kg", "App: In my store, Full" → "Your sheet: In my store, Damaged", with the reason "Valve damaged". No raw words or long IDs.
-- Step 7: the button reads "Send for approval (1 difference)", and the sheet "Send the day-end for \<today's date>? After the office approves, this day is closed and can't be changed." After confirming, the chip reads "Waiting for approval".
+- Step 2: today's date with the chip "Not sent", and three step rows: "Download sheet"; "Fill in only what's different" with "Where it is, its state, and why."; "Upload the sheet".
+- Step 3: the phone offers "Open in your sheet app" (Excel, WPS or Sheets), and the sheet has 35 rows, one per cylinder.
+- Step 5: "Checking your sheet…", then "Check and send".
+- Step 6: "1 difference" and "35 cylinders checked". The card reads "AG-C0020 · 11.8 kg", "App: In my store · Full" and "You: In my store · Damaged" (the changed part in bold), with "Valve damaged" in quotes and the fix chip "Set to Damaged". No raw words or long IDs.
+- Step 7: the sheet "Send day-end for \<today's date>?" with "Once the office approves, this day is closed." After confirming, the toast "Sent to the office" and the chip "Waiting for office".
 
 Spec: ADR-17; UX_MOBILE §8.3 (S19, S20), §8.4; API_CONTRACT §10.2
 
@@ -11835,27 +12008,27 @@ Before: As DAY-019. A team member has a filled sheet for today and can forward i
 
 Steps:
 
-1. Receive the filled sheet on WhatsApp, save it, and upload it with "Choose file".
-2. Turn on airplane mode. Tap "Download today's sheet", then try "Choose file" with the sheet.
+1. Receive the filled sheet on WhatsApp, save it, and upload it with "Upload filled sheet".
+2. Turn on airplane mode. Tap "Download sheet", then try "Upload filled sheet" with the sheet.
 3. Turn airplane mode off and tap "Try again".
 4. Upload a photo, then a PDF.
 5. Upload a sheet where AG-C0007's "Your count: where" says "Shop".
 6. After the office sends the day back, open Day-end.
-7. After the office approves, open Day-end and try "Choose file" again.
+7. After the office approves, open Day-end and try to upload again.
 
 Expect:
 
-- Step 1: accepted. The preview shows as in DAY-019.
-- Step 2: "No internet connection. Check your signal and try again." with "Try again". Nothing is uploaded.
-- Step 3: it works, and the preview shows the new version.
+- Step 1: accepted. "Check and send" shows as in DAY-019.
+- Step 2: the banner "No connection" with "Try again"; where a message shows for the failed download or upload, it is the shared text "No connection. Try again.". Nothing is uploaded.
+- Step 3: it works, and "Check and send" shows the new version.
 - Step 4: "This file isn't the day-end sheet. Download today's sheet and try again."
-- Step 5: a red list "Cylinders, row 8: Your count: where must be In my store, On driver's van, With customer or Missing." and the primary "Fix the sheet and upload again". Nothing was saved, so there is nothing to send.
-- Step 6: the chip "Sent back · see note", with the warning card "The office sent this back: “\<note>”" and "Fix it, upload the sheet again and send it."
+- Step 5: a red card "Some rows couldn't be read. Fix them and upload again." with "Row 8 · Cylinders: Where: use In my store, On driver's van, With customer or Missing." and the footer "Upload fixed sheet". Nothing was saved, so there is nothing to send.
+- Step 6: the chip "Sent back", with the red card "Office note: “\<note>”" and "Fix it and upload again."
 - Step 7: the chip "Approved · day closed". Uploading shows "This day is closed. Ask the office to reopen it."
 
 Spec: ADR-17; UX_MOBILE §8.3, §8.4, §3.1, §3.2; API_CONTRACT §2.3 (Day-end, Client-only)
 
-Note: "Row 8" is the Excel row number: the header is row 1 and AG-C0001 is row 2.
+Note: "Row 8" is the Excel row number: the header is row 1 and AG-C0001 is row 2. The row texts are the shorter ones of UX_MOBILE §8.3 (shared-types DAY_END_ROW_ERROR_EN, changed when Inc 3 is built).
 
 ### DAY-021 · Office day-end review: approve all fixes or send back with a note
 
@@ -11865,24 +12038,24 @@ Before: Ahmed Gas has sent today's sheet (version 2) with AG-C0005 (state differ
 
 Steps:
 
-1. Open Today, then Day-end approvals.
+1. Open Today, then Day-end.
 2. Open the Ahmed Gas row.
 3. Read the differences table.
-4. Click "Send back…", try to send without a note, then cancel.
-5. Click the approve button, read the dialog, then confirm.
-6. Look at the locked view. Click "Reopen…", then cancel.
+4. Click "Send back…", try to send without a note, then click "Go back".
+5. Click "Approve and lock · \<n> fixes", read the dialog, then confirm.
+6. Look at the locked view. Click "Reopen…", then "Go back".
 7. Second run: with the review page open, have Ops send the day back and Ahmed Gas send a new version. Then click approve on the old page.
 
 Expect:
 
-- Step 1: Today shows "Day-end ready to approve". The list has tabs To approve · Open · Locked, and the row shows the day, Ahmed Gas, "Ready to approve", the differences and "Uploaded \<time> by \<the Ahmed Gas user's name>".
-- Step 2: "Ahmed Gas · \<day>" and "Sheet version 2 · uploaded \<time>". Stats In store · On vans · With customers · Differences.
-- Step 2: the info "Nothing changes until you approve. Each fix is saved with its reason, who asked and who approved." and the links "Download the uploaded sheet" and "Download the app's sheet", which download the latest upload and the sheet it was filled from (through GET /files/:id/url).
-- Step 3: columns Cylinder · App says · Sheet says · Last scan · Fix · Note. The words "State differs", "In a different place" and "Number not in the app". The Fix column shows each fix in words, for example "Move to Ahmed Gas Store" for AG-C0010, "Add to Ahmed Gas Store as a new cylinder" for AG-C0099 and "Not changed: check it by hand" for AG-C0013. AG-C0011 shows "Will be skipped: moved since the sheet".
-- Step 4: the note is required.
-- Step 5: the dialog "Approve \<n> fixes and lock \<day>? Later changes need a reopen." After confirming, the day is approved and locked.
-- Step 6: everything is read-only, and Reopen asks for a reason.
-- Step 7: "Ahmed Gas uploaded a new version at \<time>." with "Load the new version". Nothing is applied until the new version is loaded and approved.
+- Step 1: Today shows the card "1" "day-end to approve" with "Review day-end". The list has the tabs To approve · Open · Approved, and the row shows the day, Ahmed Gas, "To approve", the differences and, under Uploaded, "\<time> · \<the Ahmed Gas user's name>".
+- Step 2: "Ahmed Gas · \<day>" with "Version 2 · uploaded \<time>", and the facts In store · On vans · With customers · Differences.
+- Step 2: the line "Nothing changes until you approve." and "Download:" with the links "Uploaded sheet" and "App's sheet", which download the latest upload and the sheet it was filled from (through GET /files/:id/url).
+- Step 3: the columns Cylinder · App says · Sheet says · Fix · Note · Last scan; the words "State differs", "In a different place" and "Number not in the app". The Fix chips "Move to Ahmed Gas Store" for AG-C0010, "Add to Ahmed Gas Store as new cylinder" for AG-C0099 and "Check by hand" for AG-C0013. AG-C0011 shows the grey "Skipped · moved since sheet".
+- Step 4: "Send back to Ahmed Gas?" needs a note under "What should they fix?".
+- Step 5: the dialog "Approve and lock \<day>?" with "\<n> fixes. Later changes need a reopen." After confirming, the toast "\<day> approved · day closed" and the day is locked.
+- Step 6: everything is read-only, and "Reopen…" asks "Why reopen?".
+- Step 7: "Ahmed Gas uploaded a new version at \<time>." with "Load new version". Nothing is applied until the new version is loaded and approved.
 
 Spec: ADR-17; UX_ADMIN §4.3, §4.4, §1.9; API_CONTRACT §10.2
 
@@ -11901,7 +12074,7 @@ Steps:
 Expect:
 
 - Steps 1 and 2: every word on both pages is wrapped in ⟦…⟧, so no text is hard-coded. No raw value (EMPTIES_PICKED, PLACE_DIFFERS, SUBMITTED) and no long ID is visible.
-- Step 3: the primary reads "Approve 1 fix and lock the day" and the dialog "Approve 1 fix and lock \<day>? Later changes need a reopen.", never "1 fixes".
+- Step 3: the primary reads "Approve and lock · 1 fix" and the dialog "Approve and lock \<day>?" with "1 fix. Later changes need a reopen.", never "1 fixes".
 
 Spec: ADR-18; UX_ADMIN §1.6 (pseudo-locale), §2.12 (no system words), §4.1, §4.3
 
@@ -11944,15 +12117,15 @@ Steps:
 2. Write down every "Opening balance" row.
 3. Match each row with the bank statement or the owner's records.
 4. For a row that doesn't match, record a correction with reason "Opening balance" and a note, then check again.
-5. In the shop app, signed in as Ahmed Gas, open the wallet history.
+5. In the shop app, signed in as Ahmed Gas, open History.
 
 Expect:
 
 - Step 2: every shop whose balance had no history has exactly one "Opening balance" row.
 - On the test server, Ahmed Gas's Rs 5,000 "Opening balance" row has actor System (cli:pilot-setup): it comes from the setup file's openingBalances.
 - Step 3: every row matches. Any unmatched row is a no-go for the pilot until it is corrected.
-- Step 4: the correction shows in the history as "Opening balance" (StatementKind OPENING_BALANCE, as every ADJUSTMENT with reason OPENING_BALANCE does), with the office user as "by" and the note on the website. The balance updates, and the page says "History matches the balance".
-- Step 5: "Opening balance" +Rs 5,000 with "Balance after Rs 5,000".
+- Step 4: the correction shows in the history as "Opening balance" (StatementKind OPENING_BALANCE, as every ADJUSTMENT with reason OPENING_BALANCE does), with the office user as "by" and the note on the website. The balance updates, and the page shows the chip "History adds up".
+- Step 5: "Opening balance" +Rs 5,000, with no "Balance after" line.
 
 Spec: ADR-10; ADR-11; API_CONTRACT §8.5 (switch-over step 6), §7.8; UX_ADMIN §2.6; UX_MOBILE §3.4 (statement kinds), S7
 
@@ -12206,7 +12379,7 @@ Note: Not automated yet.
 
 ## UXQ · UI and UX quality
 
-Loading, empty, error and no-signal states, plain words, touch sizes, large text, layouts and keyboard use in all three apps. 24 cases: P1 1 · P2 18 · P3 5.
+Loading, empty, error and no-signal states, plain words, touch sizes, large text, layouts and keyboard use in all three apps. 33 cases: P1 1 · P2 26 · P3 6.
 
 ### UXQ-001 · Shop app main screens show loading, empty, error-with-retry and success states
 
@@ -12217,29 +12390,29 @@ Before: Shop app installed. DB has no orders, no wallet history and a balance of
 Steps:
 
 1. Sign in as DB. Watch Home while it loads.
-2. Open Wallet history, then My orders (the Active tab and the Done tab).
-3. Turn airplane mode on. Pull down on Home to refresh. Open Wallet history. Tap Add money.
-4. Turn airplane mode off. Tap "Try again" on each error.
+2. Open History, then My orders (the Active tab and the Done tab).
+3. Turn airplane mode on. Pull down on Home to refresh. Open History. Tap Add money.
+4. Turn airplane mode off. Tap "Try again".
 5. Sign out and sign in as DA. Turn airplane mode on and open one of DA's orders. Turn airplane mode off and tap "Try again".
-6. As DA, add a new customer "Test Customer" (0333 1112222) with a pin in North. Then send a Rs 5,000 top-up request (payer "Ahmed Gas", Bank app).
+6. As DA, add a new customer "Test Customer" (333 1112222 after the fixed +92) with a pin in North. Then send a Rs 5,000 top-up request (name on the account "Ahmed Gas", Bank app).
 
 Expect:
 
 - Step 1: grey placeholder blocks shaped like the screen. The wallet card never shows "Rs 0" while loading.
-- Step 2: Wallet history says "No money movements yet." with "Add money". My orders Active says "No active orders." with "New order"; Done says "No finished orders yet."
-- Step 3: an inline red message with a "Try again" button, for example "No internet connection. Check your signal and try again." The wallet card says "Couldn't load your balance." with "Try again". Screens that had data keep it, with the line "Showing saved info from …. Couldn't refresh." No pop-up box appears anywhere.
+- Step 2: History says "No money movements yet." with "Add money". My orders Active says "No active orders." with the floating "+ New order"; Done says "No finished orders yet."
+- Step 3: one banner at the top, "No connection" with "Try again" (it is the only Try again for the screen). Screens with nothing saved show "Nothing saved yet.", with no red card. The wallet card says "Couldn't load your balance." with "Try again". Screens that had data keep it, stamped "Saved …". No pop-up box appears anywhere.
 - Steps 4–5: after "Try again" the data appears.
 - Step 6: the toasts "Customer saved" and "Sent for checking" appear, and the top-up status screen says "Being checked".
 
-Spec: UX_MOBILE §2 (Principles), §2.2 (QueryBoundary, ErrorBanner, EmptyState, Toast), §3.5, §6 (States), S2, S5, S6, S7, S8, S10, S11
+Spec: UX_MOBILE §2 (Principles), §2.2 (QueryBoundary, OfflineEmpty, OfflineBanner, ErrorBanner, EmptyState, Toast), §3.5, §6 (States), S2, S5, S6, S7, S8, S10, S11
 
-Note: The empty texts come from S7 (wallet) and S10 (orders).
+Note: The empty texts come from S7 (History) and S10 (My orders).
 
 ### UXQ-002 · Driver app screens show clear states, with no pop-up boxes
 
 **P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1)
 
-Before: DR1 has no job. DA has placed X1, which is waiting for a driver. SA1 is on the website.
+Before: DR1 has no trip. DA has placed X1, which is waiting for a driver. SA1 is on the website.
 
 Steps:
 
@@ -12252,14 +12425,14 @@ Steps:
 
 Expect:
 
-- Step 1: "No jobs yet. The office will assign your next job."
+- Step 1: "Nothing to do." and "New trips appear by themselves." with "Call office".
 - Step 2: the trip shows with a status chip in words (for example "Next" or "To do"). No codes like PLANNED or SCAN_OUT.
-- Step 3: the button shows it is sending and ignores a second tap. Then an inline message "No internet connection. Check your signal and try again." with "Try again". No pop-up box.
-- Step 4: "Location paused, no connection" and the banner "No internet. We'll keep trying."
+- Step 3: the button shows "Sending…" and ignores a second tap. Then the line just above it says "Not sent. Tap again.", with no extra Try again button. No pop-up box.
+- Step 4: one banner, "No connection" with "Try again"; Today's duty row says "Location paused", with no second strip.
 - Step 5: the step goes through.
-- Step 6: a "Call the office" button in the header of every screen.
+- Step 6: "Call office" in the header of every screen, even with no signal.
 
-Spec: UX_MOBILE §0 (driver words), §2.2 (Header, Button, ErrorBanner, OfflineBanner), §3.4 (stages.step), §5, §6
+Spec: UX_MOBILE §0 (driver words), §2.2 (Header, Button, ActionLine, OfflineBanner), §3.4 (stages.step), §5, §6
 
 ### UXQ-003 · Website screens show skeleton, empty, error-with-reference and success states
 
@@ -12271,21 +12444,23 @@ Steps:
 
 1. Press F12, open the Network tab and choose "Slow 3G". Open, one by one: Today, Orders, Top-ups, Wallets, Delivery prices, Distributors, Expenses, Settings and Activity log.
 2. Choose "Offline" in the Network tab. Reload each page, and press the refresh button on a page that already shows data.
-3. Choose "No throttling" and press "Try again".
-4. Open Expenses and choose Custom dates for a month with no expenses (for example January 2026).
-5. Open Expenses, then the expense types. Add the type "Test type", then archive it.
+3. Choose "No throttling". On Orders, block the API's domain (Network tab: right-click any API request → Block request domain) and wait 40 seconds.
+4. Unblock it and press "Try again".
+5. Open Expenses and choose Custom dates for a month with no expenses (for example January 2026).
+6. Open Expenses, then the expense types. Add the type "Test type", then archive it.
 
 Expect:
 
 - Step 1: each page first shows grey placeholders in its final layout; tables show 5 placeholder rows.
-- Step 2: an error panel with the cause, "Try again" and "Reference: …". A page that had data keeps it with "Updated …", and after 2 failed refreshes shows a stale-data banner. No page looks empty because of an error.
-- Step 3: the data loads.
-- Step 4: "No expenses in this period" with an "Add expense" button. No developer text.
-- Step 5: each dialog closes, a toast states the result, and the list updates.
+- Step 2: a page with no data shows an error panel with the page's own title (for example "Couldn't load the orders"), the cause "No connection. Try again." and "Try again", with no "Reference: …". A page that had data keeps it and shows the banner "No connection." with "Try again" at the first failed refresh. No page looks empty because of an error.
+- Step 3: after 2 failed refreshes the banner reads "Not updated since \<time>." with "Try again"; the orders stay on screen.
+- Step 4: the data loads and the banner goes away.
+- Step 5: "No expenses in this period" with an "Add expense" button. No developer text.
+- Step 6: a toast at the top centre states each result ("Test type added", "Test type archived"); it stays 6 seconds, pauses while the mouse is over it, and × closes it. The list updates.
 
 Spec: UX_ADMIN rules on every screen, §1.5 (ErrorState, StaleBanner, Toast, EmptyState), §1.7, §1.9, §2.12 (States)
 
-Note: The 'No top-ups to check' empty text is checked in TOP-014.
+Note: "Reference: …" with a copy icon shows only when the server answered with an error, never with the network off (UX_ADMIN §1.5 ErrorState). The "No top-ups to check" empty text is checked in TOP-014.
 
 ### UXQ-004 · The shop app shows money as "Rs 3,450", times in Karachi time, and no system words
 
@@ -12295,18 +12470,18 @@ Before: DA's account after examples X1 and X3: X1 (Rs 480) was placed and then c
 
 Steps:
 
-1. Open Home, Wallet history, My orders > Done, and the cancelled order's detail.
+1. Open Home, History, My orders > Done, and the cancelled order's detail.
 2. Read every amount, date and label on these screens.
-3. In the phone's Settings, change the time zone to London. Reopen Wallet history and the order detail.
+3. In the phone's Settings, change the time zone to London. Reopen History and the order detail.
 4. Change the time zone back to Pakistan.
 
 Expect:
 
 - Home: balance "Rs 5,000".
-- Wallet history: "Delivery cost · AG-… · Sana" with "−Rs 480" and "Balance after Rs 4,520"; "Delivery cost returned (order cancelled)" with "+Rs 480" and "Balance after Rs 5,000".
-- Order detail: "Delivery cost Rs 480", the chip "Rs 480 returned", and the last step "Cancelled · Rs 480 returned".
+- History: "Delivery cost" with "AG-… · Sana" and "−Rs 480"; "Refund" with "+Rs 480"; no "Balance after". Row times read like "4:12 pm" under day headings ("Today", "Yesterday", "Mon 19 Oct").
+- Order detail: "Cancelled", the cost chip "Rs 480 returned", and under "All steps" the last step "Cancelled · Rs 480 returned".
 - Never "Rs.", "PKR", ".00", "On hold", "held" or "charged later".
-- Times read like "Today, 4:12 pm", "Yesterday, 9:05 am" or "Mon 19 Oct, 4:12 pm", and they don't change after step 3.
+- Detail times read like "Today, 4:12 pm", "Yesterday, 9:05 am" or "Mon 19 Oct, 4:12 pm", and no time changes after step 3.
 - Words: "customer" (not client) and "the office" (not admin). No codes like PENDING, PAID_VIA_LEDGER, DEDUCTED, REVERSED or SCAN_OUT, and no long ids; order numbers look like AG-0001.
 
 Spec: README (Conventions); ADR-06; ADR-07; ADR-18; ADR-21; ADR-22; UX_MOBILE §0, §2.2 (MoneyText), §3.3 (Dates), §3.4, §3.7, §6, S2, S7, S11
@@ -12319,7 +12494,7 @@ Before: Data after X1 and X3 as in UXQ-004, plus DA's top-up request AG-T001 of 
 
 Steps:
 
-1. Open Today; Orders, the Cancelled or failed tab, and the cancelled order; Wallets and Ahmed Gas's wallet page; Top-ups and AG-T001.
+1. Open Today; Orders, the Cancelled or not delivered tab, and the cancelled order; Wallets and Ahmed Gas's wallet page; Top-ups and AG-T001.
 2. Read every amount, time and label.
 3. With a developer, on the development build only, add ?lng=en-XA to the address and reload each page.
 
@@ -12340,18 +12515,18 @@ Before: A phone or emulator 360 dp wide (360 × 640 dp). Android Settings > Disp
 
 Steps:
 
-1. Open Home, Add money (all 3 steps), Wallet history, Add customer (both steps), New order (all 3 steps, for X1), Order detail and Profile.
+1. Open Home, Add money (all 3 steps), History, Customers, Add customer (both steps), New order (all 3 steps, for X1), Order detail and Profile.
 2. On each screen, count the filled blue (main) buttons.
 3. Run Accessibility Scanner on each screen and read its "Touch target" results.
 4. Scroll each screen to the end and check that all text can be read.
 
 Expect:
 
-- Exactly one main button per screen, in a fixed bar at the bottom (for example Home "New order", Add money "Next", New order step 3 "Place order · pay Rs 480").
+- Exactly one main button per screen: in the bottom bar (Home "New order", Add money "Next", New order step 3 "Place order · pay Rs 480", Order detail "Call driver" once a driver is assigned) or floating (Customers and New order step 1 "+ Add customer", My orders "+ New order", Refills "+ New refill"). "Cancel order" is never in the bottom bar.
 - No touch target smaller than 48 dp; list rows at least 64 dp tall.
-- At the largest font: no cut-off or overlapping text, the bottom button stays visible, and nothing scrolls sideways.
+- At the largest font: no cut-off or overlapping text, the bottom button stays visible, and nothing scrolls sideways (History's three filters wrap).
 
-Spec: UX_MOBILE §2 (Principles), §2.1 (Sizes, Type: maxFontSizeMultiplier 1.3), §2.2 (Screen footer, Button), §6 (Targets, Large font)
+Spec: UX_MOBILE §2 (Principles), §2.1 (Sizes, Type: maxFontSizeMultiplier 1.3), §2.2 (Screen footer, Fab, Button, screen rules), §6 (Targets, Large font)
 
 Note: Don't place the order on step 3; going back leaves the balance at Rs 5,000.
 
@@ -12359,20 +12534,21 @@ Note: Don't place the order on step 3; going back leaves the balance at Rs 5,000
 
 **P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1)
 
-Before: As UXQ-006: a 360 dp phone, the largest font, and Accessibility Scanner. DR1 has X1 assigned, on a trip with van LEA-101.
+Before: As UXQ-006: a 360 dp phone, the largest font, and Accessibility Scanner. DR1 has X1 assigned, on a trip with van LEA-101, and one refill of Ahmed Gas assigned.
 
 Steps:
 
-1. Open Home, the trip, each delivery step, the scan screen, Profile and the menu.
+1. Open Today, the trip, each step screen (each has its camera), Unload, Refills and one refill, My van, the menu and Help.
 2. Count the main buttons on each screen.
 3. Run Accessibility Scanner on each screen.
 4. Check all text at the largest font.
 
 Expect:
 
-- One main button per screen, 56 dp tall.
+- One main button per screen, 56 dp tall, naming the next step (for example "Start trip", "Done loading", "Finish trip").
 - No touch target smaller than 56 dp; list rows at least 72 dp tall.
-- No cut-off or overlapping text; the main button stays visible; nothing scrolls sideways.
+- No cut-off or overlapping text; the main button stays visible; nothing scrolls sideways; the camera keeps at least 160 dp.
+- Profile is merged into Help (name, mobile and van), and there is no separate scan screen.
 
 Spec: UX_MOBILE §2 (Principles), §2.1 (Sizes: driver 56 dp, Type), §5, §6 (Targets, Large font)
 
@@ -12390,8 +12566,8 @@ Steps:
 
 Expect:
 
-- Step 1: a narrow icon menu with tooltips; drawers open as side panels; the page never scrolls sideways.
-- Step 2: a menu button opens the menu over the page; drawers open full screen; tables hide their less important columns and keep the first column fixed; the page never scrolls sideways.
+- Step 1: the menu with its labels, 200 px wide, and no top bar; drawers open as side panels; the page never scrolls sideways.
+- Step 2: the top bar's menu button opens the menu over the page; drawers open full screen; tables hide their less important columns and keep the first column fixed; the page never scrolls sideways.
 - Step 3: buttons and rows are big enough to tap (controls 48 px, rows 56 px).
 
 Spec: UX_ADMIN §1.3 (Layout by width, Touch sizes), §1.4 (pointer: coarse), §2.12 (Layout)
@@ -12428,7 +12604,7 @@ Before: DA is signed in, with fewer than 3 top-ups being checked. The company ac
 
 Steps:
 
-1. Tap Add money. Enter 5,000. Tap Next, then "I have paid". Type "Ahmed Gas" as the payer name.
+1. Tap Add money. Tap "Rs 5,000". Tap Next, then "I've paid". Type "Ahmed Gas" as the name on the account.
 2. Tap "Send for checking" and turn on airplane mode within a second.
 3. Wait up to 15 seconds for a message.
 4. Turn airplane mode off. Tap "Send for checking" again.
@@ -12436,7 +12612,7 @@ Steps:
 
 Expect:
 
-- Steps 2–3: the button shows "Sending…", then the message "Not sent. Check your internet and tap Send again. You won't be added twice."
+- Steps 2–3: the button shows "Sending…", then the line "Not sent. Tap again. It won't be sent twice." just above it.
 - Step 4: the status screen opens with "Being checked", and the toast "Sent for checking" shows.
 - Step 5: exactly one request from Ahmed Gas for Rs 5,000, even if the first send reached the server.
 
@@ -12479,10 +12655,10 @@ Steps:
 
 Expect:
 
-- Step 1: a banner at the top says "No internet. We'll keep trying." Errors say "No internet connection. Check your signal and try again." with "Try again". The saved balance stays on screen with "Showing saved info from …". Nothing goes blank without a message.
+- Step 1: one banner at the top, "No connection" with "Try again", and no second error on the screen. The saved balance and orders stay, stamped "Saved …"; a screen with nothing saved shows "Nothing saved yet.". Nothing goes blank without a message.
 - Step 3: the banner goes away (within 30 seconds of the last network error) and the data refreshes.
 
-Spec: UX_MOBILE §2.2 (OfflineBanner, QueryBoundary, ErrorBanner), §3.1 (errors), §3.5 (refetchOnReconnect)
+Spec: UX_MOBILE §2.2 (OfflineBanner, QueryBoundary, OfflineEmpty), §3.1 (errors), §3.5 (refetchOnReconnect)
 
 Note: In Inc 1 the banner follows network errors in the last 30 seconds, not the phone's network state, so it can stay for up to 30 seconds after the signal returns. From APK 0.2.0 it follows the phone's network state.
 
@@ -12495,26 +12671,28 @@ Before: Shop app on a test phone, signed out. You have Ahmed Gas's mobile number
 Steps:
 
 1. Open the app. Read the sign-in screen.
-2. Type Ahmed Gas's number with a space or a dash in it, then tap the Password field.
+2. In the mobile number field, type Ahmed Gas's number as "0321 1234567", then tap the Password field.
 3. Type a wrong password and tap "Sign in".
 4. Type the right password. Tap "Show", then "Hide".
-5. Tap "Forgot password? Call the office". Come back to the app.
+5. Tap "Forgot password?" under "Sign in". Come back to the app.
 6. Clear the fields. Sign in with Kashif's driver number and password.
 7. Sign in as Ahmed Gas with the right password.
+8. Open the menu and tap "Sign out". Read the sheet, sign out, and look at the sign-in screen.
 
 Expect:
 
-- Step 1: the title "Sign in" with "For shops using Smart Fleet"; the fields "Mobile number" (with +92) and "Password"; a "Sign in" button. No language buttons, no code or OTP option, and no raw words such as "signIn".
-- Step 2: the number now reads like "0300 1234567".
-- Step 3: the button shows "Signing in…", then "Wrong phone number or password." shows under the form. No pop-up box. The words "OTP" and "one-time code" never appear.
+- Step 1: "Smart Fleet" with "Shop app"; no "Sign in" heading and no helper line; the fields "Mobile number" (with "+92" fixed and the example "300 1234567") and "Password" with "Show"; the button "Sign in" and, under it, the ghost "Forgot password?" with a phone icon. No language buttons, no code or OTP option, and no raw words such as "signIn".
+- Step 2: the number reads "321 1234567" after the fixed +92: the typed leading 0 is dropped as it is typed.
+- Step 3: the button shows "Signing in…", then "Wrong phone number or password." on the line just above "Sign in". No pop-up box. The words "OTP" and "one-time code" never appear.
 - Step 4: the password shows and hides.
 - Step 5: the phone's dialler opens with the office number.
-- Step 6: "This account is for the Smart Fleet Driver app." No home screen opens.
-- Step 7: Home opens with "Salam, Ahmed Gas" and the balance.
+- Step 6: "This account is for the Smart Fleet Driver app." on the line above "Sign in". No home screen opens.
+- Step 7: Home opens with "Salam, Ahmed Gas" at the top and the balance.
+- Step 8: the sheet asks "Sign out?" with "You'll need your password."; after signing out, the sign-in screen shows Ahmed Gas's number already filled in.
 
-Spec: ADR-03; API_CONTRACT §2.1 (no OTP wording), §2.3 (AUTH\_\*), §7.1; UX_MOBILE S1, §3.2, §3.6 (WrongApp gate)
+Spec: ADR-03; API_CONTRACT §2.1 (no OTP wording), §2.3 (AUTH\_\*), §7.1; UX_MOBILE S1, §3.2, §3.6 (WrongApp gate, auth.lastPhone, the sign-out sheet)
 
-Note: Repeat once on the driver app (subtitle "For Smart Fleet drivers").
+Note: Repeat once on the driver app: the subtitle is "Driver app", with the same fields, "Forgot password?" and the number filled in after a sign-out. "Forgot password?" is hidden when no office number is known.
 
 ### UXQ-014 · Shop app Profile and Help: read-only details, the office's numbers, and the refund rule in words
 
@@ -12525,22 +12703,22 @@ Before: Shop app signed in as Ahmed Gas. The office phone (support.phone) is set
 Steps:
 
 1. Open the menu, then Profile. Read every line and try to change a field.
-2. Open Help. Tap "Call the office", then come back.
-3. Read the part about when you get the delivery cost back.
+2. Open Help. Tap "Call office", then come back.
+3. Read the "Delivery cost" card.
 4. Ask Owner to set the office WhatsApp number in Settings, Support (with a reason). Close the app fully, wait 5 minutes, open it and open Help again.
-5. Ask Owner to clear the WhatsApp number again. Open the menu and tap "Sign out", then go back without signing out.
+5. Ask Owner to clear the WhatsApp number again. Open the menu and tap "Sign out", then tap "Stay signed in".
 
 Expect:
 
-- Step 1: name, business name, shop code AG, mobile, store name and address, with "To change these, call the office." Nothing can be changed, and there is no CNIC, role or ID.
+- Step 1: the business name (with the contact name only if it differs), the mobile, and the store with its address, each with an icon and no label; "Only the office can change these." and "Call office" at the bottom. Nothing can be changed, and there is no shop code, CNIC, role or ID.
 - Step 2: the phone's dialler opens with the office number.
-- Step 3: it says the cost comes back only if you cancel before the driver starts loading.
-- Step 4: "WhatsApp the office" now shows; it was hidden while the number was empty.
-- Step 5: the menu shows Wallet, My orders, Profile, Help and Sign out. Sign out first asks "Sign out of Smart Fleet?". Help shows the app version.
+- Step 3: "Refund only if cancelled before loading."
+- Step 4: "WhatsApp office" now shows above "Call office"; it was hidden while the number was empty.
+- Step 5: the menu shows Profile, Help and Sign out, with no balance. The sheet reads "Sign out?" with "You'll need your password." and an outlined "Stay signed in". Help shows the app version and has no Sign out.
 
-Spec: UX_MOBILE S2 (Menu), S12 (Profile and Help), §0; API_CONTRACT §6 (support.phone, support.whatsApp and orders.deliveryStartedAt are public)
+Spec: UX_MOBILE §3.6 (the side menu), S12 (Profile and Help), §0; API_CONTRACT §6 (support.phone, support.whatsApp and orders.deliveryStartedAt are public)
 
-Note: The Help texts aren't given word for word in UX_MOBILE; check the meaning. The app caches /app/config for 5 minutes (UX_MOBILE §3.6).
+Note: The office buttons read "Call office" and "WhatsApp office", never "Call the office". The app caches /app/config for 5 minutes (UX_MOBILE §3.6).
 
 ### UXQ-015 · The phone's API client turns failures into stable codes and refreshes an expired session once
 
@@ -12557,7 +12735,7 @@ Steps:
 
 Expect:
 
-- Step 1: ApiError codes NETWORK_TIMEOUT ("This is taking too long. Check your signal and try again.") and NETWORK_OFFLINE ("No internet connection. Check your signal and try again."), both retryable.
+- Step 1: ApiError codes NETWORK_TIMEOUT ("This is taking too long. Check your signal and try again.") and NETWORK_OFFLINE ("No connection. Try again."), both retryable.
 - Step 2: SERVICE_UNAVAILABLE "The service is busy. Please try again in a minute." (retryable); INTERNAL_ERROR (retryable); UNKNOWN "Something went wrong. Please try again." No raw server text or HTTP number is ever the message.
 - Step 3: exactly one POST /auth/refresh call. The new refresh token is stored, and each of the three calls is retried once and succeeds.
 - Step 4: the session is cleared and the Toast "Please sign in again" shows once.
@@ -12586,7 +12764,7 @@ Spec: UX_ADMIN §2.8 (Layout: a local menu at 1024 px and up, a Select below), �
 
 Note: Regression case for review finding web-ux-01 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-01 …". Checked in a browser at 1024×768, 768×1024 and 1366×768: the panel is beside the menu at 1024 and 1366 px.
 
-### UXQ-017 · The docked sidebar and icon rail are one viewport high, so the list scrolls inside and My profile and Sign out stay in view
+### UXQ-017 · The docked sidebar is one viewport high, so the list scrolls inside and the account row stays in view
 
 **P2** · AUTO-UNIT · Inc 1 · Role: DEVELOPER
 
@@ -12594,7 +12772,7 @@ Before: Static test that applies the CSS cascade of the website's real styleshee
 
 Steps:
 
-1. Compute the block size of the docked nav (.sf-nav.sf-shell\_\_nav) at 1024 and 1366 px, with and without 100dvh support.
+1. Compute the block size of the docked nav (.sf-nav.sf-nav--docked.sf-shell\_\_nav) at 1024, 1280 and 1366 px, with and without 100dvh support.
 2. Compute the overlay sheet's nav below 1024 px.
 
 Expect:
@@ -12604,7 +12782,7 @@ Expect:
 
 Spec: UX_ADMIN §1.3 (Shell and navigation, Layout by width), §2.12 (Layout) · Test file: `apps/api/test/unit/ui/admin-web-layout-css.spec.ts`
 
-Note: Regression case for review finding web-ux-02 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-02 …". Checked in a browser at 1024×768 and 1366×768, also on the long Activity page: the nav stays in view at the bottom and a mouse wheel over it scrolls its list.
+Note: Regression case for review finding web-ux-02 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-02 …". At 1024 px the docked nav is the labelled 200 px sidebar (UX_ADMIN §1.3; the icon rail is gone). Checked in a browser at 1024×768 and 1366×768, also on the long Activity page: the account row stays in view at the bottom and a mouse wheel over the menu scrolls its list.
 
 ### UXQ-018 · At 768 px the page never scrolls sideways: the prices grid hides Status, and a hidden table header can't widen the page
 
@@ -12644,7 +12822,7 @@ Spec: UX_ADMIN §1.3 (768–1023: a sticky first column), §1.5 (Table rowTone),
 
 Note: Regression case for review finding web-ux-05 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-05 …".
 
-### UXQ-020 · The menu button shows only below 1024 px, never beside the sidebar or the rail
+### UXQ-020 · The menu button shows only below 1024 px, never beside the sidebar
 
 **P3** · AUTO-UNIT · Inc 1 · Role: DEVELOPER
 
@@ -12652,15 +12830,15 @@ Before: Static test that applies the CSS cascade of the website's real styleshee
 
 Steps:
 
-1. Compute the display of the top bar menu button (.sf-topbar\_\_menu) and of the other icon buttons at 768, 1024 and 1366 px.
+1. Compute the display of the top bar menu button (.sf-topbar\_\_menu) and of the other icon buttons at 768, 1024, 1280 and 1366 px.
 
 Expect:
 
-- Step 1: the menu button is inline-grid at 768 px only and none at 1024 and 1366 px, in both bundle orders; other icon buttons keep inline-grid.
+- Step 1: the menu button is inline-grid at 768 px only and none at 1024, 1280 and 1366 px, in both bundle orders; other icon buttons keep inline-grid.
 
-Spec: UX_ADMIN §1.3 (Layout by width: the menu button at 768–1023 only) · Test file: `apps/api/test/unit/ui/admin-web-layout-css.spec.ts`
+Spec: UX_ADMIN §1.3 (Top bar and title; Layout by width: the menu button at 768–1023 only) · Test file: `apps/api/test/unit/ui/admin-web-layout-css.spec.ts`
 
-Note: Regression case for review finding web-ux-06 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-06 …".
+Note: Regression case for review finding web-ux-06 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-06 …". From 1024 px the whole top bar is hidden (UX_ADMIN §1.3); the test checks its menu button.
 
 ### UXQ-021 · The cancel and Could not deliver sheets fit above the Android keyboard and scroll to the note
 
@@ -12695,7 +12873,7 @@ Steps:
 
 Expect:
 
-- Step 1: the same type and position in both; stale adds only the "Showing saved info" strip in its own slot, so an open cancel sheet keeps its reason, note, busy state and Idempotency-Key, and the refill steppers keep their counts.
+- Step 1: the same type and position in both; stale adds only the "Saved …" strip in its own slot, so an open cancel sheet keeps its reason, note, busy state and Idempotency-Key, and the refill steppers keep their counts.
 - Step 2: outside the QueryBoundary, as the driver's sheets are.
 
 Spec: UX_MOBILE §2.2 #16 (QueryBoundary), #19 (ConfirmSheet), S11 (Cancel) · Test file: `apps/api/test/unit/ui/mobile-logic.spec.ts`
@@ -12724,7 +12902,7 @@ Note: Regression case for review finding mobile-ux-07 (CHANGELOG, "Review fixes,
 
 **P2** · AUTO-UNIT · Inc 1 · Role: DEVELOPER
 
-Before: Static test of the shop app's AddCustomerScreen.tsx, PickAddressScreen.tsx and topup/TopupTellUsScreen.tsx.
+Before: Static test of the shop app's AddCustomerScreen.tsx, NewAddressScreen.tsx and topup/TopupTellUsScreen.tsx.
 
 Steps:
 
@@ -12733,12 +12911,218 @@ Steps:
 
 Expect:
 
-- Step 1: Save customer and Save address wait only for the pin to be priced (not for House / street); Send for checking waits for a valid amount (not for the payer name).
-- Step 2: submit first marks House / street (or the payer name) as touched, so an empty one shows "Write the house or street." (or the payer-name error) on the field when pressed.
+- Step 1: Save customer and Save address wait only for the pin to be priced (not for House and street); Send for checking waits for a valid amount (not for the name on the account).
+- Step 2: submit first marks House and street (or the name on the account) as touched, so an empty one shows "Write the house or street." (or "Write the name on the account.") on the field when pressed.
 
-Spec: UX_MOBILE S8 (Save customer, enabled only when priced), S5 (Send for checking), §2 (nothing fails silently), §2.2 #9 · Test file: `apps/api/test/unit/ui/mobile-layout.spec.ts`
+Spec: UX_MOBILE S8 (Save customer, enabled only when priced), S9 (New address), S5 (Send for checking), §2 (nothing fails silently), §2.2 #9 · Test file: `apps/api/test/unit/ui/mobile-layout.spec.ts`
 
 Note: Regression case for review finding mobile-ux-08 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-08 …".
+
+### UXQ-025 · A new shop's Home shows "Get started" and no dead ends
+
+**P3** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (a new shop); SUPER_ADMIN (Owner)
+
+Before: The office activated a new distributor with Rs 0, no customers and no orders (for example Noor Gas from OFF-007 and OFF-017).
+
+Steps:
+
+1. Sign in as the new shop.
+2. Tap each "Get started" row in turn, going back after each.
+3. Send a Rs 2,000 top-up and ask the office to approve it. Then add one customer, and pull down on Home.
+
+Expect:
+
+- Step 1: Home shows "Balance Rs 0" with "Low balance", the card "Get started" (Add money · Add a customer · Place an order), the four tiles, and "New order" at the bottom. There is no second "Add money" button and no "0 active orders".
+- Step 2: the rows open Add money, Add customer and New order. New order shows "No customers yet." with "+ Add customer".
+- Step 3: "Get started" is gone.
+
+Spec: UX_MOBILE S2 (Get started)
+
+Note: "Get started" shows while the shop has no customers; its "Add money" row gets a tick once money is in or being checked.
+
+### UXQ-026 · Every error text stays within 12 fixed words and never says "pilot", "case" or "No internet"
+
+**P2** · AUTO-UNIT · Inc 1 · Role: DEVELOPER
+
+Before: Unit test of packages/shared-types/src/errors.ts: the catalogue (ERROR_MESSAGE_EN) and the client-only texts.
+
+Steps:
+
+1. Count the fixed words of every catalogue and client-only text the way the rulebook counts them: {{params}} and tokens with digits are data, not words.
+2. Search every text for "pilot", "case" and "No internet".
+3. Read the texts the simple-UX pass shortened.
+
+Expect:
+
+- Step 1: every text has 12 fixed words or fewer, except the one listed exception, PRICING_PRICE_NOT_SET, which the shop app shows in its own words (customers.block.\*).
+- Step 2: none.
+- Step 3: FEATURE_DISABLED "This isn't available yet.", CLIENT_PHONE_INVALID "Enter a number like 300 1234567.", ORDER_CANCEL_TERMS_CHANGED "Delivery has just started. The refund is now {{refund}}.", the 8 driver texts of API_CONTRACT §2.3, CASE_ALREADY_RESOLVED "This problem was already sorted by {{by}}.", TOPUP_BANK_REFERENCE_USED "Already used for {{paymentShortCode}} ({{distributorName}}). Check it, or reject as a duplicate.", TOPUP_AMOUNT_MISMATCH "Amounts must match. Reject and ask for a new request.", REFILL_COUNT_REACHED "All picked up: {{requested}} of {{requested}}.", DAY_SHEET_OUTDATED "This is an old copy. Download a new sheet and use that." and NETWORK_OFFLINE "No connection. Try again.".
+
+Spec: UX_PRINCIPLES §5.3 (banned words), §6 (Error: 12 words); API_CONTRACT §2.3; ADR-18 · Test file: `packages/shared-types/src/__tests__/errors.spec.ts`
+
+Note: Its tests are the describe "error texts follow the rulebook (UX_PRINCIPLES §5.3, §6)".
+
+### UXQ-027 · The shop app passes the Definition of simple on every Inc 1 screen
+
+**P2** · MAN-SHOP · Inc 1 · Role: UX reviewer with the shop app (Ahmed Gas; a new shop for the empty states)
+
+Before: A 360 × 640 dp phone, then the same phone at the largest font. UX_PRINCIPLES §10 (the checklist) and §6 (the word budgets) at hand. Ahmed Gas has orders, top-ups and customers; a new shop has none.
+
+Steps:
+
+1. Open every shop screen: Sign in, Wrong app, Update the app, Home, the menu, Add money (3 steps and the status), History, Customers, Add customer (2 steps), New order (3 steps), the "Deliver to" sheet, New address, My orders, Order detail and its cancel sheet, Profile, Help, Refills and New refill, and the sign-out and leave-without-saving sheets.
+2. On each, see every state: the skeleton, empty, the error with Try again, no connection ("No connection", "Saved …", "Nothing saved yet."), a button's own "Not sent. Tap again." line, and success.
+3. Answer the 12 checks of UX_PRINCIPLES §10 for each screen, counting the fixed words.
+
+Expect:
+
+- Every screen answers Yes to all 12 checks; the review lists any screen and the check numbers that fail.
+- Each screen has exactly one main button (the footer or the Fab) and stays within its budget: about 25 fixed words, buttons 3, helpers 8, errors 12.
+- No banned word (UX_PRINCIPLES §5.3), no code or enum value and no "Rs."; each thing uses its §5.2 word ("History", "Delivery cost", "Call office").
+- At the largest font nothing is cut off or scrolls sideways, and every target is at least 48 dp.
+
+Spec: UX_PRINCIPLES §10 (Definition of simple), §6 (word budgets), §5; UX_MOBILE §4, §6
+
+Note: Run once per release with UI changes. UXQ-006 and UXQ-013 check parts of this in detail.
+
+### UXQ-028 · The driver app passes the Definition of simple on every Inc 1 screen
+
+**P2** · MAN-DRIVER · Inc 1 · Role: UX reviewer with the driver app (Kashif)
+
+Before: A 360 × 640 dp phone, then the largest font, and outdoors in daylight for the reading checks. UX_PRINCIPLES §10 and §6 at hand. Kashif has a trip with two customers and a refill.
+
+Steps:
+
+1. Open every driver screen: Sign in, Today, the menu, Trip, each step screen (Load, on the way, Deliver, Take back), Could not deliver, the early-press and All delivered sheets, Unload, the Finish trip sheet, Refills and one refill, My van and Help.
+2. On each, see every state: the skeleton, empty, the camera states, a refusal, "Not sent" with Retry, no connection, and success.
+3. Answer the 12 checks of UX_PRINCIPLES §10 for each screen, counting the fixed words.
+
+Expect:
+
+- Every screen answers Yes to all 12 checks; the review lists any screen and the check numbers that fail.
+- Each step screen has the place as its title, the CountBar, the camera, the strip and one footer button naming the next step; driver screens aim for 15 fixed words, and none is over 25.
+- "Trip", never "job" or "run"; Load, Deliver, Take back and Unload, never "Hand over" or "Hand back"; "Call office" in every header, even with no signal.
+- Every target is at least 56 dp, and at most one network strip shows at a time.
+
+Spec: UX_PRINCIPLES §10, §9 (Driver mode), §6, §5; UX_MOBILE §5, §6
+
+Note: UXQ-007 checks the targets and the large font in detail.
+
+### UXQ-029 · The website passes the Definition of simple on every Inc 1 page
+
+**P2** · MAN-WEB · Inc 1 · Role: UX reviewer on the website (Owner)
+
+Before: Chrome at 1366 × 768 and at 1024 × 768. UX_PRINCIPLES §10 and §6 at hand. The standard test data with waiting top-ups, orders in every tab and a distributor waiting to start.
+
+Steps:
+
+1. Open every page and drawer: Sign-in, Today, Top-ups and the review drawer with its approve and reject dialogs, Wallets and a wallet page with the correction, Delivery prices and the price drawer, Distributors (list, add drawer, page and its dialogs), Orders (board, drawer, assign, cancel, could not deliver, mark delivered), Expenses (page, drawer, types, fuel logs), Settings and the save review, the Activity log, and the legacy pages.
+2. On each, see every state: the skeleton, empty, the error (with and without the server), stale ("No connection." and "Not updated since …"), and success (the toast and the tinted row).
+3. Answer the 12 checks of UX_PRINCIPLES §10 for each page at both widths, counting the fixed words outside the tables.
+
+Expect:
+
+- Every page answers Yes to all 12 checks; the review lists any page and the check numbers that fail.
+- One primary per page or drawer; about 40 fixed words outside the table; a drawer footer of 4 buttons at most and no Cancel; every row that opens a record ends with a chevron.
+- At 1024 × 768 the labelled 200 px sidebar shows, there is no top bar, and nothing scrolls sideways.
+- The website never says "shop" in its own labels; no banned word, code or "Rs." anywhere.
+
+Spec: UX_PRINCIPLES §10, §8 (Website layout), §6, §5; UX_ADMIN §1.3, §1.9, §2.12
+
+Note: Repeat for the Inc 2 pages (Customer problems, Find cylinder, the new manual delivery) and the Inc 3 pages when they ship. UXQ-003, UXQ-005 and UXQ-008 check parts of this in detail.
+
+### UXQ-030 · An order, a top-up and a refill read the same on every surface, and connection trouble has one message
+
+**P2** · MAN-SHOP · Inc 1 · Role: Tester with the shop app, the driver app and the website side by side; engineering for one step
+
+Before: Ahmed Gas has an order in each stage (waiting for a driver, driver assigned, loading, on the way, delivered, not delivered, and cancelled with and without a refund), top-ups being checked, added and not added, and a refill waiting for a driver. Kashif drives the open trip.
+
+Steps:
+
+1. For each order, open it in the shop app and on the website, and read the stage chip (its words, colour and icon) and the cost chip.
+2. Do the same for each top-up (shop: the status screen; website: the review drawer) and for the refill.
+3. Open Kashif's trip on the driver app and the same orders on the website, and read the step chips.
+4. Turn the connection off on the shop phone, the driver phone and the laptop in turn, and read the message each shows. Then ask engineering to stop the test API with the network on, and read them again.
+5. On both apps, read the office buttons on Help.
+
+Expect:
+
+- Step 1: the same colour and icon on both surfaces: waiting is amber with the clock ("Waiting for driver" / "Needs a driver"), moving is blue with the action's icon, delivered green, not delivered red and cancelled grey; the cost chips read "Rs 480 paid" and "Rs 480 returned" on both.
+- Step 2: the top-up reads "Being checked" / "To check" in amber, "Added" / "Approved" in green and "Not added" / "Rejected" in red; the refill reads "Waiting for driver" / "Needs a driver" in amber.
+- Step 3: the driver's steps read To do, Next, In progress, Done, Not delivered (red) and Cancelled (grey), never "Skipped".
+- Step 4: the apps show one banner, "No connection" with "Try again", both offline and while the server is down; the website shows "No connection." with "Try again" offline, and "Not updated since \<time>." while the server is down. Nothing says "No internet".
+- Step 5: "Call office" and "WhatsApp office", never "Call the office".
+
+Spec: UX_PRINCIPLES §4 (Status words and colours), §5.1, §5.2; UX_MOBILE §3.4, §2.2 #23; UX_ADMIN §1.5 (StatusChip, StaleBanner), §2.5
+
+Note: Where UX_PRINCIPLES §4.2 gives two words, the website uses the office's words and the phone the shop's; the colour and the icon never differ (the lead's decision on one connection message, 2026-10-23).
+
+### UXQ-031 · The customer link page passes the Definition of simple in every state
+
+**P2** · MAN-PAGE · Inc 2 · Role: UX reviewer playing the customer, in phone browsers
+
+Before: Customer confirmation is on. Delivered orders like D1 with fresh links, plus one expired, one closed and one answered link; a cheap 320-pixel Android phone and an iPhone.
+
+Steps:
+
+1. Open each page: the main page, the three second-step pages, the thank-you page for each answer, already answered, expired, closed, not found, too many tries and the error page.
+2. Answer the 12 checks of UX_PRINCIPLES §10 for each page.
+3. Count the words above the answer buttons on the main page.
+
+Expect:
+
+- Every page answers Yes to all 12 checks; the review lists any page and the check numbers that fail.
+- Step 3: the shop's name comes first, then a two-row summary table and three 64 px answers with small icons, with about 30 words or fewer above the buttons (the gas safety note is never counted or cut).
+- Every state page has a 64 px status mark and one line; a phone number is always a tap-to-call row, never inside a sentence; "Back" sits under "Send".
+- No JavaScript, image file or font, and each page is under 12 KB.
+
+Spec: UX_PRINCIPLES §10, §7.6 (The customer link page), §6; CUSTOMER_PAGE §6
+
+Note: CNF-007, CNF-032 and CNF-033 check parts of this in detail.
+
+### UXQ-032 · The Inc 2 scan screens pass the Definition of simple
+
+**P2** · MAN-DRIVER · Inc 2 · Role: UX reviewer with the driver app (Kashif) and the shop app (Ahmed Gas)
+
+Before: The Inc 2 apps (0.2.0) on pilot phones, outdoors in daylight. A trip with two customers, one with returns to take back.
+
+Steps:
+
+1. Open every Inc 2 scan screen: Load, the visit (on the way, deliver, take back, done), the No label sheet, the short take-back sheet, Could not deliver, Unload and Finish trip on the driver app; Receive from driver (the list and the scan) on the shop app.
+2. On each, scan good, already scanned and refused cylinders, and one with no signal.
+3. Answer the 12 checks of UX_PRINCIPLES §10 for each screen.
+
+Expect:
+
+- Every screen answers Yes to all 12 checks; the review lists any screen and the check numbers that fail.
+- Both apps' scan screens follow one order: the count, the camera, the strip (its idle text is the hint), the size lines, the rare actions, then one footer button; "Not saved: N" comes with one Retry.
+- Every scan gives a strip and a buzz, never a pop-up; "X of Y" always matches the server; the footer names the next step and never starts with "Next:".
+
+Spec: UX_PRINCIPLES §10, §9.2 (Scan feedback); UX_MOBILE §7.1, §7.2, §7.3, §7.4
+
+Note: DRV-017, DRV-025, DRV-031, DRV-036, DRV-042 and STR-010 check parts of this in detail.
+
+### UXQ-033 · The Inc 3 screens pass the Definition of simple
+
+**P2** · MAN-SHOP · Inc 3 · Role: UX reviewer with the shop app (Ahmed Gas), the driver app (Imran) and the website (Owner)
+
+Before: The Inc 3 release on the test server, with a refill and a day-end in progress.
+
+Steps:
+
+1. Open every Inc 3 screen: Refills, New refill and the refill detail on the shop app; the refill run (pick up, fill, unload) on the driver app; Day-end and Check and send on the shop app; Refills and Day-end (the list and the review) on the website.
+2. See every state, including the row-error, sent-back and approved day-end states.
+3. Answer the 12 checks of UX_PRINCIPLES §10 for each screen.
+
+Expect:
+
+- Every screen answers Yes to all 12 checks; the review lists any screen and the check numbers that fail.
+- No refill screen shows money; every refill step is a scan with "X of Y"; "Refills" is the only name, never "Refill runs".
+- The day-end footer follows the stage ("Download sheet", "Upload filled sheet", "Send for approval · 1 difference"), and counted words read right for 1 ("1 fix", never "1 fixes").
+
+Spec: UX_PRINCIPLES §10; UX_MOBILE §8.1, §8.2, §8.3, §8.4; UX_ADMIN §4.1, §4.3
+
+Note: REF-025, REF-026, REF-027, REF-028, DAY-019, DAY-021 and DAY-022 check parts of this in detail.
 
 ## MIG · Migrations and data safety
 
@@ -13036,7 +13420,7 @@ Expect:
 - Step 1: staging and production point at different databases. BULLMQ_PREFIX differs and contains the environment name on each.
 - Step 2: two different databases, each with its own \_prisma_migrations.
 - Step 3: the queue keys and the rate-limit keys (\<prefix>:rl:…) on each side carry only their own prefix.
-- Step 4: the staging website shows "Test server — not real money" and "[TEST]" in the tab title; the staging app shows "TEST SERVER · test money only" (a training server's app shows "TRAINING · test money only"); production shows no banner.
+- Step 4: the staging website shows "Test server — not real money" and "[TEST]" in the tab title; the staging app shows "Test server · test money only" (a training server's app shows "Training · test money only"); production shows no banner.
 
 Spec: API_CONTRACT §3.7 (BULLMQ_PREFIX, staging and prod share one Redis), §6 (APP_ENV); DATA_MODEL §2.6 (separate databases and Redis prefixes); UX_MOBILE §2.2 (EnvBanner); UX_ADMIN §2.10 (EnvBadge)
 
@@ -13187,19 +13571,19 @@ Steps:
 1. Get the devices ready: the shop phone (Ahmed Gas); two driver phones (Kashif, Imran); two team phones with WhatsApp playing the customers Sana and Usman; a laptop for Owner and Ops.
 2. Get the printed "bank list" ready. It stands in for the company bank app, because the test account is a dummy. It has one line: reference TESTREF001, Rs 2,000, today at 09:05.
 3. Laptop: sign in as Owner. Look at the badge and the browser tab title.
-4. Laptop: open Settings. Check that automatic assignment is off, "when delivery counts as started" is "First load scan at the store", the refill delivery cost is Off, customer confirmation is On, day-end is On and the day cut-off is 03:00.
+4. Laptop: open Settings. Check that automatic driver assignment is off, "When delivery counts as started" is "First load scan at the store", the refill delivery cost is Off, customer confirmation is On, the day-end sheet is On and "New day starts at" is 3 am.
 5. Laptop: open Wallets, then Delivery prices for Ahmed Gas.
 6. Phones: sign in to the shop app as Ahmed Gas, and to the driver app as Kashif and as Imran. Read the first screen on each.
-7. Laptop: open Find cylinder for AG-C0001 and AG-C0035. Shop phone: open the store stock.
+7. Laptop: open Find cylinder (the search box at the top of the menu) for AG-C0001 and AG-C0035. Shop phone: open the store stock.
 
 Expect:
 
 - Step 3: the badge "Test server — not real money", and the tab title starts with "[TEST]".
 - Step 4: the values are as listed. Change any that differ, with a reason, before starting.
-- Step 5: Ahmed Gas Rs 5,000 and Bilal Gas Rs 0, and each wallet page says "History matches the balance".
-- Step 5: prices North "Set" (base Rs 250; 6 kg Rs 30, 11.8 kg Rs 40, 15 kg Rs 80, 45.4 kg Rs 150), South "Set" (Rs 400) and East "Not set".
-- Step 6: each app opens on its own home, with no "Wrong app" or "Please update the app" screen. Shop: "Salam, Ahmed Gas", Balance Rs 5,000 and no "Being checked" row.
-- Step 6: drivers see "No jobs yet. The office will assign your next job. This page updates by itself.", and the vans LEA-101 and LEB-202 show "0 full · 0 empty · 0 part-filled".
+- Step 5: Ahmed Gas Rs 5,000 and Bilal Gas Rs 0 (with the red chip "Low"), and each wallet page shows the chip "History adds up".
+- Step 5: prices North "Set" (base Rs 250; per cylinder 6 kg Rs 30 · 11.8 kg Rs 40 · 15 kg Rs 80 · 45.4 kg Rs 150), South "Set" (Rs 400) and East "Not set".
+- Step 6: each app opens on its own home, with no "Wrong app" or "Update the app" screen. Shop: "Salam, Ahmed Gas", Balance Rs 5,000 and no "Being checked" row.
+- Step 6: drivers see "Nothing to do." and "New trips appear by themselves.", and the van rows read "LEA-101" / "No cylinders" and "LEB-202" / "No cylinders".
 - Step 7: both cylinders are in Ahmed Gas Store, and the stock is 35 full: 20 × 11.8 kg, 10 × 15 kg and 5 × 45.4 kg.
 
 **GO / NO-GO:** GO only if every item matches. Otherwise stop and fix it before step 2.
@@ -13217,17 +13601,17 @@ Before: Step 1 passed. The rehearsal lead has "paid" Rs 2,000 (the bank list lin
 Steps:
 
 1. Shop phone: on Home, tap "Add money".
-2. Type 2,000 and tap Next.
-3. Choose "Bank app", read the account card, then tap "I have paid".
-4. Fill in: Amount sent Rs 2,000; Paid from "Ahmed Gas"; Paid with Bank app; no transaction ID. Tap "Send for checking".
+2. Tap "Rs 2,000" and tap Next.
+3. Choose "Bank app", read the account card, then tap "I've paid".
+4. Fill in Name on the account "Ahmed Gas"; no transaction ID. Tap "Send for checking".
 5. Go back to Home.
 6. On purpose, repeat steps 1 to 4 once more with the same details (a mistaken second request).
 
 Expect:
 
-- Step 2: the helper "Minimum Rs 500 · Maximum Rs 50,000".
-- Step 3: account name "Smart Fleet (Pvt) Ltd" and IBAN "PK00 TEST 0000 0000 0000 0000" with "Copy IBAN", under the strip "TEST SERVER · test money only" ("TRAINING · test money only" only if the rehearsal runs on a training server).
-- Step 4: "Sending…", then the Toast "Sent for checking". The status screen shows Rs 2,000 as "Being checked" (AG-T001).
+- Step 2: "Money is checked 9 am to 9 pm." under the chips.
+- Step 3: "Pay Rs 2,000" with the account name "Smart Fleet (Pvt) Ltd" and the IBAN "PK00 TEST 0000 0000 0000 0000" with "Copy IBAN", under the strip "Test server · test money only" ("Training · test money only" only if the rehearsal runs on a training server).
+- Step 4: the line "Rs 2,000 · Bank app" at the top; "Sending…", then the toast "Sent for checking". The status screen shows Rs 2,000 as "Being checked" (AG-T001).
 - Step 5: Balance Rs 5,000 and "Being checked Rs 2,000".
 - Step 6: a second request, AG-T002 for Rs 2,000, "Being checked". Home shows "Being checked Rs 4,000".
 
@@ -13245,18 +13629,18 @@ Before: Step 2 done: AG-T001 and AG-T002 (Rs 2,000 each) are waiting. The bank l
 
 Steps:
 
-1. Owner: open Top-up requests, To check.
-2. Owner: open AG-T001. Type the bank reference "TESTREF001", the amount Rs 2,000 and the time 09:05 today. Click "Add Rs 2,000 to Ahmed Gas wallet", then "Yes, add Rs 2,000".
-3. Ops: open AG-T002. Type the reference "test-ref 001", the amount Rs 2,000 and the time 09:05, then try to approve.
+1. Owner: open Top-ups, To check.
+2. Owner: open AG-T001. Type the bank reference "TESTREF001" and the amount Rs 2,000; tap the Date chip "Today" and type the time 09:05. Click "Add Rs 2,000 to Ahmed Gas wallet", then "Yes, add Rs 2,000".
+3. Ops: open AG-T002. Type the reference "test-ref 001", the amount Rs 2,000, the date "Today" and the time 09:05, then try to approve.
 4. Ops: click "Reject…", choose "Duplicate request" and confirm.
 5. Shop phone: open both top-ups, then Home.
 
 Expect:
 
 - Step 2: the Toast "Rs 2,000 added to Ahmed Gas wallet. Balance now: Rs 7,000."
-- Step 3: refused at the reference field: "This bank reference was already used for AG-T001 (Ahmed Gas). Each bank payment can be used once." Nothing is added.
+- Step 3: refused at the reference field: "Already used for AG-T001 (Ahmed Gas). Check it, or reject as a duplicate." Nothing is added.
 - Step 4: AG-T002 moves to the Rejected tab.
-- Step 5: AG-T001 shows "Added" with "Rs 2,000 added. Balance now: Rs 7,000". AG-T002 shows "Not added" with "This payment was already used for another top-up."
+- Step 5: AG-T001 shows "Added" with "Balance now Rs 7,000". AG-T002 shows "Not added" with "This payment was already used for another top-up."
 - Step 5: Home shows Balance Rs 7,000 and no "Being checked" row.
 
 **GO / NO-GO:** GO only if one bank line matches one approved top-up (AG-T001, Rs 2,000) and the duplicate was refused.
@@ -13273,19 +13657,19 @@ Before: Step 3 done.
 
 Steps:
 
-1. Shop phone: start adding a new customer. Name "Sana", Mobile "0300 1234567". Tap Next.
-2. Drop the pin at Sana's test address in zone North, and type the House / street.
+1. Shop phone: start adding a new customer. Name "Sana", Mobile number "300 1234567" (after the fixed +92) and House and street. Tap Next.
+2. Drop the pin at Sana's test address in zone North.
 3. Tap "Save customer".
-4. Add "Usman" with his test number, with the pin in zone South. Read the cost panel, then save.
+4. Add "Usman" with his test number and House and street, with the pin in zone South. Read the line under the map, then save.
 5. Start adding "Test East" with the pin in East. Move the pin to the Outside point. Go back without saving.
 
 Expect:
 
-- Step 1: the number shows as "0300 1234567".
-- Step 2: "Checking delivery area…", then "Zone North · Delivery cost Rs 250 per order" with the lines "+ Rs 30 per 6 kg cylinder", "+ Rs 40 per 11.8 kg cylinder", "+ Rs 80 per 15 kg cylinder" and "+ Rs 150 per 45.4 kg cylinder".
+- Step 1: the number shows as "300 1234567" after the +92.
+- Step 2: "Checking delivery area…", then "Delivery cost Rs 250 per order" with "+ Rs 30 to Rs 150 per cylinder".
 - Step 3: the Toast "Customer saved".
-- Step 4: "Zone South · Delivery cost Rs 400 per order" with no per-size lines. Usman is saved.
-- Step 5: East shows "No delivery price is set for zone East yet. You can't add this customer until the office sets it." with "Call office". Outside shows "This location is outside our delivery area. Move the pin or call the office." "Save customer" is disabled in both.
+- Step 4: "Delivery cost Rs 400 per order" with no second line. Usman is saved.
+- Step 5: East shows "No delivery price here yet." with "Call office". Outside shows "Outside our delivery area. Move the pin." "Save customer" is disabled in both.
 
 **GO / NO-GO:** GO only if both customers are saved in the right zone and neither blocked spot could be saved.
 
@@ -13305,15 +13689,15 @@ Steps:
 2. New order for Usman: deliver 3 × 15 kg (take back 3). Place it.
 3. New order for Sana: deliver 1 × 11.8 kg (take back 1). Place it. This one is cancelled before loading in step 8.
 4. New order for Usman: deliver 1 × 15 kg (take back 1). Place it. This one is cancelled after loading in step 10.
-5. Open the wallet history.
+5. Open History.
 
 Expect:
 
-- Step 1: "Rs 250 per order + 2 × Rs 40 (11.8 kg) + 1 × Rs 150 (45.4 kg) = Rs 480" and "Balance now Rs 7,000 · After this order Rs 6,520", with the refund note. The Toast "Order placed · Rs 480 paid" and "The office will assign a driver." Order AG-0001 shows "Waiting for driver" and "Rs 480 paid".
-- Step 2: "Delivery cost Rs 400" and "Balance now Rs 6,520 · After this order Rs 6,120" (AG-0002).
-- Step 3: "Rs 250 per order + 1 × Rs 40 (11.8 kg) = Rs 290" and "Balance now Rs 6,120 · After this order Rs 5,830" (AG-0003).
-- Step 4: "Delivery cost Rs 400" and "Balance now Rs 5,830 · After this order Rs 5,430" (AG-0004).
-- Step 5: four "Delivery cost" rows of −Rs 480, −Rs 400, −Rs 290 and −Rs 400, with "Balance after" Rs 6,520, Rs 6,120, Rs 5,830 and Rs 5,430.
+- Step 1: "Delivery cost" "Rs 480" with "Rs 250 + 2 × Rs 40 + 1 × Rs 150", "Balance now Rs 7,000" and "After this order Rs 6,520", and "Refund only if cancelled before loading.". The toast "Order placed · Rs 480 paid" and "The office will assign a driver." Order AG-0001 shows "Waiting for driver" and "Rs 480 paid".
+- Step 2: "Delivery cost" "Rs 400", "Balance now Rs 6,520" and "After this order Rs 6,120" (AG-0002).
+- Step 3: "Delivery cost" "Rs 290" with "Rs 250 + 1 × Rs 40", "Balance now Rs 6,120" and "After this order Rs 5,830" (AG-0003).
+- Step 4: "Delivery cost" "Rs 400", "Balance now Rs 5,830" and "After this order Rs 5,430" (AG-0004).
+- Step 5: four "Delivery cost" rows of −Rs 480, −Rs 400, −Rs 290 and −Rs 400, with no "Balance after"; Home shows Rs 5,430.
 
 **GO / NO-GO:** GO only if the balance is Rs 5,430 and each order shows its own cost.
 
@@ -13329,15 +13713,15 @@ Before: A second shop phone signed in as Bilal Gas (balance Rs 0). Hina is Bilal
 
 Steps:
 
-1. Bilal Gas phone: open Home, My orders, the wallet history and Refills.
+1. Bilal Gas phone: open Home, My orders, History and Refills.
 2. Start a new order for Hina: deliver 1 × 11.8 kg. Go to "Check and place".
 3. Tap "Add money", look at the amount, then go back without paying.
 
 Expect:
 
-- Step 1: Balance Rs 0, with no orders, no history rows and no refills. Nothing about Ahmed Gas, Sana or Usman appears.
-- Step 2: "Delivery cost Rs 300" and the card "You need Rs 300 but have Rs 0. Add money to place this order." The footer button is "Add money".
-- Step 3: the amount is prefilled with Rs 500 (the minimum). Nothing is deducted, and the balance stays Rs 0.
+- Step 1: Balance Rs 0 with the chip "Low balance", no orders, no history rows and no refills. Nothing about Ahmed Gas, Sana or Usman appears.
+- Step 2: "Delivery cost" "Rs 300" and, above the "Add money" button, "You need Rs 300. You have Rs 0."
+- Step 3: "Other amount" is chosen with Rs 500 (the minimum). Nothing is deducted, and the balance stays Rs 0.
 
 **GO / NO-GO:** GO only if no Ahmed Gas data appears and no order was created.
 
@@ -13361,12 +13745,12 @@ Steps:
 
 Expect:
 
-- Step 2: "Starts at: Ahmed Gas Store" with no store picker. Drivers show as "Kashif · LEA-101" and "Imran · LEB-202". The Toast "AG-0001 assigned to Kashif. He sees it in his app now."
+- Step 2: "Starts at: Ahmed Gas Store" with no store picker. The driver cards show "Kashif" with "Van LEA-101" and "Imran" with "Van LEB-202", each with one chip. The toast "AG-0001 assigned to Kashif", and the drawer closes.
 - Step 3: all four show "Driver assigned".
-- Step 4: each driver has one trip, "Trip · 2 customers · load at Ahmed Gas Store".
-- Step 5: all four show "Driver assigned" with their costs still "paid". Balance Rs 5,430.
+- Step 4: each driver's Today shows one trip, "Deliver to 2 customers": Kashif's with "6 cylinders · load at Ahmed Gas Store", Imran's with "2 cylinders · load at Ahmed Gas Store"; the footer reads "Start trip".
+- Step 5: all four show "Driver assigned" and no cost chip (active rows have none; the costs show on each order and in History). Balance Rs 5,430.
 
-**GO / NO-GO:** GO only if both runs start at Ahmed Gas Store and carry only Ahmed Gas orders.
+**GO / NO-GO:** GO only if both trips start at Ahmed Gas Store and carry only Ahmed Gas orders.
 
 Spec: ADR-01; ADR-12; API_CONTRACT §7.6 (assign-driver), §9.5 (assign-driver v2); UX_ADMIN §2.5; UX_MOBILE §7.2 (R2)
 
@@ -13378,16 +13762,16 @@ Before: Step 7 done. Imran has not scanned anything yet.
 
 Steps:
 
-1. Shop phone: open order AG-0003 (Sana, 1 × 11.8 kg) and tap Cancel.
+1. Shop phone: open order AG-0003 (Sana, 1 × 11.8 kg) and tap "Cancel order".
 2. Read the sheet, pick "Customer cancelled" and confirm.
-3. Open the wallet history.
+3. Open History.
 4. Laptop: open AG-0003's drawer and its activity.
 5. Imran's phone: open his trip.
 
 Expect:
 
-- Step 2: the title "Cancel order AG-0003?", the body "Rs 290 comes back to your wallet." and the button "Yes, cancel and get Rs 290 back". The Toast "Order cancelled · Rs 290 returned".
-- Step 3: a row "Delivery cost returned (order cancelled)" +Rs 290 with "Balance after Rs 5,720". Balance Rs 5,720.
+- Step 2: the title "Cancel order AG-0003?", "Back to your wallet" with "Rs 290" large, and the button "Cancel · get Rs 290 back". The toast "Order cancelled · Rs 290 returned".
+- Step 3: a "Refund" row +Rs 290 with "AG-0003 · Sana", and no "Balance after". Balance Rs 5,720.
 - Step 4: the timeline ends "Cancelled · Rs 290 returned", and the activity reads "Cancelled AG-0003 · Rs 290 returned".
 - Step 5: the trip now lists only Usman.
 
@@ -13409,16 +13793,16 @@ Steps:
 4. Turn airplane mode off and tap "Retry".
 5. Scan AG-C0003.
 6. Tap "Done loading".
-7. Shop phone: open AG-0001 (Sana). Tap Cancel, read the sheet, then close it without confirming.
+7. Shop phone: open AG-0001 (Sana). Tap "Cancel · no refund", read the sheet, then close it without confirming.
 
 Expect:
 
-- Step 2: a green tick and "✓ AG-C0001 · 11.8 kg loaded" for each. The rows read "11.8 kg · 2 of 2", "45.4 kg · 1 of 1" and "15 kg · 2 of 3".
-- Step 3: an amber row "Not saved (1)" with "Retry". The counter doesn't move.
+- Step 2: a green strip "AG-C0001 · 11.8 kg loaded" with a tick for each. The lines read "11.8 kg · 2 of 2", "45.4 kg · 1 of 1" and "15 kg · 2 of 3".
+- Step 3: one amber row "Not saved: 1" with "Retry". The count doesn't move.
 - Step 4: the tick appears, then "All 6 loaded", and "Not saved" disappears.
 - Step 5: a red strip "This size isn't needed on this trip any more."
 - Step 6: both orders become "On the way".
-- Step 7: the stage "On the way". The sheet reads "Cancel without refund?" with "Delivery has started. If you cancel now, the Rs 480 is not returned."
+- Step 7: the stage "On the way". The sheet reads "Cancel without refund?" with "Delivery has started." and "Not returned" "Rs 480".
 
 **GO / NO-GO:** GO only if six cylinders are on van LEA-101 and the "Not saved" list is empty.
 
@@ -13433,7 +13817,7 @@ Before: Step 8 done: Imran's trip has only AG-0004 (Usman, 1 × 15 kg).
 Steps:
 
 1. Imran's phone: tap "Load at store", scan AG-C0024, then tap "Done loading".
-2. Laptop (Owner): open AG-0004, then More, then "Cancel order…".
+2. Laptop (Owner): open AG-0004 and click "Cancel order…" in the footer.
 3. Read the dialog. Choose "Customer cancelled", type the note "Customer called after loading", and click "Cancel without refund".
 4. Shop phone: open AG-0004, then Home.
 5. Imran's phone: open the trip.
@@ -13442,8 +13826,8 @@ Expect:
 
 - Step 1: "All 1 loaded".
 - Step 3: the dialog says "Delivery has started. Cancelling now returns nothing." Afterwards the timeline shows "Cancelled · no refund".
-- Step 4: "Cancelled" with no refund, and the balance stays Rs 5,720.
-- Step 5: the trip shows "Hand back at Ahmed Gas Store", with AG-C0024 under "Not delivered (full)".
+- Step 4: "Cancelled" with "No refund. Delivery had started.", and the balance stays Rs 5,720.
+- Step 5: the trip's footer is "Unload at store", and the Unload step lists AG-C0024 under "Not delivered".
 
 **GO / NO-GO:** GO only if the balance is still Rs 5,720 and AG-C0024 is on van LEB-202.
 
@@ -13459,17 +13843,17 @@ Before: Step 9 done. Sana's and Usman's old cylinders are another brand, with no
 
 Steps:
 
-1. At Sana's: open "Deliver to Sana", then scan AG-C0001, AG-C0002 and AG-C0031.
-2. Take back: tap "No label or other brand". Add 11.8 kg · Empty · 2 and 45.4 kg · Part-filled · 1, then save.
+1. At Sana's: open "Deliver to Sana", tap "I've arrived", then scan AG-C0001, AG-C0002 and AG-C0031.
+2. Take back: tap "No label". Add 11.8 kg · Empty · 2 and 45.4 kg · Part-filled · 1, then save.
 3. Tap "Finish visit".
-4. At Usman's: deliver AG-C0021, AG-C0022 and AG-C0023. Take back with "No label or other brand": 15 kg · Empty · 2 and 15 kg · Full · 1. Tap "Finish visit".
+4. At Usman's: tap "I've arrived" and deliver AG-C0021, AG-C0022 and AG-C0023. Take back with "No label": 15 kg · Empty · 2 and 15 kg · Full · 1. Tap "Finish visit".
 5. Shop phone: open AG-0001 (Sana) and AG-0002 (Usman).
 
 Expect:
 
-- Step 1: the rows "Give 2 × 11.8 kg" and "Give 1 × 45.4 kg" reach 2 of 2 and 1 of 1. "Could not deliver" is disabled once the first cylinder is given.
-- Step 3: "Visit done" and "Gave 3 · Took back 3 (2 empty, 1 part-filled, 0 full)".
-- Step 4: "Gave 3 · Took back 3 (2 empty, 0 part-filled, 1 full)".
+- Step 1: the lines "11.8 kg · 0 of 2" and "45.4 kg · 0 of 1" reach "2 of 2" and "1 of 1", and the visit moves on to "Take back from Sana" by itself. "Could not deliver" is disabled once the first cylinder is given.
+- Step 3: "Visit done", then "Gave 3 · Took back 3" and, on the next line, "2 empty · 1 part-filled · 0 full".
+- Step 4: "Gave 3 · Took back 3" and "2 empty · 0 part-filled · 1 full".
 - Step 5: both "Delivered". The cost lines are unchanged ("Delivery cost Rs 480 · paid when the order was placed"), and the balance stays Rs 5,720.
 
 **GO / NO-GO:** GO only if both orders are Delivered with every cylinder scanned, and no money moved.
@@ -13484,21 +13868,21 @@ Before: Step 11 done. Customer confirmation is on, with the mock messaging provi
 
 Steps:
 
-1. Shop phone: open AG-0001 (Sana) and find the customer confirmation card. Tap "Copy message" and send it on WhatsApp to the team phone playing Sana.
+1. Shop phone: open AG-0001 (Sana) and find the "Customer answer" card. Tap "Other ways", then "Copy message", and send it on WhatsApp to the team phone playing Sana.
 2. Sana's phone: open the link, read the page, then tap "All received".
-3. Shop phone: open AG-0002 (Usman). Copy the message and send it to the team phone playing Usman.
+3. Shop phone: open AG-0002 (Usman). Copy the message the same way and send it to the team phone playing Usman.
 4. Usman's phone: open the link, tap "Other problem", write "Seal missing on one cylinder" and tap Send.
-5. Laptop (Ops): open Customer problems. Open the row and use "Mark as sorted" with the note "Called Usman, seal replaced".
+5. Laptop (Ops): open Customer problems. Use "Mark as sorted…" on the row, with the note "Called Usman, seal replaced".
 6. Shop phone: look at both cards and the balance.
 
 Expect:
 
-- Step 1: the card "Ask the customer to confirm" with "Text messages are not switched on yet. Send this link to Sana (0300 1234567)." Then the Toast "Message copied".
-- Step 2: the page "Did you get your delivery?" from Ahmed Gas, under the strip "Test system — this is not a real delivery." "Delivered to you" lists 11.8 kg × 2 and 45.4 kg × 1. "Taken back from you" lists Empty 11.8 kg (no label) × 2 and Part-filled 45.4 kg (no label) × 1.
-- Step 2: after the tap, "Thank you!" and "We have told Ahmed Gas that you got everything."
-- Step 4: "We have passed your message to Ahmed Gas. They may call you."
-- Step 5: one row for AG-0002 ("Other problem") with the note. After marking it sorted it leaves the open list. No money choice appears anywhere.
-- Step 6: AG-0001 shows "All received". AG-0002 shows "Other problem" with "The office will look into it." The balance stays Rs 5,720.
+- Step 1: the card shows the chip "Waiting for customer" and "Link not sent yet · Sana, 0300 1234567". Then the toast "Message copied".
+- Step 2: the page "Did you get your delivery?" from Ahmed Gas, under the strip "Test only · not a real delivery". The summary table: "Delivered" "2 × 11.8 kg" and "1 × 45.4 kg"; "Taken back" "2 × 11.8 kg" with the tag "Empty" and " · no label", and "1 × 45.4 kg" with the tag "Part-filled" and " · no label".
+- Step 2: after the tap, "Thank you!" and "We told Ahmed Gas you got everything."
+- Step 4: "We sent your message to Ahmed Gas. They may call you."
+- Step 5: one row for AG-0002, with the chip "Customer sent a note" and the note. After marking it sorted it leaves the open list. No money choice appears anywhere.
+- Step 6: AG-0001 shows "Customer: all received". AG-0002 shows "Customer sent a note" with the note (its line "The office will look into it." went when the office sorted it). The balance stays Rs 5,720.
 
 **GO / NO-GO:** GO only if each delivered order is answered "All received" or is on the problems list and sorted.
 
@@ -13514,7 +13898,7 @@ Before: Steps 10 and 11 done. Both drivers are back at Ahmed Gas Store.
 
 Steps:
 
-1. Imran's phone: open "Hand back".
+1. Imran's phone: open "Unload at Ahmed Gas Store".
 2. Shop phone: on Home, tap "Receive from driver" and scan AG-C0024.
 3. Imran's phone: tap "Finish trip".
 4. Kashif's phone (no labelled cylinder left on the van): open the trip and tap "Finish trip".
@@ -13522,10 +13906,10 @@ Steps:
 
 Expect:
 
-- Step 1: "Give each cylinder to the shop. They scan it in their app. This page updates by itself." and "0 of 1 received".
-- Step 2: the Home tile shows "1 coming back". The scan ends with "All 1 received", and Imran's page changes to "1 of 1 received" by itself.
-- Steps 3 and 4: both trips finish, with no "The store still needs to scan in the cylinders on your van (… left)." message.
-- Step 5: both vans show "0 full · 0 empty · 0 part-filled", and the stock shows AG-C0024 back, Full.
+- Step 1: "Give each cylinder to the shop to scan." and "0 of 1" unloaded.
+- Step 2: the Home row shows "1 coming back". The scan ends with "All 1 received", and Imran's screen changes to "All 1 unloaded" by itself.
+- Steps 3 and 4: both trips finish, with no "The store must scan in … more from your van." message.
+- Step 5: both vans show "No cylinders", and the stock shows AG-C0024 back, Full.
 
 **GO / NO-GO:** GO only if no van holds a cylinder.
 
@@ -13542,7 +13926,7 @@ Steps:
 1. Shop phone: new order for Sana, deliver 1 × 11.8 kg, take back 2. Place it.
 2. Laptop: assign the new order (AG-0005) to Kashif.
 3. Kashif's phone: load AG-C0003, then tap "Done loading".
-4. At Sana's: deliver AG-C0003.
+4. At Sana's: tap "I've arrived" and deliver AG-C0003.
 5. Take back: choose "Empty" and scan AG-C0001; choose "Part-filled" and scan AG-C0002; choose "Full" and scan AG-C0031.
 6. Scan AG-C0003 to take it back.
 7. Tap "Finish visit".
@@ -13550,12 +13934,12 @@ Steps:
 
 Expect:
 
-- Step 1: "Rs 250 per order + 1 × Rs 40 (11.8 kg) = Rs 290" and "Balance now Rs 5,720 · After this order Rs 5,430". The Toast "Order placed · Rs 290 paid".
+- Step 1: "Delivery cost" "Rs 290" with "Rs 250 + 1 × Rs 40", "Balance now Rs 5,720" and "After this order Rs 5,430". The toast "Order placed · Rs 290 paid".
 - Step 3: "All 1 loaded".
 - Step 5: three lists (Empty AG-C0001, Part-filled AG-C0002, Full AG-C0031) and "3 taken back · 2 expected".
-- Step 6: a red strip "You just gave this cylinder. It can't be taken back on the same visit."
-- Step 7: "Visit done" and "Gave 1 · Took back 3 (1 empty, 1 part-filled, 1 full)".
-- Step 8: the card shows "All received".
+- Step 6: a red strip "You just delivered this one. You can't take it back now."
+- Step 7: "Visit done", then "Gave 1 · Took back 3" and "1 empty · 1 part-filled · 1 full".
+- Step 8: the card shows "Customer: all received".
 
 **GO / NO-GO:** GO only if the balance is Rs 5,430 and the three taken-back cylinders are on van LEA-101.
 
@@ -13569,7 +13953,7 @@ Before: Step 14 done. Kashif is back at Ahmed Gas Store.
 
 Steps:
 
-1. Kashif's phone: open "Hand back".
+1. Kashif's phone: open "Unload at Ahmed Gas Store".
 2. Shop phone: tap "Receive from driver", then scan AG-C0001, AG-C0002 and AG-C0031.
 3. Shop phone: scan AG-C0001 again.
 4. Kashif's phone: tap "Finish trip".
@@ -13577,11 +13961,11 @@ Steps:
 
 Expect:
 
-- Step 1: the groups Empty (AG-C0001), Part-filled (AG-C0002) and Full (taken back) (AG-C0031), with "0 of 3 received".
+- Step 1: the groups Empty (AG-C0001), Part-filled (AG-C0002) and Full (AG-C0031), with "0 of 3" unloaded.
 - Step 2: "All 3 received".
 - Step 3: "Already in your store": no error and no double count.
 - Step 4: the trip finishes.
-- Step 5: AG-C0001 Empty, AG-C0002 Part-filled and AG-C0031 Full, all in Ahmed Gas Store. AG-C0031's history ends "Scanned into Ahmed Gas Store".
+- Step 5: AG-C0001 Empty, AG-C0002 Part-filled and AG-C0031 Full, all in Ahmed Gas Store. AG-C0031's history ends "Unloaded at Ahmed Gas Store".
 
 **GO / NO-GO:** GO only if all three are in the store and no van holds a cylinder.
 
@@ -13595,14 +13979,14 @@ Before: Step 15 done. Lahore Filling Station is active.
 
 Steps:
 
-1. Shop phone: on Home, tap "Refill cylinders", then "New refill". Choose 11.8 kg, 2 cylinders and Lahore Filling Station, then tap "Request refill".
+1. Shop phone: on Home, tap "Refills", then "+ New refill". Choose 11.8 kg and 2 (Lahore Filling Station is the only station), then tap "Request refill · 2 × 11.8 kg".
 2. Laptop: open Refills, Needs a driver. Open AG-R001, click "Assign driver" and pick Imran.
 3. Shop phone: open the refill, then Home.
 
 Expect:
 
-- Step 1: the Toast "Refill requested". The row reads "2 × 11.8 kg · Lahore Filling Station" with "Waiting for driver". No money is shown, and the balance stays Rs 5,430.
-- Step 2: the row "AG-R001 · Needs a driver · Ahmed Gas · Lahore Filling Station · 2 × 11.8 kg". After assigning, it reads "Driver assigned".
+- Step 1: the toast "Refill requested". The row reads "2 × 11.8 kg" with "AG-R001" as the grey line, the time on the right and "Waiting for driver"; there is no station on the row. No money is shown, and the balance stays Rs 5,430.
+- Step 2: the row "AG-R001" with "2 × 11.8 kg" muted under it, the status "Needs a driver" and Ahmed Gas. After assigning, it reads "Driver assigned".
 - Step 3: "Driver assigned" with Imran's card. Balance Rs 5,430.
 
 **GO / NO-GO:** GO only if no money moved.
@@ -13620,15 +14004,15 @@ Steps:
 1. Imran's phone: open the refill. At "Pick up empties at Ahmed Gas Store", scan AG-C0004.
 2. Scan AG-C0001 and AG-C0002, then tap "Done picking up".
 3. At Lahore Filling Station: after the station fills each cylinder, scan AG-C0001 and AG-C0002, then tap "Done filling".
-4. Back at the store, shop phone: open "Receive from driver", pick the refill row and scan both cylinders.
+4. Back at the store, shop phone: open "Receive from driver", pick Imran's row (with the "Refill" chip) and scan both cylinders.
 5. Shop phone: open AG-R001 and the store stock. Laptop: open Refills, Done.
 
 Expect:
 
 - Step 1: a red strip "Only empty or part-filled cylinders go for refill."
-- Step 2: "2 of 2 picked up", then the next step "Fill at Lahore Filling Station".
-- Step 3: "2 of 2 filled", then the next step "Hand back at Ahmed Gas Store".
-- Step 4: the row "Refill · Imran · 2 to receive", and at the end "All 2 back in your store · Refill done".
+- Step 2: "All 2 picked up", then the next step "Fill at Lahore Filling Station".
+- Step 3: "All 2 filled", then the next step "Unload at Ahmed Gas Store" with "0 of 2 unloaded".
+- Step 4: the row "Imran · LEB-202" with a "Refill" chip and "0 of 2 received", and at the end "All 2 back · Refill done".
 - Step 5: the refill shows "Done". AG-C0001 and AG-C0002 are Full in the store. The office lists AG-R001 under Done. Balance Rs 5,430.
 
 **GO / NO-GO:** GO only if both cylinders are Full in the store, the refill is Done, and no money moved.
@@ -13643,15 +14027,15 @@ Before: Step 17 done, in the evening before midnight. The rehearsal lead has put
 
 Steps:
 
-1. Shop phone: on Home, tap "Day-end sheet", then "Download today's sheet". Open it in the spreadsheet app.
+1. Shop phone: on Home, tap "Day-end sheet", then "Download sheet". Open it in the spreadsheet app.
 2. Count the rows, and read the "App says: where" column.
 3. For AG-C0020, fill "In my store", "Damaged" and "Valve damaged". Save.
-4. Tap "Choose file", pick the saved sheet and read the preview. Tap "Send for approval (1 difference)" and confirm.
+4. Tap "Upload filled sheet", pick the saved sheet and read "Check and send". Tap "Send for approval · 1 difference" and confirm.
 
 Expect:
 
 - Step 2: 35 rows, each cylinder once. 31 say "In my store", 4 say "With customer" (AG-C0003 with Sana; AG-C0021, AG-C0022 and AG-C0023 with Usman), and none say "On driver's van".
-- Step 4: "35 cylinders checked · 1 difference": "AG-C0020 · 11.8 kg", "App: In my store, Full → Your sheet: In my store, Damaged". After sending, the chip reads "Waiting for approval".
+- Step 4: "1 difference" and "35 cylinders checked"; "AG-C0020 · 11.8 kg" with "App: In my store · Full" and "You: In my store · Damaged". After sending, the chip reads "Waiting for office".
 
 **GO / NO-GO:** GO only if every cylinder has exactly one holder on the sheet, and the sheet matches the shop's own count except AG-C0020.
 
@@ -13666,23 +14050,23 @@ Before: Step 18 done, still before 03:00.
 Steps:
 
 1. Laptop: open Today and read "Today so far".
-2. Open Day-end approvals, To approve, then Ahmed Gas.
+2. Open Day-end, To approve, then Ahmed Gas.
 3. Read the stats and the difference.
-4. Click the approve button, read the dialog and confirm.
+4. Click "Approve and lock · 1 fix", read the dialog and confirm.
 5. Open Find cylinder for AG-C0020. Shop phone: open Day-end.
 
 Expect:
 
-- Step 1: the card "Day-end ready to approve". "Orders placed 5 · Delivered 3", "Delivery costs taken Rs 1,570" and "Top-ups approved Rs 2,000".
+- Step 1: the card "1" "day-end to approve". "Today so far" shows Orders placed 5, Delivered 3, "Delivery costs Rs 1,570" and Top-ups approved Rs 2,000.
 - Step 3: In store 31 · On vans 0 · With customers 4 · Differences 1. AG-C0020 shows "State differs" with the note "Valve damaged".
-- Step 4: the primary reads "Approve 1 fix and lock the day", and the dialog "Approve 1 fix and lock \<day>? Later changes need a reopen." After confirming, the day is approved and locked.
+- Step 4: the dialog "Approve and lock \<day>?" with "1 fix. Later changes need a reopen." After confirming, the day is approved and locked.
 - Step 5: AG-C0020 is Damaged in Ahmed Gas Store, and its history shows the day-end fix approved by Owner. The shop chip reads "Approved · day closed". Balance Rs 5,430.
 
 **GO / NO-GO:** GO only if the day is approved and locked.
 
 Spec: ADR-17; API_CONTRACT §10.2, §7.13 (costTakenTodayPaisa); UX_ADMIN §4.3, §4.4, §2.1, §3.5; UX_MOBILE §8.3
 
-Note: Delivery costs taken = Rs 1,860 taken (480 + 400 + 290 + 400 + 290) − Rs 290 returned = Rs 1,570.
+Note: Delivery costs = Rs 1,860 taken (480 + 400 + 290 + 400 + 290) − Rs 290 returned = Rs 1,570.
 
 ### RHS-020 · Rehearsal step 20 · Next morning: the nightly wallet check is clean, then the final go / no-go
 
@@ -13699,12 +14083,12 @@ Steps:
 
 Expect:
 
-- Steps 1 and 2: a System row "Nightly wallet check: 2 wallets checked, all match" at about 03:30, and no wallet-check alert. Ahmed Gas Balance Rs 5,430 with "History matches the balance"; Bilal Gas Rs 0, also matching.
-- Step 3: Opening balance +Rs 5,000; Money added +Rs 2,000 (AG-T001); Delivery cost −Rs 480, −Rs 400, −Rs 290, −Rs 400; Delivery cost returned +Rs 290 (AG-0003); Delivery cost −Rs 290 (AG-0005). This ends at Rs 5,430.
+- Steps 1 and 2: a System row "Nightly wallet check: 2 wallets checked, all match" at about 03:30, and no wallet-check alert. Ahmed Gas Balance Rs 5,430 with "History adds up"; Bilal Gas Rs 0, also matching.
+- Step 3: Opening balance +Rs 5,000; "Top-up · AG-T001 · ref TESTREF001" +Rs 2,000; Delivery cost −Rs 480, −Rs 400, −Rs 290, −Rs 400; Delivery cost returned +Rs 290 (AG-0003); Delivery cost −Rs 290 (AG-0005). This ends at Rs 5,430.
 - Rule 1, top-ups: one bank line matches one approved top-up (AG-T001, Rs 2,000), and the duplicate AG-T002 was rejected.
 - Rule 2, deliveries: AG-0001 and AG-0005 answered "All received", and AG-0002 is on the problems list and sorted.
 - Rule 3, the wallet check is clean.
-- Rule 4, no lost scans: every phone's "Not saved" list is empty. AG-C0001's history shows all 7 scans of the day, in order: "Loaded onto van LEA-101 at Ahmed Gas Store", "Handed to Sana (AG-0001)", "Taken back from Sana · empty", "Scanned into Ahmed Gas Store", "Picked up for refill AG-R001 onto van LEB-202", "Filled at Lahore Filling Station for refill AG-R001" and "Back from refill AG-R001 into Ahmed Gas Store · now full".
+- Rule 4, no lost scans: every phone's "Not saved" list is empty. AG-C0001's history shows all 7 scans of the day, in order: "Loaded onto van LEA-101 at Ahmed Gas Store", "Delivered to Sana · AG-0001", "Taken back from Sana · Empty", "Unloaded at Ahmed Gas Store", "Picked up for refill AG-R001 · van LEB-202", "Filled at Lahore Filling Station · refill AG-R001" and "Back from refill AG-R001 at Ahmed Gas Store · now full".
 - Rule 5, one holder: 31 cylinders in Ahmed Gas Store, 4 with customers and 0 on vans.
 - Rule 6, the day is closed: the rehearsal day shows as approved and locked.
 
@@ -13724,7 +14108,7 @@ Tick each line when it holds. One unticked line is a no-go.
 - [ ] **Step 4** (RHS-004): GO only if both customers are saved in the right zone and neither blocked spot could be saved.
 - [ ] **Step 5** (RHS-005): GO only if the balance is Rs 5,430 and each order shows its own cost.
 - [ ] **Step 6** (RHS-006): GO only if no Ahmed Gas data appears and no order was created.
-- [ ] **Step 7** (RHS-007): GO only if both runs start at Ahmed Gas Store and carry only Ahmed Gas orders.
+- [ ] **Step 7** (RHS-007): GO only if both trips start at Ahmed Gas Store and carry only Ahmed Gas orders.
 - [ ] **Step 8** (RHS-008): GO only if Rs 290 came back exactly once (balance Rs 5,720).
 - [ ] **Step 9** (RHS-009): GO only if six cylinders are on van LEA-101 and the "Not saved" list is empty.
 - [ ] **Step 10** (RHS-010): GO only if the balance is still Rs 5,720 and AG-C0024 is on van LEB-202.
@@ -13744,7 +14128,7 @@ Tick each line when it holds. One unticked line is a no-go.
 - [ ] Rule 1, top-ups: one bank line matches one approved top-up (AG-T001, Rs 2,000), and the duplicate AG-T002 was rejected.
 - [ ] Rule 2, deliveries: AG-0001 and AG-0005 answered "All received", and AG-0002 is on the problems list and sorted.
 - [ ] Rule 3, the wallet check is clean.
-- [ ] Rule 4, no lost scans: every phone's "Not saved" list is empty. AG-C0001's history shows all 7 scans of the day, in order: "Loaded onto van LEA-101 at Ahmed Gas Store", "Handed to Sana (AG-0001)", "Taken back from Sana · empty", "Scanned into Ahmed Gas Store", "Picked up for refill AG-R001 onto van LEB-202", "Filled at Lahore Filling Station for refill AG-R001" and "Back from refill AG-R001 into Ahmed Gas Store · now full".
+- [ ] Rule 4, no lost scans: every phone's "Not saved" list is empty. AG-C0001's history shows all 7 scans of the day, in order: "Loaded onto van LEA-101 at Ahmed Gas Store", "Delivered to Sana · AG-0001", "Taken back from Sana · Empty", "Unloaded at Ahmed Gas Store", "Picked up for refill AG-R001 · van LEB-202", "Filled at Lahore Filling Station · refill AG-R001" and "Back from refill AG-R001 at Ahmed Gas Store · now full".
 - [ ] Rule 5, one holder: 31 cylinders in Ahmed Gas Store, 4 with customers and 0 on vans.
 - [ ] Rule 6, the day is closed: the rehearsal day shows as approved and locked.
 
@@ -13773,9 +14157,9 @@ Built from each case's "Spec" line.
 | ADR-13 | Cylinder holder rules | 77 | SEC-020, FEE-027, ORD-015, ASG-006, DRV-002, DRV-003, DRV-004, DRV-006, DRV-010, DRV-011, DRV-012, DRV-013, DRV-015, DRV-018, DRV-019, DRV-020, DRV-021, DRV-024, DRV-025, DRV-026, DRV-027, DRV-028, DRV-029, DRV-030, DRV-031, DRV-032, DRV-033, DRV-034, DRV-036, DRV-038, DRV-040, DRV-042, DRV-044, DRV-047, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-006, HLD-007, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-014, HLD-016, HLD-017, HLD-018, HLD-019, STR-001, STR-002, STR-003, STR-004, STR-006, STR-007, STR-008, STR-009, STR-010, STR-012, STR-013, REF-014, REF-015, REF-016, REF-019, DAY-012, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015, RHS-017, RHS-018, RHS-020 |
 | ADR-14 | Expenses | 17 | EXP-001, EXP-002, EXP-003, EXP-004, EXP-005, EXP-006, EXP-008, EXP-009, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015, EXP-016, EXP-017, EXP-018, MIG-004 |
 | ADR-15 | Customer confirmation is a record only, and optional | 31 | DRV-022, CNF-001, CNF-002, CNF-003, CNF-005, CNF-007, CNF-011, CNF-012, CNF-013, CNF-018, CNF-020, CNF-034, CNF-037, CNF-038, CNF-040, CNF-043, CNF-044, CNF-045, CAS-001, CAS-002, CAS-005, CAS-008, CAS-010, CAS-011, CAS-012, MSG-007, MSG-014, MSG-015, MSG-022, RHS-012, RHS-014 |
-| ADR-16 | Refills | 30 | FND-003, TOP-027, FEE-028, REF-001, REF-002, REF-003, REF-004, REF-005, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-022, REF-023, REF-024, REF-025, REF-026, REF-027, REF-028, RHS-016, RHS-017 |
+| ADR-16 | Refills | 31 | FND-003, TOP-027, FEE-028, DRV-052, REF-001, REF-002, REF-003, REF-004, REF-005, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-022, REF-023, REF-024, REF-025, REF-026, REF-027, REF-028, RHS-016, RHS-017 |
 | ADR-17 | Day-end Excel | 21 | FEE-028, DAY-001, DAY-002, DAY-003, DAY-004, DAY-005, DAY-006, DAY-007, DAY-008, DAY-009, DAY-010, DAY-012, DAY-013, DAY-014, DAY-015, DAY-016, DAY-019, DAY-020, DAY-021, RHS-018, RHS-019 |
-| ADR-18 | English now, Urdu-ready | 8 | FND-005, FND-008, FND-009, REF-030, DAY-022, UXQ-004, UXQ-005, UXQ-011 |
+| ADR-18 | English now, Urdu-ready | 9 | FND-005, FND-008, FND-009, REF-030, DAY-022, UXQ-004, UXQ-005, UXQ-011, UXQ-026 |
 | ADR-19 | Prisma migrations made without a database | 6 | MIG-001, MIG-002, MIG-008, MIG-009, MIG-010, MIG-014 |
 | ADR-20 | Provider interfaces | 6 | PRC-012, CNF-030, MSG-001, MSG-002, MSG-003, MSG-014 |
 | ADR-21 | Business day | 17 | FND-001, FND-028, FND-029, FND-033, FND-034, WAL-016, WAL-024, FEE-024, ORD-010, EXP-006, EXP-012, OFF-002, DRV-043, DAY-015, DAY-017, UXQ-004, UXQ-005 |
@@ -13794,7 +14178,7 @@ Built from each case's "Spec" line.
 | §1.6 | allowedActions | 7 | SEC-031, TOP-013, FEE-016, FEE-029, ORD-007, ORD-011, ASG-012 |
 | §2.1 | Envelope | 17 | FND-005, FND-006, FND-007, FND-008, FND-009, FND-019, FND-023, SEC-002, SEC-004, FEE-002, FEE-030, CUS-002, ORD-016, CNF-023, CNF-028, REF-030, UXQ-013 |
 | §2.2 | Mapping | 14 | FND-005, FND-006, FND-007, FND-038, FND-039, FND-041, WAL-012, PRC-004, ORD-012, ORD-020, EXP-006, DRV-002, CAS-006, MIG-014 |
-| §2.3 | Catalogue | 92 | FND-002, FND-003, FND-004, FND-007, FND-008, FND-016, FND-020, SEC-002, SEC-003, SEC-006, SEC-007, SEC-009, SEC-023, SEC-024, SEC-025, WAL-007, WAL-011, WAL-012, TOP-001, TOP-003, TOP-004, TOP-005, TOP-006, TOP-016, TOP-017, TOP-018, TOP-025, PRC-004, PRC-009, PRC-011, PRC-014, FEE-002, FEE-004, FEE-014, FEE-016, FEE-030, CUS-002, CUS-008, CUS-011, ORD-002, ORD-018, ASG-003, EXP-002, EXP-004, EXP-006, EXP-007, OFF-001, OFF-005, OFF-013, OFF-014, OFF-015, DRV-004, DRV-011, DRV-012, DRV-016, DRV-019, DRV-029, DRV-033, DRV-038, DRV-040, DRV-041, DRV-042, HLD-009, HLD-018, STR-004, STR-011, CNF-002, CNF-006, CNF-014, CNF-017, CNF-047, CAS-007, MSG-009, MSG-012, REF-002, REF-005, REF-012, REF-015, REF-024, REF-030, REF-031, DAY-004, DAY-005, DAY-006, DAY-008, DAY-010, DAY-013, DAY-014, DAY-020, SET-004, UXQ-013, UXQ-015 |
+| §2.3 | Catalogue | 93 | FND-002, FND-003, FND-004, FND-007, FND-008, FND-016, FND-020, SEC-002, SEC-003, SEC-006, SEC-007, SEC-009, SEC-023, SEC-024, SEC-025, WAL-007, WAL-011, WAL-012, TOP-001, TOP-003, TOP-004, TOP-005, TOP-006, TOP-016, TOP-017, TOP-018, TOP-025, PRC-004, PRC-009, PRC-011, PRC-014, FEE-002, FEE-004, FEE-014, FEE-016, FEE-030, CUS-002, CUS-008, CUS-011, ORD-002, ORD-018, ASG-003, EXP-002, EXP-004, EXP-006, EXP-007, OFF-001, OFF-005, OFF-013, OFF-014, OFF-015, DRV-004, DRV-011, DRV-012, DRV-016, DRV-019, DRV-029, DRV-033, DRV-038, DRV-040, DRV-041, DRV-042, HLD-009, HLD-018, STR-004, STR-011, CNF-002, CNF-006, CNF-014, CNF-017, CNF-047, CAS-007, MSG-009, MSG-012, REF-002, REF-005, REF-012, REF-015, REF-024, REF-030, REF-031, DAY-004, DAY-005, DAY-006, DAY-008, DAY-010, DAY-013, DAY-014, DAY-020, SET-004, UXQ-013, UXQ-015, UXQ-026 |
 | §3.1 | Roles | 28 | FND-014, SEC-004, SEC-005, SEC-008, SEC-011, SEC-012, SEC-022, SEC-023, WAL-007, TOP-008, PRC-007, FEE-011, FEE-012, CUS-010, ORD-010, ASG-003, EXP-013, DRV-001, DRV-005, DRV-047, HLD-006, STR-006, CAS-009, REF-005, REF-018, REF-023, DAY-016, SET-001 |
 | §3.2 | Ownership policies | 33 | FND-017, FND-022, SEC-013, SEC-014, SEC-031, SEC-033, WAL-007, TOP-008, PRC-007, FEE-012, CUS-002, CUS-009, CUS-010, CUS-013, ORD-006, ORD-009, ASG-004, ASG-008, DRV-005, DRV-047, HLD-015, STR-005, CNF-040, CNF-041, CAS-009, REF-006, REF-011, REF-018, DAY-005, DAY-007, DAY-016, SET-012, RHS-006 |
 | §3.3 | Sessions | 16 | SEC-001, SEC-003, SEC-005, SEC-009, SEC-010, SEC-015, SEC-023, SEC-024, SEC-026, SEC-032, SEC-033, SEC-034, OFF-006, OFF-014, OFF-016, OFF-018 |
@@ -13819,16 +14203,16 @@ Built from each case's "Spec" line.
 | §6 | Settings registry | 47 | FND-001, FND-002, FND-003, FND-004, FND-010, FND-011, FND-029, SEC-004, SEC-005, SEC-008, SEC-020, WAL-004, WAL-022, TOP-001, TOP-003, TOP-005, TOP-006, TOP-011, TOP-018, TOP-023, TOP-027, TOP-028, FEE-022, ORD-002, ORD-016, ASG-001, EXP-018, OFF-008, OFF-009, DRV-033, DRV-034, DRV-039, HLD-017, CNF-001, CNF-002, CNF-021, CNF-030, CNF-045, CAS-002, MSG-003, REF-003, REF-004, DAY-017, DAY-018, UXQ-014, MIG-013, RHS-001 |
 | §7 | Increment 1 endpoints | 1 | ORD-011 |
 | §7.1 | App and auth | 18 | FND-001, FND-031, FND-035, SEC-001, SEC-002, SEC-003, SEC-004, SEC-005, SEC-006, SEC-007, SEC-008, SEC-009, SEC-010, SEC-033, OFF-001, SET-001, UXQ-013, UXQ-015 |
-| §7.2 | Safety table for existing routes | 45 | FND-023, FND-035, SEC-001, SEC-003, SEC-010, SEC-011, SEC-012, SEC-016, SEC-017, SEC-020, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, SEC-028, SEC-029, SEC-033, SEC-034, TOP-025, PRC-017, CUS-004, CUS-005, CUS-011, ASG-001, ASG-003, EXP-018, OFF-006, OFF-015, OFF-016, OFF-017, DRV-040, DRV-048, HLD-002, HLD-015, HLD-016, CAS-009, REF-004, REF-012, REF-031, SET-003, SET-004, SET-006, SET-012, MIG-016 |
+| §7.2 | Safety table for existing routes | 46 | FND-023, FND-035, SEC-001, SEC-003, SEC-010, SEC-011, SEC-012, SEC-016, SEC-017, SEC-020, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, SEC-028, SEC-029, SEC-033, SEC-034, TOP-025, PRC-017, CUS-004, CUS-005, CUS-011, ASG-001, ASG-003, EXP-018, OFF-006, OFF-007, OFF-015, OFF-016, OFF-017, DRV-040, DRV-048, HLD-002, HLD-015, HLD-016, CAS-009, REF-004, REF-012, REF-031, SET-003, SET-004, SET-006, SET-012, MIG-016 |
 | §7.3 | Distributors and their one store | 14 | FND-031, SEC-003, SEC-011, WAL-001, WAL-002, ORD-018, OFF-004, OFF-005, OFF-006, OFF-007, OFF-013, OFF-014, OFF-017, SET-005 |
-| §7.4 | Customers | 21 | FND-031, SEC-011, PRC-005, PRC-009, CUS-001, CUS-002, CUS-003, CUS-005, CUS-006, CUS-007, CUS-008, CUS-009, CUS-010, CUS-012, ORD-016, MSG-011, MSG-013, SET-006, SET-012, MIG-005, RHS-004 |
+| §7.4 | Customers | 22 | FND-031, SEC-011, PRC-005, PRC-009, CUS-001, CUS-002, CUS-003, CUS-005, CUS-006, CUS-007, CUS-008, CUS-009, CUS-010, CUS-012, CUS-014, ORD-016, MSG-011, MSG-013, SET-006, SET-012, MIG-005, RHS-004 |
 | §7.5 | Delivery prices and quotes | 28 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-018, FEE-007, FEE-008, FEE-030, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, RHS-004 |
 | §7.6 | Orders | 92 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, FEE-030, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-018, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
-| §7.7 | Trips and the legacy scan route | 18 | SEC-011, SEC-035, FEE-013, FEE-015, FEE-021, ASG-005, ASG-006, ASG-008, ASG-009, ASG-012, DRV-001, DRV-002, DRV-003, DRV-004, DRV-006, HLD-002, HLD-008, HLD-019 |
+| §7.7 | Trips and the legacy scan route | 19 | SEC-011, SEC-035, FEE-013, FEE-015, FEE-021, ASG-005, ASG-006, ASG-008, ASG-009, ASG-012, DRV-001, DRV-002, DRV-003, DRV-004, DRV-006, DRV-051, HLD-002, HLD-008, HLD-019 |
 | §7.8 | Wallet | 23 | FND-012, FND-014, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, WAL-004, WAL-005, WAL-006, WAL-007, WAL-008, WAL-009, WAL-010, WAL-011, WAL-012, WAL-013, WAL-017, WAL-019, WAL-022, WAL-023, WAL-024, SET-002 |
 | §7.9 | Top-ups | 39 | FND-003, FND-004, FND-018, FND-020, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, TOP-001, TOP-002, TOP-003, TOP-004, TOP-005, TOP-006, TOP-007, TOP-008, TOP-009, TOP-011, TOP-013, TOP-014, TOP-015, TOP-016, TOP-017, TOP-018, TOP-019, TOP-020, TOP-021, TOP-022, TOP-023, TOP-024, TOP-026, TOP-028, TOP-029, TOP-030, FEE-024, SET-005, RHS-002, RHS-003 |
 | §7.10 | Files | 9 | FND-015, FND-016, FND-017, FND-018, FND-035, TOP-008, TOP-009, EXP-005, EXP-007 |
-| §7.11 | Refills | 13 | SEC-011, REF-001, REF-002, REF-003, REF-005, REF-006, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, RHS-016 |
+| §7.11 | Refills | 14 | SEC-011, DRV-052, REF-001, REF-002, REF-003, REF-005, REF-006, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, RHS-016 |
 | §7.12 | Expenses | 22 | FND-020, SEC-012, WAL-024, EXP-001, EXP-002, EXP-003, EXP-004, EXP-005, EXP-006, EXP-007, EXP-008, EXP-009, EXP-010, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015, EXP-016, EXP-017, EXP-018, MIG-004 |
 | §7.13 | Settings, audit, admin summary, reports | 23 | FND-002, FND-003, FND-013, FND-029, SEC-012, TOP-003, TOP-027, TOP-028, FEE-022, FEE-024, OFF-002, OFF-003, OFF-008, OFF-009, OFF-010, OFF-011, CNF-021, CNF-045, CAS-002, REF-003, REF-004, DAY-017, RHS-019 |
 | §7.14 | Socket /drivers | 5 | SEC-015, SEC-016, SEC-032, SEC-034, OFF-018 |
@@ -13859,6 +14243,8 @@ Built from each case's "Spec" line.
 
 Writing these cases turned up 158 gaps and contradictions in the docs, numbered G01-01 to G17-05 by group. Each one is settled below, one line per gap: what was unclear, then the decision. The doc changes these decisions made are listed in [CHANGELOG.md](CHANGELOG.md), and the cases now test the decisions. A Note that still says "assumed" covers a small detail that none of these questions raised. Where docs and code still disagree, the [README](README.md) precedence rule applies, and the lower doc is fixed in the same pull request.
 
+The simple-UX pass of 2026-10-23 changed some of the screen words these decisions quote; those decisions now quote the current words and say so (CHANGELOG, "Simple UX pass, 2026-10-23").
+
 "Settled (a default; the owner may change it)" marks a decision that reads an owner decision as faithfully as it can; the cases test that default until the owner says otherwise. "Settled (the docs already said so)" means no doc had to change.
 
 ### Still open for the owner
@@ -13874,11 +14260,11 @@ Each question has a default the build uses now. The owner can change it; until t
 - **G01-03.** Approving a top-up or recording a correction for a suspended distributor is not specified (API_CONTRACT §7.8, §7.9; UX_ADMIN §2.4 'Their balance stays as it is'). **Settled:** Office money actions don't depend on the distributor's status: the super admin can approve or reject PENDING top-up requests and record corrections for a distributor that is waiting to start (PENDING), ACTIVE or SUSPENDED; WalletService.creditTopup and correct have no status guard (only debit checks ACTIVE). The distributor's own money actions need ACTIVE: placing an order (unchanged) and sending a top-up request. POST /payments/topup-requests and the legacy POST /payments/topup answer 403 DISTRIBUTOR_NOT_ACTIVE for a distributor that isn't ACTIVE, checked right after the account check (G02-01 rule 1) and before the amount rules, writing nothing. With G11-06 a suspended shop is also signed out, so this guard matters inside the 60-second session cache and for a status set directly. GET /payments/topup-info still answers. Suspending keeps the balance and leaves requests already sent for the office to approve or reject.
 - **G01-04.** A correction with reason OPENING_BALANCE maps to StatementKind OPENING_BALANCE, not CORRECTION (API_CONTRACT §1.4 vs ADR-10); confirm this is intended. **Settled:** Intended. Every ADJUSTMENT with reason OPENING_BALANCE is StatementKind OPENING_BALANCE, with reasonCode 'OPENING_BALANCE': the inc1a migration's opening entry (key opening:\<distributorId>, no author), the test-only setup opening balance (G10-01, actor SYSTEM), or an office correction with that reason (key adjust:\<key>). That correction reason is for fixing an opening entry the bank check found wrong, or for money a distributor held before joining. The shop app shows 'Opening balance' with the signed amount; the office history shows 'Opening balance', plus ' — {{note}}' when an office user recorded it (the row has \`by\`). The built statement mapping goes by the reason only, so no code change beyond the office words.
 - **G01-05.** The sign of differencePaisa (in the integrity block and in the WALLET_CHECK_MISMATCH context) is not defined, nor whether fixing a mismatch closes the alert (API_CONTRACT §7.8, §8.5). **Settled:** differencePaisa = balancePaisa − ledgerSumPaisa, a signed digit string (G15-06 form): '12000' when the cached balance is Rs 120 above its history, '-12000' when below, '0' when they match; the same in the live integrity block and in the WALLET_CHECK_MISMATCH context {balancePaisa, ledgerSumPaisa, differencePaisa}, as the built WalletIntegrity comment says. The nightly job never fixes data and never resolves an alert: it raises one per distributor only when that distributor has no unresolved (OPEN or ACKNOWLEDGED) WALLET_CHECK_MISMATCH alert, and leaves an unresolved one unchanged. The super admin resolves it on the Alerts screen (PATCH /alerts/:id/resolve) once engineering has repaired the data; a mismatch still present the next night raises a new alert. Each run still writes its wallet.check audit row (G12-05).
-- **G01-06.** UX_ADMIN §2.6 mismatch banner says 'Engineering has been alerted', but the live integrity check (API_CONTRACT §7.8) raises no alert; only the nightly job (§8.5) does. Whether 'Record correction' is disabled during a mismatch is not stated. **Settled:** GET /admin/distributors/:id/wallet computes integrity live and only reads: it never raises, changes or resolves an alert; only the nightly job raises WALLET_CHECK_MISMATCH. The website's mismatch banner reads "The history doesn't match the balance by {{difference}}. Tell engineering, and don't record corrections until it's fixed." ({{difference}} = formatRs of the absolute differencePaisa). While the history doesn't match (differencePaisa isn't "0"), 'Record correction' is disabled with the reason "Fix the history mismatch first." A balance below zero whose history matches (integrity.ok false with differencePaisa "0", an old unguarded debit) is not a mismatch: the website shows the warning "The balance is below zero. Record a correction to bring it to Rs 0 or more." and keeps 'Record correction' on, since a super-admin correction is the documented fix (DATA_MODEL §3.5; review money-data-02). The server does not refuse corrections during a mismatch (a correction moves the balance and the history together, so the difference stays the same).
+- **G01-06.** UX_ADMIN §2.6 mismatch banner says 'Engineering has been alerted', but the live integrity check (API_CONTRACT §7.8) raises no alert; only the nightly job (§8.5) does. Whether 'Record correction' is disabled during a mismatch is not stated. **Settled:** GET /admin/distributors/:id/wallet computes integrity live and only reads: it never raises, changes or resolves an alert; only the nightly job raises WALLET_CHECK_MISMATCH. The website's mismatch banner reads "History is {{difference}} off. Tell the tech team before any correction." ({{difference}} = formatRs of the absolute differencePaisa). While the history doesn't match (differencePaisa isn't "0"), 'Record correction…' is disabled with the reason "Fix the history first." A balance below zero whose history matches (integrity.ok false with differencePaisa "0", an old unguarded debit) is not a mismatch: the website shows the warning "Balance is below zero. Record a correction to bring it to Rs 0." and keeps 'Record correction…' on, since a super-admin correction is the documented fix (DATA_MODEL §3.5; review money-data-02). The server does not refuse corrections during a mismatch (a correction moves the balance and the history together, so the difference stays the same). (Words updated by the simple-UX pass, 2026-10-23.)
 - **G01-07.** Low-balance boundary (\< or \<= wallet.lowBalancePaisa) is not defined (API_CONTRACT §6, §7.8); UX_ADMIN §2.8 only says 'Below this'. **Settled:** WalletSummary.lowBalance is true when balancePaisa \< wallet.lowBalancePaisa, strictly below: a balance exactly at the threshold is not low, and a threshold of 0 never warns. This is what the built shared-types comment says; the docs now say it everywhere.
-- **G01-08.** UX_ADMIN §2.6 history text 'Delivery cost returned · AG-0142 (cancelled before loading)' assumes FIRST_LOAD_SCAN and is wrong under DRIVER_ASSIGNED or LEFT_STORE. **Settled:** Money copy never names the default refund rule. The office history row for DELIVERY_COST_RETURNED reads "Delivery cost returned · AG-0142 (cancelled before delivery started)". The two other places that assumed FIRST_LOAD_SCAN change the same way: the shop app's no-refund cancel sheet body is "Delivery has started. If you cancel now, the {{fee}} is not returned." (as the office dialog already says), and the office drawer timeline item is "Loading started" with no suffix, the Delivery cost section adding "Cancelling now returns nothing: delivery has started." when order.cancel.noRefundReason is DELIVERY_STARTED. Refund words always come from OrderDto.cancel, never from a rule-specific sentence; only the placement sentence (S9 orders.new.refundRule.\<value>) names the rule, and it follows the setting. All the doc text is already in place.
+- **G01-08.** UX_ADMIN §2.6 history text 'Delivery cost returned · AG-0142 (cancelled before loading)' assumes FIRST_LOAD_SCAN and is wrong under DRIVER_ASSIGNED or LEFT_STORE. **Settled:** Money copy never names the default refund rule. The office history row for DELIVERY_COST_RETURNED reads "Delivery cost returned · AG-0142 (cancelled before delivery started)". The two other places that assumed FIRST_LOAD_SCAN change the same way: the shop app's no-refund cancel sheet says "Delivery has started." with "Not returned" and the cost (the office dialog says "Delivery has started. Cancelling now returns nothing."), and the office drawer timeline item is "Loading started" with no suffix, the drawer opening with the line "Cancelling now returns nothing: delivery has started." when order.cancel.noRefundReason is DELIVERY_STARTED. Refund words always come from OrderDto.cancel, never from a rule-specific sentence; only the placement sentence (S9 orders.new.refundRule.\<value>) names the rule, and it follows the setting. All the doc text is already in place. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G01-09.** StatementItem (API_CONTRACT §7 shared shapes) has no customer name or bank reference, yet UX_MOBILE S7 row titles show the customer (' · AG-0142 · Ahmed Khan') and UX_ADMIN §2.6 shows 'ref 77814402'. **Settled:** StatementItem.subject is { type, id, shortCode, clientName, bankReference? } | null. clientName is the order's customer name for ORDER subjects (both views) and null for TOPUP and REFILL subjects; bankReference is the bank reference as the office typed it (payments.bank_reference) for TOPUP subjects, sent only in the office view and never to distributors. Shop rows read '{{kind}} · AG-0142 · Ahmed Khan' or '{{kind}} · AG-T031'; office top-up rows read 'Top-up · AG-T031 · ref 77814402'. The built StatementSubject already has an optional clientName; it becomes always present, and bankReference is added.
-- **G01-10.** UX_MOBILE S7 'Delivery costs' filter chip: unclear whether DELIVERY_COST_RETURNED rows are included; GET /wallet/statement takes a single kind (API_CONTRACT §7.8). **Settled:** kind on GET /wallet/statement and GET /admin/distributors/:id/wallet/statement takes one StatementKind or a comma-separated list of distinct kinds (1 to 7); an unknown or repeated value gives 400 VALIDATION_FAILED on 'kind'. Shop chips: All (no kind) · Money added (TOPUP_ADDED) · Delivery costs (DELIVERY_COST,DELIVERY_COST_RETURNED, so a returned cost shows beside its cost) · Top-up requests (GET /payments/mine). Office type filter: All · Top-ups (TOPUP_ADDED) · Delivery costs (DELIVERY_COST) · Returned delivery costs (DELIVERY_COST_RETURNED) · Corrections (CORRECTION,OPENING_BALANCE); LEGACY rows show under All only. The UX docs already say this; the API contract and the service signature follow.
+- **G01-10.** UX_MOBILE S7 'Delivery costs' filter chip: unclear whether DELIVERY_COST_RETURNED rows are included; GET /wallet/statement takes a single kind (API_CONTRACT §7.8). **Settled:** kind on GET /wallet/statement and GET /admin/distributors/:id/wallet/statement takes one StatementKind or a comma-separated list of distinct kinds (1 to 7); an unknown or repeated value gives 400 VALIDATION_FAILED on 'kind'. Shop History chips: All (no kind) · Top-ups (GET /payments/mine, every request) · Delivery costs (DELIVERY_COST,DELIVERY_COST_RETURNED, so a returned cost shows beside its cost); the old Money added and Top-up requests chips are merged into Top-ups. Office type filter: All · Top-ups (TOPUP_ADDED) · Delivery costs (DELIVERY_COST) · Returned costs (DELIVERY_COST_RETURNED) · Corrections (CORRECTION,OPENING_BALANCE); LEGACY rows show under All only. The UX docs already say this; the API contract and the service signature follow. (Words updated by the simple-UX pass, 2026-10-23.)
 
 ### Top-ups
 
@@ -13943,26 +14329,26 @@ Each question has a default the build uses now. The owner can change it; until t
 - **G07-01.** Second-answer status conflict: CUSTOMER_PAGE §4 says an ANSWERED link returns 200 ('You already answered') for both GET and POST. API_CONTRACT §2.3 (CONFIRM_ALREADY_ANSWERED 409) and §9.11 ('A second answer gives 409') say 409. The README precedence rule doesn't rank CUSTOMER_PAGE.md against API_CONTRACT (and §9.7 calls CUSTOMER_PAGE 'the full spec'), so nothing breaks the tie. CNF-017 assumes 409 for the POST. **Settled:** API_CONTRACT decides routes, statuses and codes; CUSTOMER_PAGE decides page content and copy. On an ANSWERED link: GET and HEAD answer 200 ("Thank you" with ?done=1, else "You already answered"); a POST of the stored answer answers 303 to /c/:token?done=1 and records nothing (its comment is ignored); a POST of any other answer answers 409 with the "You already answered" page (CONFIRM_ALREADY_ANSWERED) and records nothing. In a race the guarded UPDATE … WHERE status = 'PENDING' picks one winner and every loser takes the same two branches. CUSTOMER_PAGE §4 and §7 already say this; API_CONTRACT §9.11, the README tie-break and CUSTOMER_PAGE §13 are left (the §9.7 heading is in the G07-07 replacement).
 - **G07-02.** Repeated resolve: API_CONTRACT §4 rule 3 (a repeated finished action returns 200 with X-Already-Applied) contradicts §9.6 (a second resolve gives 409 CASE_ALREADY_RESOLVED) when the same admin double-clicks or retries. CAS-007 follows §9.6. **Settled:** POST /alerts/:id/resolve {note} (office): the note is trimmed and must be 5-300 characters, else 400 VALIDATION_FAILED (field note); an id that isn't a CUSTOMER_PROBLEM alert is 404 NOT_FOUND. One transaction locks the alert, moves it OPEN -> RESOLVED with resolved_at, resolved_by_user_id and resolution_note (new inc2 columns) and writes audit case.resolve (resourceType Alert, the note as reason); it answers 200 with a CaseDto (G07-21). A repeat on a case already RESOLVED by the same caller is the §4 rule 3 repeat: 200 with X-Already-Applied and the case unchanged (the first note stays), like a repeated approve. A case resolved by someone else answers 409 CASE_ALREADY_RESOLVED {by: their name, currentStatus: 'RESOLVED'}. The legacy PATCH /alerts/:id/acknowledge and PATCH /alerts/:id/resolve answer 404 NOT_FOUND for a CUSTOMER_PROBLEM alert, so a case only ever closes with a note and an audit row, and a case is only ever OPEN or RESOLVED.
 - **G07-03.** Audit IP and user agent: API_CONTRACT §5.3 says AuditLogService fills IP, user agent and requestId from the request context. CUSTOMER_PAGE §12 says no IP or user agent is stored for answers, so the confirmation.answer (actor CUSTOMER) row needs an explicit exception. Its resourceType is also not specified (CUSTOMER_PAGE §7 step 5). **Settled:** AuditLogService.record fills ip, user_agent and request_id from the request context for USER and SYSTEM actors; for a CUSTOMER actor it always stores ip and user_agent as NULL and keeps request_id. The confirmation.answer row has actor {kind CUSTOMER, label 'link:\<orderShortCode>'}, resourceType 'Order', resourceId the order id, distributorId the order's distributor and diff {response}; confirmation.new_link also uses resourceType 'Order', so both show in the order's activity list. CUSTOMER_PAGE §7 step 5 and §12 already say this; API_CONTRACT §5.3 and Appendix B are left.
-- **G07-04.** Unreachable CANCELLED state: API_CONTRACT §9.8 says PENDING → CANCELLED happens when 'the order is reversed after issue'. But §7.6 and §8.1 allow no cancel or reversal of a DELIVERED order. So the 410 'This link is no longer active' page (CUSTOMER_PAGE §4, §6) and the card's 'Not needed' pill (§10) can never be reached. **Settled:** ConfirmationStatus CANCELLED is reserved: no pilot route writes it, because a DELIVERED order can't be cancelled or reversed. Its 410 "This link is no longer active" page and the card's "Not needed" pill stay so a reserved value renders safely, and share and new-link treat it as closed (CONFIRM_CLOSED). The same 410 page is what a known link shows while confirmation.enabled is off (G07-07). CUSTOMER_PAGE §10 already marks it reserved; API_CONTRACT §9.8 and DATA_MODEL §4.1 are left.
+- **G07-04.** Unreachable CANCELLED state: API_CONTRACT §9.8 says PENDING → CANCELLED happens when 'the order is reversed after issue'. But §7.6 and §8.1 allow no cancel or reversal of a DELIVERED order. So the 410 'This link is no longer active' page (CUSTOMER_PAGE §4, §6) and the card's 'Not needed' pill (§10) can never be reached. **Settled:** ConfirmationStatus CANCELLED is reserved: no pilot route writes it, because a DELIVERED order can't be cancelled or reversed. Its 410 page "This link is closed" and the card's "Not needed" pill stay so a reserved value renders safely, and share and new-link treat it as closed (CONFIRM_CLOSED). The same 410 page is what a known link shows while confirmation.enabled is off (G07-07). CUSTOMER_PAGE §10 already marks it reserved; API_CONTRACT §9.8 and DATA_MODEL §4.1 are left. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G07-05.** Mock provider vs test mode: CUSTOMER_PAGE §1 and §8 don't say which check runs first under the pilot defaults (MESSAGING_PROVIDER=mock, messaging.testMode=true, empty allowlist). The row's errorCode could be MOCK_PROVIDER or NOT_A_TEST_PHONE. **Settled (the docs already said so):** The test-mode check runs before the provider: with messaging.testMode on and the number not in messaging.allowlist, the row ends SKIPPED with NOT_A_TEST_PHONE and the provider isn't called; otherwise the provider runs and the mock answers SKIPPED MOCK_PROVIDER. Under the pilot defaults (MESSAGING_PROVIDER=mock, test mode on, empty allowlist) every SMS row is therefore SKIPPED NOT_A_TEST_PHONE. CUSTOMER_PAGE §1 and §8 already say this; no doc edit is left.
 - **G07-06.** Manual delivery issuing a link: CUSTOMER_PAGE §1 implies office manual deliveries issue a confirmation ('delivery_method SCANNED or MANUAL'). API_CONTRACT §9.5 and DATA_MODEL §4.5 (which mentions only 'Stop finish') don't say so. **Settled:** From Inc 2 every write that sets an order DELIVERED issues the confirmation in its own transaction when confirmation.enabled is on: the DELIVERY stop finish (and the legacy PATCH /orders/:id/status DELIVERED, which maps to it) and the office manual delivery v2. For a manual delivery the snapshot lists the named cylinders as delivered and its takenBack list as taken back (grouped by size and state, with no unlabelled counts); the SMS row and the after-commit send are the same as for a finish. CUSTOMER_PAGE §1 and §8 already say this; API_CONTRACT §9.5 and DATA_MODEL §4.5 are left.
-- **G07-07.** Turning the setting on or off while links exist: the docs don't say what /c/:token does for links already sent once confirmation.enabled is switched off (API_CONTRACT §9.7 lists the public routes under 'only when confirmation.enabled'). They also don't say whether the expiry job keeps running, or what GET /orders/:id/confirmation returns for orders delivered while the setting was off. CONFIRM_NOT_READY says 'isn't delivered yet', and there is no back-fill. **Settled (a default; the owner may change it):** confirmation.enabled is one switch, and turning it off deletes nothing. While it is false: no delivery issues a confirmation; GET /orders/:id/confirmation, share and new-link answer 403 FEATURE_DISABLED with X-Feature-Disabled: confirmations for every caller and method (a setting switch, §3.4, checked right after sign-in); the public page answers a known, well-formed token with 410 "This link is no longer active" (CONFIRM_LINK_INACTIVE) and records nothing, while bad or unknown tokens stay 404; the confirmation-expiry job keeps running. Switching it on never back-fills: an order delivered while it was off has confirmation null, its card stays hidden, and GET /orders/:id/confirmation answers 404 NOT_FOUND. Check order for the three routes: the switch 403; a driver or another distributor 404; not DELIVERED 409 CONFIRM_NOT_READY; no row 404 NOT_FOUND; then the route's own rules. This follows ADR-15 (Default) and CUSTOMER_PAGE's intro, which already state the behaviour; the owner can still change it. The full §9.7 replacement below also carries G07-01's heading, G07-08, G07-09 and G07-10.
+- **G07-07.** Turning the setting on or off while links exist: the docs don't say what /c/:token does for links already sent once confirmation.enabled is switched off (API_CONTRACT §9.7 lists the public routes under 'only when confirmation.enabled'). They also don't say whether the expiry job keeps running, or what GET /orders/:id/confirmation returns for orders delivered while the setting was off. CONFIRM_NOT_READY says 'isn't delivered yet', and there is no back-fill. **Settled (a default; the owner may change it):** confirmation.enabled is one switch, and turning it off deletes nothing. While it is false: no delivery issues a confirmation; GET /orders/:id/confirmation, share and new-link answer 403 FEATURE_DISABLED with X-Feature-Disabled: confirmations for every caller and method (a setting switch, §3.4, checked right after sign-in); the public page answers a known, well-formed token with 410 and the page "This link is closed" (CONFIRM_LINK_INACTIVE) and records nothing, while bad or unknown tokens stay 404; the confirmation-expiry job keeps running. Switching it on never back-fills: an order delivered while it was off has confirmation null, its card stays hidden, and GET /orders/:id/confirmation answers 404 NOT_FOUND. Check order for the three routes: the switch 403; a driver or another distributor 404; not DELIVERED 409 CONFIRM_NOT_READY; no row 404 NOT_FOUND; then the route's own rules. This follows ADR-15 (Default) and CUSTOMER_PAGE's intro, which already state the behaviour; the owner can still change it. The full §9.7 replacement below also carries G07-01's heading, G07-08, G07-09 and G07-10. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G07-08.** Missing new-link rules (CUSTOMER_PAGE §2, §10; API_CONTRACT §9.7): (1) is it refused once the link is answered or expired? CONFIRM_CLOSED is stated only for share. (2) Does it honour Idempotency-Key? A retried new-link {send:'SMS'} rotates again and kills the link it just texted. (3) Does it copy an edited customer phone into delivery_confirmations.phone_e164? (4) Does the CLIENT_PHONE_INVALID check run before the rotation? **Settled:** POST /orders/:id/confirmation/new-link {send?: 'SMS'} takes an Idempotency-Key. After the common checks (G07-07), in order: the same key as the last rotation (new column delivery_confirmations.last_new_link_key) answers 200 with the current ConfirmationView and Idempotent-Replay: true, changing and sending nothing (the body isn't compared); a status other than PENDING, or now >= expiresAt, answers 409 CONFIRM_CLOSED; send 'SMS' while the customer's current phone isn't a Pakistani mobile answers 400 CLIENT_PHONE_INVALID before any change. Then one transaction: lock the row FOR UPDATE and re-check PENDING; tokenVersion + 1 and a new token_hash (the old link shows "We can't find this link"); phone_e164 refreshed from the customer's current phone (NULL if it isn't a mobile); last_new_link_key = the key (NULL without one, so every keyless call rotates); audit confirmation.new_link (resourceType Order); with SMS a QUEUED row confirm:\<orderId>:v\<n>:sms, sent after commit. It answers 200 with the ConfirmationView, and expiresAt never changes. CUSTOMER_PAGE §10 already says this; the API_CONTRACT §9.7 text is in the G07-07 replacement; §5.9 and DATA_MODEL §4.3 are left.
 - **G07-09.** Share idempotency: DATA_MODEL §4.3 sets outbound_messages.idempotency_key to 'share:\<uuid>' but doesn't say whether the uuid is the request's Idempotency-Key (API_CONTRACT §1.2, §4). If it isn't, a retried share writes a second row. **Settled:** share uses the request's Idempotency-Key: the share row's idempotency_key is share:\<orderId>:\<Idempotency-Key>, or share:\<orderId>:\<new uuid> when none is sent. A repeat with the same key finds the row and answers 200 with the same body (re-derived, no rotation) and Idempotent-Replay: true, writing nothing; the same key with another via answers 409 IDEMPOTENCY_CONFLICT. After the common checks, in order: the replay; answered, expired or cancelled 409 CONFIRM_CLOSED; 20 share rows for the order created in the last 60 minutes 429 RATE_LIMITED {minutes: until the oldest of them is an hour old, rounded up, at least 1}; then the row is written. A replay is never limited. A concurrent duplicate fails on outbound_messages_idempotency_key_key and is answered as the replay. The API_CONTRACT §9.7 text is in the G07-07 replacement; DATA_MODEL §4.3 and the via conflict in CUSTOMER_PAGE §10 are left.
 - **G07-10.** Messaging webhook: API_CONTRACT §9.7 says POST /webhooks/messaging/:provider returns 410, but §2.3 defines no error code for it (PAYMENT_WEBHOOK_DISABLED is for payments only). **Settled:** There is no messaging webhook in the pilot: no provider sends delivery reports, so POST /api/v1/webhooks/messaging/:provider is not registered and answers like any unknown path (404 NOT_FOUND, JSON), changing nothing. No new error code is needed. The route arrives with a provider that sends delivery reports (after the pilot), behind that provider's own signature check; PAYMENT_WEBHOOK_DISABLED stays payments-only. The API_CONTRACT §9.7 text (its last bullet) is in the G07-07 replacement.
-- **G07-11.** CONFIRM_LINK_INVALID, CONFIRM_LINK_EXPIRED and CONFIRM_NOTE_REQUIRED are in the API_CONTRACT §2.3 catalogue, but the public page never returns JSON (CUSTOMER_PAGE §4-§5). Where these codes surface (perhaps only as page selectors in PublicPageExceptionFilter) isn't stated. **Settled:** The public-page codes are page selectors, never JSON. The service and controller throw AppError, and PublicPageExceptionFilter renders the page with the code's status: CONFIRM_LINK_INVALID 404 "We can't find this link"; CONFIRM_LINK_INACTIVE (new code: HTTP 410, English 'This link is no longer active.', no params) "This link is no longer active"; CONFIRM_LINK_EXPIRED 410 "This link has expired"; CONFIRM_ALREADY_ANSWERED 409 "You already answered"; CONFIRM_NOTE_REQUIRED 400, the Other page with its error; VALIDATION_FAILED 400, the main page with "Please choose one of the answers below."; RATE_LIMITED 429 "Too many tries"; anything else 500. A GET of an ANSWERED or PENDING link renders its 200 page directly. The JSON routes use only CONFIRM_NOT_READY and CONFIRM_CLOSED. CUSTOMER_PAGE §5 already has this mapping; API_CONTRACT §2.3 is left.
-- **G07-12.** Failed-message words: UX_ADMIN §3.2's link status list (Not sent · Message sent · Shared · Answered · Expired) has no failed state, yet CUSTOMER_PAGE §8 defines 'Didn't send — {reason}' for 'shop app and web'. The CUSTOMER_PAGE §10 card table has no failed row either: not sent, SMS failed and skipped all use confirm.ask.smsOff ('Text messages are not switched on yet'). That text becomes wrong once SMS is live. **Settled:** One set of status words, built from reach and lastMessage of the current link version (G07-15). Shop card while PENDING: NOT_SENT after a SKIPPED SMS uses confirm.ask.smsOff; NOT_SENT with no SMS row or a lost send uses confirm.ask.notSent 'Send this link to {{name}} ({{phone}}).'; SMS_FAILED uses confirm.ask.smsFailed 'The text message didn't send: {{reason}}. Send this link to {{name}} ({{phone}}).' with the §8 reasons; all three keep the send buttons primary. The website drawer uses the CUSTOMER_PAGE §8 words: 'Sending text…', 'Not sent', 'Not sent — text messages are off', 'Text sent {time}', 'Text delivered {time}' (later), 'Text didn't send — {reason}', 'Shared {time} by {byName} ({via})'; once closed, 'Answered {time}' or 'Expired'. CUSTOMER_PAGE §8 and §10 already have these; only UX_ADMIN §3.2 is left.
-- **G07-13.** QUEUED display: CUSTOMER_PAGE §8 maps QUEUED to 'Waiting to send', but also says a row left QUEUED after a crash 'shows as Not sent'. Nothing says how to tell the two apart. ConfirmationView.reach (§10) has no value for SKIPPED or QUEUED; NOT_SENT is assumed. **Settled (the docs already said so):** reach comes from the newest message row of the current link version: none, SKIPPED, or an SMS still QUEUED 2 minutes or more after it was written gives NOT_SENT; QUEUED under 2 minutes gives SMS_SENDING (card 'Sending a text message to {{phone}}…', send buttons secondary); SENT or DELIVERED gives SMS_SENT; FAILED gives SMS_FAILED; a share gives SHARED. sendQueued gives the provider 15 seconds: no answer is FAILED TIMEOUT, a thrown error FAILED UNKNOWN (the detail only in the log). CUSTOMER_PAGE §8 and §10 already say this; no doc edit is left.
-- **G07-14.** Missing copy keys: the {{via}} words in confirm.shared ('Link given at {{time}} ({{via}})') and {name} in 'Given to {name} to send' (CUSTOMER_PAGE §8, §10). UX_MOBILE §7.3 S15 doesn't say what the '{{n}} customer problems' line opens when tapped. **Settled (the docs already said so):** The {{via}} words come from confirm.via.\*: WHATSAPP 'WhatsApp', SMS 'text message', SHARE_SHEET 'other app', COPY 'copied' (the website uses the same words). The sharer is lastMessage.byName ('Shared {time} by {byName} ({via})'), which replaces 'Given to {name} to send'. The shop Home line is home.problems / home.problems_plural ('{{count}} customer problem' / '{{count}} customer problems') while GET /alerts/mine has open cases; tapping it opens the order when there is one case, else a plain list of open cases ('{{shortCode}} · {{customer}}', the answer words, 'since {{when}}'), each row opening its order. No new API. CUSTOMER_PAGE §10 and UX_MOBILE §7.3 S15 already say this; no doc edit is left.
-- **G07-15.** Stale card after a new link: CUSTOMER_PAGE §10 builds reach and lastMessage from the last message. After 'Make a new link' the card can still say 'Link given at …' about the old link, which no longer works. **Settled:** Every outbound_messages row records the link version it carried (new column token_version, set on SMS and share rows). reach and lastMessage read only rows of the confirmation's current token_version, so right after a new link without SMS the view has reach NOT_SENT and lastMessage null, and the card is back to 'Ask the customer to confirm' with confirm.ask.notSent. CUSTOMER_PAGE §10 already says this; DATA_MODEL §4.3 is left.
+- **G07-11.** CONFIRM_LINK_INVALID, CONFIRM_LINK_EXPIRED and CONFIRM_NOTE_REQUIRED are in the API_CONTRACT §2.3 catalogue, but the public page never returns JSON (CUSTOMER_PAGE §4-§5). Where these codes surface (perhaps only as page selectors in PublicPageExceptionFilter) isn't stated. **Settled:** The public-page codes are page selectors, never JSON. The service and controller throw AppError, and PublicPageExceptionFilter renders the page with the code's status: CONFIRM_LINK_INVALID 404 "We can't find this link"; CONFIRM_LINK_INACTIVE (new code: HTTP 410, English 'This link is no longer active.', no params) "This link is closed"; CONFIRM_LINK_EXPIRED 410 "This link has expired"; CONFIRM_ALREADY_ANSWERED 409 "You already answered"; CONFIRM_NOTE_REQUIRED 400, the Other page with its error; VALIDATION_FAILED 400, the main page with "Please tap one answer below."; RATE_LIMITED 429 "Too many tries"; anything else 500. A GET of an ANSWERED or PENDING link renders its 200 page directly. The JSON routes use only CONFIRM_NOT_READY and CONFIRM_CLOSED. CUSTOMER_PAGE §5 already has this mapping; API_CONTRACT §2.3 is left. (Words updated by the simple-UX pass, 2026-10-23.)
+- **G07-12.** Failed-message words: UX_ADMIN §3.2's link status list (Not sent · Message sent · Shared · Answered · Expired) has no failed state, yet CUSTOMER_PAGE §8 defines 'Didn't send — {reason}' for 'shop app and web'. The CUSTOMER_PAGE §10 card table has no failed row either: not sent, SMS failed and skipped all use confirm.ask.smsOff ('Text messages are not switched on yet'). That text becomes wrong once SMS is live. **Settled:** One set of status words, built from reach and lastMessage of the current link version (G07-15). Shop card while PENDING: NOT_SENT, whatever the reason (no SMS row, a lost send, text messages off), reads "Link not sent yet · {{name}}, {{phone}}"; SMS_FAILED reads "Text didn't send: {{reason}}." with the §8 reasons; both keep "Send on WhatsApp" as the one main button. The website drawer uses the CUSTOMER_PAGE §8 words: 'Sending text…', 'Not sent', 'Not sent · text messages are off', 'Text sent {time}', 'Text delivered {time}' (later), 'Text didn't send · {reason}', 'Shared {time} by {byName} ({via})'; once closed, 'Answered {time}' or 'Expired'. CUSTOMER_PAGE §8 and §10 and UX_ADMIN §3.2 have these. (Words updated by the simple-UX pass, 2026-10-23.)
+- **G07-13.** QUEUED display: CUSTOMER_PAGE §8 maps QUEUED to 'Waiting to send', but also says a row left QUEUED after a crash 'shows as Not sent'. Nothing says how to tell the two apart. ConfirmationView.reach (§10) has no value for SKIPPED or QUEUED; NOT_SENT is assumed. **Settled (the docs already said so):** reach comes from the newest message row of the current link version: none, SKIPPED, or an SMS still QUEUED 2 minutes or more after it was written gives NOT_SENT; QUEUED under 2 minutes gives SMS_SENDING (the card reads 'Sending text…' with 'Send again'); SENT or DELIVERED gives SMS_SENT; FAILED gives SMS_FAILED; a share gives SHARED. sendQueued gives the provider 15 seconds: no answer is FAILED TIMEOUT, a thrown error FAILED UNKNOWN (the detail only in the log). CUSTOMER_PAGE §8 and §10 already say this; no doc edit is left. (Words updated by the simple-UX pass, 2026-10-23.)
+- **G07-14.** Missing copy keys: the {{via}} words in confirm.shared ('Link given at {{time}} ({{via}})') and {name} in 'Given to {name} to send' (CUSTOMER_PAGE §8, §10). UX_MOBILE §7.3 S15 doesn't say what the '{{n}} customer problems' line opens when tapped. **Settled (the docs already said so):** The {{via}} words come from confirm.via.\*: WHATSAPP 'WhatsApp', SMS 'text message', SHARE_SHEET 'other app', COPY 'copied' (the website uses the same words). The sharer is lastMessage.byName ('Shared {time} by {byName} ({via})'), which replaces 'Given to {name} to send'. The shop Home line is home.problems / home.problems_plural ('{{count}} customer problem' / '{{count}} customer problems') while GET /alerts/mine has open cases; tapping it opens the order when there is one case, else the Customer problems list (UX_MOBILE S15: the customer's name, '{{shortCode}} · “{{comment}}”', the time on the right and the answer chip), each row opening its order. The shop card says 'Shared {{time}} · {{via}}. Check it was sent.'. No new API. CUSTOMER_PAGE §10 and UX_MOBILE §7.3 S15 already say this; no doc edit is left. (Words updated by the simple-UX pass, 2026-10-23.)
+- **G07-15.** Stale card after a new link: CUSTOMER_PAGE §10 builds reach and lastMessage from the last message. After 'Make a new link' the card can still say 'Link given at …' about the old link, which no longer works. **Settled:** Every outbound_messages row records the link version it carried (new column token_version, set on SMS and share rows). reach and lastMessage read only rows of the confirmation's current token_version, so right after a new link without SMS the view has reach NOT_SENT and lastMessage null, and the card is back to 'Link not sent yet · {{name}}, {{phone}}' (confirm.notSent). CUSTOMER_PAGE §10 already says this; DATA_MODEL §4.3 is left. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G07-16.** Wrong date examples: CUSTOMER_PAGE §3 has deliveredAt 2026-10-21T11:12Z, which is Wed 21 Oct, 4:12 pm PKT, but §6 shows 'Tue 21 Oct, 4:12 pm' (21 Oct was a Tuesday in 2025, not 2026). The skeleton's 'You can answer until Thu 24 Oct, 4:12 pm' is not 72 h after either reading (that would be Fri 24 Oct 2025 or Sat 24 Oct 2026). Snapshot tests copied from the skeleton would encode wrong weekdays. **Settled:** Date examples are 2026 dates and equal formatPkDateTime output (built in shared-utils): 2026-10-21T11:12Z is 'Wed 21 Oct, 4:12 pm', 72 hours later is 'Sat 24 Oct, 4:12 pm', and 19 Oct 2026 is a Monday. Snapshot tests are built from formatPkDateTime output, never copied from doc examples. CUSTOMER_PAGE and UX_ADMIN §1.6, §2.1 and §2.2 are already fixed; UX_ADMIN §4.3 still says 'Tue 21 Oct' twice.
 - **G07-17.** Expiry wording: CUSTOMER_PAGE §6 doesn't say how '{3 days}' is written for linkTtlHours values that aren't whole days (24–168 is allowed, so 36 is possible). §2 and §11 also don't say whether a lifetime change affects links already issued. CNF-021 assumes it doesn't, since expiresAt is stored at issue. **Settled (the docs already said so):** expiresAt = deliveredAt + confirmation.linkTtlHours, read when the link is issued and stored; a setting change affects only links issued after it, and a new link never extends it. The expired page states the link's own lifetime (expires_at - snapshot.deliveredAt, in whole hours): a multiple of 24 reads '1 day' or '{n} days' (72 -> '3 days'), anything else '{n} hours' (36 -> '36 hours'). CUSTOMER_PAGE §2 and §6 already say this; no doc edit is left.
 - **G07-18.** support.phone unset: the 404 page needs support.phone (CUSTOMER_PAGE §6), whose default is null (API_CONTRACT §6). The page text with no number isn't defined, and neither is whether the number is a tel: link. **Settled:** With support.phone null the 404 page shows only 'Please open the full link from your newest message.': the 'Need help? Call Smart Fleet support: …' sentence is left out, with no placeholder. When set, the number is a tel: link: the href is the E.164 form when normalizePkPhone accepts it (shown with formatPkPhone 'local'), else the stored value with spaces, dashes and brackets removed, keeping a leading + (shown as stored). Ops sets support.phone before switching confirmation on. CUSTOMER_PAGE §6 already has the page rule; API_CONTRACT §9.1 gains the ops line.
-- **G07-19.** Input rules: CUSTOMER_PAGE §4 strips control characters from the comment, which also removes line breaks typed in the textarea and joins words. No page or status is defined for an invalid or missing 'answer' value; only OTHER without a note has a defined 400. **Settled (the docs already said so):** The comment is cleaned in this order: each CRLF, CR, LF and tab becomes one space; other control characters (U+0000-U+001F, U+007F-U+009F) are removed; runs of spaces become one; the text is trimmed and cut to 300 code points (never splitting one); empty is stored NULL. OTHER's 3-character minimum applies to the cleaned text. The answer must be exactly YES, PARTLY, NO or OTHER (case-sensitive); a missing or other value on a PENDING link gets the main page again with 400 and 'Please choose one of the answers below.' (role='alert'), recording nothing; the hidden v is ignored; the state order runs before body checks. CUSTOMER_PAGE §4 already says this; no doc edit is left.
+- **G07-19.** Input rules: CUSTOMER_PAGE §4 strips control characters from the comment, which also removes line breaks typed in the textarea and joins words. No page or status is defined for an invalid or missing 'answer' value; only OTHER without a note has a defined 400. **Settled (the docs already said so):** The comment is cleaned in this order: each CRLF, CR, LF and tab becomes one space; other control characters (U+0000-U+001F, U+007F-U+009F) are removed; runs of spaces become one; the text is trimmed and cut to 300 code points (never splitting one); empty is stored NULL. OTHER's 3-character minimum applies to the cleaned text. The answer must be exactly YES, PARTLY, NO or OTHER (case-sensitive); a missing or other value on a PENDING link gets the main page again with 400 and 'Please tap one answer below.' (role='alert'), recording nothing; the hidden v is ignored; the state order runs before body checks. CUSTOMER_PAGE §4 already says this; no doc edit is left. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G07-20.** Best-effort case: CUSTOMER_PAGE §7 raises the case after commit with no retry or sweeper. If that fails, a 'Not received' answer ends with no case while the shop card still says 'The office will look into it.' **Settled:** The CUSTOMER_PROBLEM case is written in the answer's own transaction: AlertsService.raise gains an optional tx and ConfirmationsService.record passes it; confirmation.caseOnAnswers is read at answer time. If raising fails, the whole answer rolls back: the row stays PENDING, no audit row is written, the customer gets the 500 page ('Your answer was not saved. Please try again.') and its 'Try again' records answer and case together. So an answer that needs a case never ends without one, and the shop card's 'The office will look into it.' is always true. No sweeper; the dedupe (resource Order + order id + CUSTOMER_PROBLEM) is unchanged. CUSTOMER_PAGE §1 and §7 already say this; DATA_MODEL §4.5 is left.
-- **G07-21.** Problems list scope: UX_ADMIN §3.3 queries GET /alerts?type=CUSTOMER_PROBLEM with no status, while API_CONTRACT §9.6 adds status=OPEN, so it's unclear whether resolved cases are listed. The empty-state text names only 'Not received' and 'Other', even when PARTLY is in caseOnAnswers. **Settled:** The Problems page lists open cases only. GET /alerts?type=CUSTOMER_PROBLEM&status=OPEN|RESOLVED&cursor (office) answers {items: CaseDto[], nextCursor}; status defaults to OPEN; OPEN lists oldest first, RESOLVED newest-resolved first. Any other type, or none, keeps the legacy array, which leaves CUSTOMER_PROBLEM alerts out (they live on the Problems page). GET /alerts/mine (DISTRIBUTOR exact, the one non-office /alerts route) answers {items: CaseDto[], nextCursor} with the caller's OPEN cases, oldest first. CaseDto = {id, status, order {id, shortCode}, answer, comment, customerName, distributor {id, businessName}, openedAt, resolvedAt, resolvedBy {id, name} | null, resolutionNote, allowedActions ('RESOLVE')[]}. The empty state no longer names answers, since caseOnAnswers can add Partly: 'When a customer reports a problem on their delivery link, it shows up here.'
+- **G07-21.** Problems list scope: UX_ADMIN §3.3 queries GET /alerts?type=CUSTOMER_PROBLEM with no status, while API_CONTRACT §9.6 adds status=OPEN, so it's unclear whether resolved cases are listed. The empty-state text names only 'Not received' and 'Other', even when PARTLY is in caseOnAnswers. **Settled:** The Problems page lists open cases only. GET /alerts?type=CUSTOMER_PROBLEM&status=OPEN|RESOLVED&cursor (office) answers {items: CaseDto[], nextCursor}; status defaults to OPEN; OPEN lists oldest first, RESOLVED newest-resolved first. Any other type, or none, keeps the legacy array, which leaves CUSTOMER_PROBLEM alerts out (they live on the Problems page). GET /alerts/mine (DISTRIBUTOR exact, the one non-office /alerts route) answers {items: CaseDto[], nextCursor} with the caller's OPEN cases, oldest first. CaseDto = {id, status, order {id, shortCode}, answer, comment, customerName, distributor {id, businessName}, openedAt, resolvedAt, resolvedBy {id, name} | null, resolutionNote, allowedActions ('RESOLVE')[]}. The empty state no longer names answers, since caseOnAnswers can add Partly: one line, 'No customer problems'. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G07-22.** Missing office copy: UX_ADMIN §2.9 has no Activity sentence for confirmation.answer, confirmation.new_link or case.resolve, and no display rule for actor kind CUSTOMER (only 'System'). §2.1 Today has no customer-problems card, though its all-clear text mentions problems. §1.3 'Orders (badge … Inc 2 adds problems)' doesn't make clear which badge counts cases. No toast text is given for 'Mark as sorted'. **Settled:** Office copy. Activity sentences: confirmation.answer 'Customer answered “{{answer}}” for {{no}}' (the answer label words), confirmation.new_link 'Made a new customer link for {{no}}', case.resolve 'Marked the problem on {{no}} as sorted'. The Who column shows CUSTOMER actors as 'Customer' (the link label is never shown) and SYSTEM actors as 'System'. The 'Mark as sorted' toast is 'Problem on {{no}} marked as sorted.' From Inc 2, GET /admin/summary adds problems {open, oldestOpenAt}, which feeds the Today card 'Customer problems', the Problems badge (open cases) and the Today badge (top-ups to check + orders needing a driver + open cases); UX_ADMIN §1.3 and §2.1 already describe the badges, the card and the all-clear text by increment.
-- **G07-23.** Partly tone differs: neutral on the web board (UX_ADMIN §3.1), warning in the shop app (UX_MOBILE §3.4, CUSTOMER_PAGE §10). **Settled:** Partly received is a warning everywhere: the website chip becomes warning, like the shop app (UX_MOBILE §3.4) and the shop card (CUSTOMER_PAGE §10). Tones: Yes success, Partly warning, No danger, Other warning, Pending and Expired neutral.
+- **G07-23.** Partly tone differs: neutral on the web board (UX_ADMIN §3.1), warning in the shop app (UX_MOBILE §3.4, CUSTOMER_PAGE §10). **Settled:** Partly received is a warning everywhere: the website chip becomes warning, like the shop app (UX_MOBILE §3.4) and the shop card (CUSTOMER_PAGE §10). Tones: Yes success, Partly warning, No danger, Other warning, Pending warning (the amber clock), Expired neutral. The lead kept this point on 2026-10-23, when the UX specs proposed Partly and Other red; Partly and Other take the warning icon, never the clock, and Pending moved from neutral to the amber clock (UX_PRINCIPLES §4.1, §4.2).
 - **G07-24.** SMS-safe names: CUSTOMER_PAGE §9 doesn't define how a business name is 'made GSM-safe', or what an Urdu-only name becomes. **Settled (the docs already said so):** smsShopName(name): decompose accents and drop the marks; ’ ‘ become ', – — become -, … becomes ...; other spaces become a space; “ ” are removed; keep only A-Z, a-z, 0-9, space and . , - & ' ( ) ! ? /; collapse spaces, trim, cut to 20, trim; if nothing is left (an Urdu-only name) use 'Smart Fleet'. renderSms may shorten it further from the end. Only the SMS and share text use it; the page shows the full, escaped business name. CUSTOMER_PAGE §9 already says this; no doc edit is left.
 - **G07-25.** Rate-limit details (CUSTOMER_PAGE §5): the 429 page always says 'wait 10 minutes', even for the 1-minute GET window. It isn't stated whether bad-format tokens count toward the unknown-token limit, or whether an IP over that limit can still open a valid link. **Settled (the docs already said so):** Checks, in order: (1) the per-IP limit on every /c/ request (GET and HEAD 60 per minute, POST 20 per minute); (2) an IP with 30 unknown-token misses in its current 10-minute window gets 429 on every /c/ request, valid links included, without a lookup (a lookup would still tell valid from unknown, so the limit only slows guessing if it skips the lookup); (3) the format check: a bad format is 404 with no lookup and is not a miss; (4) for POST, 6 per 10 minutes per normalised token, counted before the lookup (refused 400s count); (5) the lookup, where a well-formed unknown token adds a miss. The 429 page reads 'Please wait {minutes} minutes, then try again.' ('Please wait 1 minute, then try again.' for 1), from Retry-After rounded up. Limits fail open when Redis is down. CUSTOMER_PAGE §5 and §6 already say this; no doc edit is left.
 - **G07-26.** Page coverage details (CUSTOMER_PAGE §4, §6), not stated: (1) whether the second-step GETs (/partly, /not-received, /other) follow the state order; (2) what /c/\<token>/\<unknown step> returns; (3) whether the Other page re-shows the typed note after a 400; (4) whether the gas safety note appears on any page besides the main and thank-you pages. **Settled (the docs already said so):** (1) /partly, /not-received and /other follow the state order: PENDING shows the form, other states their page. (2) Any other path or method under /c/ (an unknown step, a POST to a step, an empty token) gets the HTML 404 page with no database lookup. (3) After a 400 the Other page keeps the cleaned text in the box (escaped). (4) The gas safety note is on every page, state and error pages included, as the last block before the footer line. CUSTOMER_PAGE §4, §5 and §6 already say this; no doc edit is left.
@@ -13987,14 +14373,14 @@ Each question has a default the build uses now. The owner can change it; until t
 - **G09-03.** Approved fixes per place (API_CONTRACT §10.2; DATA_MODEL §5.3–5.4): 'On driver's van' and 'With customer' name no van or customer (DayCloseLine has no reported holder), and 'Missing' (NOT_FOUND) has no defined result (state LOST? which holder?). What 'approve all fixes' does to such rows is undefined. **Settled (a default; the owner may change it):** Approval applies every fix the sheet can name (ADR-17, Default; the owner may change it). Each differing line's fix (DayCloseFix, derived from the stored line, not a column) is: MARK_LOST when the sheet says Missing and the app doesn't have it LOST (state LOST, holder unchanged); MOVE_TO_STORE when the sheet says In my store and the app has it on a van, with a customer or LOST (holder the home store; state the sheet's state if given, which a LOST cylinder must give); NOTE_ONLY when the sheet says On driver's van or With customer and the app has it elsewhere (nothing changes: the sheet names no van or customer, so the office checks it by hand); SET_STATE when the place agrees and the state differs (Full FULL, Empty EMPTY, Part-filled PART_FILLED, Damaged FAULTY); REGISTER for an extra number (G09-04). For comparing, a LOST cylinder's app place is Missing (NOT_FOUND). Approval skips NOTE_ONLY lines and lines whose cylinder moved since the sheet, writes one ADJUSTED event (source DAY_END_FIX, the line's reason, actor the approver) or REGISTERED event per applied line in one transaction, and answers {day, registered: [{id, code, shortNo, shortCode, sizeLabel}]} so the new labels can be printed. 'Approve {{n}} fixes' counts fixesToApply. 'App says: where' adds ' · \<plate>' or ' · \<customer name>'.
 - **G09-04.** Extra cylinders (DATA_MODEL §5.4): an unknown cylinder 'with a size' is REGISTERED, but the docs don't say whether it keeps the sheet's number or gets the next short_no, what happens to a row without a size, or how a number owned by another distributor is reported without leaking it. **Settled:** Numbers on both sheets are read like typed entry (parseCylinderNo, G05-08 and G16-02): '42', '0042', 'C0042' and 'AG-C0042' in any letter case are the caller's cylinder 42, and lines store the normal form AG-C0042 as sheet_key. A number with another shop's code ('BG-C0001') is the row error OTHER_SHOP_NUMBER, decided from the code alone: other shops' cylinders are never looked up, so nothing about them leaks. Cylinders sheet: not one of the caller's cylinders NOT_ON_LIST; listed twice DUPLICATE_NUMBER; not a number NUMBER_INVALID; a deleted row counts as matching. Extra sheet: one of the caller's cylinders ON_LIST; listed twice DUPLICATE_NUMBER; an unknown number needs a size from the list (SIZE_UNKNOWN) and a state (STATE_UNKNOWN) and becomes an UNKNOWN_CYLINDER line with fix REGISTER. On approval it is registered in the home store with the row's size and state and the next short number (for example AG-C0036), not the sheet's number, so the counter stays the only source of numbers; its label must be printed (the approval answer lists it). Like any row error, an OTHER_SHOP_NUMBER row refuses the upload (G09-01): the shop removes the row and calls the office.
 - **G09-05.** Day-end reasons: API_CONTRACT §1.5 has no reason-code list for 'Why different', while DAY_END_FIX events need a reason (DATA_MODEL §5.1 and the §4.4 CHECK). Whether a blank reason on a differing row is a row error isn't stated. **Settled:** 'Why different' is free text; there is no reason-code list in the pilot (day_close_lines.reason_code stays NULL, reserved). A differing row on the Cylinders sheet needs a reason of at least 3 characters after cleaning (line breaks and tabs become spaces, other control characters are removed, spaces collapse, trimmed), else the row error REASON_REQUIRED; a longer reason is cut to 200 characters. It is stored in day_close_lines.note and becomes the ADJUSTED event's reason, which meets cylinder_events_reason_chk. A reason on a matching row is ignored; extra rows need none.
-- **G09-06.** Sheet identity (API_CONTRACT §10.2, 'No HMAC'): the server checks the distributor and date, but the docs don't say where the sheet records them. DAY_SHEET_WRONG_DATE params are raw YYYY-MM-DD, and §2.1 formats only \*Paisa params. **Settled:** The sheet carries its identity in a hidden worksheet 'About' (exceljs state veryHidden; column A key, column B value): format 'smart-fleet-day-end/1', distributorId, distributorCode, businessDate and sheetFileId. Each download makes a new sheet (a DAY_END_SHEET stored file whose id is chosen before the file is written) and points day_closes.sheet_file_id and sheet_snapshot_at (the sheet time) at it; only that newest sheet can be uploaded, so the sheet time of any upload is known. Upload identity checks, after the file-type checks: no About sheet or another format 422 DAY_SHEET_UNREADABLE; another distributorId 422 DAY_SHEET_WRONG_DISTRIBUTOR; another businessDate 422 DAY_SHEET_WRONG_DATE {sheetDate, date}; a sheetFileId that isn't the day's newest sheet 422 DAY_SHEET_OUTDATED, a new code (HTTP 422, English 'This is an older copy of the sheet. Download the sheet again and fill in that one.', no params). A line's movedSinceSheet, and the approval skip, mean the cylinder's last event is newer than sheet_snapshot_at. For messages, a details key named date or ending in Date that holds a YYYY-MM-DD value is shown with formatIsoDay ('Tue 20 Oct') under the same name, as Paisa keys are shown with formatRs, so DAY_SHEET_WRONG_DATE reads 'This sheet is for Tue 20 Oct. Upload the sheet for Wed 21 Oct.' while details keep the ISO dates.
+- **G09-06.** Sheet identity (API_CONTRACT §10.2, 'No HMAC'): the server checks the distributor and date, but the docs don't say where the sheet records them. DAY_SHEET_WRONG_DATE params are raw YYYY-MM-DD, and §2.1 formats only \*Paisa params. **Settled:** The sheet carries its identity in a hidden worksheet 'About' (exceljs state veryHidden; column A key, column B value): format 'smart-fleet-day-end/1', distributorId, distributorCode, businessDate and sheetFileId. Each download makes a new sheet (a DAY_END_SHEET stored file whose id is chosen before the file is written) and points day_closes.sheet_file_id and sheet_snapshot_at (the sheet time) at it; only that newest sheet can be uploaded, so the sheet time of any upload is known. Upload identity checks, after the file-type checks: no About sheet or another format 422 DAY_SHEET_UNREADABLE; another distributorId 422 DAY_SHEET_WRONG_DISTRIBUTOR; another businessDate 422 DAY_SHEET_WRONG_DATE {sheetDate, date}; a sheetFileId that isn't the day's newest sheet 422 DAY_SHEET_OUTDATED, a new code (HTTP 422, English 'This is an old copy. Download a new sheet and use that.', no params). A line's movedSinceSheet, and the approval skip, mean the cylinder's last event is newer than sheet_snapshot_at. For messages, a details key named date or ending in Date that holds a YYYY-MM-DD value is shown with formatIsoDay ('Tue 20 Oct') under the same name, as Paisa keys are shown with formatRs, so DAY_SHEET_WRONG_DATE reads 'This sheet is for Tue 20 Oct. Upload the sheet for Wed 21 Oct.' while details keep the ISO dates. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G09-07.** Upload limits (API_CONTRACT §10.2): ≤ 2 MB and a magic-byte check, but no codes are named. FILE_TOO_LARGE and FILE_TYPE_NOT_ALLOWED (§2.3 Files) speak of pictures ('Use a JPG, PNG or WebP picture'). **Settled:** The upload takes one multipart field, file, of at most 2 MiB (2,097,152 bytes, the same binary megabyte as the 5 MB picture limit); a bigger file answers 413 FILE_TOO_LARGE {maxMb: 2}. The file must start with the ZIP signature PK\\x03\\x04, else 422 DAY_SHEET_UNREADABLE (never FILE_TYPE_NOT_ALLOWED, whose words are about pictures); a ZIP that isn't a workbook, unzips to more than 20 MB or has more than 20,000 rows on a sheet is also DAY_SHEET_UNREADABLE. An accepted file is stored as a DAY_END_UPLOAD file (upload_file_id); a refused one isn't stored.
 - **G09-08.** Lock vs cut-off (API_CONTRACT §10.2): the docs don't say whether a day can be submitted or approved before its 03:00 cut-off, or what happens to scans between the approval and the cut-off (they belong to a locked date). 'Corrections dated in a locked day give 409 DAY_LOCKED' names no routes, e.g. send-back on an APPROVED day. **Settled:** Submit and approve are allowed any time after an upload, before the day's cut-off too. A lock never refuses a scan or anything outside day-end: later moves are recorded, holders stay live and the next sheet shows them, while the locked day's lines and summary are frozen at approval (day_closes.totals). DAY_LOCKED is answered only by the day-end routes of an APPROVED day: sheet download, upload, submit, send-back, and approve with another version (the same version is a 200 X-Already-Applied repeat). The sentence 'Corrections dated in a locked day give 409 DAY_LOCKED' goes, because nothing else is dated in a day-end. Approve on an OPEN day 409 DAY_NOT_SUBMITTED. Send-back {reason 5-300}: SUBMITTED -> OPEN with sent_back_reason and sent_back_at; a repeat right after it (no upload since) 200 X-Already-Applied with the first reason kept; another OPEN day 409 DAY_NOT_SUBMITTED; APPROVED 409 DAY_LOCKED. Reopen {reason 5-300}: APPROVED -> OPEN with reopen_reason and reopened_at, locked_at cleared and applied fixes kept; a repeat right after it 200 X-Already-Applied; any other state 409 CONFLICT_STALE_STATE {currentStatus}.
 - **G09-09.** dayEnd.enabled (API_CONTRACT §6) isn't a features.\* key, so the §3.4 FEATURE_DISABLED guard doesn't clearly apply when it is off. UX_MOBILE §8.3 calls the flag features.dayEnd. **Settled:** Keep the built key dayEnd.enabled; apps read it as appConfig.features.dayEnd (as built). API_CONTRACT §3.4 gains setting switches: @SettingSwitch(key, name) guards a module behind a boolean setting outside features.\*, runs right after sign-in (before role and ownership checks), and while the setting is false answers every method, reads included, with 403 FEATURE_DISABLED and X-Feature-Disabled: \<name>, never [] (no installed app calls these routes). It is used for dayEnd.enabled (name dayEnd: every /day-end and /admin/day-end route) and confirmation.enabled (name confirmations: the confirmation view, share and new-link). UX_MOBILE §8.3 already names the setting.
 - **G09-10.** DayClose is 'created OPEN … by the cut-off job' (API_CONTRACT §10.2), but no Inc 3 job is listed. §9.9 has only day-cutoff-van-check. **Settled:** No job creates day rows: the 'cut-off job' is dropped (no new scope). A day_closes row is created OPEN by the first sheet download for that date (two at once still make one row, by day_closes_distributor_id_business_date_key), and a read never creates one. GET /day-end/:date for a date with no row answers status OPEN, stage NOT_STARTED, lastUpload null and allowedActions ['DOWNLOAD']; GET /day-end lists only days with a row. :date must be a real YYYY-MM-DD no later than the current business date, else 404 DAY_NOT_FOUND; an unknown office :id is 404 DAY_NOT_FOUND. The office sees a day once the shop has downloaded its sheet (stage NOT_STARTED, 'Waiting for sheet', until an upload from the newest sheet).
 - **G09-11.** The office links 'Download the uploaded sheet' and 'Download the app's sheet' (UX_ADMIN §4.3) have no route in API_CONTRACT §10.2, where the sheet route is DISTRIBUTOR exact. **Settled:** No new routes. GET /admin/day-end/:id carries files {sheetFileId, uploadFileId}, and the website's 'Download the uploaded sheet' and 'Download the app's sheet' open GET /files/:id/url (§7.10; the office may read any stored file, as built in FilesService.signedUrl). sheet_file_id is the newest sheet, which is the one the current upload was filled from; upload_file_id is the latest accepted upload. Each link is hidden while its id is null. The shop's GET /day-end/:date/sheet.xlsx stays DISTRIBUTOR exact.
-- **G09-12.** Day-end status words: the shop chips (UX_MOBILE §8.3: NOT_STARTED, READY, WAITING_FOR_APPROVAL, APPROVED, SENT_BACK) and the office statuses (UX_ADMIN §4.3) don't map 1:1 to DayCloseStatus (OPEN/SUBMITTED/APPROVED), and §1.4 has no derived day-end stage. The mobile dayEnd.diff.\* words are undefined (only UX_ADMIN §4.3 gives them). **Settled:** One derived DayEndStage, computed by deriveDayEndStage(day) in shared-utils and sent as stage on every day-end DTO, top-down: APPROVED (status APPROVED); WAITING_FOR_APPROVAL (SUBMITTED); SENT_BACK (OPEN, with a send-back or reopen and no upload since it); READY (OPEN, and the latest upload is newer than the newest sheet); NOT_STARTED (otherwise, or no row). The shop maps it to its chips, already in UX_MOBILE §8.3. The office words: NOT_STARTED 'Waiting for sheet', READY 'Sheet uploaded, not sent', SENT_BACK 'Sent back', WAITING_FOR_APPROVAL 'Ready to approve', APPROVED 'Approved · locked'; the tabs are To approve = SUBMITTED, Open = OPEN, Locked = APPROVED. Difference words, the same in both apps: PLACE_DIFFERS 'In a different place', STATE_DIFFERS 'State differs', PLACE_AND_STATE_DIFFER 'Place and state differ', UNKNOWN_CYLINDER 'Number not in the app'.
-- **G09-13.** The distributor GET /day-end/:date DTO (API_CONTRACT §10.2) carries no send-back note or reopen reason, yet UX_MOBILE S19 shows 'Sent back · see note'. **Settled:** GET /day-end/:date adds officeNote: {kind: 'SENT_BACK' | 'REOPENED', text, at} | null, set while stage is SENT_BACK, from the later of (sent_back_reason, sent_back_at) and (reopen_reason, reopened_at); day_closes gains sent_back_at and reopened_at. The DTO also carries stage and allowedActions ('DOWNLOAD' | 'UPLOAD' | 'SUBMIT')[]. The shop's S19 warning card, already in UX_MOBILE §8.3, reads 'The office sent this back: “{{note}}”' or 'The office reopened this day: “{{note}}”', then 'Fix it, upload the sheet again and send it.'
+- **G09-12.** Day-end status words: the shop chips (UX_MOBILE §8.3: NOT_STARTED, READY, WAITING_FOR_APPROVAL, APPROVED, SENT_BACK) and the office statuses (UX_ADMIN §4.3) don't map 1:1 to DayCloseStatus (OPEN/SUBMITTED/APPROVED), and §1.4 has no derived day-end stage. The mobile dayEnd.diff.\* words are undefined (only UX_ADMIN §4.3 gives them). **Settled:** One derived DayEndStage, computed by deriveDayEndStage(day) in shared-utils and sent as stage on every day-end DTO, top-down: APPROVED (status APPROVED); WAITING_FOR_APPROVAL (SUBMITTED); SENT_BACK (OPEN, with a send-back or reopen and no upload since it); READY (OPEN, and the latest upload is newer than the newest sheet); NOT_STARTED (otherwise, or no row). The shop maps it to its chips, already in UX_MOBILE §8.3. The office words: NOT_STARTED 'Waiting for sheet', READY 'Sheet uploaded', SENT_BACK 'Sent back', WAITING_FOR_APPROVAL 'To approve', APPROVED 'Approved · day closed'; the tabs are To approve = SUBMITTED, Open = OPEN, Approved = APPROVED. Difference words, the same in both apps: PLACE_DIFFERS 'In a different place', STATE_DIFFERS 'State differs', PLACE_AND_STATE_DIFFER 'Place and state differ', UNKNOWN_CYLINDER 'Number not in the app'. (Words updated by the simple-UX pass, 2026-10-23.)
+- **G09-13.** The distributor GET /day-end/:date DTO (API_CONTRACT §10.2) carries no send-back note or reopen reason, yet UX_MOBILE S19 shows 'Sent back · see note'. **Settled:** GET /day-end/:date adds officeNote: {kind: 'SENT_BACK' | 'REOPENED', text, at} | null, set while stage is SENT_BACK, from the later of (sent_back_reason, sent_back_at) and (reopen_reason, reopened_at); day_closes gains sent_back_at and reopened_at. The DTO also carries stage and allowedActions ('DOWNLOAD' | 'UPLOAD' | 'SUBMIT')[]. The shop's S19 danger card, in UX_MOBILE §8.3, reads 'Office note: “{{note}}”' or 'Office reopened this day: “{{note}}”', then 'Fix it and upload again.' (Words updated by the simple-UX pass, 2026-10-23.)
 
 ### Setup, reset, rehearsal and test data
 
@@ -14027,7 +14413,7 @@ Each question has a default the build uses now. The owner can change it; until t
 ### Settings, switches and jobs
 
 - **G12-01.** Settings cache: API_CONTRACT §5.2 caches SettingsService.get for 30 s, but UX_ADMIN §2.8 says changes 'apply right away', and the docs don't say whether set() clears the cache. The catalogue is split: WAL-004, ORD-002, ORD-011, DRV-033 and DRV-039 wait 30 s, while FND-002, FEE-022, TOP-003, TOP-005, TOP-006 and TOP-018 assume set() clears it. Decide and state it. **Settled:** SettingsService.get keeps its 30-second in-process cache, and set() — as built — clears that process's cache when its transaction commits. Because the pilot runs one API instance (ADR-23), a change saved over PATCH /settings applies to the very next request; a change made by the settings CLI, which runs as another process, reaches the API within 30 seconds. Phones re-read GET /app/config at most every 5 minutes (UX_MOBILE §3.6), so what a phone shows can lag by up to 5 minutes while the server's own checks don't; tests never wait for the cache after a PATCH /settings.
-- **G12-02.** Training flag: API_CONTRACT §6 doesn't say which APP_ENV values make PublicAppConfig.training and topup-info.training true. FND-001 and TOP-001 expect false on APP_ENV=test, while MIG-013 and RHS-002 expect the shop app's 'TRAINING · test money only' strip on the test server. UX_MOBILE §2.2 drives EnvBanner from appConfig.environment, while S4 ties the banner to training=true. **Settled:** As built, PublicAppConfig.environment is APP_ENV, and training — in GET /app/config and in GET /payments/topup-info — is true only when APP_ENV is training. Neither app's environment strip reads training: the shop and driver EnvBanner follows appConfig.environment, falling back to EXPO_PUBLIC_ENV until the config loads (training → "TRAINING · test money only"; development, test and staging → "TEST SERVER · test money only"; production → none), as UX_MOBILE §2.2 already says, and the website's EnvBadge keeps UX_ADMIN §2.10. S4 shows whatever account topup.account holds on each server.
+- **G12-02.** Training flag: API_CONTRACT §6 doesn't say which APP_ENV values make PublicAppConfig.training and topup-info.training true. FND-001 and TOP-001 expect false on APP_ENV=test, while MIG-013 and RHS-002 expect the shop app's 'TRAINING · test money only' strip on the test server. UX_MOBILE §2.2 drives EnvBanner from appConfig.environment, while S4 ties the banner to training=true. **Settled:** As built, PublicAppConfig.environment is APP_ENV, and training — in GET /app/config and in GET /payments/topup-info — is true only when APP_ENV is training. Neither app's environment strip reads training: the shop and driver EnvBanner follows appConfig.environment, falling back to EXPO_PUBLIC_ENV until the config loads (training → "Training · test money only"; development, test and staging → "Test server · test money only"; production → none), as UX_MOBILE §2.2 already says, and the website's EnvBadge keeps UX_ADMIN §2.10. S4 shows whatever account topup.account holds on each server. (Words updated by the simple-UX pass, 2026-10-23.)
 - **G12-03.** Business date in SQL: DATA_MODEL §5.4 hard-codes 'Asia/Karachi' and '3 hours', while day.timezone and day.cutoffLocalTime are editable (API_CONTRACT §6; UX_ADMIN §4.4 offers 00:00–06:00). The database and the apps would disagree after a change, and the setting's value is typed only as 'string'. **Settled:** Business-date SQL never writes the zone or the cut-off as literals: a query for one business day filters ts >= start AND ts \< end with the bounds from businessDayRange(date, { timezone, cutoffLocalTime }) (shared-utils, as built; start inclusive, end exclusive), and a query that groups by business date uses ((ts AT TIME ZONE 'UTC') AT TIME ZONE \$tz - \$cutoff::interval)::date, with \$tz = day.timezone and \$cutoff = day.cutoffLocalTime read from SettingsService. The settings are typed as built: day.timezone is an IANA zone name that Intl accepts (at most 64 characters) and day.cutoffLocalTime a local "HH:mm" from 00:00 to 23:59 (the website offers whole hours 00:00–06:00). As ADR-21 says, change them only between business days with no day-end OPEN or SUBMITTED — an ops rule the API doesn't enforce — because stored dates never move while "today" counts and reports regroup at once.
 - **G12-04.** ADR-21 says every cron passes timeZone 'Asia/Karachi'. API_CONTRACT §8.5 gives no schedule for housekeeping, and §9.9 lists confirmation-expiry with no time zone (harmless for \*/15, but unstated). **Settled:** Every @Cron passes { timeZone: 'Asia/Karachi' } literally, including the \*/15 confirmation-expiry, where it changes nothing. The schedules are wallet-nightly-check '30 3 \* \* \*', housekeeping '0 3 \* \* \*' (03:00 Karachi; HOUSEKEEPING_CRON may change the expression, never the zone), day-cutoff-van-check '0 3 \* \* \*' and confirmation-expiry '\*/15 \* \* \* \*' (both Inc 2), plus G09-10's day-close-open (Inc 3). Job times are fixed in code and don't follow day.timezone or day.cutoffLocalTime, as ADR-21 now says.
 - **G12-05.** The nightly wallet check (API_CONTRACT §8.5; ADR-23, no job-run table) leaves no visible record of a clean run, so 'clean' can't be told apart from 'didn't run' without the server log. **Settled:** Every run of wallet-nightly-check, clean or not, writes one audit row wallet.check: actor SYSTEM with label job:wallet-check, resourceType 'job', resourceId null, and diff { checked, mismatches, distributorIds } (the ids of the mismatching wallets), in the same run after any WALLET_CHECK_MISMATCH alerts. It is the visible record that the job ran, shown in Activity as "Nightly wallet check: {{checked}} wallets checked, all match" or "Nightly wallet check: {{mismatches}} of {{checked}} wallets don't match their history". It is an audit row, not the job-run table ADR-23 rules out (ADR-23 and README already say so), and the live integrity check on the wallet page writes nothing.
@@ -14061,9 +14447,9 @@ Each question has a default the build uses now. The owner can change it; until t
 - **G16-01.** Money signs: API_CONTRACT §1.1 writes '−Rs 330', UX_MOBILE §2.2/§3.7 write '− Rs 330' and '+ Rs 5,000', and UX_ADMIN §1.6 writes '+Rs 5,000'. One formatRs can't produce both. FND-024 follows API_CONTRACT. **Settled:** formatRs writes the sign directly before 'Rs' with no space: '−Rs 330' (U+2212, money out) and, with sign 'always', '+Rs 5,000' (money in); zero is never signed. That is the API_CONTRACT §1.1 form and what the built shared-utils formatRs prints (UX_MOBILE §2.2/§3.7 and UX_ADMIN §1.6 already say so). Copy that writes its own '+ ' before an unsigned amount, such as the price panel's '+ Rs 40 per 11.8 kg cylinder', is copy, not a signed amount, and stays.
 - **G16-02.** Order and cylinder numbers share one format: ADR-22, API_CONTRACT §1.1 and the README format orders (AG-0142) and cylinders (AG-0042) the same way from separate counters, so on a fresh setup order AG-0001 and cylinder AG-0001 look identical. 'Handed to Sana (AG-0001)' is ambiguous, the customer page's 'no cylinder numbers' rule (CUSTOMER_PAGE §3, §12) can't be tested with a pattern, and customers, testers and support calls can confuse the two (the blueprint's open question about AG-C0042). **Settled (a default; the owner may change it):** Cylinder numbers get their own form AG-C0042: formatNo(code, 'CYLINDER', n) = code + '-C' + n zero-padded to 4 digits (printed in full past 9999), while orders stay AG-0142, top-ups AG-T031 and refills AG-R007 (README and ADR-22 already say so). Typed cylinder numbers everywhere (driver and store scans, the office's manual delivery, Find cylinder, GET /cylinders/:code/history, the day-end sheet) go through one parseCylinderNo(text, distributorCode?) in shared-utils, which accepts '42', '0042', 'C0042' and 'AG-C0042' in any letter case, spaces ignored, Arabic-Indic or Urdu digits allowed, 1–6 digits with a value of at least 1, and returns { code, shortNo } or null. A written code must be the distributor in context (the run's for a driver scan, the caller's for the shop, the order's for the office's manual delivery); with no distributor in context (the office's Find cylinder and cylinder history) only the full AG-C0042 form or the QR value resolves, and anything else, including the order-style AG-0042 or another distributor's code, is SCAN_CYLINDER_UNKNOWN for a scan or 404 NOT_FOUND for a lookup. The owner can veto the form before labels are printed.
 - **G16-03.** formatNo (ADR-22, API_CONTRACT §1.1): the kind names and the result past 9999 (AG-10000?) are not stated. **Settled:** formatNo(code, kind, n) has four kinds: ORDER (4 digits), TOPUP ('T' + 3), REFILL ('R' + 3) and CYLINDER ('C' + 4, G16-02). n must be a whole number ≥ 0 (else RangeError); it is zero-padded to the width and printed in full when longer (AG-10000, AG-T1000, AG-C10000) so numbers stay unique, and with no code only the part after the dash is returned, all as built apart from the C (ADR-22 already says so). Past 9999 the SMS still fits: order numbers up to ABCDEF-99999 are 12 characters, worst case 151 of 160 (CUSTOMER_PAGE §9 already says so).
-- **G16-04.** Copy has no singular forms, although UX_MOBILE §3.3 says plurals use \_plural: UX_ADMIN §2.2 'Approved today: … · 3 top-ups', §2.3 '2 of 10 zones have no price', §2.1 '2 zones have no delivery price' and §4.3 'Approve {{n}} fixes and lock the day'; UX_MOBILE S20 '{{n}} differences' and 'Send for approval ({{n}} differences)', and §7.3 S15 '{{n}} customer problems'; and the driver strings TRIP_VAN_NOT_EMPTY, VEHICLE_HAS_CYLINDERS, '{{count}} scans are not saved' and 'Trip · {{count}} customers'. **Settled:** Every UI string that shows a count has a singular and a plural form and takes the count as 'count': the apps use i18next v3 keys key / key_plural (compatibilityJSON 'v3', as built) and the website i18next 23 keys key_one / key_other (UX_MOBILE §3.3 and UX_ADMIN §1.6 already say so, with the driver, shop, Today, top-up, prices and expenses strings). Error texts stay one English string per code (ERROR_MESSAGE_EN), so every counted one is reworded to read right for any count: RATE_LIMITED 'Too many tries. Please wait {{minutes}} min and try again.', ORDER_TOO_MANY_CYLINDERS 'Too many cylinders. An order can have at most {{max}}.', LOAD_INCOMPLETE 'Load every cylinder first: {{done}} of {{total}} loaded so far.', VEHICLE_HAS_CYLINDERS 'This van still has cylinders on it ({{count}}). Unload at the store first.', TOPUP_TOO_MANY_PENDING 'Top-ups being checked: {{count}}. Wait for them before sending another.', REFILL_TOO_MANY 'Too many cylinders. A refill can have at most {{max}}.', REFILL_COUNT_REACHED 'All cylinders for this refill are already picked up ({{requested}}).' (TRIP_VAN_NOT_EMPTY in G16-05); params are unchanged. The website strings still missing a singular get one: the unsaved-settings bar, the vans message and the day-end approve button and dialog.
-- **G16-05.** TRIP_VAN_NOT_EMPTY wording differs: ERROR_MESSAGE_EN (API_CONTRACT §2.3) says 'The store still needs to scan in {{count}} cylinders from your van.', while UX_MOBILE §7.2 R3 says 'The shop still needs to receive {{count}} cylinders from your van.' **Settled:** API_CONTRACT wins: the driver app shows TRIP_VAN_NOT_EMPTY as errors.TRIP_VAN_NOT_EMPTY, the one catalogue text, reworded for any count (G16-04) as 'The store still needs to scan in the cylinders on your van ({{count}} left).', which UX_MOBILE R3 already quotes instead of its own wording.
-- **G16-06.** Correction reason labels differ: UX_ADMIN §2.6 'Charged by a system error' vs UX_MOBILE §3.4 wallet.correction.SYSTEM_ERROR 'System error'. **Settled:** There is one label set for correction reasons, the UX_MOBILE §3.4 wallet.correction table, used by both apps: SYSTEM_ERROR reads 'System error' (right for both an ADD and a TAKE), so the office's reason select and history say 'System error', not 'Charged by a system error'; the other four labels already match. UX_ADMIN §2.6 already says so, so no doc changes.
+- **G16-04.** Copy has no singular forms, although UX_MOBILE §3.3 says plurals use \_plural: UX_ADMIN §2.2 'Approved today: … · 3 top-ups', §2.3 '2 of 10 zones have no price', §2.1 '2 zones have no delivery price' and §4.3 'Approve {{n}} fixes and lock the day'; UX_MOBILE S20 '{{n}} differences' and 'Send for approval ({{n}} differences)', and §7.3 S15 '{{n}} customer problems'; and the driver strings TRIP_VAN_NOT_EMPTY, VEHICLE_HAS_CYLINDERS, '{{count}} scans are not saved' and 'Trip · {{count}} customers'. **Settled:** Every UI string that shows a count has a singular and a plural form and takes the count as 'count': the apps use i18next v3 keys key / key_plural (compatibilityJSON 'v3', as built) and the website i18next 23 keys key_one / key_other (UX_MOBILE §3.3 and UX_ADMIN §1.6 already say so, with the driver, shop, Today, top-up, prices and expenses strings). Error texts stay one English string per code (ERROR_MESSAGE_EN), so every counted one is reworded to read right for any count: RATE_LIMITED 'Too many tries. Please wait {{minutes}} min and try again.', ORDER_TOO_MANY_CYLINDERS 'Too many cylinders. An order can have at most {{max}}.', LOAD_INCOMPLETE 'Load every cylinder first: {{done}} of {{total}} loaded so far.', VEHICLE_HAS_CYLINDERS 'This van still has cylinders on it ({{count}}). Unload at the store first.', TOPUP_TOO_MANY_PENDING 'Top-ups being checked: {{count}}. Wait for them before sending another.', REFILL_TOO_MANY 'Too many cylinders. A refill can have at most {{max}}.', REFILL_COUNT_REACHED 'All picked up: {{requested}} of {{requested}}.' (TRIP_VAN_NOT_EMPTY in G16-05); params are unchanged. The website strings still missing a singular get one: the unsaved-settings bar, the vans message and the day-end approve button and dialog. (Words updated by the simple-UX pass, 2026-10-23.)
+- **G16-05.** TRIP_VAN_NOT_EMPTY wording differs: ERROR_MESSAGE_EN (API_CONTRACT §2.3) says 'The store still needs to scan in {{count}} cylinders from your van.', while UX_MOBILE §7.2 R3 says 'The shop still needs to receive {{count}} cylinders from your van.' **Settled:** API_CONTRACT wins: the driver app shows TRIP_VAN_NOT_EMPTY as errors.TRIP_VAN_NOT_EMPTY, the one catalogue text, worded for any count (G16-04) as 'The store must scan in {{count}} more from your van.', which UX_MOBILE §5 and §7.2 R3 quote instead of their own wording. (Words updated by the simple-UX pass, 2026-10-23.)
+- **G16-06.** Correction reason labels differ: UX_ADMIN §2.6 'Charged by a system error' vs UX_MOBILE §3.4 wallet.correction.SYSTEM_ERROR 'System error'. **Settled:** The office keeps one set of reason words on the website (Top-up approved by mistake · System error · Bank reversed a top-up · Opening balance · Other), so its reason select and history say 'System error', never 'Charged by a system error'. Since the simple-UX pass (2026-10-23) the shop app shows its own words for two of them, 'Top-up added by mistake' and 'Mistake fixed', and no label for Other (UX_MOBILE §3.4, UX_ADMIN §2.6); the stored reason codes are the same in both apps.
 - **G16-07.** Phone formats: UX_MOBILE S1 shows '0300 1234567', while UX_ADMIN §1.5 PhoneInput shows '+92 300 1234567'. No shared-utils formatter (formatPkPhone or similar) is named in any doc for the display form or the SMS form '03001234567'; the API_CONTRACT intro lists only normalizePkPhone. **Settled:** formatPkPhone(phone, style) in shared-utils is the one phone formatter: 'local' (the default) '0300 1234567' in the shop and driver apps and on the customer page, 'international' '+92 300 1234567' everywhere on the website (both built), and a new 'compact' '03001234567' for SMS text; a number that isn't a Pakistani mobile prints as stored. tel: links use the E.164 value (tel:+923001234567) and wa.me links its digits without the plus (923001234567). UX_MOBILE S1, UX_ADMIN §1.5 and CUSTOMER_PAGE §6 and §9 already say so.
 - **G16-08.** normalizePkPhone's accepted input forms are not documented (00 92 prefix, spaces, dashes, '3001234567'). Today's phone.ts returns null for '00923001234567'. **Settled:** normalizePkPhone (built) returns '+923XXXXXXXXX' for a Pakistani mobile written as 0300 1234567, 300 1234567, +92 300 1234567, 92 300 1234567 or 0092 300 1234567, with spaces, dashes, dots or brackets, in ASCII, Arabic-Indic or Urdu digits, and drops a stray 0 after the country code (+92 0300 1234567); landlines, other countries, letters and wrong lengths give null. The inc1a SQL backfill (built) accepts the same ASCII forms except the stray-zero form and non-ASCII digits, which it leaves as typed and flags with client.phone_needs_fix like any other unfixable number.
 - **G16-09.** UX_MOBILE §3.3: formatWhen doesn't say whether 'Today/Yesterday' uses the calendar day or the 03:00 business day, or how other years are shown. **Settled:** formatWhen (built) uses the Asia/Karachi calendar day, not the 03:00 business day: 'Today, 4:12 pm' and 'Yesterday, 9:05 am' by calendar date, otherwise 'Mon 19 Oct, 4:12 pm', with the year added when it differs from now's year ('Sun 19 Oct 2025, 4:12 pm'); a later time today still reads 'Today'. Day headings (formatDayLabel) follow the same rule, while business-day screens (day-end, 'done today') use businessDate; UX_MOBILE §3.3 already says so, so no doc changes.

@@ -1,10 +1,16 @@
 /*
- * Styles of the legacy screens (src/legacy), mounted unchanged inside the new shell (UX_ADMIN §1.1).
+ * Styles of the legacy screens (src/legacy), mounted inside the new shell (UX_ADMIN §1.1).
  *
- * Everything is scoped to `.legacy` (app/legacy.tsx and the components/Modal.tsx shim add it), so these
- * element styles never touch the new design system. The old variable names are aliases of the new
- * tokens (ui/tokens.css), which also fixes their contrast (UX_ADMIN §0 A7: chips and input borders
- * now meet AA). Delete this file together with the last legacy screen.
+ * - `.legacy` (app/legacy.tsx and the components/Modal.tsx shim add it) sets the screen's text and the
+ *   old class looks (`.card`, `.muted`, `.pill-*`, …).
+ * - The bare-element looks (button, input, select, label, h1–h4, p, table, th, td, code) apply only
+ *   inside a `.legacy-old` container: the parts still written in plain HTML (the alert rules, the
+ *   accessory screens, the hidden Stores, Reports and Transfers screens, the Modal shim). `:where()`
+ *   keeps them at element weight, so they never restyle a design-system component (Button, Field,
+ *   Table, FilterChips, …), inside `.legacy` or not.
+ *
+ * The old variable names are aliases of the new tokens (ui/tokens.css), which also fixes their contrast
+ * (UX_ADMIN §0 A7: chips and input borders now meet AA). Delete this file with the last legacy screen.
  */
 
 :root {
@@ -38,25 +44,25 @@
   overflow-x: auto;
 }
 
-.legacy h1,
-.legacy h2,
-.legacy h3,
-.legacy h4 {
+:where(.legacy-old) h1,
+:where(.legacy-old) h2,
+:where(.legacy-old) h3,
+:where(.legacy-old) h4 {
   margin: 0 0 12px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
-.legacy h2 {
+:where(.legacy-old) h2 {
   font-size: 22px;
 }
 
-.legacy h3 {
+:where(.legacy-old) h3 {
   color: var(--text);
   font-size: 16px;
 }
 
-.legacy p {
+:where(.legacy-old) p {
   margin: 0 0 8px;
   line-height: 1.5;
 }
@@ -75,7 +81,7 @@
   box-shadow: var(--shadow-md);
 }
 
-.legacy button {
+:where(.legacy-old) button {
   padding: 8px 14px;
   border: 1px solid var(--border-input);
   border-radius: var(--radius-md);
@@ -87,32 +93,32 @@
   transition: all 0.15s ease;
 }
 
-.legacy button:hover:not(:disabled) {
+:where(.legacy-old) button:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: var(--surface-soft);
 }
 
-.legacy button:disabled {
+:where(.legacy-old) button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
-.legacy button.primary {
+:where(.legacy-old) button.primary {
   border-color: var(--primary);
   background: var(--primary);
   color: var(--on-solid);
   font-weight: 500;
 }
 
-.legacy button.primary:hover:not(:disabled) {
+:where(.legacy-old) button.primary:hover:not(:disabled) {
   border-color: var(--primary-hover);
   background: var(--primary-hover);
   box-shadow: 0 2px 8px rgba(11, 95, 214, 0.25);
 }
 
-.legacy input,
-.legacy select,
-.legacy textarea {
+:where(.legacy-old) input,
+:where(.legacy-old) select,
+:where(.legacy-old) textarea {
   width: 100%;
   padding: 9px 12px;
   border: 1px solid var(--border-input);
@@ -124,24 +130,24 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.legacy input:focus,
-.legacy select:focus,
-.legacy textarea:focus {
+:where(.legacy-old) input:focus,
+:where(.legacy-old) select:focus,
+:where(.legacy-old) textarea:focus {
   border-color: var(--primary);
   outline: 2px solid var(--focus);
   outline-offset: 0;
 }
 
-.legacy input::placeholder,
-.legacy textarea::placeholder {
+:where(.legacy-old) input::placeholder,
+:where(.legacy-old) textarea::placeholder {
   color: var(--muted);
 }
 
-.legacy select {
+:where(.legacy-old) select {
   cursor: pointer;
 }
 
-.legacy label {
+:where(.legacy-old) label {
   display: block;
   margin-top: 10px;
   margin-bottom: 4px;
@@ -150,14 +156,14 @@
   font-weight: 500;
 }
 
-.legacy table {
+:where(.legacy-old) table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
 }
 
-.legacy th,
-.legacy td {
+:where(.legacy-old) th,
+:where(.legacy-old) td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   font-size: 13.5px;
@@ -165,22 +171,22 @@
 }
 
 /* Sentence case, as in the new tables (UX_ADMIN §1.4). */
-.legacy th {
+:where(.legacy-old) th {
   background: var(--surface-soft);
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 600;
 }
 
-.legacy tbody tr {
+:where(.legacy-old) tbody tr {
   transition: background 0.12s ease;
 }
 
-.legacy tbody tr:hover {
+:where(.legacy-old) tbody tr:hover {
   background: var(--surface-soft);
 }
 
-.legacy tbody tr:last-child td {
+:where(.legacy-old) tbody tr:last-child td {
   border-bottom: none;
 }
 
@@ -266,7 +272,7 @@
   color: var(--neutral-fg);
 }
 
-.legacy code {
+:where(.legacy-old) code {
   padding: 1px 6px;
   border: 1px solid var(--border);
   border-radius: 4px;

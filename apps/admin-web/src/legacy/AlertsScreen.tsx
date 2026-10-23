@@ -309,7 +309,7 @@ function RulesTab() {
         </Button>
       </FilterBar>
 
-      <div className="card">
+      <div className="card legacy-old">
         <table>
           <thead>
             <tr><th>Name</th><th>What it watches</th><th>{lt('alerts.limit')}</th><th>{lt('alerts.urgency')}</th><th>Last raised</th><th>On</th><th aria-label="Actions"></th></tr>

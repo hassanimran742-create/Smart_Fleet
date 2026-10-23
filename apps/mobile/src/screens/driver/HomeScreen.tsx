@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, StyleSheet, Switch, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -25,8 +25,9 @@ import {
   radius,
   sizes,
   space,
+  useNoConnection,
 } from '../../ui';
-import { DriverScreen, openStepFromToday, useCallOfficeAction, usePullToRefresh, useTodayTitle } from './components';
+import { DriverScreen, openStepFromToday, useCallOfficeAction, usePullToRefresh } from './components';
 import { fetchMyTrips, useStartTrip } from './tripApi';
 import {
   businessDayOf,
@@ -60,10 +61,9 @@ export function DriverHomeScreen() {
   const [onDuty, setOnDuty] = useState(true);
   useLiveLocation(onDuty);
 
-  const title = useTodayTitle();
-  useLayoutEffect(() => {
-    navigation.setOptions({ title });
-  }, [navigation, title]);
+  // The title ("Today · Fri 23 Oct") is DriverStack's option for this route. Setting it again here in a
+  // layout effect looped right after sign-in, while the new stack's state was still being set up: each
+  // setOptions re-rendered the stack with fresh route keys, which remounted Today, which set it again.
 
   const trips = useQuery<TripView[], ApiError>({
     queryKey: qk.driver.trips,
@@ -89,8 +89,10 @@ export function DriverHomeScreen() {
     else openStepFromToday(navigation, trip, nextStep(trip, vanHasCylinders));
   };
 
-  // No answer and nothing saved: one calm block under the banner, so the van row hides too.
-  const tripsUnavailable = trips.data === undefined && trips.isError;
+  // No answer and nothing saved: one calm block under the banner, so the van row hides too. With the
+  // banner up it shows at once (QueryBoundary), not after the retries.
+  const noConnection = useNoConnection();
+  const tripsUnavailable = trips.data === undefined && (trips.isError || noConnection);
 
   return (
     <DriverScreen

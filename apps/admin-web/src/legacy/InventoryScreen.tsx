@@ -380,7 +380,7 @@ function AddAccessoriesCard({ storeId, qc }: { storeId: string; qc: QueryClient 
 
   if ((accessories.data ?? []).length === 0) {
     return (
-      <div className="card">
+      <div className="card legacy-old">
         <h3>Add accessory stock</h3>
         <p className="muted">No accessory types defined yet. Switch to the <strong>Accessory catalog</strong> tab to add some first.</p>
       </div>
@@ -388,7 +388,7 @@ function AddAccessoriesCard({ storeId, qc }: { storeId: string; qc: QueryClient 
   }
 
   return (
-    <div className="card">
+    <div className="card legacy-old">
       <h3>Add or adjust accessory stock</h3>
       <p className="muted">
         Positive numbers add stock (e.g. receiving a shipment). Negative numbers reduce stock (sales, damage, transfer out).
@@ -515,7 +515,7 @@ function AccessoryStockAtStore({ storeId }: { storeId: string }) {
   });
 
   return (
-    <>
+    <div className="legacy-old">
       <div className="card">
         <h3>Accessory stock at this store</h3>
         {(stock.data ?? []).length === 0 && <p className="muted">No accessory stock yet at this store.</p>}
@@ -562,7 +562,7 @@ function AccessoryStockAtStore({ storeId }: { storeId: string }) {
           </table>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -686,7 +686,7 @@ function CatalogTab() {
   }
 
   return (
-    <>
+    <div className="legacy-old">
       <div className="flex" style={{ justifyContent: 'space-between' }}>
         <p className="muted" style={{ marginTop: 0 }}>
           Define the types of accessories (pipes, connectors, regulators, etc.) sold or installed alongside cylinders.
@@ -783,6 +783,6 @@ function CatalogTab() {
           </>
         )}
       </Modal>
-    </>
+    </div>
   );
 }

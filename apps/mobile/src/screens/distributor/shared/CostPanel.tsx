@@ -8,7 +8,7 @@ import { formatRs } from '@smartfleet/shared-utils';
 import type { ApiError } from '../../../api/errors';
 import { qk, STALE_MS } from '../../../api/keys';
 import { useOfficeContact } from '../../../hooks/useAppConfig';
-import { Button, colors, Icon, space, Text, type IconName } from '../../../ui';
+import { Button, colors, Icon, space, Text, useNoConnection, type IconName } from '../../../ui';
 import { fetchLocationQuote } from './api';
 import { paisaOrZero } from './format';
 
@@ -102,6 +102,7 @@ function perSizeText(price: PriceView, t: TFunction): string | null {
 export function CostLine({ state, locateError }: { state: CostPanelState; locateError?: string | null }) {
   const { t } = useTranslation();
   const office = useOfficeContact();
+  const bannerShowing = useNoConnection();
 
   switch (state.kind) {
     case 'noPin':
@@ -125,7 +126,10 @@ export function CostLine({ state, locateError }: { state: CostPanelState; locate
       return (
         <View style={styles.block}>
           <Line icon="error" tone="danger" text={t('customers.cost.error')} />
-          <Button label={t('common.actions.tryAgain')} onPress={state.retry} variant="secondary" fullWidth={false} />
+          {/* While the "No connection" banner shows, its Try again (it refetches this check too) is the only one. */}
+          {bannerShowing ? null : (
+            <Button label={t('common.actions.tryAgain')} onPress={state.retry} variant="secondary" fullWidth={false} />
+          )}
         </View>
       );
     case 'outside':

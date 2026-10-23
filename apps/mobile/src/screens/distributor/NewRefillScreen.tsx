@@ -23,6 +23,7 @@ import {
   space,
   Stepper,
   Text,
+  useNoConnection,
   useToast,
 } from '../../ui';
 import { fetchMyRefills, fetchStations, requestRefill, type FillingStationRow, type NewRefillBody } from './shared/api';
@@ -43,6 +44,7 @@ const STATION_ROWS_MAX = 6;
  */
 export function NewRefillScreen() {
   const { t } = useTranslation();
+  const noConnection = useNoConnection();
   const navigation = useShopNavigation();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -123,9 +125,13 @@ export function NewRefillScreen() {
     },
   });
 
-  const loading = (!types.data && !types.isError) || (!stations.data && !stations.isError);
-  const failed = (!types.data && types.isError) || (!stations.data && stations.isError);
+  // With the "No connection" banner up and nothing saved, the one body state shows at once, not after
+  // the retries (which go on, so the form appears when the answers do).
+  const offline = noConnection && (!types.data || !stations.data);
+  const loading = !offline && ((!types.data && !types.isError) || (!stations.data && !stations.isError));
+  const failed = offline || (!types.data && types.isError) || (!stations.data && stations.isError);
   const failure = !types.data && types.isError ? types.error : stations.error;
+  const serverFailure = failure && !isNetworkError(failure) && (types.isError || stations.isError) ? failure : null;
   const noSizes = !!types.data && sizeOptions.length === 0;
   const noStation = !!stations.data && stationList.length === 0;
   const blockedLine = noSizes ? t('refill.request.noSizes') : noStation ? t('refill.request.noStation') : null;
@@ -170,7 +176,7 @@ export function NewRefillScreen() {
     // One body state for sizes and stations together (shop spec §3.1).
     return (
       <Screen footer={footer}>
-        {isNetworkError(failure) ? <OfflineEmpty onRetry={retryAll} /> : <ErrorBanner error={failure} onRetry={retryAll} />}
+        {serverFailure ? <ErrorBanner error={serverFailure} onRetry={retryAll} /> : <OfflineEmpty onRetry={retryAll} />}
       </Screen>
     );
   }

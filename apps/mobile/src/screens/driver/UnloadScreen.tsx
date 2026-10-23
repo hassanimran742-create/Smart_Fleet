@@ -8,7 +8,7 @@ import { POLL_MS, qk } from '../../api/keys';
 import { useVanLoad, vanCounts, vanTotal } from '../../components/VehicleLoad';
 import { useFocusedInterval } from '../../hooks/useFocusedInterval';
 import type { DriverStackParams } from '../../navigation/DriverStack';
-import { Button, CountBar, EmptyState, QueryBoundary, SkeletonCard } from '../../ui';
+import { Button, CountBar, EmptyState, QueryBoundary, SkeletonCard, useNoConnection } from '../../ui';
 import { ScanPanel, type ScanOutcome, type ScanRead } from '../../ui/scan';
 import {
   DriverScreen,
@@ -40,6 +40,7 @@ export function UnloadScreen() {
   const queryClient = useQueryClient();
   const callOffice = useCallOfficeAction();
   const [finishOpen, setFinishOpen] = useState(false);
+  const noConnection = useNoConnection();
 
   const trip = useQuery<TripView, ApiError>({
     queryKey: qk.trip(tripId),
@@ -125,7 +126,7 @@ export function UnloadScreen() {
                       detail={vanCounts(load.totalFull, load.totalEmpty, t) || undefined}
                       testID="unload.count"
                     />
-                  ) : van.isError ? null : (
+                  ) : van.isError || noConnection ? null : (
                     <SkeletonCard lines={1} />
                   )
                 }

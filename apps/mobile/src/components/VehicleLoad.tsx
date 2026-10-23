@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import type { ApiError } from '../api/errors';
 import { useOfficeContact } from '../hooks/useAppConfig';
 import { useFocusedInterval } from '../hooks/useFocusedInterval';
-import { Card, EmptyState, Icon, ListRow, QueryBoundary, SkeletonCard, Text, colors, ltr, radius, space } from '../ui';
+import { Card, EmptyState, Icon, ListRow, QueryBoundary, SkeletonCard, Text, colors, ltr, radius, space, useNoConnection } from '../ui';
 
 /** One size on the van (`GET /inventory/my-vehicle`). */
 export interface VanLoadRow {
@@ -75,8 +75,10 @@ export function vanCounts(full: number, empty: number, t: TFunction): string {
 export function VanRow({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
   const query = useVanLoad();
+  const noConnection = useNoConnection();
   const load = query.data;
-  if (!load) return query.isError ? null : <SkeletonCard lines={1} />;
+  // Nothing saved and no connection: Today's one "Nothing saved yet." block says it, so no row here.
+  if (!load) return query.isError || noConnection ? null : <SkeletonCard lines={1} />;
 
   if (!hasVan(load)) {
     return (

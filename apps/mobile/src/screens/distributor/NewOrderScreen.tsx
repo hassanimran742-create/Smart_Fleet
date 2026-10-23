@@ -14,7 +14,7 @@ import type {
 import { formatRs } from '@smartfleet/shared-utils';
 import { ORDER_LINE_MAX_COUNT } from '@smartfleet/shared-validation';
 import { useIdempotencyKey } from '../../api/client';
-import { isNetworkError, type ApiError } from '../../api/errors';
+import type { ApiError } from '../../api/errors';
 import { invalidate, qk, STALE_MS } from '../../api/keys';
 import { useAppConfig, useOfficeContact } from '../../hooks/useAppConfig';
 import {
@@ -22,11 +22,10 @@ import {
   Button,
   Card,
   colors,
-  ErrorBanner,
+  FirstLoadState,
   Fab,
   Icon,
   MoneyText,
-  OfflineEmpty,
   radius,
   Screen,
   Skeleton,
@@ -36,6 +35,7 @@ import {
   StepHeader,
   Stepper,
   Text,
+  useNoConnection,
   useToast,
   type IconName,
 } from '../../ui';
@@ -99,6 +99,7 @@ export function NewOrderScreen() {
   const office = useOfficeContact();
   const { params } = useShopRoute<'NewOrder'>();
   const { config, query: configQuery } = useAppConfig();
+  const noConnection = useNoConnection();
 
   // A customer arriving with the route (Customers, Add customer, "Use Sana", New address) opens step 2.
   const [step, setStep] = useState<Step>(params?.clientId && params?.pickedAt ? 2 : 1);
@@ -386,15 +387,12 @@ export function NewOrderScreen() {
             <ActionChip icon="history" label={t('orders.new.sameAsLast')} onPress={fillLast} />
           ) : null}
           {!types.data ? (
-            types.isError ? (
-              isNetworkError(types.error) ? (
-                <OfflineEmpty onRetry={() => void types.refetch()} />
-              ) : (
-                <ErrorBanner error={types.error} onRetry={() => void types.refetch()} />
-              )
-            ) : (
-              <SkeletonList rows={3} />
-            )
+            <FirstLoadState
+              error={types.error}
+              isError={types.isError}
+              skeleton={<SkeletonList rows={3} />}
+              onRetry={() => void types.refetch()}
+            />
           ) : sizes.length === 0 ? (
             <Notice tone="warning" text={t('orders.new.noSizes')}>
               {office.phone ? (
@@ -568,12 +566,15 @@ export function NewOrderScreen() {
             ) : quoteError ? (
               <View style={styles.costError}>
                 <FooterLine tone="danger" text={t('orders.new.costError')} />
-                <Button
-                  label={t('common.actions.tryAgain')}
-                  onPress={() => void quote.refetch()}
-                  variant="secondary"
-                  fullWidth={false}
-                />
+                {/* While the "No connection" banner shows, its Try again is the only one. */}
+                {noConnection ? null : (
+                  <Button
+                    label={t('common.actions.tryAgain')}
+                    onPress={() => void quote.refetch()}
+                    variant="secondary"
+                    fullWidth={false}
+                  />
+                )}
               </View>
             ) : null}
           </CardSection>

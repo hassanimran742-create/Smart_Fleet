@@ -17,12 +17,12 @@ interface Props {
 
 /**
  * The old modal's props, drawn by the new Modal (focus trap, Esc, labelled by its title, a bottom
- * sheet on phones). The content keeps the old look through the `.legacy` style scope.
+ * sheet on phones). The content keeps the old look through the `.legacy-old` style scope (styles.css).
  */
 export function Modal({ title, open, onClose, children, width = 520 }: Props) {
   return (
     <UiModal open={open} title={title} onClose={onClose} width={width}>
-      <div className="legacy legacy--modal">{children}</div>
+      <div className="legacy legacy-old legacy--modal">{children}</div>
     </UiModal>
   );
 }

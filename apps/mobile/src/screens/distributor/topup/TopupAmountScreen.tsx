@@ -20,6 +20,7 @@ import {
   space,
   StepHeader,
   Text,
+  useNoConnection,
 } from '../../../ui';
 import { fetchTopupInfo } from '../shared/api';
 import { isPositivePaisa, paisaOrZero } from '../shared/format';
@@ -41,6 +42,7 @@ type Choice = { kind: 'none' } | { kind: 'chip'; paisa: number } | { kind: 'othe
  */
 export function TopupAmountScreen() {
   const { t } = useTranslation();
+  const noConnection = useNoConnection();
   const navigation = useShopNavigation();
   const { params } = useShopRoute<'TopupAmount'>();
   const { config } = useAppConfig();
@@ -93,7 +95,9 @@ export function TopupAmountScreen() {
     return null;
   })();
 
-  const firstLoad = info.data === undefined && info.isPending;
+  // With the "No connection" banner up, the chips come from the app config at once (as after the
+  // retries), not after a skeleton that never fills.
+  const firstLoad = info.data === undefined && info.isPending && !noConnection;
   const notConfigured = info.data === undefined && info.error?.code === 'TOPUP_ACCOUNT_NOT_CONFIGURED';
   // A chip's problem shows under the chips; a typed amount's under its field.
   const chipsLine = pressed ? (choice.kind === 'none' ? t('topup.amount.pick') : choice.kind === 'chip' ? limitError : null) : null;

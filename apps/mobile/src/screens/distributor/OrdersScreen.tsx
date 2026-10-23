@@ -3,18 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { DistributorHomeDto, OrderListTab } from '@smartfleet/shared-types';
-import { isNetworkError, type ApiError } from '../../api/errors';
+import type { ApiError } from '../../api/errors';
 import { POLL_MS, qk } from '../../api/keys';
 import { useFocusedInterval } from '../../hooks/useFocusedInterval';
 import {
   Button,
   colors,
   EmptyState,
-  ErrorBanner,
+  FirstLoadState,
   Fab,
   FAB_CLEARANCE,
   layout,
-  OfflineEmpty,
   SegmentedControl,
   Screen,
   SkeletonList,
@@ -103,15 +102,12 @@ export function OrdersScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             {firstLoad ? (
-              orders.isError ? (
-                isNetworkError(orders.error) ? (
-                  <OfflineEmpty onRetry={() => void orders.refetch()} />
-                ) : (
-                  <ErrorBanner error={orders.error} onRetry={() => void orders.refetch()} />
-                )
-              ) : (
-                <SkeletonList rows={4} />
-              )
+              <FirstLoadState
+                error={orders.error}
+                isError={orders.isError}
+                skeleton={<SkeletonList rows={4} />}
+                onRetry={() => void orders.refetch()}
+              />
             ) : (
               // The Fab is the empty state's button.
               <EmptyState icon="order" title={tab === 'active' ? t('orders.list.emptyActive') : t('orders.list.emptyDone')} />

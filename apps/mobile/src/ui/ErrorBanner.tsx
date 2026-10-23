@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { errorAction, isNetworkError, toUserMessage } from '../api/errors';
@@ -10,10 +11,10 @@ import { Text } from './Text';
 import { colors, radius, space, toneSurfaces } from './tokens';
 
 /**
- * QueryBoundary reads the connection state and the offline block from here, not from their own
- * modules: it imports only this module, Icon, Skeleton, Text and tokens.
+ * QueryBoundary reads the connection state from here, not from its own module: it imports only this
+ * module, Icon, Skeleton, Text and tokens (the REV mobile-ux-06 test stubs exactly those).
  */
-export { isNetworkError as isNoAnswer, useNoConnection };
+export { useNoConnection };
 
 export interface ErrorBannerAction {
   label: string;
@@ -134,6 +135,34 @@ export function OfflineEmpty({ onRetry, action, style, testID }: OfflineEmptyPro
       ) : null}
     </View>
   );
+}
+
+export interface FirstLoadStateProps {
+  /** The query's error, once its retries are over. */
+  error: unknown;
+  isError: boolean;
+  /** The screen's own skeleton, in its final layout. */
+  skeleton: ReactNode;
+  onRetry: () => void;
+  /** The ErrorBanner's second button (see ErrorBanner `extraAction`). */
+  errorAction?: ErrorBannerAction | null;
+  /** A button under "Nothing saved yet." (the driver's trip and step screens: "Call office"). */
+  offlineAction?: ErrorBannerAction | null;
+}
+
+/**
+ * A screen's body before its first answer (UX_PRINCIPLES §7.5): the skeleton while it loads, then the
+ * server's error with Try again. With no connection (the banner is up) it is "Nothing saved yet." at
+ * once: the retries can take a while, and a skeleton that never fills under "No connection" reads as
+ * broken. The query keeps retrying, so the data still shows the moment it arrives.
+ */
+export function FirstLoadState({ error, isError, skeleton, onRetry, errorAction, offlineAction }: FirstLoadStateProps) {
+  const bannerShowing = useNoConnection();
+  if (isError && !isNetworkError(error)) {
+    return <ErrorBanner error={error} onRetry={onRetry} extraAction={errorAction} />;
+  }
+  if (isError || bannerShowing) return <OfflineEmpty onRetry={onRetry} action={offlineAction} />;
+  return <>{skeleton}</>;
 }
 
 const styles = StyleSheet.create({

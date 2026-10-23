@@ -4,7 +4,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { FillingOrderDto, RefillStage } from '@smartfleet/shared-types';
 import { deriveRefillStage } from '@smartfleet/shared-utils';
-import { isNetworkError, toApiError, type ApiError } from '../../api/errors';
+import { toApiError, type ApiError } from '../../api/errors';
 import { POLL_MS, qk } from '../../api/keys';
 import { useFocusedInterval } from '../../hooks/useFocusedInterval';
 import { whenTranslate } from '../../i18n';
@@ -13,12 +13,11 @@ import {
   colors,
   ConfirmSheet,
   EmptyState,
-  ErrorBanner,
+  FirstLoadState,
   Fab,
   FAB_CLEARANCE,
   Icon,
   layout,
-  OfflineEmpty,
   resolveStatus,
   Screen,
   SkeletonList,
@@ -93,15 +92,12 @@ export function RefillListScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             {!refills.data ? (
-              refills.isError ? (
-                isNetworkError(refills.error) ? (
-                  <OfflineEmpty onRetry={() => void refills.refetch()} />
-                ) : (
-                  <ErrorBanner error={refills.error} onRetry={() => void refills.refetch()} />
-                )
-              ) : (
-                <SkeletonList rows={3} />
-              )
+              <FirstLoadState
+                error={refills.error}
+                isError={refills.isError}
+                skeleton={<SkeletonList rows={3} />}
+                onRetry={() => void refills.refetch()}
+              />
             ) : (
               <EmptyState
                 icon="cylinder"

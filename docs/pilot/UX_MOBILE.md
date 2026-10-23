@@ -536,7 +536,9 @@ Active orders
   | `home.lowBalance` | Low balance |
   | `common.stale` | Saved {{time}} |
   | `home.getStarted.title` / `.addMoney` / `.addCustomer` / `.newOrder` | Get started / Add money / Add a customer / Place an order |
+  | `home.getStarted.done` | Done (screen readers hear it after "Add money" once that row has its tick) |
   | `home.tiles.orders` / `.customers` / `.history` / `.refills` | My orders / Customers / History / Refills |
+  | `home.tiles.ordersA11y` (`_plural`) | My orders, {{count}} active (what screen readers hear for the tile with its badge) |
   | `home.activeTitle` / `home.moreOrders` (`_plural`) | Active orders / +{{count}} more |
   | `home.newOrder` | New order |
   | `home.noStore` / `home.notActive` | Your store isn't set up yet. / Your shop account isn't active. |
@@ -580,7 +582,7 @@ Active orders
 - **Layout**
   - StepHeader "Step 3 of 3"; title "Tell us you paid".
   - The read-only line "Rs 5,000 · Easypaisa": the amount and channel carried from S3 and S4 (the header arrow goes back to change them). **"Amount sent" and "Paid with" are gone, and "Other" is no longer offered** (the lead, 2026-10-23).
-  - Field **"Name on the account"**: words capitalised, at most 60 characters, prefilled from the last top-up's name (`qk.topups.mine`) or from "Tell us again". Its helper follows the channel: "As Easypaisa shows it." or "As your bank app shows it.".
+  - Field **"Name on the account"**: words capitalised, at most 60 characters, prefilled from the last top-up's name (`qk.topups.mine`) or from "Tell us again". Its helper follows the channel: "As Easypaisa shows it." or "As your bank app shows it." (`topup.tellUs.payerNameHelp.EASYPAISA_APP` / `.BANK_APP`, keyed by the channel's own value).
   - The screenshot tile "Add screenshot" (`pickAndUploadImage`, quality 0.5, purpose TOPUP_PROOF): "Uploading…", then a thumbnail, "Screenshot added" and "Remove"; "Upload failed. Try again." never blocks sending. "Helps us find it faster" is its screen-reader hint.
   - AddMore "+ Add more" opens "Transaction ID" (optional; letters, digits and dashes, at most 40).
   - Footer: the error line, then "Send for checking" ("Sending…"), with the screen's idempotency key. It is enabled whenever no upload is running; an empty name is checked on press and shows "Write the name on the account." on the field.
@@ -613,11 +615,11 @@ Active orders
   - Day sections ("Today", "Yesterday", "Mon 19 Oct").
 - **Rows, All and Delivery costs** (`GET /wallet/statement`; Delivery costs is `kind=DELIVERY_COST,DELIVERY_COST_RETURNED`):
   - the title is the kind only (§3.4): "Delivery cost", "Refund", "Top-up", "Office correction", "Opening balance", "Older entry";
-  - the grey line is the number and customer ("AG-0142 · Sana"), the top-up number ("AG-T031"), or the correction reason ("Mistake fixed", "Top-up added by mistake"; nothing for Other);
+  - the grey line is the number and customer ("AG-0142 · Sana", `wallet.history.subjectLine` "{{code}} · {{name}}"), the top-up number ("AG-T031"), or the correction reason ("Mistake fixed", "Top-up added by mistake"; nothing for Other); a correction that also points at an order or top-up shows both, with `wallet.history.lineWithReason` "{{line}} · {{reason}}";
   - on the right, the signed `MoneyText` (success colour for money in) with the time under it;
   - a chevron on rows that open their order or top-up; a row that opens nothing keeps the chevron's room, so the amounts line up.
   - **No "Balance after"** (the lead, 2026-10-23). The website wallet page keeps the full history for the office.
-- **Top-ups filter** (`GET /payments/mine`, every state, because rejected requests never reach the ledger): every request in the same shape: the title "Top-up", the grey line "AG-T031 · Ahmed Raza" (plus "You told us Rs 5,000" when the amounts differ), the amount (credited when added) and time on the right, and the `topup` chip below. A row opens S6. The old "Money added" and "Top-up requests" filters are merged into it.
+- **Top-ups filter** (`GET /payments/mine`, every state, because rejected requests never reach the ledger): every request in the same shape: the title "Top-up" (`wallet.history.topupTitle`), the grey line "AG-T031 · Ahmed Raza" (plus "You told us Rs 5,000" when the amounts differ), the amount (credited when added) and time on the right, and the `topup` chip below. A row opens S6. The old "Money added" and "Top-up requests" filters are merged into it.
 - **Paging:** cursor, 30 per page, `onEndReached`, "Loading more…", "Couldn't load more." with Try again.
 - **Empty:** "No money movements yet." with "Add money" (History has no footer or Fab, so the empty state keeps its button); Top-ups: "No top-ups yet." with "Add money".
 
@@ -636,7 +638,7 @@ Active orders
     |---|---|
     | no pin | "Tap the map to drop the pin." |
     | checking | "Checking delivery area…" |
-    | priced | the `ok` icon and "Delivery cost {{base}} per order", plus a caption only when sizes add a cost: "+ {{min}} to {{max}} per cylinder", "+ {{amount}} per cylinder" when several sizes add the same, or "+ {{amount}} per {{size}} cylinder" for one size |
+    | priced | the `ok` icon and "Delivery cost {{base}} per order", plus a caption only when sizes add a cost: "+ {{min}} to {{max}} per cylinder", "+ {{amount}} per cylinder" when several sizes add the same, or "+ {{amount}} per {{size}} cylinder" for one size (`customers.cost.priced`; captions `.perSizeRange` / `.perCylinder` / `.perSize`) |
     | `PRICING_ZONE_NOT_COVERED` | "Outside our delivery area. Move the pin." |
     | `PRICING_PRICE_NOT_SET` | "No delivery price here yet." with a secondary "Call office" |
     | error | "Couldn't check this spot." with "Try again" |
@@ -745,14 +747,14 @@ The live socket is removed.
 - From Inc 2 (S14) the delivered order's cost reads "Delivery cost {{fee}} · paid when the order was placed", and the Delivered / Taken back card replaces the cylinders line.
 
 ### S12 Profile and Help (`distributor/ProfileScreen.tsx`, `HelpScreen.tsx`)
-- **Profile** is read-only: one card of icon rows with no visible labels (the labels stay as screen-reader prefixes): the business name (the contact name as the grey line only when it differs), the mobile, and the store with its address (or "Not set up yet"). The caption "Only the office can change these." and the footer "Call office". The shop code, CNIC, role and IDs are not shown. `PATCH /users/me` is used only for name and email.
+- **Profile** is read-only: one card of icon rows with no visible labels (the labels stay as screen-reader prefixes, `home.profile.rowA11y` "{{label}}, {{value}}", for example "Business name, Ahmed Gas"): the business name (the contact name as the grey line only when it differs), the mobile, and the store with its address (or "Not set up yet"). The caption "Only the office can change these." and the footer "Call office". The shop code, CNIC, role and IDs are not shown. `PATCH /users/me` is used only for name and email.
 - **Help:** a card "Delivery cost" with the one refund line (`orders.new.refundRule.*`, following the setting); a card "Top-ups" with "Being checked until the office adds it."; "Office hours {{hours}}" when set; "App version {{version}} · update {{id}}". Footer: the secondary "WhatsApp office" (only when set) above the primary "Call office". The number comes from the config or `support.contact` (§3.6); with neither, the line "The office number isn't loaded yet.". **No Sign out on Help:** it is in the menu only.
 - The retired customer stack's About (`HelpContent shop={false}`) shows only the office buttons, the hours and the version.
 
 ### S12b Refills and New refill (`RefillListScreen.tsx`, route `Refills`; `NewRefillScreen.tsx`, route `NewRefill`)
 Built in Inc 1 as the Inc 3 screens S16 and S17 (§8.1), so Inc 3 only adds the refill detail and the scan counts. No money anywhere (ADR-16); the do-it-yourself mode and the price lines are gone.
 - **Refills:** header "Refills". Rows (the §2.2 row look; a local copy, so the Cancel stays reachable by screen readers): `cylinder`, "3 × 6 kg", the refill number as the grey line, the time on the right, the refill chip below. **Inc 1 only:** after the chip, a `dangerOutline` md "Cancel" while the refill is waiting for a driver or assigned; it opens "Cancel this refill?" / "The driver won't pick up these cylinders." with [Cancel refill] (danger) and [Keep refill] (secondary). `REFILL_NOT_CANCELLABLE` shows "This refill can't be cancelled after pickup." in the sheet and the list refreshes. The **Fab** "+ New refill" hides while the list is empty, when the empty state "No refills yet." carries "New refill". No station on the row.
-- **New refill:** header "New refill". "Size": ChoiceChips with `columns={2}` (a 2×2 grid), prefilled with the last refill's size, and the helper "One size per refill.". "How many": a Stepper from 1 to `refill.maxCylinders`, "Up to 30 per refill.". "Filling station": its name as text with one station, radio rows for 2–6, a PickerSheet above 6; prefilled with the last station used, else the first active one. Footer **"Request refill · 2 × 11.8 kg"** ("Sending…"); before a size is chosen, "Request refill", disabled, with "Pick a size first." above it. On success: the toast "Refill requested" and back to Refills (replace).
+- **New refill:** header "New refill". "Size": ChoiceChips with `columns={2}` (a 2×2 grid), prefilled with the last refill's size, and the helper "One size per refill.". "How many": a Stepper from 1 to `refill.maxCylinders`, "Up to 30 per refill.". "Filling station": its name as text with one station, radio rows for 2–6, a PickerSheet above 6; prefilled with the last station used, else the first active one. Footer **"Request refill · 2 × 11.8 kg"** ("Sending…"); before a size is chosen, "Request refill" (`refill.request.submitNoSize`), disabled, with "Pick a size first." (`.needSize`) above it. On success: the toast "Refill requested" and back to Refills (replace).
 - **States:** one body state for sizes and stations together; blocked ("No station is taking refills. Call the office." / "No sizes to refill yet. Call the office.") with "Call office"; a failure on the footer line.
 - Each row's chip is the `stages.refill.*` word (§8.1), never the raw status.
 
@@ -825,7 +827,7 @@ The driver spec's D1–D16, with the lead's DECIDED answers. Every scan is still
 
 **My van** (`driver/VehicleInfoScreen.tsx`): the plate (`van` icon), the big total "3" + "cylinders", and one row per size with the counts at the end and zeros hidden ("1 full · 2 empty"). "Nothing on the van." when empty; with no van, "No van yet." + [Call office]. No table header and no coloured digits; it polls every 10 s.
 
-**Help, with the profile merged in** (`driver/HelpScreen.tsx`; `ProfileScreen.tsx` retires): the office number, "Office hours {{hours}}" and a secondary "WhatsApp office" (when set); a "you" card with Name · Mobile · Van (no licence number); "App version 0.1.0" (· update id); footer "Call office". Offline everything comes from `support.contact` and the cached profile; "Office number not loaded yet." shows only when it has never loaded.
+**Help, with the profile merged in** (`driver/HelpScreen.tsx`; `ProfileScreen.tsx` retires): the office number, "Office hours {{hours}}" and a secondary "WhatsApp office" (when set); a "you" card with Name · Mobile · Van (no licence number); "App version 0.1.0" (· update id); footer "Call office". Offline everything comes from `support.contact` and the cached profile; "The office number isn't loaded yet." (the shop app's words) shows only when it has never loaded.
 
 **Live location** (`hooks/useLiveLocation.ts`)
 - Drop `driverId` from the emits.

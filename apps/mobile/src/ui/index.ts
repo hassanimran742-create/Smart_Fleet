@@ -54,10 +54,12 @@ export { CountBar, type CountBarMode, type CountBarProps } from './CountBar';
 export { EmptyState, type EmptyStateAction, type EmptyStateProps } from './EmptyState';
 export {
   ErrorBanner,
+  FirstLoadState,
   OfflineEmpty,
   useErrorExtraAction,
   type ErrorBannerAction,
   type ErrorBannerProps,
+  type FirstLoadStateProps,
   type OfflineEmptyProps,
 } from './ErrorBanner';
 export { ActionLine, type ActionLineProps } from './ActionLine';

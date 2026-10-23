@@ -241,7 +241,7 @@ export const driver = {
   /** Help, with the profile merged in (D16): the office, who you are, the app version. */
   help: {
     hours: 'Office hours {{hours}}',
-    noPhone: 'Office number not loaded yet.',
+    noPhone: "The office number isn't loaded yet.",
     name: 'Name',
     phone: 'Mobile',
     van: 'Van',

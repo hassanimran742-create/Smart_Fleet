@@ -139,7 +139,7 @@ Setting keys are defined once in API_CONTRACT §6. Sources: the owner decisions 
 - Expenses never touch wallets: `ExpensesModule` may not import `WalletService`.
 
 ### ADR-15 · Customer confirmation is a record only, and optional · Decided (record-only); keep in pilot · Default
-- Built in Inc 2 as an independent slice, last, behind `confirmation.enabled`. **The default is false** until the owner confirms it stays in the pilot. Switching it off stops new links, and links already sent show "This link is no longer active" while it stays off; nothing is deleted, and an unexpired link works again once it is back on. Switching it on never back-fills older deliveries. Default.
+- Built in Inc 2 as an independent slice, last, behind `confirmation.enabled`. **The default is false** until the owner confirms it stays in the pilot. Switching it off stops new links, and links already sent show "This link is closed" while it stays off; nothing is deleted, and an unexpired link works again once it is back on. Switching it on never back-fills older deliveries. Default.
 - **The link** is one-time and opens a no-login page with the answers: All received, Partly received, Not received, Other problem. The first answer wins. The answer never changes money.
 - Answers listed in `confirmation.caseOnAnswers` (default `NO` and `OTHER`) open **one case** for the super admin, who closes it with a note.
 - The link is shared from the **shop app or the office**, never from the driver app (the owner: the customer confirms "not on the driver's phone"). Messages go through a provider interface: mock now, a real SMS company later, WhatsApp only after Meta agrees.

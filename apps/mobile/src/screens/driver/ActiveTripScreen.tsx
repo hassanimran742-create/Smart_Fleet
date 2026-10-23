@@ -169,7 +169,7 @@ function TripSteps({
               <ListRow
                 key="unload"
                 title={t('driver.trip.unloadAt', { store })}
-                subtitle={vanCount ? t('driver.trip.onVan', { count: vanCount }) : undefined}
+                subtitle={vanCount && isTripOpen(trip) ? t('driver.trip.onVan', { count: vanCount }) : undefined}
                 leadingIcon={STEP_ICON.UNLOAD}
                 below={
                   <StatusChip kind="step" value={unloadStepState(trip, vanHasCylinders)} stepIcon={STEP_ICON.UNLOAD} />

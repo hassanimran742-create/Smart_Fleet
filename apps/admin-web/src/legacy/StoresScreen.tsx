@@ -151,7 +151,7 @@ export function StoresScreen() {
   }
 
   return (
-    <>
+    <div className="legacy-old">
       <div className="flex" style={{ justifyContent: 'space-between' }}>
         <h2>Stores</h2>
         <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -316,6 +316,6 @@ export function StoresScreen() {
           </>
         )}
       </Modal>
-    </>
+    </div>
   );
 }

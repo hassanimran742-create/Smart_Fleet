@@ -1,5 +1,13 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type AccessibilityActionEvent,
+  type AccessibilityActionInfo,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 import { colors, layout, sizes, space } from './tokens';
@@ -23,6 +31,12 @@ export interface ListRowProps {
   /** Replaces the spoken label built from title, subtitle and meta. */
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  /**
+   * Screen-reader actions for a button inside a pressable row ("Call Sana" on Customers): the row is one
+   * element to TalkBack, so a nested button is reached through the row's actions.
+   */
+  accessibilityActions?: ReadonlyArray<AccessibilityActionInfo>;
+  onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }
@@ -39,6 +53,8 @@ export function ListRow({
   chevron = false,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityActions,
+  onAccessibilityAction,
   style,
   testID,
 }: ListRowProps) {
@@ -85,6 +101,8 @@ export function ListRow({
       accessibilityRole="button"
       accessibilityLabel={spoken}
       accessibilityHint={accessibilityHint}
+      accessibilityActions={accessibilityActions}
+      onAccessibilityAction={onAccessibilityAction}
       android_ripple={{ color: colors.ripple }}
       style={({ pressed }) => [styles.row, pressed ? styles.pressed : null, style]}
     >

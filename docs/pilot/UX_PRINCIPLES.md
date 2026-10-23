@@ -270,7 +270,7 @@ The office buttons read "Call office" and "WhatsApp office" in both apps, and bo
 
 ### 5.3 Banned words
 
-The third column says where each word was found before the 2026-10-23 pass. Every one listed there is fixed in the current copy, including `errors.FEATURE_DISABLED` ("pilot") and `errors.CASE_ALREADY_RESOLVED` ("case") in the shared catalogue, and the Inc 2–3 setting labels, which now use the website's forward rules.
+The third column says where each word was found before the 2026-10-23 pass. Every one listed there is fixed in the current copy, including `errors.FEATURE_DISABLED` ("pilot") and `errors.CASE_ALREADY_RESOLVED` ("case") in the shared catalogue, and the Inc 2–3 setting labels, which now use the website's forward rules. Three shared server texts still carry an old word and wait for a catalogue change (API_CONTRACT §2.3): `ORDER_USE_MANUAL_DELIVERY` names "Mark delivered by office", `DISTRIBUTOR_CODE_LOCKED` says "shop code", and `ORDER_HANDOVER_STARTED` says "handed over", which the shop spec keeps on purpose.
 
 | Don't show | Show instead | Seen before 2026-10-23 in |
 |---|---|---|

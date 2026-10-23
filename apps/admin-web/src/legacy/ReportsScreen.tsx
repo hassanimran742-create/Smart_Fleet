@@ -116,7 +116,7 @@ export function ReportsScreen() {
   const successRate = completed > 0 ? Math.round((deliveredCount / completed) * 1000) / 10 : 0;
 
   return (
-    <>
+    <div className="legacy-old">
       <h2>Reports</h2>
 
       <div className="kpi">
@@ -358,6 +358,6 @@ export function ReportsScreen() {
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

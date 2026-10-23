@@ -1,21 +1,19 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { Linking, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
 import type { ClientAddressDto, ClientDto } from '@smartfleet/shared-types';
-import { isNetworkError } from '../../../api/errors';
-import { useOfficeContact } from '../../../hooks/useAppConfig';
+import { telUrl, useOfficeContact } from '../../../hooks/useAppConfig';
 import {
   Button,
   colors,
   EmptyState,
-  ErrorBanner,
   FAB_CLEARANCE,
   Field,
+  FirstLoadState,
   Icon,
   layout,
   ListRow,
-  OfflineEmpty,
   SkeletonList,
   space,
   StatusChip,
@@ -148,15 +146,12 @@ export function CustomerList({ variant, header, chosenId = null, onPick, onChang
   );
 
   const empty = !clients.data ? (
-    clients.isError ? (
-      isNetworkError(clients.error) ? (
-        <OfflineEmpty onRetry={() => void clients.refetch()} />
-      ) : (
-        <ErrorBanner error={clients.error} onRetry={() => void clients.refetch()} />
-      )
-    ) : (
-      <SkeletonList rows={5} />
-    )
+    <FirstLoadState
+      error={clients.error}
+      isError={clients.isError}
+      skeleton={<SkeletonList rows={5} />}
+      onRetry={() => void clients.refetch()}
+    />
   ) : searching ? (
     <EmptyState icon="search" title={t('customers.list.noMatch', { query: trimmed })} />
   ) : (
@@ -230,9 +225,10 @@ function CustomerRow({
   const chip = blockChipLabel(block, t);
   const spoken = [client.name, subtitle, chip, chosen ? t('orders.new.selected') : null].filter(Boolean).join(', ');
 
+  const callLabel = t('customers.list.call', { name: client.name });
   const trailing =
     variant === 'customers' ? (
-      <CallButton phone={client.phone} label={t('customers.list.call', { name: client.name })} />
+      <CallButton phone={client.phone} label={callLabel} />
     ) : chosen ? (
       <Icon name="ok" size={24} tone="brand" />
     ) : undefined;
@@ -246,6 +242,15 @@ function CustomerRow({
         below={chip ? <StatusChip tone="danger" icon="error" label={chip} /> : undefined}
         onPress={onPress}
         accessibilityLabel={spoken}
+        // The row is one element to a screen reader, so its call button is offered as the row's action.
+        accessibilityActions={variant === 'customers' ? [{ name: 'call', label: callLabel }] : undefined}
+        onAccessibilityAction={
+          variant === 'customers'
+            ? (event) => {
+                if (event.nativeEvent.actionName === 'call') void Linking.openURL(telUrl(client.phone)).catch(() => undefined);
+              }
+            : undefined
+        }
         style={chosen ? styles.chosen : undefined}
       />
       {expanded && block !== 'none' ? (

@@ -5,7 +5,7 @@ import { formatPkTime, localDate } from '@smartfleet/shared-utils';
 import { formatWhenText } from '../i18n';
 // Only these modules: the REV mobile-ux-06 test compiles this file with exactly them stubbed. The
 // connection state and the offline block come through ErrorBanner for that reason.
-import { ErrorBanner, isNoAnswer, OfflineEmpty, useNoConnection, type ErrorBannerAction } from './ErrorBanner';
+import { FirstLoadState, useNoConnection, type ErrorBannerAction } from './ErrorBanner';
 import { Icon } from './Icon';
 import { SkeletonList } from './Skeleton';
 import { Text } from './Text';
@@ -42,8 +42,9 @@ function savedAt(updatedAt: number): string {
 
 /**
  * The states every list and detail screen has (UX_MOBILE §2.2 #16; UX_PRINCIPLES §7.5):
- * - first load: a skeleton;
- * - no data and no answer: "Nothing saved yet." under the one "No connection" banner, never a red card;
+ * - first load: a skeleton (FirstLoadState);
+ * - no data and no connection: "Nothing saved yet." under the one "No connection" banner, at once and
+ *   never a red card;
  * - no data and a server error: an ErrorBanner with "Try again";
  * - saved data and a failed refresh: the data under a "Saved 4:12 pm" strip, which offers "Try again"
  *   while the banner (which has its own) isn't showing;
@@ -65,10 +66,16 @@ export function QueryBoundary<T>({
   const retry = () => void query.refetch();
 
   if (query.data === undefined) {
-    if (query.isError) {
-      return <NoData error={query.error} onRetry={retry} errorAction={errorAction} offlineAction={offlineAction} />;
-    }
-    return <>{skeleton ?? <SkeletonList rows={3} />}</>;
+    return (
+      <FirstLoadState
+        error={query.error}
+        isError={query.isError}
+        skeleton={skeleton ?? <SkeletonList rows={3} />}
+        onRetry={retry}
+        errorAction={errorAction}
+        offlineAction={offlineAction}
+      />
+    );
   }
 
   const data = query.data;
@@ -79,22 +86,6 @@ export function QueryBoundary<T>({
       <View>{body}</View>
     </>
   );
-}
-
-/** Nothing to show: the calm offline block for no answer, the ErrorBanner for a server error. */
-function NoData({
-  error,
-  onRetry,
-  errorAction,
-  offlineAction,
-}: {
-  error: unknown;
-  onRetry: () => void;
-  errorAction?: ErrorBannerAction | null;
-  offlineAction?: ErrorBannerAction | null;
-}) {
-  if (isNoAnswer(error)) return <OfflineEmpty onRetry={onRetry} action={offlineAction} />;
-  return <ErrorBanner error={error} onRetry={onRetry} extraAction={errorAction} />;
 }
 
 /**

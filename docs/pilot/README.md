@@ -2,7 +2,7 @@
 
 The design for the **happy-path pilot** of Smart Fleet, a Pakistan LPG-cylinder delivery platform. It is written against branch `pilot/happy-path` at commit `af889bf` (the same code as `origin/claude/general-session-3CQVX`). Every `path:line` reference is relative to the repo root and was read on that commit.
 
-Status: **Increment 1 in build.** The foundation lane is finishing: the schema and the inc1a migration, the shared packages, settings, the audit log, files, the common API plumbing and the app shells. On 2026-10-22 these docs were reconciled with the test cases in [TEST_CASES.md](TEST_CASES.md) (513 when the gaps were found, 515 now) and with that code; [CHANGELOG.md](CHANGELOG.md) lists every change.
+Status: **Increment 1 in build.** On 2026-10-22 these docs were reconciled with the test cases in [TEST_CASES.md](TEST_CASES.md) (513 when the gaps were found) and with the code. On 2026-10-23 the Increment 1 review's fixes were applied, and the simple-UX pass rebuilt every Inc 1 screen of the three apps to [UX_PRINCIPLES.md](UX_PRINCIPLES.md) and redesigned the Inc 2 and Inc 3 screens to it; TEST_CASES.md now has 572 cases. [CHANGELOG.md](CHANGELOG.md) lists every change.
 
 This blueprint applies the **client clarification of 2026-10-21**. It replaces every earlier hold, charge-on-delivery and refund design:
 

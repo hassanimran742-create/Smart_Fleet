@@ -4,7 +4,7 @@ import { Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-
 import { useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query';
 import type { DistributorHomeDto, Page, PaymentDto, StatementItem, StatementKind } from '@smartfleet/shared-types';
 import { formatPkTime, formatRs, localDate } from '@smartfleet/shared-utils';
-import { isNetworkError, type ApiError } from '../../api/errors';
+import type { ApiError } from '../../api/errors';
 import { qk } from '../../api/keys';
 import { formatDayLabelText } from '../../i18n';
 import {
@@ -13,13 +13,12 @@ import {
   ChoiceChips,
   colors,
   EmptyState,
-  ErrorBanner,
+  FirstLoadState,
   Icon,
   layout,
   ListRow,
   MoneyText,
   moneyA11yLabel,
-  OfflineEmpty,
   Screen,
   SkeletonCard,
   SkeletonList,
@@ -27,6 +26,7 @@ import {
   space,
   StatusChip,
   Text,
+  useNoConnection,
 } from '../../ui';
 import { fetchHome, fetchMyTopups, fetchStatement } from './shared/api';
 import { feeText, isPositivePaisa, paisaOrZero } from './shared/format';
@@ -134,7 +134,9 @@ function SummaryCard({
   onBeingChecked: () => void;
 }) {
   const { t } = useTranslation();
-  if (!home) return loading ? <SkeletonCard lines={1} /> : null;
+  // Under "No connection" with nothing saved, the list's one "Nothing saved yet." says it all.
+  const noConnection = useNoConnection();
+  if (!home) return loading && !noConnection ? <SkeletonCard lines={1} /> : null;
   const wallet = home.wallet;
   return (
     <Card>
@@ -166,11 +168,13 @@ function SummaryCard({
 /** What a list shows with no rows: skeletons, the offline or error state, or its empty state. */
 function emptyOf(query: ListQuery, empty: ReactNode): ReactNode {
   if (query.data === undefined) {
-    if (!query.isError) return <SkeletonList rows={4} />;
-    return isNetworkError(query.error) ? (
-      <OfflineEmpty onRetry={() => void query.refetch()} />
-    ) : (
-      <ErrorBanner error={query.error} onRetry={() => void query.refetch()} />
+    return (
+      <FirstLoadState
+        error={query.error}
+        isError={query.isError}
+        skeleton={<SkeletonList rows={4} />}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
   return empty;

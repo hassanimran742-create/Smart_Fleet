@@ -7,7 +7,7 @@ import type { ApiError } from '../../api/errors';
 import { qk } from '../../api/keys';
 import { fetchMe, type MeDto } from '../../api/me';
 import { useOfficeContact } from '../../hooks/useAppConfig';
-import { Button, Card, SkeletonLines, Text, ltr, space } from '../../ui';
+import { Button, Card, SkeletonLines, Text, ltr, space, useNoConnection } from '../../ui';
 import { DriverScreen, InfoRow, usePullToRefresh } from './components';
 
 /**
@@ -18,6 +18,7 @@ import { DriverScreen, InfoRow, usePullToRefresh } from './components';
  */
 export function DriverHelpScreen() {
   const { t } = useTranslation();
+  const noConnection = useNoConnection();
   const office = useOfficeContact();
   const me = useQuery<MeDto, ApiError>({ queryKey: qk.me, queryFn: fetchMe });
   const pull = usePullToRefresh(me.refetch);
@@ -63,7 +64,7 @@ export function DriverHelpScreen() {
             <InfoRow label={t('driver.help.phone')} value={ltr(formatPkPhone(profile.phone))} />
             <InfoRow label={t('driver.help.van')} value={plate ? ltr(plate) : t('common.menu.vanNone')} />
           </Card>
-        ) : me.isPending ? (
+        ) : me.isPending && !noConnection ? (
           <Card>
             <SkeletonLines lines={3} />
           </Card>

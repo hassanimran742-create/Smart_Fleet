@@ -219,6 +219,8 @@ function WalletCard({ wallet, loading, failed, savedAt, onRetry, onAddMoney, onB
     enabled: showPending && pendingCount === 1,
   });
   const onePending = pendingCount === 1 ? mine.data?.find((p) => p.stage === 'BEING_CHECKED') ?? null : null;
+  // Nothing saved and no connection: the card says so at once, not after the retries (which go on).
+  const unavailable = failed || (!wallet && loading && bannerShowing);
 
   return (
     <Card tone="brand" rounded="lg" padding={space.lg}>
@@ -230,17 +232,20 @@ function WalletCard({ wallet, loading, failed, savedAt, onRetry, onAddMoney, onB
           <MoneyText paisa={wallet.balancePaisa} variant="display" tone="onBrand" numberOfLines={1} testID="home-balance" />
           {wallet.lowBalance ? <StatusChip tone="warning" icon="warn" label={t('home.lowBalance')} /> : null}
         </View>
-      ) : loading ? (
+      ) : loading && !unavailable ? (
         <View style={styles.skeletons} accessibilityLabel={t('common.loading')}>
           <Skeleton width="55%" height={40} />
           <Skeleton width="35%" height={16} />
         </View>
       ) : null}
 
-      {failed ? (
+      {unavailable ? (
         <View style={styles.cardError} accessibilityRole="alert" accessibilityLiveRegion="polite">
           <Text tone="onBrand">{t('wallet.card.loadError')}</Text>
-          <Button label={t('common.actions.tryAgain')} onPress={onRetry} variant="inverse" fullWidth={false} />
+          {/* While the "No connection" banner shows, its Try again is the only one. */}
+          {bannerShowing ? null : (
+            <Button label={t('common.actions.tryAgain')} onPress={onRetry} variant="inverse" fullWidth={false} />
+          )}
         </View>
       ) : null}
 

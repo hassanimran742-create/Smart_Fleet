@@ -105,7 +105,7 @@ export function TransfersScreen() {
   );
 
   return (
-    <>
+    <div className="legacy-old">
       <h2>Inventory roll plan</h2>
       <p className="muted">
         Rebalance cylinders between stores. Pick the source store to see exactly what's in stock, then
@@ -243,6 +243,6 @@ export function TransfersScreen() {
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }
