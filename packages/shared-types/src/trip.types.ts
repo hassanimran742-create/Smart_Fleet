@@ -1,5 +1,5 @@
-import type { GeoPoint, IsoDateTime, ISODateString, UUID } from './common.types';
-import type { OrderStatusValue } from './order.types';
+import type { GeoPoint, IsoDate, IsoDateTime, ISODateString, UUID } from './common.types';
+import type { OrderDto, OrderStatusValue } from './order.types';
 
 export enum TripStatus {
   PLANNED = 'PLANNED',
@@ -135,6 +135,97 @@ export interface TripViewDto {
   vehicle: { id: UUID; plateNo: string } | null;
   driver?: { id: UUID; name: string; phone: string };
   allowedActions?: TripAction[];
+}
+
+/**
+ * [Inc 2] A stop of `GET /trips/:tripId` from Inc 2 (API_CONTRACT §9.3: `stops[]: { id, seq, type,
+ * status, title, address, location, progress }`): the Inc 1 stop plus its step words and progress.
+ */
+export interface TripStopViewDto extends TripStopDto {
+  /** The same as `stopType`, as API_CONTRACT §9.3 names it. */
+  type: TripStopTypeValue;
+  /** What the step is about: the store's name, or the customer's name. */
+  title: string;
+  /** The store's address, or the delivery address label. */
+  address: string | null;
+  /** How far the stop has got; null for a RETURN_DROPOFF stop. */
+  progress: StopProgress | null;
+}
+
+/**
+ * [Inc 2] `GET /trips/:tripId` from Inc 2: the Inc 1 {@link TripViewDto} plus each stop's progress, what
+ * is on the van (the Unload step's "{{count}} on the van") and the trip's buttons.
+ */
+export interface TripDetailDto extends Omit<TripViewDto, 'stops' | 'allowedActions'> {
+  stops: TripStopViewDto[];
+  van: VanCounts | null;
+  /** Set by a finish with cylinders left on the van while `trip.allowFinishWithLeftovers` is on. */
+  leftoverReason: string | null;
+  allowedActions: TripAction[];
+}
+
+/**
+ * [Inc 2] The cylinders on a van by state (UX_MOBILE §7.2: "3 full · 1 empty · 1 part-filled").
+ * `total` counts every cylinder on the van, damaged or lost ones included.
+ */
+export interface VanCounts {
+  full: number;
+  empty: number;
+  partFilled: number;
+  total: number;
+}
+
+/**
+ * [Inc 2] A trip row of `GET /driver/home` (UX_MOBILE §7.2 R2: "Trip · {{count}} customers · load at
+ * {{store}}", a step chip, "Start" or "Continue").
+ */
+export interface TripSummary {
+  id: UUID;
+  status: TripStatusValue;
+  plannedAt: IsoDateTime;
+  startedAt: IsoDateTime | null;
+  /** The distributor's store, where the trip loads. */
+  store: { id: UUID; name: string };
+  /** DELIVERY stops that are not CANCELLED. */
+  customers: number;
+  /** Stops DONE, FAILED or CANCELLED, of all stops. */
+  stops: { done: number; total: number };
+}
+
+/** [Inc 2] `GET /driver/home` (DRIVER exact): the Today screen in one request. */
+export interface DriverHomeDto {
+  /** The current business day (`day.timezone`, `day.cutoffLocalTime`). */
+  businessDate: IsoDate;
+  /** The duty switch (`drivers.is_online`). */
+  onDuty: boolean;
+  vehicle: { id: UUID; plateNo: string } | null;
+  van: VanCounts;
+  activeTrip: TripSummary | null;
+  nextTrips: TripSummary[];
+  /** Trips COMPLETED in the current business day. */
+  doneToday: number;
+}
+
+/** [Inc 2] `GET /trips/:tripId/stops/:stopId` (the trip's driver). `order` is null for the STORE_PICKUP stop. */
+export interface StopDetailDto {
+  stop: TripStopViewDto;
+  order: OrderDto | null;
+  progress: StopProgress;
+}
+
+/**
+ * [Inc 2] `POST /trips/:tripId/stops/:stopId/finish`. `order` is null for the STORE_PICKUP stop ("Done
+ * loading"); `nextStopId` is the next open stop, null when none is left. The driver never receives the
+ * confirmation link.
+ */
+export interface StopFinishResult {
+  order: OrderDto | null;
+  nextStopId: UUID | null;
+}
+
+/** [Inc 2] `PUT /trips/:tripId/stops/:stopId/unlabelled-returns`. */
+export interface UnlabelledReturnsResult {
+  progress: StopProgress;
 }
 
 /** [Inc 2] One size on a stop: how many the orders need and how many are done (API_CONTRACT §9.3). */

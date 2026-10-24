@@ -20,7 +20,14 @@ export const AlertStatus = {
 } as const;
 export type AlertStatus = (typeof AlertStatus)[keyof typeof AlertStatus];
 
-/** Mirrors Prisma `AlertType`. `WALLET_CHECK_MISMATCH` is raised by the nightly wallet check (§8.5). */
+/**
+ * Mirrors Prisma `AlertType`. `WALLET_CHECK_MISMATCH` is raised by the nightly wallet check (§8.5).
+ * [Inc 2] `CUSTOMER_PROBLEM` is a case opened by a confirmation answer (context
+ * `CustomerProblemContext`); `VAN_NOT_EMPTY` is one unresolved alert per van holding cylinders at the
+ * cut-off or after a finish with leftovers (context {@link VanNotEmptyContext}).
+ * [Inc 3] `DAY_END_SUBMITTED` tells the office a shop sent its day-end for approval (resource the day,
+ * context {@link DayEndSubmittedContext}); one per day, resolved by the approve or the send-back.
+ */
 export const AlertType = {
   DISPATCH_NO_CANDIDATE: 'DISPATCH_NO_CANDIDATE',
   LOW_STOCK: 'LOW_STOCK',
@@ -35,8 +42,35 @@ export const AlertType = {
   SPECIAL_CLIENT: 'SPECIAL_CLIENT',
   OTHER: 'OTHER',
   WALLET_CHECK_MISMATCH: 'WALLET_CHECK_MISMATCH',
+  CUSTOMER_PROBLEM: 'CUSTOMER_PROBLEM',
+  VAN_NOT_EMPTY: 'VAN_NOT_EMPTY',
+  DAY_END_SUBMITTED: 'DAY_END_SUBMITTED',
 } as const;
 export type AlertType = (typeof AlertType)[keyof typeof AlertType];
+
+/** [Inc 2] The `context` of a VAN_NOT_EMPTY alert (API_CONTRACT §9.9); a new raise only updates it. */
+export interface VanNotEmptyContext {
+  vehicleId: string;
+  plateNo: string;
+  count: number;
+  tripId: string | null;
+  leftoverReason: string | null;
+}
+
+/**
+ * [Inc 3] The `context` of a DAY_END_SUBMITTED alert (API_CONTRACT §10.2): raised by the shop's submit
+ * with resourceType `DayClose` and resourceId the day, deduplicated per day (a repeat submit raises
+ * nothing new), resolved by the office's approve or send-back. `businessDate` is `YYYY-MM-DD`.
+ */
+export interface DayEndSubmittedContext {
+  dayCloseId: string;
+  distributorId: string;
+  businessDate: string;
+  version: number;
+  differences: number;
+  /** The shop's note on the submit (at most 300 characters), or null. */
+  note: string | null;
+}
 
 /**
  * Mirrors Prisma `AlertRuleKind`. `DISTRIBUTOR_CREDIT_OVER` is retired: balances can't go negative

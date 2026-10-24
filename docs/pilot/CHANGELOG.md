@@ -1,3 +1,109 @@
+# Merge of the Increment 2 and 3 server into the simple-UX build, 2026-10-24
+
+The Increment 2 and 3 server (the two sections below) is merged into the simple-UX build of Increment 1 on `pilot/happy-path`. The merge changed no behaviour, no screen and no money rule: the delivery cost is deducted when the order is placed and returned only on a cancel before delivery has started, and no scan, refill, day-end, confirmation or case moves money. Each line below says what the merge settled.
+
+## Docs and code
+- Both sides are kept everywhere. They overlapped only in this file (every section kept, newest first), CUSTOMER_PAGE §6 (the simple design's paragraph, then the "As built" one), API_CONTRACT (the simple-UX words in §2.3, §9.7 and §9.8 beside the server's §3.7, §9.12, §10 and the rest), the error catalogue (ASSIGN_DRIVER_NOT_AVAILABLE says "trips"; the day-end row error is typed) and two tests. The catalogue in shared-types still matches API_CONTRACT §2.3 exactly (FND-008). (API_CONTRACT §2.3; CUSTOMER_PAGE §6)
+- The apps are still the simple-UX Inc 1 screens, and the server now gives some Inc 1 calls their Inc 2 and Inc 3 answers until the Inc 2 and Inc 3 screens replace them: the driver's Unload (`SCAN_IN`) gets 403 `SCAN_USE_STORE_RECEIVE`, the driver's refill count steps 410 `REFILL_USE_SCANS`, the office's "Mark delivered…" without the named cylinders 400, and the legacy Refills "Mark complete" 410 `REFILL_AUTO_COMPLETES`. (API_CONTRACT §9.10, §9.12, §10.1, Appendix A)
+
+## Test catalogue
+- TEST_CASES.md and .csv are regenerated with the gates' case notes: 570 cases. (TEST_CASES "Summary")
+  - Retired at Inc 2, their numbers left unused: FEE-030 (a wallet below zero can't exist after inc1b; WAL-023 and MIG-014 cover the rest) and ORD-018 (a shop without a store can't exist after inc1b; MIG-014).
+  - ASG-009, ASG-010, ASG-012, ORD-014, ORD-015 and ORD-019 now read as their Inc 2 forms, and REF-008 as its Inc 3 form.
+  - HLD-002 step 3 (the shop gets PERMISSION_DENIED, the office FEATURE_DISABLED); DAY-006, DAY-012, DAY-017, SET-011 and SET-012 as the Inc 3 gate listed; FND-001 and DAY-018 with this build's defaults (scanFlow, typedCylinderNumber and dayEnd on).
+  - The fixture notes of CNF-014, CNF-018 to CNF-021, CNF-028, CNF-039, MIG-006 and MIG-015, the unit coverage of CNF-025 and MSG-002, and DRV-035 waiting for the driver app's test runner. REF-029 stays a manual drill and names its automated proof.
+- Automated cases with a passing test: Inc 1 255 of 255, Inc 2 120 of 121 (DRV-035 has no test yet), Inc 3 43 of 43.
+
+# Increment 3 server, 2026-10-24
+
+The Increment 3 server is built: the inc3 migration, refills on QR scans that the store's receives complete, the system-made day-end sheet with its checked upload, the office's approve, send-back and reopen, and the pilot setup and reset CLIs. Each line below gives what building it settled and where the docs now say it; "code only" means the docs already said so. The money model is unchanged: the delivery cost is deducted when the order is placed and returned only on a cancel before delivery has started. No refill, receive, day-end upload, approval, setup or reset moves money; the only money the setup writes is an opening balance, once, through WalletService and only with `--test`.
+
+## Migrations
+- `20261024021613_inc3_refills_dayend` is diffed from a snapshot of the Inc 2 schema and hand-edited as §5.4 says: refill numbers, request keys and pickup and cancel times, one line per picked cylinder, the refill link on cylinder events, `is_test` on users, distributors and vans, the day and day-line tables, and the new enum values. Proven on a fresh database (no drift), on Inc 2-shaped data through `migrate.sh`, with the pre-check blocking, and with resolve-then-redeploy. (DATA_MODEL §5.5)
+- The pre-check blocks while any refill is past PENDING and not finished, names at most 20 with "and N more", and gives the fix and the resolve command. Refill numbers are backfilled per shop by `(created_at, id)`, continuing after the higher of the highest number and the counter. (DATA_MODEL §5.5)
+- The approval's fix (G09-03) is not a column: `deriveDayCloseFix` in shared-utils derives it from the stored values, so a blank cell means the app's value and Missing means LOST. Every new foreign key is RESTRICT. (DATA_MODEL §5.5; API_CONTRACT §10.2)
+
+## Contracts and settings
+- The Inc 3 contracts of API_CONTRACT §10 are in shared-types, shared-validation and shared-utils: the refill scan, advance and line types, the day-end DTOs and the sheet layout, the request schemas, the pilot setup file schema, the day-end sheet rules and the refill counts from lines. Every Inc 3 error code was already in the catalogue. (code only)
+- The day-end row-error English is the shorter text of the screen spec, as in shared-types `DAY_END_ROW_ERROR_EN` (final.json DAY-006 and DAY-007 already expect it); `REASON_REQUIRED` keeps its 3-character rule. The shorter `REFILL_COUNT_REACHED` text was not applied, because REF-016 and REF-030 keep "All picked up: 2 of 2." (API_CONTRACT §10.2, §10.5; UX_MOBILE §8.3)
+- `RELEASE_INCREMENT` is 3 and `dayEnd.enabled` defaults to `RELEASE_INCREMENT >= 3`, so day-end is on in this build; FND-001 expects `features.dayEnd` true, and DAY-018 switches it off with a PATCH first. (API_CONTRACT §6, §10.5)
+- `custody/custody-moves.ts` is the custody extension point for the Inc 3 lanes: the scan service's own move write (with the refill link and the reason rule) and the one rule for "on an open refill line". (API_CONTRACT §10.5)
+- `GET /admin/summary` adds the Inc 3 Today cards: `refills: { needsDriver, oldestNeedsDriverAt }` (PENDING refills) and `dayEnd: { toApprove, oldest }` (SUBMITTED days, left out while `dayEnd.enabled` is off). Both stay optional in `AdminSummaryDto`. (API_CONTRACT §10.5)
+
+## Refills on scans
+- Refills run on scans: pickup, fill, "Leave store" and "Leave station" (`POST /filling-orders/:id/scans` and `/advance`), numbered AG-R001 from the shop's own counter, with idempotent creates (a retry gets the first refill; the same key with other details is `IDEMPOTENCY_CONFLICT`). (API_CONTRACT §10.1, §10.5)
+- The last store receive completes a refill in the same transaction, filled or not: SYSTEM `refill.complete` (`scan:store-receive`), no money. A filled cylinder comes back FULL. (API_CONTRACT §10.1, §10.5)
+- The owner can cancel only before the first pickup; cancel and pickup lock the same row, so exactly one wins. (code only: API_CONTRACT §10.1)
+- The Inc 1 count steps answer 410 `REFILL_USE_SCANS` and the office's complete 410 `REFILL_AUTO_COMPLETES`, after their ownership checks; `POST /reconciliations` answers 410 `RECONCILIATION_RETIRED`. Nothing changes and no money moves. (API_CONTRACT §10.1, §10.4, §10.5, Appendix A)
+- Refill cylinders don't block a delivery trip's "Finish trip" or the 03:00 van check, but do block a van change; `GET /store/incoming` shows them as `came: REFILL` with the refill, and the cylinder history names the refill of each refill move. (API_CONTRACT §9.4, §9.9, §10.5)
+- The refill `allowedActions` are listed: ASSIGN (office), CANCEL (owner), PICKUP, LEAVE_STORE, FILL and LEAVE_STATION (the assigned driver); COMPLETE and the Inc 1 step names are gone. (API_CONTRACT §1.6)
+- One exception to "custody may call none": the store's receive of a refill cylinder calls `filling-orders/refill-receive.ts`, so the refill rows are still written only by their module. (API_CONTRACT §5.1, §10.5)
+
+## Day-end
+- Day-end is built: the system-made sheet with one row per cylinder (and a very hidden "About"), the checked upload with its preview of every difference, the submit, and the office's approve (every listed fix in one transaction, skipping cylinders moved since the sheet), send-back and reopen. No money, and no scan is ever refused. (code only: API_CONTRACT §10.2; DATA_MODEL §5.3, §5.4)
+- No job creates OPEN days: the first sheet download does, so two downloads at once make one row (G09-10). (API_CONTRACT §10.5)
+- The summary's counts, the clock, the upload refusals the contract didn't name (no file, another field, encrypted, ZIP64 or 2,000-entry archives), the row rules, the lines, the approval's skip, the DTO fields and the sheet file's headers are written down as built. (API_CONTRACT §10.5)
+- An approved "In my store" fix of a cylinder still on an open refill line brings it back for its refill, as the store's receive would: the line is RETURNED and the last one completes the refill (SYSTEM `day-end:approve`). A state or Missing fix keeps the holder, so the line stays open until the store receives the cylinder. (API_CONTRACT §10.5)
+- `FilesService.storeGenerated` and `discardObject` store and clean up the day-end workbooks with the files module's private client, so the shop is the uploader of both files and the office opens them through `GET /files/:id/url`. (API_CONTRACT §10.5)
+- The Today card counts the days waiting for approval (`AdminSummaryDto.dayEnd`). (API_CONTRACT §10.5)
+
+## Pilot setup and reset
+- `npm run pilot:setup` checks the whole file first, then writes it all or nothing in one transaction through the services, with their rules and audit rows; it writes a labels CSV (`--labels`), prints 12-character one-time passwords once at the end, and follows the `--test` rules. `docs/pilot/pilot-setup.sample.json` is the documented example; `pilot/test.json` and `pilot/rehearsal.json` (without Sana and Usman; ops fills in the team's real test phones) are in the repo. (API_CONTRACT §10.3, §10.5)
+- `npm run pilot:reset` plans the deletion from its map of the data model, refuses when a kept row points at test data, deletes only with `--yes`, guards production with `--allow-production --confirm-db`, and writes one `pilot.reset` row. (API_CONTRACT §10.3, §10.5)
+- The npm scripts `pilot:setup` and `pilot:reset` run the CLIs, which also compile into the image (`node dist/modules/pilot-setup/cli/…`); `pilot-labels-*.csv` is git-ignored. `seed:demo` stays, refusing to run. (code only: API_CONTRACT §10.3)
+
+## Test cases for the catalogue (final.json is the source; TEST_CASES.md is regenerated from it)
+- Every automated Inc 3 case has a test named by its id: REF-013 to REF-024, REF-030 and REF-031 in `apps/api/test/inc3/refills/` (refill-requests, refill-scans, refill-receive, refill-delivery and refill-retired `.e2e-spec.ts`, plus refill-mapper.spec.ts) and `test/inc3/db/`; DAY-001 to DAY-018 in `test/inc3/dayend/` (day-end.e2e-spec.ts: DAY-001 to 006, 008 and 016 to 018; day-end-approve.e2e-spec.ts: DAY-007 and 009 to 015); SET-003 to SET-012 in `test/inc3/setup/` (pilot-setup, pilot-reset and tenant-leak `.e2e-spec.ts`); FEE-028 in `test/inc3/gate/refill-dayend.e2e-spec.ts`. To update in final.json: these `testFile` paths, and "Not automated yet." on each.
+- To update in the case texts: DAY-006 step 3 (with no upload the version is 0, which the schema refuses with 400; the test sends version 1 and gets `DAY_SHEET_NOT_UPLOADED`); DAY-012 (the approval may win the race, and then the load is refused with `SCAN_NOT_FULL`); DAY-017 (at 02:30 the 22nd isn't a business date yet; after the cut-off moves to 00:00 the 02:30 receive counts for the 22nd); SET-012 step 3 (the order body needs a place, `deliveryLocation` in South); SET-011 step 5 (the "copy" of live is a scratch database whose name contains "test").
+- REF-029, the migration refusing an in-flight refill, also has an automated proof in `test/inc3/db/inc3-precheck.e2e-spec.ts`.
+- The Inc 1 REF-008 runs its Inc 3 form (the count steps and complete answer 410, nothing changes, no money); the Inc 2 assertions that pinned the Inc 2 build (dayEnd off, the Inc 2 schema) now state Inc 2 facts as "Inc 2 or later" and compare the Inc 2 release with its own schema.
+
+# Increment 2 server, 2026-10-23
+
+The Increment 2 server is built: the inc1b and inc2 migrations, scans with the one-holder rule (load at the shop's store, hand over, take back, could not deliver, the store's receive), the office's manual delivery naming the cylinders, runs that finish with an empty van, and the customer's confirmation link with its cases and message log. Each line below gives what building it settled and where the docs now say it; "code only" means the docs already said so. The money model is unchanged: the delivery cost is deducted when the order is placed, it is returned only on a cancel before delivery has started, and no delivery, take-back, receive, customer answer, case or job moves money.
+
+## Migrations
+- inc1b and inc2 ship in the same deploy, the first of Increment 2. Finish every run in progress with the Increment 1 apps first; if the inc2 pre-check still blocks, inc1b is already committed and the Increment 1 code runs fine on it. (DATA_MODEL §3.5; API_CONTRACT §8.5 step 9)
+- The inc1b pre-checks name at most 20 rows with their fix, and the re-derive step is written so the `SET NOT NULL`s can't fail and can run again: `legacy:<id>` ledger keys, expense types with the archived `LEGACY_<CAT>` fallback, order and request numbers continuing from the higher of the highest number and the counter, and the next free D-code. (DATA_MODEL §3.5)
+- `stop_cylinders_return_state_chk` also requires `return_state IS NOT NULL` for a taken-back row, since a CHECK passes when its expression is NULL. (DATA_MODEL §4.4)
+- The inc2 pre-check names the runs in progress. `DeliveryConfirmation` has its `order` relation, and the Cylinder-to-events relation is named `CylinderEvents` beside `CylinderLastEvent` (no DDL change). (DATA_MODEL §4.3, §4.4)
+- `npm run db:new-migration` takes `--base-file <schema.prisma>`, for a migration on top of one not yet committed (inc2 was diffed from the inc1b schema that way). (DATA_MODEL §2.4)
+
+## Scans, visits and runs
+- The shapes §9.3 left open are fixed: `TripSummary`, `VanCounts`, `StoreStockDto`, `ScanResult.stop` null for store scans, and `GET /trips/:tripId` as `TripDetailDto` with stop titles, progress, the van and the trip's buttons. (API_CONTRACT §9.12)
+- A typed scan while typing is off answers 403 `FEATURE_DISABLED` without `details.progress`; the catalogue keeps `progress` on scan and refill codes only. (API_CONTRACT §9.12)
+- The first LOAD marks the store stop arrived; unlabelled returns take any known size; a short take-back's reason is kept on the stop; finishing a visit the office already closed is 409 `ORDER_INVALID_TRANSITION`. (API_CONTRACT §9.12)
+- The installed 0.1.0 driver app can still finish an order that expects returns: the Delivered tap needs the hand-overs, leaves a short visit open for the empties, and the legacy depart records the shortfall with `oldApp: true`. (API_CONTRACT §9.12, Appendix A)
+- After a forgotten IN, the office's manual delivery may hand a cylinder straight from the store; "Done loading" counts it as handed over on the trip, so the run can still close. (API_CONTRACT §9.3, §9.12)
+- `PATCH /drivers/:id/vehicle` is refused with 409 `VEHICLE_HAS_CYLINDERS` while either van holds a cylinder, before anything is written; giving the same van again stays `X-Already-Applied`. (API_CONTRACT §9.5, §9.12)
+- `GET /inventory/my-vehicle` is counted from cylinders and adds the part-filled counts. (API_CONTRACT §9.12, Appendix A)
+
+## Store and office
+- `POST /store/scans` and `GET /store/incoming` count "received today" by business day, name the van's run and driver, and list only vans with something left; store receives carry no trip, so a hand-back never blocks a driver change. (API_CONTRACT §9.12)
+- Manual delivery v2 names one problem per cylinder in a fixed order, counts a cylinder the driver already scanned on the visit as named, and audits each move; the audit diffs of the Inc 2 actions are written down. (API_CONTRACT §9.12, Appendix B)
+- `PATCH /clients/:id` is built for the owning shop: name, phone and notes, one `client.update` row per change, `confirmationNeedsNewLink` only when the phone changed while a link is pending. (API_CONTRACT §9.4, §9.12; TEST_CASES CUS-013)
+- `GET /admin/summary` adds `problems: { open, oldestOpenAt }`. (code only: API_CONTRACT §7.13)
+- `VAN_NOT_EMPTY` is raised on the van (resourceType `Vehicle`), one OPEN or ACKNOWLEDGED alert per van through the alerts module's dedupe, and the 03:00 van check writes no audit row. (API_CONTRACT §9.9, §9.12)
+
+## Customer confirmation, cases and messages
+- Every order answer to the shop and the office carries `confirmation` (null when there is none); a driver's never does. (API_CONTRACT §9.7, §9.12)
+- `ConfirmationService` is named and placed as built, takes the stop when issuing, and adds `sendIssued`, `summariesFor`, `hasPendingForClient` and `expireDue`; the link-token rules live in one file the boot guards also use. (API_CONTRACT §5.9)
+- The link page sits outside `/api/v1` with a two-entry prefix exclusion, so the app-wide request id and log reach it. (CUSTOMER_PAGE §5)
+- The page's files, its three additions to the copy and layout, the answer's lock and the case's dedupe are written as built. (CUSTOMER_PAGE §6, §7)
+- The message log keeps the link's host in `bodyRedacted`, names the live provider even when test mode skips, and sets `sent_at` only on SENT; retention has no job yet. (CUSTOMER_PAGE §8, §12)
+- An expired pending link reads EXPIRED before the job stores it; the case resolve, the share replay and the view's customer fields are written as built. (API_CONTRACT §9.12)
+
+## Deploy
+- From Inc 2 the boot guards require `PUBLIC_LINK_BASE_URL` (https) and `CONFIRM_LINK_SECRET` (32 or more characters) and check `MESSAGING_PROVIDER`; the env templates and the deployment notes carry all three. (API_CONTRACT §3.7; docs/deployment.md)
+- The Caddyfile redacts link tokens in the access log and leaves the link page's own headers alone; a commented block is ready for a short link domain. (CUSTOMER_PAGE §5)
+
+## Test cases for the catalogue (final.json is the source; TEST_CASES.md is regenerated from it)
+- Retired at Inc 2, with their Inc 2 forms where they exist: ORD-018 (a shop without a store can't exist after inc1b; MIG-014 covers it), the EXP-012 test of a row with only a category (covered by the inc1b re-derive), the WAL-016 negative-balance test, and FEE-030 with REV money-data-02 N1 and N1b (FEE-030 is money-data-03 N2; inc1b refuses balances below zero, so their legacy wallet can't exist; the website's reading of such an answer stays covered by the money-data-02 unit test), the Inc 1 forms of ASG-009, ASG-010, ORD-014, ORD-015 and ORD-019 (their "(Inc 2)" forms run), and REV contract-compat-02's hand-over without a load (refused now; ASG-012 (Inc 2) covers the driver change).
+- REV robustness-ops-01's first test runs on an inc1a-level scratch database. MIG-006's API step (cancelling the old open orders) runs after the copy has gone through the Inc 2 release, since from Inc 2 the API runs only on the current release.
+- The case texts with the shortened English (DRV-012, DRV-021, DRV-027, DRV-029, DRV-032, HLD-002, HLD-003, HLD-012) and the customer page's copy (CNF, CAS, MSG) already match final.json. To update: HLD-002 step 3 expects 403 `FEATURE_DISABLED` for both callers, but §3.4's order of checks gives the shop (never a role of `POST /transfers`) 403 `PERMISSION_DENIED`; only the office gets `FEATURE_DISABLED`, as the test asserts.
+- Fixture notes for the case texts: CNF-014 and CNF-018 post more often than the per-link limit of CNF-026 allows, so their tests clear the limiter or set it aside; an "expired" link in CNF-019, CNF-020 and CNF-021 moves `delivered_at` with `expires_at`, and CNF-019's link D is expired by the job before C is moved; CNF-039 step 4 fails the update with a temporary trigger; CNF-028 checks Sentry through `initSentry`'s `beforeSend` and `beforeBreadcrumb`.
+- CNF-025 (token rules) and MSG-002 (the mock never logs text or link) also have unit coverage in test/inc2/db/inc2-contracts.spec.ts. DRV-035 (the driver app's scan reducer) waits on the driver app's test runner.
+
 # Simple UX pass, 2026-10-23
 
 Every Increment 1 screen of the shop app, the driver app and the office website was rebuilt to one rulebook, UX_PRINCIPLES.md, and the Inc 2 and Inc 3 screens are designed to it before they are built. The theme is unchanged: no token, colour or font changed. The money model is unchanged: the delivery cost is deducted when the order is placed, it is returned only on a cancel before delivery has started, refills carry no money, and customer confirmation is a record only. Where the four UX specs and the lead's decisions of 2026-10-23 differ, the lead's decisions win; the lines below say where.

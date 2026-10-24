@@ -57,7 +57,8 @@ describeDb('review security: live positions after access ended', () => {
 
   beforeEach(async () => {
     await resetDb();
-    std = await createStandardData();
+    // With DA's labelled cylinders: from Inc 2 a delivery is made of scans (API_CONTRACT §9.2).
+    std = await createStandardData({ cylinders: true });
   });
 
   afterEach(() => {
@@ -110,7 +111,19 @@ describeDb('review security: live positions after access ended', () => {
 
     // DA's order X1 goes to DR1 and is delivered.
     const x1 = await http(app).post('/api/v1/orders').set(shopA).set('Idempotency-Key', KEY(1)).send(x1OrderBody(std)).expect(201);
-    await http(app).post(`/api/v1/orders/${x1.body.id}/assign-driver`).set(office).send({ driverId: std.DR1.id }).expect(200);
+    const assigned = await http(app).post(`/api/v1/orders/${x1.body.id}/assign-driver`).set(office).send({ driverId: std.DR1.id }).expect(200);
+    // From Inc 2 the Delivered tap needs the run's scans (API_CONTRACT §9.10): load X1's three cylinders,
+    // leave the store ("Done loading"), hand them over, then tap.
+    const tripId = assigned.body.tripId as string;
+    const x1Cylinders = ['AG-C0001-QR', 'AG-C0002-QR', 'AG-C0031-QR'];
+    for (const qrCode of x1Cylinders) {
+      await http(app).post('/api/v1/custody/scan').set(driver).send({ qrCode, eventType: 'SCAN_OUT', tripId }).expect(201);
+    }
+    const storeStop = await db().tripStop.findFirstOrThrow({ where: { tripId, stopType: 'STORE_PICKUP' } });
+    await http(app).patch(`/api/v1/trips/stops/${storeStop.id}/depart`).set(driver).expect(200);
+    for (const qrCode of x1Cylinders) {
+      await http(app).post('/api/v1/custody/scan').set(driver).send({ qrCode, eventType: 'DELIVERED', tripId, orderId: x1.body.id }).expect(201);
+    }
     await http(app).patch(`/api/v1/orders/${x1.body.id}/status`).set(driver).send({ status: 'DELIVERED' }).expect(200);
 
     // DB (the competitor) gets money and orders for its customer Hina; the office gives it to DR1.

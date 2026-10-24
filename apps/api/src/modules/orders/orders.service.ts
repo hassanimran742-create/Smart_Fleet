@@ -18,6 +18,7 @@ import {
   officeFailOrderSchema,
   type AssignDriverInput,
   type CreateOrderInput,
+  type ManualDeliveryV2Input,
   type OrderBoardQuery,
   type OrdersQuery,
   type UpdateOrderStatusInput,
@@ -33,14 +34,16 @@ import { decodeCursor, invalidCursor, toPage } from '../../common/pagination/cur
 import { ZodBody } from '../../common/pipes/zod-body.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { ConfirmationService } from '../confirmation/confirmation.interface';
+import { ScanService } from '../custody/scan.service';
 import { toDeliveryQuote, type FeeQuote } from '../pricing/delivery-fee.strategy';
 import { PricingService } from '../pricing/pricing.service';
 import { SettingsService } from '../settings/settings.service';
-import { autoStartTrip, lockTripRow, tripHasLoadOrHandover } from '../trips/trip-writes';
+import { lockTripRow, tripHasLoadOrHandover } from '../trips/trip-writes';
 import { TripsService } from '../trips/trips.service';
 import { WalletService } from '../wallet/wallet.service';
 import { boardTabAscending, boardTabWhere, CANCELLED_FAILED_DAYS_BEFORE, listTabWhere } from './order-tabs';
-import { lockOrder } from './order-writes';
+import { lockOrder, markOrderDeliveredManually } from './order-writes';
 import { loadOrdersForPolicy, OrdersFeePolicy, isDeliveryStarted } from './orders-fee.policy';
 import { ORDER_VIEW_INCLUDE, orderShortCode, toOrderDtos, type OrderViewRow } from './orders.mapper';
 import { currentBusinessDays } from './support/business-day';
@@ -123,6 +126,8 @@ export class OrdersService {
     private readonly wallet: WalletService,
     private readonly settings: SettingsService,
     private readonly audit: AuditLogService,
+    private readonly scans: ScanService,
+    private readonly confirmations: ConfirmationService,
     @InjectQueue('dispatch') private readonly dispatchQueue: Queue,
   ) {}
 
@@ -463,32 +468,28 @@ export class OrdersService {
   }
 
   /**
-   * The driver's Delivered tap (`PATCH /orders/:id/status` DELIVERED): own trip only, recorded once
-   * (`delivered_at` is written only while null), `delivery_method` DRIVER_TAP, a PLANNED trip started.
-   * A repeat of the tap answers `X-Already-Applied`; an order the office delivered is 409. No money.
+   * The driver's Delivered tap (`PATCH /orders/:id/status` DELIVERED, the installed 0.1.0 app). From
+   * Inc 2 it behaves like the visit finish (API_CONTRACT §9.10): own trip only, and the hand-over scans
+   * must match the order (409 DELIVERY_SCANS_INCOMPLETE); the order becomes DELIVERED by SCANNED, once.
+   * A repeat answers `X-Already-Applied`; an order the office delivered is 409. No money.
    */
   async driverDelivered(actor: UserActor, id: string): Promise<OrderDto | IdempotentResponse<OrderDto>> {
     await this.seeOrder(actor, id);
-    const applied = await this.prisma.$transaction(async (tx) => {
+    const outcome = await this.prisma.$transaction(async (tx) => {
       const order = await this.lockForDriverOrOffice(tx, actor, id);
       if (order.status === OrderStatus.DELIVERED) {
-        if (order.deliveryMethod === DeliveryMethod.DRIVER_TAP) return false;
+        if (order.deliveryMethod !== DeliveryMethod.MANUAL) return { applied: false, issued: null };
         throw new AppError('ORDER_INVALID_TRANSITION', { from: order.status, to: OrderStatus.DELIVERED, currentStatus: order.status });
       }
       if (!WITH_DRIVER.includes(order.status) || !order.tripId || !order.tripStatus || !OPEN_TRIP.includes(order.tripStatus)) {
         throw new AppError('ORDER_INVALID_TRANSITION', { from: order.status, to: OrderStatus.DELIVERED, currentStatus: order.status });
       }
-      await autoStartTrip(tx, order.tripId);
-      const updated = await tx.$executeRaw`
-        UPDATE orders
-        SET status = 'DELIVERED', delivered_at = (now() AT TIME ZONE 'UTC'), delivered_by_user_id = ${actor.userId}::uuid,
-            delivery_method = 'DRIVER_TAP', updated_at = (now() AT TIME ZONE 'UTC')
-        WHERE id = ${id}::uuid AND delivered_at IS NULL AND status IN ('ASSIGNED','IN_TRANSIT')`;
-      if (updated !== 1) throw new AppError('CONFLICT_STALE_STATE');
-      return true;
+      const finish = await this.trips.legacyDeliveredTap(tx, actor, { id, tripId: order.tripId });
+      return { applied: true, issued: finish.issued };
     }, LOCKING_TX);
+    void this.confirmations.sendIssued(outcome.issued);
     const view = await this.view(actor, id);
-    return applied ? view : alreadyApplied(view);
+    return outcome.applied ? view : alreadyApplied(view);
   }
 
   /** The driver's own ASSIGNED → IN_TRANSIT (`PATCH /orders/:id/status`), setting `onTheWayAt`. */
@@ -632,18 +633,28 @@ export class OrdersService {
 
       const destination = await this.pinOf(tx, id);
       if (!destination) throw new AppError('NOT_FOUND');
-      const tripId = await this.trips.createForOrder(tx, {
-        driverId: driver.id,
-        vehicleId: driver.currentVehicleId,
-        store,
-        orderId: id,
-        destination,
-      });
+      // [Inc 2] assign-driver v2 (§9.5): join the driver's PLANNED trip from the same store while it has
+      // no load scan; otherwise a new trip.
+      const joinTripId = await this.trips.appendableTrip(tx, { driverId: driver.id, vehicleId: driver.currentVehicleId, storeId: homeStoreId });
+      let tripId: string;
+      if (joinTripId) {
+        await this.trips.appendOrder(tx, joinTripId, id, destination);
+        tripId = joinTripId;
+      } else {
+        tripId = await this.trips.createForOrder(tx, {
+          driverId: driver.id,
+          vehicleId: driver.currentVehicleId,
+          store,
+          orderId: id,
+          destination,
+        });
+      }
       await tx.order.update({
         where: { id },
         data: { status: OrderStatus.ASSIGNED, tripId, assignedAt: new Date(), originStoreId: homeStoreId },
       });
       const no = orderShortCode(order.distributor.code, order.orderNo);
+      const appended = joinTripId !== null;
       await this.audit.record(
         {
           action: fromTripId ? 'order.reassign' : 'order.assign',
@@ -653,12 +664,12 @@ export class OrdersService {
           distributorId: order.distributorId,
           reason: body.reason ?? null,
           diff: fromTripId
-            ? { no, from: order.trip?.driver.user.name ?? '', to: driver.user.name, fromTripId, toTripId: tripId, driverId: driver.id }
-            : { no, driver: driver.user.name, tripId, driverId: driver.id },
+            ? { no, from: order.trip?.driver.user.name ?? '', to: driver.user.name, fromTripId, toTripId: tripId, driverId: driver.id, appended }
+            : { no, driver: driver.user.name, tripId, driverId: driver.id, appended },
         },
         tx,
       );
-      const result: AssignDriverResult = { tripId, driverId: driver.id, originStoreId: homeStoreId };
+      const result: AssignDriverResult = { tripId, driverId: driver.id, originStoreId: homeStoreId, appendedToExistingTrip: appended };
       if (fromTripId) result.reassignedFromTripId = fromTripId;
       return { applied: true, result };
     }, LOCKING_TX);
@@ -666,29 +677,53 @@ export class OrdersService {
   }
 
   /**
-   * `POST /orders/:id/manual-delivery` (office, the forgotten-IN path) `{ reason }`: ASSIGNED or
-   * IN_TRANSIT becomes DELIVERED by MANUAL and the DELIVERY stop DONE, audited
-   * `order.manual_delivery`. A repeat after this office delivery answers `X-Already-Applied`; any other
-   * status, a driver's delivery included, is 409 ORDER_INVALID_TRANSITION. No money.
+   * `POST /orders/:id/manual-delivery` v2 (office, the forgotten-IN path; API_CONTRACT §9.5) `{ reason,
+   * cylinders, takenBack? }`. Checks in order: the body (400); the status: ASSIGNED or IN_TRANSIT, a
+   * repeat of this office delivery 200 `X-Already-Applied`, anything else (a driver's delivery included)
+   * 409 ORDER_INVALID_TRANSITION; every code resolves (404 SCAN_CYLINDER_UNKNOWN `{code}`); the named
+   * cylinders must fit the order exactly (409 MANUAL_DELIVERY_CYLINDERS_MISMATCH), else nothing moves.
+   * Then one transaction: the cylinders move (source MANUAL), the visit is DONE, the order DELIVERED by
+   * MANUAL, one `order.manual_delivery` audit row plus one `custody.manual_event` row per cylinder moved,
+   * and the customer confirmation when `confirmation.enabled`. No money.
    */
-  async manualDelivery(actor: UserActor, id: string, reason: string): Promise<OrderDto | IdempotentResponse<OrderDto>> {
-    const applied = await this.prisma.$transaction(async (tx) => {
+  async manualDelivery(actor: UserActor, id: string, body: ManualDeliveryV2Input): Promise<OrderDto | IdempotentResponse<OrderDto>> {
+    const outcome = await this.prisma.$transaction(async (tx) => {
       if (!(await lockOrder(tx, id))) throw new AppError('NOT_FOUND');
       const order = await tx.order.findUniqueOrThrow({
         where: { id },
-        select: { status: true, deliveryMethod: true, tripId: true, distributorId: true, orderNo: true, distributor: { select: { code: true } } },
+        select: {
+          status: true,
+          deliveryMethod: true,
+          tripId: true,
+          distributorId: true,
+          clientId: true,
+          orderNo: true,
+          distributor: { select: { code: true, homeStoreId: true } },
+          lines: { select: { cylinderTypeId: true, fullCount: true } },
+          trip: { select: { id: true, vehicleId: true } },
+        },
       });
-      if (order.status === OrderStatus.DELIVERED && order.deliveryMethod === DeliveryMethod.MANUAL) return false;
-      if (!WITH_DRIVER.includes(order.status)) {
+      if (order.status === OrderStatus.DELIVERED && order.deliveryMethod === DeliveryMethod.MANUAL) return { applied: false, issued: null };
+      if (!WITH_DRIVER.includes(order.status) || !order.trip) {
         throw new AppError('ORDER_INVALID_TRANSITION', { from: order.status, to: OrderStatus.DELIVERED, currentStatus: order.status });
       }
-      const updated = await tx.$executeRaw`
-        UPDATE orders
-        SET status = 'DELIVERED', delivered_at = (now() AT TIME ZONE 'UTC'), delivered_by_user_id = ${actor.userId}::uuid,
-            delivery_method = 'MANUAL', manual_delivery_reason = ${reason}, updated_at = (now() AT TIME ZONE 'UTC')
-        WHERE id = ${id}::uuid AND delivered_at IS NULL AND status IN ('ASSIGNED','IN_TRANSIT')`;
-      if (updated !== 1) throw new AppError('CONFLICT_STALE_STATE');
-      if (order.tripId) await this.trips.closeOrderStop(tx, order.tripId, id, 'DONE');
+      // Orders, then the trip, then the visit, then the cylinders (the scans lock in the same order).
+      await lockTripRow(tx, order.trip.id);
+      const stop = await this.trips.lockOrderStop(tx, order.trip.id, id);
+      if (!stop) throw new AppError('ORDER_INVALID_TRANSITION', { from: order.status, to: OrderStatus.DELIVERED, currentStatus: order.status });
+      const moves = await this.scans.officeManualDelivery(tx, actor, {
+        order: { id, clientId: order.clientId, distributorId: order.distributorId, lines: order.lines },
+        distributor: { id: order.distributorId, code: order.distributor.code, homeStoreId: order.distributor.homeStoreId },
+        trip: { id: order.trip.id, vehicleId: order.trip.vehicleId },
+        stopId: stop.id,
+        reason: body.reason,
+        cylinders: body.cylinders,
+        takenBack: body.takenBack ?? [],
+      });
+      const deliveredAt = await markOrderDeliveredManually(tx, id, actor.userId, body.reason);
+      if (!deliveredAt) throw new AppError('CONFLICT_STALE_STATE');
+      await this.trips.closeOrderStop(tx, order.trip.id, id, 'DONE');
+      const no = orderShortCode(order.distributor.code, order.orderNo);
       await this.audit.record(
         {
           action: 'order.manual_delivery',
@@ -696,15 +731,35 @@ export class OrdersService {
           resourceType: 'order',
           resourceId: id,
           distributorId: order.distributorId,
-          reason,
-          diff: { no: orderShortCode(order.distributor.code, order.orderNo) },
+          reason: body.reason,
+          diff: {
+            no,
+            cylinders: body.cylinders.map((c) => c.code),
+            takenBack: (body.takenBack ?? []).map((c) => ({ code: c.code, returnState: c.returnState })),
+          },
         },
         tx,
       );
-      return true;
+      for (const move of moves) {
+        await this.audit.record(
+          {
+            action: 'custody.manual_event',
+            actor,
+            resourceType: 'cylinder',
+            resourceId: move.cylinderId,
+            distributorId: order.distributorId,
+            reason: body.reason,
+            diff: { eventId: move.eventId, from: move.from, to: move.to, orderId: id, no, code: move.code, direction: move.direction },
+          },
+          tx,
+        );
+      }
+      const issued = await this.confirmations.issueForDeliveredOrder(tx, { orderId: id, stopId: stop.id, deliveredAt });
+      return { applied: true, issued };
     }, LOCKING_TX);
+    void this.confirmations.sendIssued(outcome.issued);
     const view = await this.view(actor, id);
-    return applied ? view : alreadyApplied(view);
+    return outcome.applied ? view : alreadyApplied(view);
   }
 
   // ---------- internals ----------
@@ -896,9 +951,18 @@ export class OrdersService {
     return (await this.views(caller, [row]))[0];
   }
 
+  /**
+   * The OrderDtos of `rows`. From Inc 2 each carries the customer's `confirmation` summary for the
+   * owning shop and the office, read with one query per list (API_CONTRACT §9.7; null when there is
+   * none, as for an order delivered while `confirmation.enabled` was off). A driver never gets it: the
+   * driver never receives anything of the customer's link (CUSTOMER_PAGE §1, CNF-040).
+   */
   private async views(caller: PolicyCaller, rows: OrderViewRow[]): Promise<OrderDto[]> {
     const rule = await this.feePolicy.deliveryStartedRule();
-    return toOrderDtos(this.prisma, rows, caller, rule);
+    const dtos = await toOrderDtos(this.prisma, rows, caller, rule);
+    if (caller.role === UserRole.DRIVER || dtos.length === 0) return dtos;
+    const summaries = await this.confirmations.summariesFor(dtos.map((dto) => dto.id));
+    return dtos.map((dto) => ({ ...dto, confirmation: summaries.get(dto.id) ?? null }));
   }
 
   /** A cursor page of orders sorted by `createdAt`, then id (ascending for the needs-driver tab). */

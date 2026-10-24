@@ -24,3 +24,5 @@ export * from './vehicle.schema';
 export * from './alert.schema';
 export * from './support.schema';
 export * from './fuel.schema';
+export * from './day-end.schema';
+export * from './pilot.schema';

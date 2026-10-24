@@ -7,13 +7,19 @@ import { z } from 'zod';
 import * as types from '../../../shared-types/src';
 import * as codes from '../internal/codes';
 import {
+  adminDayEndListQuerySchema,
   cancelOrderSchema,
+  casesQuerySchema,
+  refillAdvanceSchema,
+  refillScanSchema,
+  customerAnswerSchema,
   failOrderSchema,
   PROMOTED_ERROR_CODES,
   rejectTopupSchema,
   shareSchema,
   statementQuerySchema,
   topupRequestSchema,
+  tripScanSchema,
   VALIDATION_CODES,
   VALIDATION_MESSAGE_EN,
   walletCorrectionSchema,
@@ -50,6 +56,16 @@ describe('internal codes match shared-types', () => {
     expect(codes.ADMIN_TOPUP_TABS).toEqual(types.ADMIN_TOPUP_TABS);
     expect(codes.TAKE_BACK_SHORT_REASONS).toEqual(types.TAKE_BACK_SHORT_REASONS);
     expect(codes.CONFIRMATION_SHARE_VIAS).toEqual(types.CONFIRMATION_SHARE_VIAS);
+    expect(codes.CONFIRMATION_RESPONSES).toEqual(types.CONFIRMATION_RESPONSES);
+    expect(codes.CONFIRMATION_RESPONSES).toEqual(Object.values(types.ConfirmationResponse));
+    expect(codes.CASE_STATUSES).toEqual(types.CASE_STATUSES);
+    expect(codes.SCAN_ENTRY_METHODS).toEqual(types.SCAN_ENTRY_METHODS);
+    expect(codes.DRIVER_SCAN_ACTIONS).toEqual(types.DRIVER_SCAN_ACTIONS);
+    for (const action of codes.DRIVER_SCAN_ACTIONS) expect(types.SCAN_ACTIONS).toContain(action);
+    // Inc 3
+    expect(codes.REFILL_SCAN_PHASES).toEqual(types.REFILL_SCAN_PHASES);
+    expect(codes.REFILL_ADVANCE_TARGETS).toEqual(types.REFILL_ADVANCE_TARGETS);
+    expect(codes.DAY_CLOSE_STATUSES).toEqual(Object.values(types.DayCloseStatus));
     const returnStates: true = true as Equals<(typeof codes.RETURN_STATES)[number], types.ReturnState>;
     expect(returnStates).toBe(true);
   });
@@ -63,7 +79,17 @@ describe('internal codes match shared-types', () => {
       true as Equals<z.infer<typeof walletCorrectionSchema>['direction'], types.CorrectionDirection>,
       true as Equals<z.infer<typeof topupRequestSchema>['payerChannel'], types.PayerChannel>,
       true as Equals<z.infer<typeof shareSchema>['via'], types.ConfirmationShareVia>,
+      true as Equals<z.infer<typeof customerAnswerSchema>['answer'], types.ConfirmationResponse>,
+      true as Equals<z.output<typeof casesQuerySchema>['status'], types.CaseStatus>,
+      true as Equals<z.infer<typeof tripScanSchema>['action'], types.DriverScanAction>,
+      true as Equals<z.infer<typeof tripScanSchema>['entryMethod'], types.ScanEntryMethod>,
+      true as Equals<NonNullable<z.infer<typeof tripScanSchema>['returnState']>, types.ReturnState>,
       true as Equals<z.output<typeof statementQuerySchema>['kind'], types.StatementKind[] | undefined>,
+      // Inc 3
+      true as Equals<z.infer<typeof refillScanSchema>['phase'], types.RefillScanPhase>,
+      true as Equals<z.infer<typeof refillScanSchema>['entryMethod'], types.ScanEntryMethod>,
+      true as Equals<z.infer<typeof refillAdvanceSchema>['to'], types.RefillAdvanceTarget>,
+      true as Equals<NonNullable<z.output<typeof adminDayEndListQuerySchema>['status']>, types.DayCloseStatus>,
     ];
     expect(checks.every(Boolean)).toBe(true);
   });

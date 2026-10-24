@@ -67,7 +67,8 @@ describeDb('api-orders: assignment and trips', () => {
     const x1 = await f.x1();
     // Step 1.
     const res = await f.as(std.SA1).post(`/orders/${x1.id}/assign-driver`).send({ driverId: std.DR1.id, originStoreId: std.DB.homeStoreId }).expect(200);
-    expect(res.body).toEqual({ tripId: expect.any(String), driverId: std.DR1.id, originStoreId: std.DA.homeStoreId });
+    // Inc 2 adds `appendedToExistingTrip` (API_CONTRACT §9.5): Kashif had no PLANNED trip to join.
+    expect(res.body).toEqual({ tripId: expect.any(String), driverId: std.DR1.id, originStoreId: std.DA.homeStoreId, appendedToExistingTrip: false });
     // Step 2.
     const trip = await f.as(std.SA1).get(`/trips/${res.body.tripId}`).expect(200);
     expect(trip.body).toMatchObject({ status: 'PLANNED', vehicle: { plateNo: 'LEA-101' }, originStoreId: std.DA.homeStoreId });
@@ -127,7 +128,13 @@ describeDb('api-orders: assignment and trips', () => {
     const T1 = (await f.assign(x1.id, std.DR1)).tripId;
     // Step 1.
     const res = await f.as(std.SA1).post(`/orders/${x1.id}/assign-driver`).send({ driverId: std.DR2.id, reason: 'Kashif is sick' }).expect(200);
-    expect(res.body).toEqual({ tripId: expect.any(String), driverId: std.DR2.id, originStoreId: std.DA.homeStoreId, reassignedFromTripId: T1 });
+    expect(res.body).toEqual({
+      tripId: expect.any(String),
+      driverId: std.DR2.id,
+      originStoreId: std.DA.homeStoreId,
+      reassignedFromTripId: T1,
+      appendedToExistingTrip: false,
+    });
     const T2 = res.body.tripId as string;
     // Step 2.
     const old = await f.as(std.SA1).get(`/trips/${T1}`).expect(200);
@@ -300,74 +307,9 @@ describeDb('api-orders: assignment and trips', () => {
     await http(app).get(`${API}/trips/${T1}`).expect(401);
   });
 
-  it('ASG-009 trip and stop steps in Inc 1: start, arrive, depart, finish and the office abort', async () => {
-    const { std } = f;
-    const O1 = await f.x1();
-    const T1 = (await f.assign(O1.id, std.DR1)).tripId;
-    const O2 = await f.x1();
-    const T2 = (await f.assign(O2.id, std.DR1)).tripId;
-    // Step 1.
-    const started = await f.as(std.DR1).patch(`/trips/${T1}/status`).send({ status: 'IN_PROGRESS' }).expect(200);
-    expect(started.body).toMatchObject({ status: 'IN_PROGRESS', startedAt: expect.any(String) });
-    expect((await f.as(std.DR1).get(`/orders/${O1.id}`).expect(200)).body).toMatchObject({ status: 'ASSIGNED', stage: 'DRIVER_ASSIGNED', onTheWayAt: null });
-    // Step 2.
-    const store = await storeStopOf(T1);
-    const arrived = await f.as(std.DR1).patch(`/trips/stops/${store?.id}/arrive`).expect(200);
-    expect(arrived.body.status).toBe('ARRIVED');
-    const arrivedAgain = await f.as(std.DR1).patch(`/trips/stops/${store?.id}/arrive`).expect(200);
-    expect(arrivedAgain.headers['x-already-applied']).toBe('true');
-    expect(arrivedAgain.body.arrivedAt).toBe(arrived.body.arrivedAt);
-    const departed = await f.as(std.DR1).patch(`/trips/stops/${store?.id}/depart`).expect(200);
-    expect(departed.body).toMatchObject({ status: 'DONE', completedAt: expect.any(String) });
-    expect((await f.as(std.DR1).get(`/orders/${O1.id}`).expect(200)).body).toMatchObject({ status: 'IN_TRANSIT', stage: 'ON_THE_WAY', onTheWayAt: expect.any(String) });
-    const departedAgain = await f.as(std.DR1).patch(`/trips/stops/${store?.id}/depart`).expect(200);
-    expect(departedAgain.headers['x-already-applied']).toBe('true');
-    expect(departedAgain.body.departedAt).toBe(departed.body.departedAt);
-    // Step 3.
-    const open = await f.as(std.DR1).patch(`/trips/${T1}/status`).send({ status: 'COMPLETED' }).expect(409);
-    expect(open.body).toMatchObject({ code: 'TRIP_ORDERS_OPEN', message: 'Finish or close every order on this trip first.' });
-    // Step 4.
-    await f.as(std.DR1).patch(`/orders/${O1.id}/status`).send({ status: 'DELIVERED' }).expect(200);
-    expect((await f.as(std.DR1).patch(`/trips/${T1}/status`).send({ status: 'COMPLETED' }).expect(200)).body.status).toBe('COMPLETED');
-    expect((await f.as(std.DR1).patch(`/trips/${T1}/status`).send({ status: 'COMPLETED' }).expect(200)).headers['x-already-applied']).toBe('true');
-    // Step 5.
-    expect((await f.as(std.SA1).patch(`/trips/${T2}/status`).send({ status: 'ABORTED' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
-    const aborted = await f.as(std.SA1).patch(`/trips/${T2}/status`).send({ status: 'ABORTED', reason: 'Van broke down' }).expect(200);
-    expect(aborted.body.status).toBe('ABORTED');
-    const back = await f.as(std.SA1).get(`/orders/${O2.id}`).expect(200);
-    expect(back.body).toMatchObject({ status: 'PENDING', trip: null, assignedAt: null, stage: 'NEEDS_DRIVER' });
-    expect((await f.stops(T2)).map((stop) => stop.status)).toEqual(['CANCELLED', 'CANCELLED']);
-    const audits = await f.audits('trip.abort', T2);
-    expect(audits).toHaveLength(1);
-    expect(audits[0]).toMatchObject({ actorUserId: std.SA1.id, reason: 'Van broke down' });
-    expect(audits[0].diff).toMatchObject({ orderIds: [O2.id] });
-    expect(await f.ledger({ entryType: { in: ['CREDIT_ORDER_REVERSAL'] } })).toEqual([]);
-    // Step 6.
-    expect((await f.as(std.DR1).patch(`/trips/${T1}/status`).send({ status: 'PLANNED' }).expect(409)).body.code).toBe('TRIP_INVALID_TRANSITION');
-    // Step 7.
-    const again = await f.as(std.SA1).patch(`/trips/${T2}/status`).send({ status: 'ABORTED', reason: 'Van broke down' }).expect(200);
-    expect(again.headers['x-already-applied']).toBe('true');
-    expect(await f.audits('trip.abort', T2)).toHaveLength(1);
-  });
+  // ASG-009 and ASG-010 were retired at Increment 2 for 'ASG-009 (Inc 2)' and 'ASG-010 (Inc 2)' in
+  // test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts: the store stop's depart is now "Done loading" (409
+  // LOAD_INCOMPLETE with nothing loaded, API_CONTRACT §9.10), and a second order for a driver whose PLANNED
+  // trip has no load joins that trip (§9.5), so the Inc 1 two-trip set-up no longer arises.
 
-  it('ASG-010 cancelling an order cancels its stop; the trip is aborted only if nothing was loaded', async () => {
-    const { std } = f;
-    const O1 = await f.x1();
-    const T1 = (await f.assign(O1.id, std.DR1)).tripId;
-    const O2 = await f.x1();
-    const T2 = (await f.assign(O2.id, std.DR1)).tripId;
-    await f.loadScan(std.DR1, T2, 'AG-C0004').expect(201);
-    // Steps 1 and 2.
-    expect((await f.cancel(O1.id, { reasonCode: 'CUSTOMER_CANCELLED' }).expect(200)).body.order.status).toBe('CANCELLED');
-    expect((await f.cancel(O2.id, { reasonCode: 'CUSTOMER_CANCELLED' }).expect(200)).body.order.status).toBe('CANCELLED');
-    // Step 3.
-    const t1 = await f.as(std.SA1).get(`/trips/${T1}`).expect(200);
-    expect(t1.body.status).toBe('ABORTED');
-    expect((t1.body.stops as Array<{ orderId: string | null; status: string }>).find((stop) => stop.orderId === O1.id)?.status).toBe('CANCELLED');
-    const t2 = await f.as(std.SA1).get(`/trips/${T2}`).expect(200);
-    expect(t2.body.status).not.toBe('ABORTED');
-    expect((t2.body.stops as Array<{ orderId: string | null; status: string }>).find((stop) => stop.orderId === O2.id)?.status).toBe('CANCELLED');
-    const cylinder = await f.cylinder('AG-C0004');
-    expect([cylinder.custodyType, cylinder.custodyId]).toEqual(['VEHICLE', std.DR1.vehicleId]);
-  });
 });

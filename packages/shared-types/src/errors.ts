@@ -1,4 +1,5 @@
 import type { IdName, IsoDate, IsoDateTime, Paisa, UUID } from './common.types';
+import type { DayEndRowErrorCode, DaySheetName } from './day-end.types';
 import type { PaymentStatusValue } from './payment.types';
 import type { DeliveryQuote, PricingBlockCode } from './pricing.types';
 import type { RefillScanProgress } from './refill.types';
@@ -253,12 +254,13 @@ export type ManualDeliveryProblemReason =
   | 'NOT_WITH_THIS_CUSTOMER'
   | 'LISTED_TWICE';
 
-/** One unreadable day-end sheet row (API_CONTRACT §10.2). `code` is a `DayEndRowErrorCode`. */
+/** One unreadable day-end sheet row (API_CONTRACT §10.2): the first rule the row breaks. */
 export interface DaySheetRowError {
-  sheet: 'CYLINDERS' | 'EXTRA';
+  sheet: DaySheetName;
   /** The Excel row number; the header is row 1. */
   row: number;
-  code: string;
+  code: DayEndRowErrorCode;
+  /** `DAY_END_ROW_ERROR_EN[code]`. */
   message: string;
 }
 

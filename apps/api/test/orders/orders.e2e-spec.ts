@@ -6,10 +6,9 @@ import type { INestApplication } from '@nestjs/common';
 import { authHeader } from '../helpers/auth';
 import { resetDb } from '../helpers/db';
 import { describeDb } from '../helpers/describe-db';
-import { createClient, createDistributor, createZonePrice } from '../helpers/factories';
 import { http } from '../helpers/http';
 import { createStandardData, STANDARD_PHONES, x1OrderBody, x2OrderBody } from '../helpers/standard-data';
-import { API, OrdersFixture, newKey, together, type OrderBody } from './support/fixture';
+import { API, OrdersFixture, newKey, type OrderBody } from './support/fixture';
 import { createOrdersTestApp, freshSettings } from './support/orders-app';
 
 const SECRET_KEYS = ['passwordHash', 'cnic', 'cnicEncrypted', 'cnicIndex', 'codeHash', 'tokenHash'];
@@ -237,13 +236,17 @@ describeDb('api-orders: orders', () => {
     await f.setBalance(std.DA, 2_000_000n);
     const P = await f.x1();
     const A = await f.x1();
-    await f.assign(A.id, std.DR1);
     const L = await f.x1();
+    // From Inc 2 an order joins its driver's PLANNED trip while that trip has no load (API_CONTRACT §9.5),
+    // and the first LOAD stamps every open order of the trip: so L is assigned and loaded first, and A, assigned
+    // after it, gets a trip of its own with nothing loaded.
     const lTrip = await f.assign(L.id, std.DR1);
     await f.loadScan(std.DR1, lTrip.tripId, 'AG-C0001').expect(201);
+    await f.assign(A.id, std.DR1);
     const T = await f.x1();
     const tTrip = await f.assign(T.id, std.DR2);
-    await f.loadScan(std.DR2, tTrip.tripId, 'AG-C0002').expect(201);
+    // From Inc 2 the depart is "Done loading" (API_CONTRACT §9.10): all of X1's cylinders are loaded first.
+    for (const code of ['AG-C0002', 'AG-C0003', 'AG-C0031']) await f.loadScan(std.DR2, tTrip.tripId, code).expect(201);
     const storeStop = (await f.stops(tTrip.tripId))[0];
     await f.as(std.DR2).patch(`/trips/stops/${storeStop.id}/depart`).expect(200);
     const D = await f.x1();
@@ -319,75 +322,10 @@ describeDb('api-orders: orders', () => {
     expect(rows.filter((row) => row.actorUserId === std.DA.userId)).toHaveLength(4);
   });
 
-  it('ORD-014 Delivered guard: only the trip driver marks it delivered, once, even with two taps at once', async () => {
-    const { std } = f;
-    const O1 = await f.x1();
-    const T1 = (await f.assign(O1.id, std.DR1)).tripId;
-    const O2 = await f.x1();
-    await f.assign(O2.id, std.DR1);
-    const ledgerBefore = await f.db.ledgerEntry.count({ where: { distributorId: std.DA.id } });
-    const balanceBefore = await f.balance();
-    const deliver = (who: { actor: Parameters<typeof authHeader>[0] }, id: string) => f.as(who).patch(`/orders/${id}/status`).send({ status: 'DELIVERED' });
-    // Step 1.
-    expect((await deliver(std.DR2, O1.id).expect(404)).body.code).toBe('NOT_FOUND');
-    // Step 2.
-    const office = await deliver(std.SA1, O1.id).expect(400);
-    expect(office.body).toMatchObject({ code: 'ORDER_USE_MANUAL_DELIVERY', message: 'Use "Mark delivered by office" for this.' });
-    // Step 3.
-    expect((await deliver(std.DA, O1.id).expect(403)).body.code).toBe('PERMISSION_DENIED');
-    expect((await f.order(O1.id)).status).toBe('ASSIGNED');
-    // Step 4.
-    const first = await deliver(std.DR1, O1.id).expect(200);
-    expect(first.body).toMatchObject({ status: 'DELIVERED', stage: 'DELIVERED', deliveryMethod: 'DRIVER_TAP' });
-    expect(first.headers['x-already-applied']).toBeUndefined();
-    const row = await f.order(O1.id);
-    expect(row.deliveredByUserId).toBe(std.DR1.userId);
-    const again = await deliver(std.DR1, O1.id).expect(200);
-    expect(again.headers['x-already-applied']).toBe('true');
-    expect(again.body.deliveredAt).toBe(first.body.deliveredAt);
-    // Step 5.
-    const [a, b] = await together(deliver(std.DR1, O2.id), deliver(std.DR1, O2.id));
-    expect([a.status, b.status]).toEqual([200, 200]);
-    expect([a.headers['x-already-applied'], b.headers['x-already-applied']].filter((h) => h === 'true')).toHaveLength(1);
-    expect(a.body.deliveredAt).toBe(b.body.deliveredAt);
-    // Step 6.
-    expect((await f.as(std.SA1).get(`/trips/${T1}`).expect(200)).body.status).toBe('IN_PROGRESS');
-    // Step 7.
-    expect(await f.balance()).toBe(balanceBefore);
-    expect(await f.db.ledgerEntry.count({ where: { distributorId: std.DA.id } })).toBe(ledgerBefore);
-    expect(await f.db.ledgerEntry.count({ where: { orderId: O1.id, entryType: 'DEBIT_ORDER' } })).toBe(1);
-  });
-
-  it('ORD-015 the office records a delivery with a reason, only for an order with a driver', async () => {
-    const { std } = f;
-    const O1 = await f.x1();
-    await f.assign(O1.id, std.DR1);
-    const O2 = await f.x1();
-    const O3 = await f.x1();
-    await f.assign(O3.id, std.DR1);
-    await f.as(std.DR1).patch(`/orders/${O3.id}/status`).send({ status: 'DELIVERED' }).expect(200);
-    const manual = (id: string, reason: string, who: { actor: Parameters<typeof authHeader>[0] } = std.SA1) =>
-      f.as(who).post(`/orders/${id}/manual-delivery`).send({ reason });
-    // Step 1.
-    expect((await manual(O1.id, 'Too short').expect(400)).body.code).toBe('VALIDATION_FAILED');
-    // Step 2.
-    const done = await manual(O1.id, 'Driver phone broke at the door').expect(200);
-    expect(done.body).toMatchObject({ status: 'DELIVERED', deliveryMethod: 'MANUAL' });
-    expect((await f.order(O1.id)).manualDeliveryReason).toBe('Driver phone broke at the door');
-    expect((await manual(O1.id, 'Driver phone broke at the door').expect(200)).headers['x-already-applied']).toBe('true');
-    // Step 3.
-    const pending = await manual(O2.id, 'Driver phone broke at the door').expect(409);
-    expect(pending.body).toMatchObject({ code: 'ORDER_INVALID_TRANSITION', details: { from: 'PENDING', to: 'DELIVERED' } });
-    const byDriver = await manual(O3.id, 'Driver phone broke at the door').expect(409);
-    expect(byDriver.body).toMatchObject({ code: 'ORDER_INVALID_TRANSITION', details: { currentStatus: 'DELIVERED' } });
-    // Step 4.
-    for (const who of [std.DA, std.DR1]) expect((await manual(O1.id, 'Driver phone broke at the door', who).expect(403)).body.code).toBe('PERMISSION_DENIED');
-    // Step 5.
-    const audits = await f.as(std.SA1).get(`/audit-logs?action=order.manual_delivery&resourceId=${O1.id}`).expect(200);
-    const items = Array.isArray(audits.body) ? audits.body : audits.body.items;
-    expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ actor: { userId: std.SA1.id }, reason: 'Driver phone broke at the door' });
-  });
+  // ORD-014 and ORD-015 were retired at Increment 2. The Delivered tap now needs matching hand-over scans
+  // and records SCANNED, and the office's manual delivery names its cylinders (API_CONTRACT §9.5, §9.10).
+  // Their Inc 2 forms are 'ORD-014 (Inc 2)' in test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts and
+  // 'ORD-015 (Inc 2)' in test/inc2/scan/manual-delivery.e2e-spec.ts.
 
   it('ORD-016 the installed 0.1.0 shop app still works: the old add-customer and place-order requests', async () => {
     const { std } = f;
@@ -437,61 +375,10 @@ describeDb('api-orders: orders', () => {
     await f.cancel(placed.body.id, { reasonCode: 'DUPLICATE' }).expect(200);
   });
 
-  it('ORD-018 a shop with no store set cannot place an order, and nothing is deducted', async () => {
-    const { std, db } = f;
-    const shop = await createDistributor({ code: 'OS', businessName: 'Old Shop', zone: std.zones.North, balancePaisa: 100_000n });
-    await db.distributor.update({ where: { id: shop.id }, data: { homeStoreId: null } });
-    const customer = await createClient({ distributor: shop, address: { location: { lat: 31.53, lng: 74.23 } } });
-    await createZonePrice({ distributorId: shop.id, zoneId: std.zones.North.id, basePaisa: 25_000n });
-    const body = {
-      clientId: customer.id,
-      addressId: customer.addressId,
-      deliveryLabel: 'North house',
-      lines: [{ cylinderTypeId: std.sizes.kg11_8, fullCount: 1, expectedReturnCount: 1 }],
-    };
-    const nextBefore = (await db.distributor.findUniqueOrThrow({ where: { id: shop.id } })).nextOrderNo;
-    // Step 1.
-    expect((await f.as(shop).get('/distributor/home').expect(200)).body.distributor.storeSet).toBe(false);
-    // Step 2.
-    const refused = await f.as(shop).post('/orders').set('Idempotency-Key', newKey()).send(body).expect(409);
-    expect(refused.body).toMatchObject({ code: 'DISTRIBUTOR_NO_STORE', message: 'This shop has no store set up yet. Call the office.' });
-    // Step 3.
-    expect((await f.as(shop).post('/orders/quote').send(body).expect(409)).body.code).toBe('DISTRIBUTOR_NO_STORE');
-    const location = await f.as(shop).get('/pricing/quote?lat=31.53&lng=74.23').expect(200);
-    expect(location.body).toMatchObject({ serviceable: true, price: { basePaisa: '25000' } });
-    // Step 4.
-    expect(await db.order.count({ where: { distributorId: shop.id } })).toBe(0);
-    expect(await db.ledgerEntry.count({ where: { distributorId: shop.id, entryType: 'DEBIT_ORDER' } })).toBe(0);
-    expect((await db.distributor.findUniqueOrThrow({ where: { id: shop.id } })).nextOrderNo).toBe(nextBefore);
-    expect(await f.balance(shop)).toBe(100_000n);
-  });
-
-  it('ORD-019 the office manual delivery and the driver tap at the same moment record one delivery', async () => {
-    const { std } = f;
-    await f.setBalance(std.DA, 2_000_000n);
-    for (let round = 0; round < 20; round++) {
-      const order = await f.x2();
-      await f.assign(order.id, std.DR1);
-      const [office, driver] = await together(
-        f.as(std.SA1).post(`/orders/${order.id}/manual-delivery`).send({ reason: 'Driver phone broke at the door' }),
-        f.as(std.DR1).patch(`/orders/${order.id}/status`).send({ status: 'DELIVERED' }),
-      );
-      const winners = [office, driver].filter((res) => res.status === 200 && res.headers['x-already-applied'] === undefined);
-      const losers = [office, driver].filter((res) => res.status === 409);
-      expect({ round, winners: winners.length, losers: losers.length }).toEqual({ round, winners: 1, losers: 1 });
-      expect(losers[0].body).toMatchObject({
-        code: 'ORDER_INVALID_TRANSITION',
-        details: { from: 'DELIVERED', to: 'DELIVERED', currentStatus: 'DELIVERED' },
-      });
-      const row = await f.order(order.id);
-      expect(row.status).toBe('DELIVERED');
-      const officeWon = winners[0] === office;
-      expect(row.deliveryMethod).toBe(officeWon ? 'MANUAL' : 'DRIVER_TAP');
-      expect((await f.audits('order.manual_delivery', order.id)).length).toBe(officeWon ? 1 : 0);
-    }
-    expect(await f.db.ledgerEntry.count({ where: { entryType: { not: 'DEBIT_ORDER' }, distributorId: std.DA.id, orderId: { not: null } } })).toBe(0);
-    await f.expectWalletsConsistent();
-  });
+  // ORD-018 was retired at Increment 2: from inc1b every distributor has its store (`home_store_id`
+  // NOT NULL, DATA_MODEL §3.5), so a shop without one can't exist; MIG-014 (test/inc2/db/inc1b.e2e-spec.ts)
+  // proves the release refuses such data. ORD-019 was retired for 'ORD-019 (Inc 2)' in
+  // test/inc2/scan/manual-delivery.e2e-spec.ts (the manual delivery racing the visit finish).
 
   it('ORD-001 POST /orders without an Idempotency-Key and with an unknown order id use the documented codes', async () => {
     const { std } = f;

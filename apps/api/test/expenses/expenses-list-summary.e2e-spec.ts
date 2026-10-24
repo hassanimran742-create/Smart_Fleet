@@ -207,28 +207,7 @@ describeDb('expenses: list and totals', () => {
     }
   });
 
-  it('EXP-012 a row the old API wrote with only a category counts under its type in the list and the totals', async () => {
-    // inc1a mapped every old category to a type; a row written by the old code after the migration
-    // (category set, type_id empty) is read the same way until inc1b fills it in.
-    const legacy = await db().expense.create({
-      data: {
-        category: 'FUEL',
-        description: 'Old app',
-        amountPaisa: 70000n,
-        expenseDate: new Date('2026-10-15T00:00:00Z'),
-        recordedByUserId: std.SA2.id,
-      },
-    });
-    try {
-      const list = await api().listExpenses(std.SA1.actor, { typeId: types.PETROL }).expect(200);
-      expect(list.body.items.find((e: { id: string }) => e.id === legacy.id)).toMatchObject({
-        type: { id: types.PETROL, code: 'PETROL', name: 'Petrol' },
-        recordedBy: { id: std.SA2.id, name: 'Ops' },
-      });
-      const summary = await api().summary(std.SA1.actor).expect(200);
-      expect(summary.body.byType.find((t: { typeId: string }) => t.typeId === types.PETROL)).toMatchObject({ totalPaisa: '320000', count: 2 });
-    } finally {
-      await db().expense.delete({ where: { id: legacy.id } });
-    }
-  });
+  // 'EXP-012 a row the old API wrote with only a category …' was retired at Increment 2: from inc1b every
+  // expense has its type (`expenses.type_id` NOT NULL, DATA_MODEL §3.5), and the inc1b re-derive step that
+  // gives such rows their type is proven in test/inc2/db/inc1b-rederive.e2e-spec.ts.
 });

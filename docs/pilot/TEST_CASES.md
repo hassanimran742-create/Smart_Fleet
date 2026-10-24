@@ -1,6 +1,6 @@
 # Smart Fleet pilot test cases
 
-**Date:** 2026-10-23 · **Cases:** 572 (P1 266 · P2 281 · P3 25) · **Branch:** `pilot/happy-path`
+**Date:** 2026-10-24 · **Cases:** 570 (P1 266 · P2 279 · P3 25) · **Branch:** `pilot/happy-path`
 
 These cases test the whole Smart Fleet pilot as the docs in this folder describe it, Increments 1 to 3: money and expenses, orders and drivers, the one-holder rule, customer confirmation, refills, day-end, setup, quality and migrations, and the rehearsal day.
 
@@ -16,9 +16,9 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [WAL · Wallet and history](#wal--wallet-and-history) (25)
   - [TOP · Manual bank top-ups](#top--manual-bank-top-ups) (31)
   - [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) (19)
-  - [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) (30)
+  - [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) (29)
   - [CUS · Customers and zones](#cus--customers-and-zones) (14)
-  - [ORD · Order lifecycle](#ord--order-lifecycle) (22)
+  - [ORD · Order lifecycle](#ord--order-lifecycle) (21)
   - [ASG · Assignment and trips](#asg--assignment-and-trips) (12)
   - [EXP · Expenses](#exp--expenses) (18)
   - [OFF · Office website](#off--office-website) (19)
@@ -266,9 +266,9 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [WAL · Wallet and history](#wal--wallet-and-history) | 25 | 13 | 11 | 1 | 25 | 0 | 0 |
 | [TOP · Manual bank top-ups](#top--manual-bank-top-ups) | 31 | 17 | 13 | 1 | 31 | 0 | 0 |
 | [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) | 19 | 12 | 6 | 1 | 19 | 0 | 0 |
-| [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) | 30 | 19 | 10 | 1 | 28 | 1 | 1 |
+| [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) | 29 | 19 | 9 | 1 | 27 | 1 | 1 |
 | [CUS · Customers and zones](#cus--customers-and-zones) | 14 | 4 | 10 | 0 | 13 | 1 | 0 |
-| [ORD · Order lifecycle](#ord--order-lifecycle) | 22 | 6 | 15 | 1 | 22 | 0 | 0 |
+| [ORD · Order lifecycle](#ord--order-lifecycle) | 21 | 6 | 14 | 1 | 21 | 0 | 0 |
 | [ASG · Assignment and trips](#asg--assignment-and-trips) | 12 | 8 | 4 | 0 | 12 | 0 | 0 |
 | [EXP · Expenses](#exp--expenses) | 18 | 3 | 15 | 0 | 18 | 0 | 0 |
 | [OFF · Office website](#off--office-website) | 19 | 2 | 16 | 1 | 19 | 0 | 0 |
@@ -284,29 +284,29 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 33 | 1 | 26 | 6 | 30 | 2 | 1 |
 | [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 19 | 17 | 2 | 0 | 18 | 1 | 0 |
 | [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) | 20 | 20 | 0 | 0 | 0 | 0 | 20 |
-| **Total** | **572** | **266** | **281** | **25** | **338** | **161** | **73** |
+| **Total** | **570** | **266** | **279** | **25** | **336** | **161** | **73** |
 
 ### Cases by type
 
 | Type | Who runs it | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
 | AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 60 | 17 | 35 | 8 |
-| AUTO-API | Developers and CI: HTTP against a real test database | 361 | 214 | 142 | 5 |
+| AUTO-API | Developers and CI: HTTP against a real test database | 359 | 214 | 140 | 5 |
 | MAN-SHOP | A tester with the shop app on a phone | 60 | 14 | 42 | 4 |
 | MAN-DRIVER | A tester with the driver app on a phone | 26 | 5 | 18 | 3 |
 | MAN-WEB | An office user on the website | 46 | 6 | 35 | 5 |
 | MAN-PAGE | A tester playing the customer, in a phone browser | 8 | 1 | 7 | 0 |
 | MAN-OPS | Engineering or operations: bank app, command line, server or database | 11 | 9 | 2 | 0 |
-| **Total** |  | **572** | **266** | **281** | **25** |
+| **Total** |  | **570** | **266** | **279** | **25** |
 
 ### Cases by increment
 
 | Increment | What it covers | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| Inc 1 | Foundations, money and expenses | 338 | 155 | 166 | 17 |
+| Inc 1 | Foundations, money and expenses | 336 | 155 | 164 | 17 |
 | Inc 2 | Driver flow on scans, store receive and customer confirmation | 161 | 61 | 93 | 7 |
 | Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 73 | 50 | 22 | 1 |
-| **Total** |  | **572** | **266** | **281** | **25** |
+| **Total** |  | **570** | **266** | **279** | **25** |
 
 ## FND · Platform foundations
 
@@ -327,7 +327,7 @@ Steps:
 Expect:
 
 - Both requests return 200 with a PublicAppConfig body and an X-Request-Id header. The bad token is ignored on this public route.
-- features: autoAssign false, transfers false, fuelRefills false, accessories false, support false, clientApp false, refills true, scanFlow false, confirmations false, dayEnd false, languageSwitch false.
+- features: autoAssign false, transfers false, fuelRefills false, accessories false, support false, clientApp false, refills true, scanFlow true, confirmations false, dayEnd true, typedCylinderNumber true, languageSwitch false. scanFlow and typedCylinderNumber are true from Inc 2 and dayEnd from Inc 3; an Inc 1 build gives all three false.
 - minVersion is { driver: "0.0.0", distributor: "0.0.0" }; orders is { maxCylindersPerOrder: 30, deliveryStartedAt: "FIRST_LOAD_SCAN" }; refill.maxCylinders is 30; day is { timezone: "Asia/Karachi", cutoffLocalTime: "03:00" }.
 - Money is sent as digit strings: topup.minPaisa "50000", topup.maxPaisa "5000000", topup.quickAmountsPaisa ["200000", "500000", "1000000"], wallet.lowBalancePaisa "100000". wallet.capPaisa is null. topup.checkingHours is { from: "09:00", to: "21:00" }.
 - support is { phone: null, whatsApp: null, hours: "9am–9pm" }; environment is "test"; training is false; links.updateUrl is null.
@@ -1115,9 +1115,9 @@ Expect:
 - 2026-12-31T21:30:00Z → "Fri 1 Jan, 2:30 am".
 - The results are the same under both process time zones, with no Intl call.
 
-Spec: ADR-21; CUSTOMER_PAGE §6 (Dates) · Test file: `packages/shared-utils/test/dates.spec.ts`
+Spec: ADR-21; CUSTOMER_PAGE §6 (Dates) · Test file: `apps/api/test/inc2/db/fnd-034-format-pk-datetime.spec.ts`
 
-Note: A day without a leading zero ("1 Jan") is assumed. Built for the Inc 2 customer page; snapshot tests are built from formatPkDateTime output, never copied from doc examples. Not automated yet.
+Note: A day without a leading zero ("1 Jan") is assumed. Built for the Inc 2 customer page; snapshot tests are built from formatPkDateTime output, never copied from doc examples.
 
 ### FND-035 · A create answers 201 and its replay 200; every action sent as POST answers 200; no route answers 204
 
@@ -2687,7 +2687,7 @@ Expect:
 
 Spec: UX_ADMIN §2.6 (Integrity line); API_CONTRACT §7.8, §8.5; DATA_MODEL §3.5 (inc1b pre-check: fix negative balances with a super-admin correction) · Test file: `apps/api/test/unit/ui/admin-web-wallet.spec.ts`
 
-Note: Regression case for review finding money-data-02 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-02 …". The office check of the page is WAL-009 steps 6 and 7. apps/api/test/review/money-data/negative-legacy-balance.e2e-spec.ts runs integrityState on the real API answer.
+Note: Regression case for review finding money-data-02 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-02 …". The office check of the page is WAL-009 steps 6 and 7. The API side (negative-legacy-balance.e2e-spec.ts, N1 and N1b) was retired at Inc 2: inc1b refuses a balance below zero, so such a wallet can't exist any more; this unit test keeps the website's reading of the review's API answer.
 
 ### WAL-024 · The wallet history's Today, Last 7 days, This month and Last month presets count from the business date
 
@@ -3859,7 +3859,7 @@ Note: Regression case for review finding web-ux-07 (CHANGELOG, "Review fixes, 20
 
 ## FEE · Delivery cost on orders
 
-The delivery cost taken when an order is placed, the balance boundary, retries, cancels with and without a refund, the refund cut-off setting, and proof that nothing else moves money. 30 cases: P1 19 · P2 10 · P3 1.
+The delivery cost taken when an order is placed, the balance boundary, retries, cancels with and without a refund, the refund cut-off setting, and proof that nothing else moves money. 29 cases: P1 19 · P2 9 · P3 1.
 
 ### FEE-001 · Placing X1 deducts Rs 480 in the same transaction that creates the order
 
@@ -4444,9 +4444,7 @@ Expect:
 - Step 3: the finish gets 409 TAKE_BACK_SHORT {expected 3, taken 1}.
 - Step 4: X1 is DELIVERED with deliveryMethod 'SCANNED'. Balance stays Rs 4,520; no ledger row besides X1's DEBIT_ORDER; fee status 'DEDUCTED'.
 
-Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §5.5, §9.2, §9.3 (finish: no money), §9.8, §9.11 · Test file: `apps/api/test/e2e/inc2/scan-flow-no-money.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §5.5, §9.2, §9.3 (finish: no money), §9.8, §9.11 · Test file: `apps/api/test/inc2/scan/stop-finish.e2e-spec.ts`
 
 ### FEE-028 · Inc 3: a refill finished by store receive scans and a day-end approval move no money
 
@@ -4468,9 +4466,7 @@ Expect:
 - Step 4: the day becomes APPROVED and locked.
 - Step 5: balance and ledger row count are exactly as at the start.
 
-Spec: ADR-16; ADR-17; API_CONTRACT §10.1, §10.2, §10.4 · Test file: `apps/api/test/e2e/inc3/refill-dayend-no-money.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-16; ADR-17; API_CONTRACT §10.1, §10.2, §10.4 · Test file: `apps/api/test/inc3/gate/refill-dayend.e2e-spec.ts`
 
 ### FEE-029 · A driver change after the driver reached the customer keeps the order started: no refund, and Could not deliver stays
 
@@ -4495,26 +4491,6 @@ Expect:
 Spec: ADR-07; API_CONTRACT §5.5 (OrderForPolicy, isDeliveryStarted), §7.6 (assign-driver rule 4, POST /orders/:id/fail), §1.6 (MARK_FAILED) · Test file: `apps/api/test/orders/review-fixes.e2e-spec.ts`
 
 Note: Regression case for review finding money-data-01 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-01 …". Before the fix the arrival on the old trip was forgotten: a cancel then refunded Rs 480, and MARK_FAILED was refused with ORDER_NOT_STARTED_USE_CANCEL. Confirming test: apps/api/test/review/money-data/refund-after-reassign.e2e-spec.ts.
-
-### FEE-030 · An order refused for balance on a legacy wallet below zero states the real balance and shortfall, as the quote does
-
-**P2** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DB)
-
-Before: Bilal Gas (DB) has a legacy balance of −Rs 300 with one matching history row (an old unguarded debit, possible only before inc1b). Its customer Hina (C3) is priced at Rs 300 in South.
-
-Steps:
-
-1. As DB, POST /orders/quote for Hina.
-2. As DB, POST /orders for the same order.
-
-Expect:
-
-- Step 1: wallet.enough false and wallet.shortByPaisa "60000" (the Rs 300 cost plus the Rs 300 below zero).
-- Step 2: 409 WALLET_INSUFFICIENT_BALANCE with details { requiredPaisa: "30000", balancePaisa: "-30000", shortByPaisa: "60000" } and the message "Not enough balance. This needs Rs 300 and you have −Rs 300. Add money to continue." No order is created and the balance stays −Rs 300.
-
-Spec: API_CONTRACT §2.1, §2.3 (WALLET_INSUFFICIENT_BALANCE details), §7.5 (quote wallet.shortByPaisa), §7.6 (POST /orders rule 6); UX_MOBILE S3 (Add money pre-filled from shortBy) · Test file: `apps/api/test/review/money-data/negative-legacy-balance.e2e-spec.ts`
-
-Note: Regression case for review finding money-data-03 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-03 …". Before the fix the refusal clamped the balance to 0 and said short by Rs 300, so a Rs 300 top-up still left the order refused. The suite puts the wallet right before it ends (WAL-020 teardown).
 
 ## CUS · Customers and zones
 
@@ -4849,9 +4825,9 @@ Expect:
 - Step 5: 404 CLIENT_NOT_FOUND; Sana is unchanged.
 - Step 7: one client.update row for each successful change (steps 1, 2 and 6), each with before and after values, the actor DA's user and distributorId DA.
 
-Spec: API_CONTRACT §9.4 (PATCH /clients/:id), §3.2, Appendix B (client.update [Inc 2]); UX_MOBILE S15b · Test file: `apps/api/test/e2e/clients-edit.e2e-spec.ts`
+Spec: API_CONTRACT §9.4 (PATCH /clients/:id), §3.2, Appendix B (client.update [Inc 2]); UX_MOBILE S15b · Test file: `apps/api/test/inc2/gate/clients-and-summary.e2e-spec.ts`
 
-Note: Editing doesn't touch the address; a customer moves zone by getting a new address (CUS-006), which is re-quoted. Not automated yet.
+Note: Editing doesn't touch the address; a customer moves zone by getting a new address (CUS-006), which is re-quoted.
 
 ### CUS-014 · Customers list: search, call, add and start an order
 
@@ -4884,7 +4860,7 @@ Note: Customers and New order step 1 share one list (screens/distributor/shared/
 
 ## ORD · Order lifecycle
 
-Placing, reading, cancelling and delivering orders, their stages and allowed actions, the order screens, the office board, and the switch-over checks. 22 cases: P1 6 · P2 15 · P3 1.
+Placing, reading, cancelling and delivering orders, their stages and allowed actions, the order screens, the office board, and the switch-over checks. 21 cases: P1 6 · P2 14 · P3 1.
 
 ### ORD-001 · Place order X1 (2 × 11.8 kg + 1 × 45.4 kg for Sana): it waits for a driver and keeps its own copy of the cost
 
@@ -5238,61 +5214,61 @@ Spec: ADR-07; UX_ADMIN §2.5 (Cancel order…, Mark delivered…), §1.5 (Confir
 
 Note: O2's Rs 480 is not returned (it was delivered), so Ahmed Gas's test balance goes down by Rs 480.
 
-### ORD-014 · Delivered guard: only the trip's driver can mark an order delivered, and only once, even with a double tap or two taps at once
+### ORD-014 · Delivered guard: only the trip's driver, only with matching scans, and only once, even with two taps at once
 
 **P1** · AUTO-API · Inc 1 · Role: DRIVER (DR1, DR2), SUPER_ADMIN (SA1), DISTRIBUTOR (DA)
 
-Before: O1 and O2 (DA) are assigned to DR1 on trips T1 and T2, both PLANNED. DR2 has no trip with them. Tokens for DR1, DR2, SA1 and DA. Note DA's balance and ledger row count.
+Before: Inc 2 build or later. O1 (DA, 1 × 11.8 kg for Sana) and O2 (1 × 11.8 kg for Usman) are each assigned to DR1, on trips T1 and T2. DR2 has no trip with them. Tokens for DR1, DR2, SA1 and DA.
 
 Steps:
 
 1. As DR2, PATCH /orders/{O1}/status { status: "DELIVERED" }.
 2. As SA1, PATCH /orders/{O1}/status { status: "DELIVERED" }.
 3. As DA, PATCH /orders/{O1}/status { status: "DELIVERED" }.
-4. As DR1, PATCH /orders/{O1}/status { status: "DELIVERED" }. Note deliveredAt. Send it again.
-5. As DR1, send two PATCH /orders/{O2}/status { status: "DELIVERED" } at the same moment.
-6. As SA1, GET /trips/{T1}.
-7. Read DA's balance and DA's ledger rows.
+4. As DR1, PATCH /orders/{O1}/status { status: "DELIVERED" } before any scan.
+5. As DR1, LOAD AG-C0001 on T1 and hand it over at Sana's stop. Then PATCH /orders/{O1}/status { status: "DELIVERED" }. Note deliveredAt. Send it again.
+6. As DR1, LOAD AG-C0002 on T2 and hand it over at Usman's stop. Then send two PATCH /orders/{O2}/status { status: "DELIVERED" } at the same moment.
+7. Read T1's status and the ledger rows of O1 and O2.
 
 Expect:
 
-- Step 1: 404 NOT_FOUND (DR2 isn't the driver of O1's trip). O1 is unchanged.
+- Step 1: 404 NOT_FOUND (DR2 isn't the driver of O1's trip).
 - Step 2: 400 ORDER_USE_MANUAL_DELIVERY ("Use "Mark delivered by office" for this.").
-- Step 3: 403 PERMISSION_DENIED (the route allows drivers and the office only). O1 is unchanged.
-- Step 4: 200 with status DELIVERED, stage DELIVERED, deliveryMethod DRIVER_TAP, deliveredAt set and delivered by DR1's user. The repeat returns 200 with X-Already-Applied: true and the same deliveredAt.
-- Step 5: both 200, exactly one without X-Already-Applied; O2's deliveredAt is written once.
-- Step 6: T1, which was PLANNED, is now IN_PROGRESS (a delivery auto-starts a planned trip).
-- Step 7: DA's balance and ledger row count are unchanged from the start: each order still has exactly one DEBIT_ORDER row, and marking delivered wrote none.
+- Step 3: 403 PERMISSION_DENIED (the route allows drivers and the office only).
+- Step 4: 409 DELIVERY_SCANS_INCOMPLETE: the Delivered tap needs the hand-overs.
+- Step 5: 200 with status DELIVERED, stage DELIVERED, deliveryMethod SCANNED and deliveredAt set. The repeat returns 200 with X-Already-Applied: true and the same deliveredAt.
+- Step 6: both 200, exactly one without X-Already-Applied.
+- Step 7: T1 is IN_PROGRESS. Each order has exactly one ledger row, its DEBIT_ORDER from placement, and the wallet check is clean: marking delivered wrote none.
 
-Spec: API_CONTRACT §7.6 (PATCH /orders/:id/status table), §4 (1, 3), §8.1, §8.3, §8.6 (delivered is recorded once); Appendix A (DeliveryStepsScreen) · Test file: `apps/api/test/orders/orders.e2e-spec.ts`
+Spec: API_CONTRACT §7.6 (PATCH /orders/:id/status table), §4 (1, 3), §8.1, §8.3, §8.6 (delivered is recorded once), §9.12 (the Delivered tap needs matching hand-overs); Appendix A (DeliveryStepsScreen) · Test file: `apps/api/test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts`
 
-Note: Step 7 checks that no money moves on delivery.
+Note: Its Inc 2 form: the tests are named "ORD-014 (Inc 2) …". The Inc 1 form (a Delivered tap with no scans, recorded DRIVER_TAP) was retired at Inc 2. Step 7 checks that no money moves on delivery.
 
-### ORD-015 · The office can record a delivery with a reason (Inc 1 manual delivery), only for an order with a driver
+### ORD-015 · The office can record a delivery with a reason and the named cylinders, only for an order with a driver
 
 **P2** · AUTO-API · Inc 1 · Role: SUPER_ADMIN (SA1), DISTRIBUTOR (DA), DRIVER (DR1)
 
-Before: O1 (DA) assigned to DR1 (ASSIGNED). O2 PENDING with no driver. O3 already delivered by DR1 (DRIVER_TAP). Tokens for SA1, DA and DR1.
+Before: Inc 2 build or later. O1 (DA, 1 × 11.8 kg for Sana) assigned to DR1, nothing loaded (ASSIGNED). O2 PENDING with no driver. O3 (1 × 11.8 kg for Usman) delivered by DR2 on scans (AG-C0009 loaded, handed over and the visit finished). Tokens for SA1, DA and DR1.
 
 Steps:
 
-1. As SA1, POST /orders/{O1}/manual-delivery { reason: "Too short" } (9 characters).
-2. As SA1, POST /orders/{O1}/manual-delivery { reason: "Driver phone broke at the door" }. Send it again.
-3. As SA1, POST /orders/{O2}/manual-delivery and /orders/{O3}/manual-delivery with a valid reason.
-4. As DA, and then as DR1, POST /orders/{O1}/manual-delivery with a valid reason.
+1. As SA1, POST /orders/{O1}/manual-delivery { reason: "Too short", cylinders: [{ code: "1" }] } (9 characters).
+2. As SA1, POST /orders/{O1}/manual-delivery { reason: "Driver phone broke at the door", cylinders: [{ code: "AG-C0001" }] }. Send it again.
+3. As SA1, the same for O2 (naming AG-C0002) and for O3 (naming AG-C0003).
+4. As DA, and then as DR1, POST /orders/{O1}/manual-delivery with the step 2 body.
 5. As SA1, GET /audit-logs?action=order.manual_delivery&resourceId={O1}.
 
 Expect:
 
 - Step 1: 400 VALIDATION_FAILED (the reason needs 10-300 characters).
-- Step 2: 200. O1 is DELIVERED with deliveryMethod MANUAL and the reason saved. The repeat returns 200 with X-Already-Applied: true.
-- Step 3: O2 gives 409 ORDER_INVALID_TRANSITION with details { from: 'PENDING', to: 'DELIVERED' } (no driver yet). O3 gives 409 ORDER_INVALID_TRANSITION with details.currentStatus DELIVERED (it was delivered by the driver, not by the office, so it is not an X-Already-Applied repeat).
+- Step 2: 200. O1 is DELIVERED with deliveryMethod MANUAL. The repeat returns 200 with X-Already-Applied: true.
+- Step 3: O2 gives 409 ORDER_INVALID_TRANSITION with details { from: 'PENDING', to: 'DELIVERED' } (no driver yet). O3 gives 409 ORDER_INVALID_TRANSITION with details.currentStatus DELIVERED (the driver delivered it, so it is not an X-Already-Applied repeat).
 - Step 4: both give 403 PERMISSION_DENIED.
 - Step 5: exactly one order.manual_delivery row, actor SA1, with the reason.
 
-Spec: ADR-13; API_CONTRACT §7.6 (POST /orders/:id/manual-delivery), §4 (3), §8.1, Appendix B (order.manual_delivery\*) · Test file: `apps/api/test/orders/orders.e2e-spec.ts`
+Spec: ADR-13; API_CONTRACT §7.6 (POST /orders/:id/manual-delivery), §9.5 (manual delivery names the cylinders), §4 (3), §8.1, Appendix B (order.manual_delivery\*) · Test file: `apps/api/test/inc2/scan/manual-delivery.e2e-spec.ts`
 
-Note: Inc 2 adds the cylinder numbers (§9.5).
+Note: Its Inc 2 form: the tests are named "ORD-015 (Inc 2) …". The office names each cylinder from Inc 2 (HLD-004 covers the forgotten IN). The Inc 1 form, with a reason only, was retired at Inc 2.
 
 ### ORD-016 · The installed 0.1.0 shop app still works: its old add-customer and place-order requests succeed, and errors are readable
 
@@ -5340,51 +5316,27 @@ Spec: API_CONTRACT §8.5 (switch-over step 3), §8.1; DATA_MODEL §3.4 (3: fee s
 
 Note: An open order left in place would be delivered with no cost taken (fee_status NONE).
 
-### ORD-018 · A shop with no store set can't place an order, and nothing is deducted
-
-**P2** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (a legacy shop with no store)
-
-Before: Inc 1 build with inc1a only (inc1b later makes home_store_id required). Fixture: an ACTIVE legacy distributor "Old Shop" (code OS) with home_store_id NULL, balance Rs 1,000, one customer in North, and an OS price in North of base Rs 250. Old Shop signed in.
-
-Steps:
-
-1. As Old Shop, GET /api/v1/distributor/home.
-2. As Old Shop, POST /api/v1/orders with a new Idempotency-Key for 1 × 11.8 kg to its North customer.
-3. As Old Shop, POST /api/v1/orders/quote with the same body; then GET /api/v1/pricing/quote at the customer's pin.
-4. Read Old Shop's balance, orders, ledger rows and next_order_no.
-
-Expect:
-
-- Step 1: distributor.storeSet is false.
-- Step 2: 409 DISTRIBUTOR_NO_STORE "This shop has no store set up yet. Call the office."
-- Step 3: the order quote gives 409 DISTRIBUTOR_NO_STORE; the location quote gives 200 with the North price (basePaisa '25000'), because a location's price doesn't need the store.
-- Step 4: no order and no ledger row; next_order_no is unchanged; the balance is still Rs 1,000.
-
-Spec: ADR-01; API_CONTRACT §2.3 (DISTRIBUTOR_NO_STORE), §7.3 (GET /distributor/home storeSet), §7.6 (POST /orders rule 1); DATA_MODEL §3.5 (inc1b pre-check: distributors without a store); UX_MOBILE S2 (Store not set) · Test file: `apps/api/test/orders/orders.e2e-spec.ts`
-
-Note: In the shop app the Home footer shows "Your store isn't set up yet." above a primary "Call office" instead of "New order" (UX_MOBILE S2); check it on a phone with the same fixture. After inc1b no distributor can be without a store.
-
-### ORD-019 · The office's manual delivery and the driver's Delivered tap at the same moment record one delivery
+### ORD-019 · The office's manual delivery and the driver's visit finish at the same moment record one delivery
 
 **P2** · AUTO-API · Inc 1 · Role: SUPER_ADMIN (SA1), DRIVER (DR1)
 
-Before: Inc 1 build. Standard test data. For each round, a fresh order like X2 for Usman (Rs 400), assigned to DR1 (trip PLANNED). Note DA's balance. Run 20 rounds.
+Before: Inc 2 build or later. Standard test data. For each round, a fresh order like X2 for Usman (3 × 15 kg, Rs 400) assigned to DR1, with three new 15 kg cylinders that DR1 loads ("Done loading") and hands over at Usman's stop, leaving the visit open. Run 10 rounds.
 
 Steps:
 
-1. At the same moment, SA1 sends POST /api/v1/orders/\<id>/manual-delivery { reason: "Driver phone broke at the door" } and DR1 sends PATCH /api/v1/orders/\<id>/status { status: "DELIVERED" }.
-2. Read the order, its audit rows and DA's ledger rows.
+1. At the same moment, SA1 sends POST /api/v1/orders/\<id>/manual-delivery { reason: "Driver phone broke at the door", cylinders: the three cylinder numbers } and DR1 finishes Usman's visit (POST /api/v1/trips/\<trip>/stops/\<stop>/finish).
+2. Read the order, its audit rows and DA's ledger rows. DR1 then finishes the trip.
 
 Expect:
 
-- Exactly one call takes effect (200 without X-Already-Applied). The other gets 409 ORDER_INVALID_TRANSITION with details { from: 'DELIVERED', to: 'DELIVERED', currentStatus: 'DELIVERED' }, because it is a different kind of action, not a replay.
-- The order is DELIVERED once, with one deliveredAt: deliveryMethod MANUAL with the reason if the office won, DRIVER_TAP if the driver won.
+- Exactly one call takes effect (200 without X-Already-Applied). The other gets 409 ORDER_INVALID_TRANSITION.
+- The order is DELIVERED once: deliveryMethod MANUAL if the office won, SCANNED if the driver won.
 - An order.manual_delivery audit row exists only in the rounds the office won.
-- DA's balance only went down by the placement costs; no ledger row was written by any delivery.
+- DA's balance only went down by the placement costs; no ledger row was written by any delivery, and the wallet check is clean.
 
-Spec: API_CONTRACT §4 (rules 1 and 3), §7.6 (PATCH /orders/:id/status DELIVERED, POST /orders/:id/manual-delivery), §8.1 · Test file: `apps/api/test/orders/orders.e2e-spec.ts`
+Spec: API_CONTRACT §4 (rules 1 and 3), §7.6 (POST /orders/:id/manual-delivery), §9.3 (finish a visit), §9.5, §8.1 · Test file: `apps/api/test/inc2/scan/manual-delivery.e2e-spec.ts`
 
-Note: API_CONTRACT §4 rule 3 and §7.6: the office's manual delivery and the driver's Delivered tap are different kinds of action, and both lock the order row first.
+Note: Its Inc 2 form: the tests are named "ORD-019 (Inc 2) …". The office's manual delivery and the driver's visit finish are different kinds of action, and both lock the order row first (API_CONTRACT §4 rule 3). The Inc 1 form (the office against a bare Delivered tap) was retired at Inc 2.
 
 ### ORD-020 · With automatic assignment on and Redis down, placing an order still answers at once
 
@@ -5576,7 +5528,7 @@ Expect:
 - Step 3: 409 ASSIGN_ORDER_LOADED with details.plateNo "LEA-101" and the message "Cylinders are already loaded on LEA-101, so this order can't change driver." T1 and its stops are unchanged and no new trip exists.
 - Step 4: 409 TRIP_INVALID_TRANSITION.
 
-Spec: ADR-12; API_CONTRACT §7.6 (assign-driver rule 4), §7.7 (POST /custody/scan SCAN_OUT, PATCH /trips/:id/status), §1.4 (LOADING), §8.3 · Test file: `apps/api/test/orders/assignment.e2e-spec.ts`
+Spec: ADR-12; API_CONTRACT §7.6 (assign-driver rule 4), §7.7 (POST /custody/scan SCAN_OUT, PATCH /trips/:id/status), §1.4 (LOADING), §8.3 · Test file: `apps/api/test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts, apps/api/test/orders/assignment.e2e-spec.ts`
 
 ### ASG-006 · A driver change racing the first load scan: either the change wins or the load wins, never both
 
@@ -5596,7 +5548,7 @@ Expect:
 - Or the load wins: the scan succeeds (AG-C0002 on LEA-101, X1 has loadStartedAt), the reassign returns 409 ASSIGN_ORDER_LOADED, and T1 stays open.
 - Never both: a 200 reassign together with AG-C0002 loaded on LEA-101 for an aborted trip.
 
-Spec: ADR-12, ADR-13; API_CONTRACT §4 (1: lock rows first), §7.6 (assign-driver rule 4), §7.7 (custody/scan common checks); DATA_MODEL §3.6 (the first load scan locks the trip's orders) · Test file: `apps/api/test/orders/assignment.e2e-spec.ts`
+Spec: ADR-12, ADR-13; API_CONTRACT §4 (1: lock rows first), §7.6 (assign-driver rule 4), §7.7 (custody/scan common checks); DATA_MODEL §3.6 (the first load scan locks the trip's orders) · Test file: `apps/api/test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts, apps/api/test/orders/assignment.e2e-spec.ts`
 
 Note: Both the reassign and the load lock X1's order row first (API_CONTRACT §7.6 assign-driver rule 1, §9.2 step 3; DATA_MODEL §3.6), so these are the only two outcomes.
 
@@ -5644,55 +5596,59 @@ Spec: ADR-02; API_CONTRACT §3.2 (canActOnTrip, canSeeOrder), §7.7 (trips, cust
 
 Note: Every ownership miss answers 404 (API_CONTRACT §3.2), so another driver's arrive gives 404 too.
 
-### ASG-009 · Trip and stop steps in Inc 1: start, arrive, depart, finish and office abort
+### ASG-009 · Trip and stop steps on scans: start, arrive, depart as "Done loading", finish and office abort
 
-**P2** · AUTO-API · Inc 1 · Role: DRIVER (DR1), SUPER_ADMIN (SA1)
+**P2** · AUTO-API · Inc 1 · Role: DRIVER (DR1), DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
 
-Before: O1 and O2 (DA) are each assigned to DR1, on trips T1 and T2, both PLANNED. Tokens for DR1 and SA1.
+Before: Inc 2 build or later. O1 (DA, 1 × 11.8 kg for Sana) is assigned to DR1 on trip T1, PLANNED. Tokens for DR1, DA and SA1.
 
 Steps:
 
 1. As DR1, PATCH /trips/{T1}/status { status: "IN_PROGRESS" }.
-2. As DR1, PATCH /trips/stops/{T1's store stop}/arrive twice, then /depart twice.
-3. As DR1, PATCH /trips/{T1}/status { status: "COMPLETED" } while O1 isn't delivered.
-4. As DR1, mark O1 delivered, then PATCH /trips/{T1}/status { status: "COMPLETED" }. Send the COMPLETED again.
-5. As SA1, PATCH /trips/{T2}/status { status: "ABORTED" } with no reason; then with reason "Van broke down".
-6. As DR1, PATCH /trips/{T1}/status { status: "PLANNED" }.
-7. As SA1, send the abort of T2 again, with the same reason.
+2. As DR1, PATCH /trips/stops/{T1's store stop}/arrive twice, then /depart with nothing loaded.
+3. As DR1, LOAD AG-C0001 at the store stop, then /depart twice.
+4. As DR1, PATCH /trips/{T1}/status { status: "COMPLETED" } while Sana's visit is open.
+5. As DR1, hand over AG-C0001 at Sana's stop and finish the visit. Then PATCH /trips/{T1}/status { status: "COMPLETED" } twice.
+6. As DA, place O2 (1 × 11.8 kg for Usman); as SA1, assign DR1 (a new trip T2). As SA1, PATCH /trips/{T2}/status { status: "ABORTED" } with no reason; then with reason "Van broke down".
+7. As DR1, PATCH /trips/{T1}/status { status: "PLANNED" }.
+8. As SA1, send the abort of T2 again, with the same reason.
 
 Expect:
 
-- Step 1: T1 is IN_PROGRESS with startedAt set; O1 stays ASSIGNED (stage DRIVER_ASSIGNED, onTheWayAt null): starting a trip never moves its orders.
-- Step 2: arrive sets the stop ARRIVED, and the second arrive returns 200 with X-Already-Applied: true and keeps the same timestamp; depart sets it DONE with completedAt, and the second depart returns 200 with X-Already-Applied: true and changes nothing. After the first depart of the store stop, O1 is IN_TRANSIT with onTheWayAt set (stage ON_THE_WAY).
-- Step 3: 409 TRIP_ORDERS_OPEN ("Finish or close every order on this trip first.").
-- Step 4: 200 and T1 is COMPLETED; the second PATCH COMPLETED returns 200 with X-Already-Applied: true.
-- Step 5: without a reason, 400 VALIDATION_FAILED; with the reason, 200 and T2 is ABORTED (nothing had happened on it). O2 is PENDING with trip null, assignedAt null and stage NEEDS_DRIVER; both stops of T2 are CANCELLED; one trip.abort audit row by SA1 with the reason and orderIds [O2]; no ledger row.
-- Step 6: 409 TRIP_INVALID_TRANSITION.
-- Step 7: 200 with X-Already-Applied: true; no second trip.abort row.
+- Step 1: T1 is IN_PROGRESS; O1 stays ASSIGNED (stage DRIVER_ASSIGNED, onTheWayAt null): starting a trip never moves its orders.
+- Step 2: arrive sets the stop ARRIVED, and the second arrive returns 200 with X-Already-Applied: true and the same arrivedAt. The depart with nothing loaded gives 409 LOAD_INCOMPLETE: depart is "Done loading".
+- Step 3: the first depart sets the store stop DONE with completedAt, and the second returns 200 with X-Already-Applied: true. O1 is IN_TRANSIT (stage ON_THE_WAY).
+- Step 4: 409 TRIP_STOPS_OPEN.
+- Step 5: 200 and T1 is COMPLETED; the second PATCH COMPLETED returns 200 with X-Already-Applied: true.
+- Step 6: without a reason, 400 VALIDATION_FAILED; with the reason, 200 and T2 is ABORTED. O2 is PENDING with trip null and assignedAt null; every stop of T2 is CANCELLED; one trip.abort audit row with orderIds [O2].
+- Step 7: 409 TRIP_INVALID_TRANSITION.
+- Step 8: 200 with X-Already-Applied: true; no second trip.abort row.
 
-Spec: API_CONTRACT §7.7 (PATCH /trips/:id/status, stops arrive and depart), §8.3, §1.4 · Test file: `apps/api/test/orders/assignment.e2e-spec.ts`
+Spec: API_CONTRACT §7.7 (PATCH /trips/:id/status, stops arrive and depart), §8.3, §1.4, §9.3, §9.5 (a new order joins the driver's PLANNED trip), §9.10 (depart is Done loading) · Test file: `apps/api/test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts`
+
+Note: Its Inc 2 form: the tests are named "ASG-009 (Inc 2) …". The Inc 1 form (a depart with nothing loaded, a finish with an order open, and two PLANNED trips for one driver) was retired at Inc 2.
 
 ### ASG-010 · Cancelling an order cancels its stop; the trip is aborted only if nothing was loaded
 
 **P2** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA)
 
-Before: O1 is assigned to DR1 on trip T1, nothing loaded. O2 is assigned to DR1 on trip T2, and AG-C0004 has been load-scanned on T2. DA and SA1 tokens.
+Before: Inc 2 build or later. O2 (DA, 1 × 11.8 kg for Usman) is assigned to DR1 on trip T2, and AG-C0004 is load-scanned on T2. Then O1 (1 × 11.8 kg for Sana) is assigned to DR1 and gets its own trip T1, because T2 already has a load. DA token.
 
 Steps:
 
 1. As DA, POST /orders/{O1}/cancel { reasonCode: "CUSTOMER_CANCELLED" }.
 2. As DA, POST /orders/{O2}/cancel { reasonCode: "CUSTOMER_CANCELLED" }.
-3. As SA1, GET /trips/{T1} and GET /trips/{T2}. Check where AG-C0004 is.
+3. Read T1, T2 and their stops. Check where AG-C0004 is.
 
 Expect:
 
 - Steps 1 and 2: 200 with the order CANCELLED.
 - T1 is ABORTED and O1's DELIVERY stop is CANCELLED.
-- T2 is not aborted (it has a load scan); O2's DELIVERY stop is CANCELLED; AG-C0004 is still on van LEA-101.
+- T2 is not aborted (it has a load scan; it stays IN_PROGRESS); O2's DELIVERY stop is CANCELLED; AG-C0004 is still on van LEA-101.
 
-Spec: API_CONTRACT §7.6 (cancel step 6), §8.3; DATA_MODEL §3.6 (Cancel step 5); API_CONTRACT §9.8 (a cylinder loaded for a cancelled order stays on the van) · Test file: `apps/api/test/orders/assignment.e2e-spec.ts`
+Spec: API_CONTRACT §7.6 (cancel step 6), §8.3, §9.5 (a new order joins the driver's PLANNED trip); DATA_MODEL §3.6 (Cancel step 5); API_CONTRACT §9.8 (a cylinder loaded for a cancelled order stays on the van) · Test file: `apps/api/test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts`
 
-Note: Whether the cost comes back (X3) is asserted in the money cases.
+Note: Whether the cost comes back (X3) is asserted in the money cases. Its Inc 2 form: the tests are named "ASG-010 (Inc 2) …". The Inc 1 form (two PLANNED trips for one driver) was retired at Inc 2.
 
 ### ASG-011 · Assign and change driver on the website: no store picker, no automatic option, and the trip starts at the shop's store
 
@@ -5719,31 +5675,31 @@ Spec: ADR-01, ADR-12; UX_ADMIN §2.5 (Assign driver dialog, drawer actions), §0
 
 Note: Clean up by cancelling X2 (no refund after loading starts). In Inc 1 the driver then scans the loaded cylinder back into Ahmed Gas Store (SCAN_IN on the legacy route); from Inc 2 the shop scans it in.
 
-### ASG-012 · A hand-back of an earlier run's empties doesn't block a driver change or keep an idle trip open; a cylinder handed to the customer does
+### ASG-012 · The store's hand-back of an earlier run's empties doesn't block a driver change or keep an idle trip open; a hand-over or a take-back does
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA), SUPER_ADMIN (SA1), DRIVER (DR1, DR2)
 
-Before: Standard test data with cylinders. DR1's and DR2's vans each still carry a cylinder left from an earlier run.
+Before: Inc 2 build or later. Standard test data with cylinders. DR1's and DR2's vans each still carry an empty left from an earlier run.
 
 Steps:
 
-1. As DA, place X1; as SA1, assign DR1 (trip T). As DR1, POST /custody/scan { eventType: "SCAN_IN", tripId: T } for the leftover empty. As SA1, GET /orders/\<X1> and GET /trips/\<T>.
+1. As DA, place X1; as SA1, assign DR1 (trip T). As DR1, POST /custody/scan { eventType: "SCAN_IN", tripId: T } for the leftover empty (the 0.1.0 app's hand-back). Then, as DA, scan it in at the store (POST /store/scans). As SA1, GET /orders/\<X1>.
 2. As SA1, POST /orders/\<X1>/assign-driver { driverId: DR2 }.
-3. Place another order and assign DR2; DR2 hands back its leftover empty with SCAN_IN; DA cancels the order.
-4. Place a third order and assign DR1; DR1 scans the full cylinder left on his van to the customer (DELIVERED, no load on this trip). As SA1, GET the order, then try assign-driver to DR2.
-5. Place a fourth order and assign DR1; before loading anything, DR1 takes back a cylinder Sana kept from an earlier delivery (PICKED_UP_EMPTY). As SA1, GET the order, then try assign-driver to DR2.
+3. Place another order and assign DR2; as DA, scan in DR2's leftover empty at the store; DA cancels the order.
+4. Place a third order and assign DR1; DR1 loads AG-C0001 and hands it over at the customer. As SA1, GET the order, then try assign-driver to DR2.
+5. Place a fourth order and assign a driver; before loading anything, the driver takes back a cylinder the customer kept from an earlier delivery. As SA1, GET the order, then try assign-driver to the other driver.
 
 Expect:
 
-- Step 1: X1 stays ASSIGNED with loadStartedAt null and a Rs 480 refund on offer, and allowedActions includes REASSIGN; the trip's own allowedActions are [] (the office abort still needs a trip with no event at all).
+- Step 1: the SCAN_IN gives 403 SCAN_USE_STORE_RECEIVE and the store's receive gives 201. X1 stays ASSIGNED with loadStartedAt null and a Rs 480 refund on offer, and allowedActions includes REASSIGN.
 - Step 2: 200 with reassignedFromTripId T; T is ABORTED and X1 is on DR2's trip.
 - Step 3: the cancel refunds Rs 480 and the trip is ABORTED.
 - Step 4: REASSIGN is not offered (MANUAL_DELIVERY is), and assign-driver gives 409 ASSIGN_ORDER_LOADED; the order keeps its trip.
 - Step 5: loadStartedAt is still null, REASSIGN is not offered, and assign-driver gives 409 ASSIGN_ORDER_LOADED: REASSIGN is offered exactly when rule 4 accepts the change.
 
-Spec: ADR-12; API_CONTRACT §1.6 (REASSIGN), §7.6 (assign-driver rule 4, cancel step 6), §7.7 (PATCH /trips/:id/status ABORTED); DATA_MODEL §3.6 · Test file: `apps/api/test/review/contract-compat/reassign-after-unload.e2e-spec.ts`
+Spec: ADR-12; API_CONTRACT §1.6 (REASSIGN), §7.6 (assign-driver rule 4, cancel step 6), §7.7 (PATCH /trips/:id/status ABORTED), §9.4 (store receive), §9.10 (the 0.1.0 SCAN_IN); DATA_MODEL §3.6 · Test file: `apps/api/test/inc2/scan/assign-and-steps-inc2.e2e-spec.ts, apps/api/test/review/contract-compat/reassign-after-unload.e2e-spec.ts`
 
-Note: Regression case for review finding contract-compat-02 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV contract-compat-02 …". Before the fix any cylinder event blocked a driver change, and the 409 said cylinders were loaded when none were.
+Note: Regression case for review finding contract-compat-02 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV contract-compat-02 …". Before the fix any cylinder event blocked a driver change, and the 409 said cylinders were loaded when none were. From Inc 2 the hand-back is the store's receive, and a hand-over needs a load on the trip (no IN, no OUT), so step 4 hands over a loaded cylinder: the test "ASG-012 (Inc 2) …". The Inc 1 step 4 (a hand-over with no load on the trip) was retired at Inc 2.
 
 ## EXP · Expenses
 
@@ -6227,7 +6183,7 @@ Expect:
 - prices.missing is exactly Ahmed Gas (zones 1) and Bilal Gas (zones 2), sorted by name; City Gas (waiting to start, no prices) is not listed.
 - distributors.waitingToStart = [City Gas]; drivers = { onDuty: 1, total: 2 }.
 
-Spec: API_CONTRACT §7.13 (GET /admin/summary); UX_ADMIN §2.1; ADR-21 (business day) · Test file: `apps/api/test/orders/office.e2e-spec.ts`
+Spec: API_CONTRACT §7.13 (GET /admin/summary); UX_ADMIN §2.1; ADR-21 (business day) · Test file: `apps/api/test/inc2/gate/clients-and-summary.e2e-spec.ts, apps/api/test/orders/office.e2e-spec.ts`
 
 Note: The ledger side of costTakenToday is asserted in the money cases.
 
@@ -6871,9 +6827,7 @@ Expect:
 - Step 1: 409 ORDER_HANDOVER_STARTED ("Cylinders were already handed over. Call the office.").
 - X1 is still IN_TRANSIT (not FAILED). AG-C0001 is still with Sana. Balance Rs 4,520.
 
-Spec: ADR-07; API_CONTRACT §5.5 (handoverStarted), §7.6 (fail), §9.8 · Test file: `apps/api/test/e2e/order-fail.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; API_CONTRACT §5.5 (handoverStarted), §7.6 (fail), §9.8 · Test file: `apps/api/test/inc2/scan/scan-handover.e2e-spec.ts`
 
 ### DRV-009 · Could not deliver sheet in the driver app uses plain words and no money
 
@@ -6924,9 +6878,7 @@ Expect:
 - Step 4: X1 loadStartedAt is set and stage is LOADING.
 - Step 5: event SCAN_OUT, actor DR1, trip T1, the store stop, source SCAN, from Ahmed Gas Store to LEA-101, state FULL to FULL. DA balance still Rs 4,520.
 
-Spec: ADR-13; API_CONTRACT §9.2 (LOAD), §9.3 (StopProgress, ScanResult); DATA_MODEL §4.5 · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (LOAD), §9.3 (StopProgress, ScanResult); DATA_MODEL §4.5 · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
 ### DRV-011 · Load refuses a cylinder that isn't in this distributor's store: with a customer, on another van or in another shop's store
 
@@ -6948,9 +6900,9 @@ Expect:
 - Each error carries details.progress with doneCount 0 of neededCount 3, so the screen still shows "0 of 3".
 - AG-C0011 is still with Sana, AG-C0003 is still on LEB-202 and BG-C0003 is still in Bilal Gas's store. No event was written.
 
-Spec: ADR-13; API_CONTRACT §2.3 (SCAN_NOT_AT_STORE, SCAN_WRONG_OWNER), §9.2 (LOAD), §9.3, §9.11 (Loading at another store gives 409) · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
+Spec: ADR-13; API_CONTRACT §2.3 (SCAN_NOT_AT_STORE, SCAN_WRONG_OWNER), §9.2 (LOAD), §9.3, §9.11 (Loading at another store gives 409) · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
-Note: BG-C0003 covers the §9.11 line 'Loading at another store gives 409' literally. Not automated yet.
+Note: BG-C0003 covers the §9.11 line 'Loading at another store gives 409' literally.
 
 ### DRV-012 · Load refuses cylinders that aren't full or are marked damaged or lost
 
@@ -6972,9 +6924,7 @@ Expect:
 - Steps 3-4: 409 SCAN_CYLINDER_BLOCKED ("Marked damaged or lost. Put it aside. Call office.").
 - All four stay in Ahmed Gas Store with their states unchanged. No event written. X1 loadStartedAt is still empty, so a cancel would still return Rs 480.
 
-Spec: ADR-13; API_CONTRACT §2.3, §9.2 (common step 9, LOAD) · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §2.3, §9.2 (common step 9, LOAD) · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
 ### DRV-013 · Load takes only sizes the trip's open orders still need
 
@@ -6998,9 +6948,7 @@ Expect:
 - Step 4: 409 SCAN_LOAD_NOT_NEEDED; AG-C0003 stays in Ahmed Gas Store.
 - Step 5: 201 for the load, then 200 for "Done loading": LOAD_INCOMPLETE is not raised for X2.
 
-Spec: ADR-07; ADR-13; API_CONTRACT §7.6 (cancel), §9.2 (LOAD: size still needed, cancelled orders not counted), §9.3 · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; ADR-13; API_CONTRACT §7.6 (cancel), §9.2 (LOAD: size still needed, cancelled orders not counted), §9.3 · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
 ### DRV-014 · The first Load marks every open order of the trip as started, so a later cancel returns nothing
 
@@ -7022,9 +6970,9 @@ Expect:
 - DA balance stays Rs 4,120. No CREDIT_ORDER_REVERSAL row exists for X2.
 - One order.cancel audit row with refunded false, refundPaisa "0", startedRule FIRST_LOAD_SCAN.
 
-Spec: ADR-07; API_CONTRACT §5.5, §7.6 (cancel), §9.2 (LOAD), §9.11; DATA_MODEL §3.6 · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
+Spec: ADR-07; API_CONTRACT §5.5, §7.6 (cancel), §9.2 (LOAD), §9.11; DATA_MODEL §3.6 · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
-Note: Reuses X3: a cancel after the first load scan returns nothing. Not automated yet.
+Note: Reuses X3: a cancel after the first load scan returns nothing.
 
 ### DRV-015 · A cancel racing the first Load gives a refund or a load, never both
 
@@ -7045,9 +6993,7 @@ Expect:
 - Never a Rs 480 refund together with AG-C0001 on the van.
 - The wallet integrity check is ok in every run (ledger sum equals the balance).
 
-Spec: ADR-07; ADR-13; API_CONTRACT §4, §7.6 (cancel), §8.6, §9.8; DATA_MODEL §3.6 (first load scan) · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; ADR-13; API_CONTRACT §4, §7.6 (cancel), §8.6, §9.8; DATA_MODEL §3.6 (first load scan) · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
 ### DRV-016 · "Done loading" needs every cylinder loaded, then the order is on the way
 
@@ -7069,9 +7015,7 @@ Expect:
 - Step 3: X1 is IN_TRANSIT with onTheWayAt set and stage ON_THE_WAY. The store stop is DONE with departedAt set. Balance still Rs 4,520.
 - Step 4: 200 with X-Already-Applied: true and { order: null, nextStopId }.
 
-Spec: API_CONTRACT §1.4 (OrderStage), §2.3 (LOAD_INCOMPLETE), §9.3 (stop finish), §9.8 · Test file: `apps/api/test/e2e/scan-load.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: API_CONTRACT §1.4 (OrderStage), §2.3 (LOAD_INCOMPLETE), §9.3 (stop finish), §9.8 · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
 ### DRV-017 · Load screen shows a tick and a counter for each good scan, and turns green when done
 
@@ -7121,9 +7065,7 @@ Expect:
 - Step 3: give complete true, doneCount 3 of 3, canFinish true, blockers [].
 - Each hand-over event is DELIVERED, actor DR1, order X1, from LEA-101 to Sana. Balance still Rs 4,520.
 
-Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.3 (StopProgress); DATA_MODEL §4.3 (stop_cylinders), §4.5 · Test file: `apps/api/test/e2e/scan-handover.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.3 (StopProgress); DATA_MODEL §4.3 (stop_cylinders), §4.5 · Test file: `apps/api/test/inc2/scan/scan-handover.e2e-spec.ts`
 
 ### DRV-019 · Deliver accepts only the sizes and counts the order needs
 
@@ -7145,9 +7087,9 @@ Expect:
 - Step 3: 409 SCAN_COUNT_REACHED, message "You already have all 2 × 11.8 kg."
 - Every error carries details.progress. Step 4: 11.8 kg 2 of 2, 45.4 kg 0 of 1; AG-C0003 and AG-C0021 are still on LEA-101 for Usman.
 
-Spec: ADR-13; API_CONTRACT §2.3, §9.2 (HANDOVER), §9.3 · Test file: `apps/api/test/e2e/scan-handover.e2e-spec.ts`
+Spec: ADR-13; API_CONTRACT §2.3, §9.2 (HANDOVER), §9.3 · Test file: `apps/api/test/inc2/scan/scan-handover.e2e-spec.ts`
 
-Note: Y1 is an extra worked example: South is a flat Rs 400, so 1 × 11.8 kg costs Rs 400. Not automated yet.
+Note: Y1 is an extra worked example: South is a flat Rs 400, so 1 × 11.8 kg costs Rs 400.
 
 ### DRV-020 · Two hand-overs at the same moment can't exceed the order's count
 
@@ -7166,9 +7108,7 @@ Expect:
 - Sana's stop has exactly 2 GIVEN rows for 11.8 kg.
 - The refused cylinder is still on LEA-101 and can be handed to Usman later (201).
 
-Spec: ADR-13; API_CONTRACT §4, §9.2 (row lock), §9.11 (Two parallel hand-overs) · Test file: `apps/api/test/e2e/scan-handover.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §4, §9.2 (row lock), §9.11 (Two parallel hand-overs) · Test file: `apps/api/test/inc2/scan/scan-handover.e2e-spec.ts`
 
 ### DRV-021 · "Finish visit" is refused while any cylinder of the order isn't handed over
 
@@ -7186,9 +7126,7 @@ Expect:
 - Step 1: 409 DELIVERY_SCANS_INCOMPLETE ("Scan every cylinder before you finish the visit."), details.missing [{ sizeLabel: "45.4 kg", needed: 1, given: 0 }].
 - Step 2: X1 is still IN_TRANSIT, not delivered; the stop is still ARRIVED.
 
-Spec: ADR-13; API_CONTRACT §9.3 (DELIVERY finish), §9.11 (A stop can't finish with scans short) · Test file: `apps/api/test/e2e/stop-finish.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.3 (DELIVERY finish), §9.11 (A stop can't finish with scans short) · Test file: `apps/api/test/inc2/scan/stop-finish.e2e-spec.ts`
 
 ### DRV-022 · "Finish visit" with matching scans delivers the order once and moves no money
 
@@ -7208,9 +7146,7 @@ Expect:
 - Step 2: 200 with header X-Already-Applied: true; deliveredAt unchanged.
 - Step 3: balance Rs 4,520; integrity ok. X1 has only its DEBIT_ORDER row (−Rs 480). No delivery_confirmations row exists (the setting is off).
 
-Spec: ADR-07; ADR-15; API_CONTRACT §4 (pattern 3), §9.3 (DELIVERY finish), §9.8; DATA_MODEL §4.5 (stop finish) · Test file: `apps/api/test/e2e/stop-finish.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; ADR-15; API_CONTRACT §4 (pattern 3), §9.3 (DELIVERY finish), §9.8; DATA_MODEL §4.5 (stop finish) · Test file: `apps/api/test/inc2/scan/stop-finish.e2e-spec.ts`
 
 ### DRV-023 · Old app (0.1.0): "Delivered" and "Trip completed" follow the Inc 2 rules
 
@@ -7230,9 +7166,7 @@ Expect:
 - Step 2: 200; X1 DELIVERED with deliveryMethod SCANNED. No ledger row; balance Rs 4,520.
 - Step 3: 409 TRIP_VAN_NOT_EMPTY with details.count 1; T1 stays IN_PROGRESS.
 
-Spec: API_CONTRACT §9.3 (trip finish), §9.10, Appendix A (Inc 2 column) · Test file: `apps/api/test/e2e/legacy-routes-inc2.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: API_CONTRACT §9.3 (trip finish), §9.10, Appendix A (Inc 2 column) · Test file: `apps/api/test/inc2/scan/legacy-and-assign.e2e-spec.ts`
 
 ### DRV-024 · Old app (0.1.0): the legacy scan route uses the new rules and can't hand back
 
@@ -7253,9 +7187,7 @@ Expect:
 - Step 2: 409 SCAN_STOP_CLOSED, and AG-C0021 stays in Ahmed Gas Store: the legacy SCAN_OUT maps to the trip's store stop, which 'Done loading' closed.
 - Step 3: success; AG-C0011 is on LEA-101 with state EMPTY, recorded as a TAKEN_BACK row with returnState EMPTY at Sana's stop.
 
-Spec: ADR-13; API_CONTRACT §9.2, §9.10, Appendix A · Test file: `apps/api/test/e2e/legacy-routes-inc2.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2, §9.10, Appendix A · Test file: `apps/api/test/inc2/scan/legacy-and-assign.e2e-spec.ts`
 
 ### DRV-025 · Deliver screen: one line per size, and refusals in plain words with "Call office"
 
@@ -7301,9 +7233,7 @@ Expect:
 - Step 3: 201; AG-C0032 state FULL. Step 4: 201 (a damaged cylinder is not blocked on take back); AG-C0012's state stays FAULTY; its row has returnState PART_FILLED.
 - Step 5: progress.takeBack expected 3, count 3, byState { EMPTY: 1, PART_FILLED: 1, FULL: 1 }; give is a separate list with 3 of 3. No cylinder appears in both lists. takeBack.items shows AG-C0012 with state PART_FILLED (the tap), while the cylinder's own state stays FAULTY.
 
-Spec: ADR-13; API_CONTRACT §9.2 (common step 9, TAKE_BACK), §9.3 (StopProgress); DATA_MODEL §4.3, §4.4 (stop_cylinders_return_state_chk) · Test file: `apps/api/test/e2e/scan-take-back.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (common step 9, TAKE_BACK), §9.3 (StopProgress); DATA_MODEL §4.3, §4.4 (stop_cylinders_return_state_chk) · Test file: `apps/api/test/inc2/scan/scan-take-back.e2e-spec.ts`
 
 ### DRV-027 · A cylinder given on a visit can't be taken back on the same visit
 
@@ -7325,9 +7255,9 @@ Expect:
 - Step 3: AG-C0001 is with Sana, state FULL; it is only in the given list; no TAKEN_BACK row.
 - Step 4: 201 on the later visit: the rule is per visit.
 
-Spec: ADR-13; API_CONTRACT §9.2 (TAKE_BACK), §9.11; DATA_MODEL §4.3 (unique trip stop + cylinder), §7 · Test file: `apps/api/test/e2e/scan-take-back.e2e-spec.ts`
+Spec: ADR-13; API_CONTRACT §9.2 (TAKE_BACK), §9.11; DATA_MODEL §4.3 (unique trip stop + cylinder), §7 · Test file: `apps/api/test/inc2/scan/scan-take-back.e2e-spec.ts`
 
-Note: This closes the same-cylinder swap loophole the owner raised. Not automated yet.
+Note: This closes the same-cylinder swap loophole the owner raised.
 
 ### DRV-028 · Take back refuses a cylinder the records don't place with this customer
 
@@ -7346,9 +7276,9 @@ Expect:
 - Steps 1-2: 409 SCAN_NOT_WITH_THIS_CUSTOMER ("Our records don't show this cylinder with this customer.").
 - AG-C0014 is still with Usman; AG-C0005 is still in Ahmed Gas Store. No event and no TAKEN_BACK row.
 
-Spec: ADR-13; API_CONTRACT §9.2 (TAKE_BACK) · Test file: `apps/api/test/e2e/scan-take-back.e2e-spec.ts`
+Spec: ADR-13; API_CONTRACT §9.2 (TAKE_BACK) · Test file: `apps/api/test/inc2/scan/scan-take-back.e2e-spec.ts`
 
-Note: A real cylinder whose records are wrong goes to the office; an unlabelled one is counted with "No label or other brand" (DRV-030). Not automated yet.
+Note: A real cylinder whose records are wrong goes to the office; an unlabelled one is counted with "No label or other brand" (DRV-030).
 
 ### DRV-029 · A short take-back needs a reason, and a finished visit takes no more scans
 
@@ -7372,9 +7302,7 @@ Expect:
 - Step 4: 409 SCAN_STOP_CLOSED ("This step is already done."); AG-C0012 stays with Sana.
 - Balance still Rs 4,520: a short return moves no money.
 
-Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §2.3 (TAKE_BACK_SHORT, SCAN_STOP_CLOSED), §9.2, §9.3 (DELIVERY finish) · Test file: `apps/api/test/e2e/stop-finish.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §2.3 (TAKE_BACK_SHORT, SCAN_STOP_CLOSED), §9.2, §9.3 (DELIVERY finish) · Test file: `apps/api/test/inc2/scan/stop-finish.e2e-spec.ts`
 
 ### DRV-030 · Unlabelled or other-brand returns are counted by size, and a resend replaces the count
 
@@ -7400,9 +7328,7 @@ Expect:
 - Step 5: 404 NOT_FOUND.
 - Step 6: store stock is unchanged: unlabelled returns create no cylinder and move no holder.
 
-Spec: ADR-13; API_CONTRACT §9.3 (unlabelled-returns); DATA_MODEL §4.3 (StopUnlabelledReturn), §4.4 (count > 0) · Test file: `apps/api/test/e2e/scan-take-back.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.3 (unlabelled-returns); DATA_MODEL §4.3 (StopUnlabelledReturn), §4.4 (count > 0) · Test file: `apps/api/test/inc2/scan/scan-take-back.e2e-spec.ts`
 
 ### DRV-031 · Take-back screen: the state tap, three lists, the short-return question and the visit summary
 
@@ -7454,9 +7380,7 @@ Expect:
 - Step 5: 201; AG-C0001 is back in Ahmed Gas Store; the event source is TYPED.
 - Two custody.typed_entry audit rows: one with actor DR1 (DRIVER), one with actor DA (DISTRIBUTOR), both for AG-C0001 and distributor DA (the repeats and refusals of steps 2-4 write none). BG-C0001 has no new event.
 
-Spec: ADR-13; API_CONTRACT §1.1 (typed cylinder numbers), §9.2 (common steps 4-5), §9.4; Appendix B (custody.typed_entry); DATA_MODEL §4.1 (CylinderEventSource) · Test file: `apps/api/test/e2e/scan-typed-entry.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §1.1 (typed cylinder numbers), §9.2 (common steps 4-5), §9.4; Appendix B (custody.typed_entry); DATA_MODEL §4.1 (CylinderEventSource) · Test file: `apps/api/test/inc2/scan/scan-typed-and-repeats.e2e-spec.ts`
 
 ### DRV-033 · Typed entry can be switched off and on by the office
 
@@ -7480,9 +7404,7 @@ Expect:
 - Step 4: 201 (QR scans keep working).
 - Step 5: 201 with source TYPED and a custody.typed_entry row; features.typedCylinderNumber is true again.
 
-Spec: ADR-13; API_CONTRACT §2.3 (FEATURE_DISABLED), §5.2, §6 (custody.typedEntry.enabled, PublicAppConfig), §9.2 · Test file: `apps/api/test/e2e/scan-typed-entry.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §2.3 (FEATURE_DISABLED), §5.2, §6 (custody.typedEntry.enabled, PublicAppConfig), §9.2 · Test file: `apps/api/test/inc2/scan/scan-typed-and-repeats.e2e-spec.ts`
 
 ### DRV-034 · Driver can type a cylinder number when the label can't be read
 
@@ -7532,7 +7454,7 @@ Expect:
 
 Spec: UX_MOBILE §3.1 (Idempotency), §7.1 (read loop, feedback) · Test file: `apps/mobile/src/ui/scan/__tests__/scanReducer.spec.ts`
 
-Note: Not automated yet.
+Note: It waits for the driver-app lane: apps/mobile has no test runner of its own. Not automated yet.
 
 ### DRV-036 · A scan made with no signal is shown as not saved and can be sent again
 
@@ -7580,9 +7502,7 @@ Expect:
 - Step 3: 409 SCAN_ID_REUSED ("This scan was already used for something else. Scan again."); AG-C0002 stays in Ahmed Gas Store.
 - One SCAN_OUT event for AG-C0001; progress doneCount 1 of 3.
 
-Spec: API_CONTRACT §9.2 (common step 2), §9.3 (201 new, 200 replay); DATA_MODEL §1 (rule 3), §4.2 (unique actor + client_scan_id), §7 · Test file: `apps/api/test/e2e/scan-idempotency.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: API_CONTRACT §9.2 (common step 2), §9.3 (201 new, 200 replay); DATA_MODEL §1 (rule 3), §4.2 (unique actor + client_scan_id), §7 · Test file: `apps/api/test/inc2/scan/scan-typed-and-repeats.e2e-spec.ts`
 
 ### DRV-038 · "Finish trip" needs every stop closed and an empty van
 
@@ -7604,9 +7524,7 @@ Expect:
 - Step 3: the store scan is 201; the finish is 200 and T1 is COMPLETED. Balance still Rs 4,120.
 - Step 4: 200 with X-Already-Applied: true; T1 stays COMPLETED.
 
-Spec: ADR-13; API_CONTRACT §2.3, §9.3 (trip finish), §9.8 (Trip), §9.11 (A run can't finish with the van not empty) · Test file: `apps/api/test/e2e/trip-finish.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §2.3, §9.3 (trip finish), §9.8 (Trip), §9.11 (A run can't finish with the van not empty) · Test file: `apps/api/test/inc2/scan/trip-finish.e2e-spec.ts`
 
 ### DRV-039 · Finishing a run with cylinders left on the van follows trip.allowFinishWithLeftovers
 
@@ -7634,9 +7552,7 @@ Expect:
 - Step 6: exactly one open VAN_NOT_EMPTY alert for LEA-101, with context count 3 and the reason.
 - Step 7: each receive is 201 (a van on a completed trip counts as "any van"); the cylinders are Full in Ahmed Gas Store. Balance still Rs 4,520.
 
-Spec: ADR-07; API_CONTRACT §6 (trip.allowFinishWithLeftovers), §9.2 (STORE_RECEIVE), §9.3 (trip finish); DATA_MODEL §4.2 (Trip.leftoverReason); Appendix B (setting.update) · Test file: `apps/api/test/e2e/trip-finish.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; API_CONTRACT §6 (trip.allowFinishWithLeftovers), §9.2 (STORE_RECEIVE), §9.3 (trip finish); DATA_MODEL §4.2 (Trip.leftoverReason); Appendix B (setting.update) · Test file: `apps/api/test/inc2/scan/trip-finish.e2e-spec.ts`
 
 ### DRV-040 · A loaded van's driver can't be changed until the store has scanned everything in
 
@@ -7656,9 +7572,7 @@ Expect:
 - Step 2: Kashif is still on LEA-101; no driver.update row was written.
 - Step 3: 200; the change is saved with a driver.update audit row.
 
-Spec: ADR-13; API_CONTRACT §2.3, §7.2 (PATCH /drivers/:id/vehicle audited), §9.5; UX_ADMIN §3.7; Appendix B · Test file: `apps/api/test/e2e/driver-vehicle-change.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §2.3, §7.2 (PATCH /drivers/:id/vehicle audited), §9.5; UX_ADMIN §3.7; Appendix B · Test file: `apps/api/test/inc2/scan/trip-finish.e2e-spec.ts`
 
 ### DRV-041 · An order can't be moved to another driver once anything is loaded
 
@@ -7678,9 +7592,9 @@ Expect:
 - Step 2: X1 is still on T1 with DR1; T1 is not aborted; no order.reassign audit row.
 - Step 3: the receive is 201; the repeat is still 409 ASSIGN_ORDER_LOADED, because the rule refuses any trip with a load scan or loadStartedAt.
 
-Spec: ADR-12; API_CONTRACT §2.3 (ASSIGN_ORDER_LOADED), §7.6 (assign-driver rule 4), §9.5 · Test file: `apps/api/test/e2e/order-assign.e2e-spec.ts`
+Spec: ADR-12; API_CONTRACT §2.3 (ASSIGN_ORDER_LOADED), §7.6 (assign-driver rule 4), §9.5 · Test file: `apps/api/test/inc2/scan/legacy-and-assign.e2e-spec.ts`
 
-Note: Step 3 follows §7.6 rule 4 and ADR-12: once anything was loaded, the order can't change driver, even after the store scans it back in. Not automated yet.
+Note: Step 3 follows §7.6 rule 4 and ADR-12: once anything was loaded, the order can't change driver, even after the store scans it back in.
 
 ### DRV-042 · Unload screen updates by itself as the shop scans, then allows "Finish trip"
 
@@ -7727,9 +7641,7 @@ Expect:
 - Step 4: no ledger row and no balance change.
 - Step 5: a new open VAN_NOT_EMPTY alert for LEA-101, because the van still holds AG-C0001.
 
-Spec: ADR-21; API_CONTRACT §8.5 (cron timeZone), §9.9 (day-cutoff-van-check) · Test file: `apps/api/test/e2e/job-day-cutoff-van-check.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-21; API_CONTRACT §8.5 (cron timeZone), §9.9 (day-cutoff-van-check) · Test file: `apps/api/test/inc2/scan/trip-finish.e2e-spec.ts`
 
 ### DRV-044 · A new order joins the driver's planned trip only while nothing is loaded
 
@@ -7750,9 +7662,7 @@ Expect:
 - Step 3: 200 with a new tripId T2 (PLANNED, store stop at Ahmed Gas Store) and appendedToExistingTrip false; T1's stops are unchanged.
 - Step 4: AG-C0002 is 201; AG-C0003 is 409 SCAN_LOAD_NOT_NEEDED, because T1 needs only X1's two 11.8 kg (Y1 belongs to T2).
 
-Spec: ADR-01; ADR-12; ADR-13; API_CONTRACT §9.2 (LOAD), §9.5 (assign-driver v2) · Test file: `apps/api/test/e2e/order-assign.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-01; ADR-12; ADR-13; API_CONTRACT §9.2 (LOAD), §9.5 (assign-driver v2) · Test file: `apps/api/test/inc2/scan/legacy-and-assign.e2e-spec.ts`
 
 ### DRV-045 · Today screen: van card, empty state, loading and error states
 
@@ -7822,9 +7732,7 @@ Expect:
 - Step 2: 403 PERMISSION_DENIED for every call (DRIVER exact, no super-admin bypass).
 - Step 3: AG-C0001 is still in Ahmed Gas Store with no new event; T1 is still PLANNED and its stops are PENDING.
 
-Spec: ADR-02; ADR-13; API_CONTRACT §3.1, §3.2 (canActOnTrip), §9.3 (driver endpoints: DRIVER exact, own trip, otherwise 404) · Test file: `apps/api/test/e2e/inc2/driver-trip-access.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02; ADR-13; API_CONTRACT §3.1, §3.2 (canActOnTrip), §9.3 (driver endpoints: DRIVER exact, own trip, otherwise 404) · Test file: `apps/api/test/inc2/scan/legacy-and-assign.e2e-spec.ts`
 
 ### DRV-048 · A new trip sends the driver a push message that opens Today
 
@@ -8013,9 +7921,9 @@ Expect:
 - End of day: store 30 (11.8 kg: 15 Full + 1 Empty; 15 kg: 10 Full; 45.4 kg: 4 Full), vans 0, Sana 4 (AG-C0001, AG-C0002, AG-C0012, AG-C0031), Usman 1 (AG-C0003). /store/incoming lists no van. No cylinder is counted in two places.
 - No event has the destination DISTRIBUTOR or RETURNED_TO_DISTRIBUTOR.
 
-Spec: ADR-13; API_CONTRACT §9.2, §9.4; DATA_MODEL §4.1, §4.2 (Cylinder.lastEventId), §4.5 · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
+Spec: ADR-13; API_CONTRACT §9.2, §9.4; DATA_MODEL §4.1, §4.2 (Cylinder.lastEventId), §4.5 · Test file: `apps/api/test/inc2/scan/holder-invariants.e2e-spec.ts`
 
-Note: Arithmetic: 35 − 3 seeded with Sana = 32 in store; −6 loaded by DR1, −1 by DR2; +2 taken back and +3 not delivered are received; 32 − 7 + 5 = 30. Not automated yet.
+Note: Arithmetic: 35 − 3 seeded with Sana = 32 in store; −6 loaded by DR1, −1 by DR2; +2 taken back and +3 not delivered are received; 32 − 7 + 5 = 30.
 
 ### HLD-002 · Only a scan moves a holder: clients can't choose the destination, and transfers are off
 
@@ -8034,12 +7942,10 @@ Expect:
 
 - Step 1: 400 VALIDATION_FAILED; AG-C0001 is not moved and never reaches Hina.
 - Step 2: the plain load is 201 (AG-C0001 on LEA-101). The receive with the extra field is 400 VALIDATION_FAILED and AG-C0001 stays on LEA-101; it can never land in Bilal Gas's store.
-- Step 3: 403 FEATURE_DISABLED ("This isn't available yet.") for both; AG-C0002 stays in Ahmed Gas Store.
+- Step 3: 403 for both, and AG-C0002 stays in Ahmed Gas Store. The office gets FEATURE_DISABLED ("This isn't available yet."); the shop gets PERMISSION_DENIED, because POST /transfers was never a shop route and the role check runs before the switch (API_CONTRACT §3.4).
 - Step 4: 200 [] with header X-Feature-Disabled: transfers.
 
-Spec: ADR-04; ADR-13; API_CONTRACT §3.4, §5.9 (destination derived on the server), §7.2 (/transfers), §7.7, §9.2 · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-04; ADR-13; API_CONTRACT §3.4, §5.9 (destination derived on the server), §7.2 (/transfers), §7.7, §9.2 · Test file: `apps/api/test/inc2/scan/holder-invariants.e2e-spec.ts`
 
 ### HLD-003 · No IN, no OUT: a cylinder not loaded on this van can't be handed over
 
@@ -8058,9 +7964,7 @@ Expect:
 - Steps 1-2: 409 SCAN_NOT_ON_YOUR_VAN, message "Not loaded on your van. Don't deliver it. Call office."
 - AG-C0005 is still in Ahmed Gas Store; AG-C0003 is still on LEB-202. No GIVEN row; give progress still "0 of 3".
 
-Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.11 (A hand-over of a cylinder not on the van gives 409); UX_MOBILE §7.4 · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.11 (A hand-over of a cylinder not on the van gives 409); UX_MOBILE §7.4 · Test file: `apps/api/test/inc2/scan/holder-invariants.e2e-spec.ts`
 
 ### HLD-004 · Forgotten IN: the office's manual delivery names the cylinders and moves them to the customer
 
@@ -8082,9 +7986,7 @@ Expect:
 - Balance still Rs 4,520; no ledger row for this step.
 - One order.manual_delivery audit row with the reason and the codes, and exactly four custody.manual_event rows, one per cylinder moved (three delivered, one taken back).
 
-Spec: ADR-13; API_CONTRACT §4 (pattern 3), §7.6 (manual-delivery), §9.2 (OFFICE_MANUAL_DELIVERY), §9.5; DATA_MODEL §4.4 (cylinder_events_reason_chk); Appendix B · Test file: `apps/api/test/e2e/manual-delivery.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §4 (pattern 3), §7.6 (manual-delivery), §9.2 (OFFICE_MANUAL_DELIVERY), §9.5; DATA_MODEL §4.4 (cylinder_events_reason_chk); Appendix B · Test file: `apps/api/test/inc2/gate/forgotten-in-run-end.e2e-spec.ts, apps/api/test/inc2/scan/manual-delivery.e2e-spec.ts`
 
 ### HLD-005 · Manual delivery refuses cylinders that don't match the order exactly, and moves nothing
 
@@ -8110,9 +8012,7 @@ Expect:
 - Step 5: 404 SCAN_CYLINDER_UNKNOWN with details.code \<AG-C0099>.
 - X1 is still not delivered. No cylinder moved: AG-C0014 is still with Usman, AG-C0021 still in the store. No order.manual_delivery row.
 
-Spec: ADR-13; API_CONTRACT §7.6 (manual-delivery reason 10–300), §9.2 (OFFICE_MANUAL_DELIVERY), §9.5; UX_ADMIN §3.4 (Errors) · Test file: `apps/api/test/e2e/manual-delivery.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §7.6 (manual-delivery reason 10–300), §9.2 (OFFICE_MANUAL_DELIVERY), §9.5; UX_ADMIN §3.4 (Errors) · Test file: `apps/api/test/inc2/scan/manual-delivery.e2e-spec.ts`
 
 ### HLD-006 · Only the office can record a manual delivery
 
@@ -8132,9 +8032,7 @@ Expect:
 - Step 2: 403 PERMISSION_DENIED; nothing moves.
 - Step 3: 200; X1 DELIVERED (MANUAL); the audit row names SA2 as the actor.
 
-Spec: ADR-02; ADR-13; API_CONTRACT §3.1, §7.6 (manual-delivery: office), §9.5 · Test file: `apps/api/test/e2e/manual-delivery.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02; ADR-13; API_CONTRACT §3.1, §7.6 (manual-delivery: office), §9.5 · Test file: `apps/api/test/inc2/scan/manual-delivery.e2e-spec.ts`
 
 ### HLD-007 · Office website: "Mark delivered…" checks each cylinder number and says no money moves
 
@@ -8182,9 +8080,7 @@ Expect:
 - S3: 201 RECORDED. S4: 200 ALREADY_RECORDED with X-Already-Applied: true; give progress stays "1 of 3".
 - AG-C0001 has exactly one SCAN_OUT and one DELIVERED event, and Sana's stop has one GIVEN row for it.
 
-Spec: ADR-13; API_CONTRACT §7.7 (a repeat of the same move), §9.2 (common step 8, the same move again); UX_MOBILE §7.1 (Already recorded) · Test file: `apps/api/test/e2e/scan-idempotency.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §7.7 (a repeat of the same move), §9.2 (common step 8, the same move again); UX_MOBILE §7.1 (Already recorded) · Test file: `apps/api/test/inc2/scan/scan-typed-and-repeats.e2e-spec.ts`
 
 ### HLD-009 · A scan of another distributor's cylinder is refused on the driver's run
 
@@ -8204,9 +8100,9 @@ Expect:
 - Step 2: the DA loads are 201; the take back of BG-C0002 is 409 SCAN_WRONG_OWNER.
 - BG-C0001 is still in Ahmed Gas Store and BG-C0002 still with Sana. No event on either.
 
-Spec: ADR-01; ADR-13; API_CONTRACT §2.3 (SCAN_WRONG_OWNER), §9.2 (LOAD, TAKE_BACK owner rules) · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
+Spec: ADR-01; ADR-13; API_CONTRACT §2.3 (SCAN_WRONG_OWNER), §9.2 (LOAD, TAKE_BACK owner rules) · Test file: `apps/api/test/inc2/scan/holder-invariants.e2e-spec.ts`
 
-Note: The fixture places DB's cylinders where only the owner rule would fail; another distributor's cylinder gives SCAN_WRONG_OWNER wherever it is (API_CONTRACT §9.2 step 7). Another brand at the door is counted with "No label or other brand". Not automated yet.
+Note: The fixture places DB's cylinders where only the owner rule would fail; another distributor's cylinder gives SCAN_WRONG_OWNER wherever it is (API_CONTRACT §9.2 step 7). Another brand at the door is counted with "No label or other brand".
 
 ### HLD-010 · Two drivers loading the same cylinder at once: one wins, it lands on one van
 
@@ -8225,9 +8121,7 @@ Expect:
 - AG-C0001 is on exactly one van, the winner's, and has exactly one SCAN_OUT event.
 - Only the winner's progress moved to 1.
 
-Spec: ADR-13 (row lock); API_CONTRACT §4, §9.2 (common step 3); DATA_MODEL §4.5 · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13 (row lock); API_CONTRACT §4, §9.2 (common step 3); DATA_MODEL §4.5 · Test file: `apps/api/test/inc2/scan/holder-invariants.e2e-spec.ts`
 
 ### HLD-011 · A cylinder left on the van from an earlier run can't be handed over on today's run
 
@@ -8249,9 +8143,7 @@ Expect:
 - Step 3: 409 SCAN_NOT_ON_YOUR_VAN; AG-C0001 stays on LEA-101 and the give progress doesn't move.
 - Step 4: 201.
 
-Spec: ADR-13 (only cylinders loaded on this run); API_CONTRACT §9.2 (HANDOVER: last move onto the van was a LOAD on this trip), §9.3 · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13 (only cylinders loaded on this run); API_CONTRACT §9.2 (HANDOVER: last move onto the van was a LOAD on this trip), §9.3 · Test file: `apps/api/test/inc2/scan/holder-invariants.e2e-spec.ts`
 
 ### HLD-012 · A Full cylinder taken back never goes straight to another customer
 
@@ -8274,9 +8166,7 @@ Expect:
 - Step 4: 201; AG-C0011 is in Ahmed Gas Store with state FULL (unchanged).
 - Step 5: 201; a taken-back Full cylinder can go out again only after the store has scanned it in.
 
-Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER, STORE_RECEIVE), §9.11 (A taken-back Full cylinder can't be handed over again) · Test file: `apps/api/test/e2e/holder-invariants.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER, STORE_RECEIVE), §9.11 (A taken-back Full cylinder can't be handed over again) · Test file: `apps/api/test/inc2/scan/holder-invariants.e2e-spec.ts`
 
 ### HLD-013 · The responsible driver is the last one who scanned the cylinder onto a van
 
@@ -8300,9 +8190,7 @@ Expect:
 - Every event in the history names its actor. While the cylinder is on a van or with a customer, the responsible driver is the driver of the newest LOAD or TAKE_BACK since it last left a store.
 - Step 5: holder { type: STORE, label: "Ahmed Gas Store", responsible: null }: the store's scan-in ends it.
 
-Spec: ADR-13; API_CONTRACT §9.2 (responsible driver), §9.4 (history); DATA_MODEL §4.2 (Cylinder.lastEventId) · Test file: `apps/api/test/e2e/cylinder-history.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (responsible driver), §9.4 (history); DATA_MODEL §4.2 (Cylinder.lastEventId) · Test file: `apps/api/test/inc2/scan/cylinder-history.e2e-spec.ts`
 
 ### HLD-014 · Holder history lists every move in order with who, where, order, source and state
 
@@ -8321,9 +8209,7 @@ Expect:
 - No event exposes a password, CNIC or token field.
 - Each event has refill null (no refill was involved).
 
-Spec: ADR-13; API_CONTRACT §3.5, §9.4 (GET /cylinders/:code/history); DATA_MODEL §4.2 (CylinderEvent) · Test file: `apps/api/test/e2e/cylinder-history.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §3.5, §9.4 (GET /cylinders/:code/history); DATA_MODEL §4.2 (CylinderEvent) · Test file: `apps/api/test/inc2/scan/cylinder-history.e2e-spec.ts`
 
 ### HLD-015 · Another distributor can't read a cylinder's history
 
@@ -8346,9 +8232,7 @@ Expect:
 - Step 4: 200 for both.
 - Step 5: 403 PERMISSION_DENIED for both (a driver never reads cylinder history).
 
-Spec: ADR-02; API_CONTRACT §3.2 (canSeeCylinder), §7.2 (custody history), §9.4 · Test file: `apps/api/test/e2e/cylinder-history.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02; API_CONTRACT §3.2 (canSeeCylinder), §7.2 (custody history), §9.4 · Test file: `apps/api/test/inc2/scan/cylinder-history.e2e-spec.ts`
 
 ### HLD-016 · Registering new cylinders gives them the store as their first holder and the next short numbers
 
@@ -8370,9 +8254,7 @@ Expect:
 - Step 3: 400 VALIDATION_FAILED with details.fields naming initialCustodyType (the van) and then initialCustodyId (the other store), each with code NOT_ALLOWED; nothing is created.
 - Step 4: 11.8 kg Full in the store is 22. One cylinders.bulk_register audit row (actor SA1).
 
-Spec: ADR-13; ADR-22; API_CONTRACT §7.2 (bulk-register), §9.2 (REGISTER), §9.5; DATA_MODEL §4.2 (shortNo); Appendix B · Test file: `apps/api/test/e2e/cylinders-bulk-register.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; ADR-22; API_CONTRACT §7.2 (bulk-register), §9.2 (REGISTER), §9.5; DATA_MODEL §4.2 (shortNo); Appendix B · Test file: `apps/api/test/inc2/scan/cylinder-history.e2e-spec.ts`
 
 ### HLD-017 · Reserved custody settings can't be changed over the API
 
@@ -8391,9 +8273,7 @@ Expect:
 - Steps 1-2: 403 SETTING_NOT_EDITABLE ("This setting can't be changed here.").
 - custody.forgottenInPolicy is still BLOCK_OUT_MANUAL_DELIVERY and walkIn.counterSwap.enabled is still false. No setting.update audit row.
 
-Spec: ADR-13; API_CONTRACT §5.2, §6 (Edit = no); UX_ADMIN §3.6 · Test file: `apps/api/test/e2e/settings-custody.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §5.2, §6 (Edit = no); UX_ADMIN §3.6 · Test file: `apps/api/test/inc2/scan/cylinder-history.e2e-spec.ts`
 
 ### HLD-018 · Vans page: a van that still holds cylinders can't change driver, with a plain message
 
@@ -8457,9 +8337,7 @@ Expect:
 - Step 2: stock shows one more 11.8 kg Empty than before; incoming no longer lists AG-C0011.
 - Step 3: event SCAN_IN, actor DA (DISTRIBUTOR), from LEA-101 to Ahmed Gas Store, source SCAN. Balance still Rs 4,520.
 
-Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE), §9.4 (POST /store/scans, GET /store/stock, GET /store/incoming) · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE), §9.4 (POST /store/scans, GET /store/stock, GET /store/incoming) · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
 ### STR-002 · Receiving keeps the state the driver tapped: Part-filled and Empty never become Full
 
@@ -8481,9 +8359,7 @@ Expect:
 - Step 3: AG-C0011 is 409 SCAN_NOT_FULL; AG-C0032 is 201 (a Full return can go out again after the store scan).
 - Step 4: the receive is 201 and AG-C0013 is in Ahmed Gas Store, still FAULTY; the LOAD gives 409 SCAN_CYLINDER_BLOCKED.
 
-Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE: state unchanged; LOAD: FULL), §9.4; DATA_MODEL §4.1 (no EMPTY-to-FULL) · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE: state unchanged; LOAD: FULL), §9.4; DATA_MODEL §4.1 (no EMPTY-to-FULL) · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
 ### STR-003 · Receiving the same cylinder twice records it once (resend, second scan, two phones)
 
@@ -8507,9 +8383,7 @@ Expect:
 - Step 4: one 201 RECORDED and one 200 ALREADY_RECORDED with X-Already-Applied: true.
 - Each cylinder has exactly one SCAN_IN event; receivedToday.count is 2.
 
-Spec: ADR-13 (row lock); API_CONTRACT §4, §9.2 (common steps 2, 6 and 8, STORE_RECEIVE); DATA_MODEL §4.5 · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13 (row lock); API_CONTRACT §4, §9.2 (common steps 2, 6 and 8, STORE_RECEIVE); DATA_MODEL §4.5 · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
 ### STR-004 · The store can't scan in a cylinder that isn't on a van
 
@@ -8529,9 +8403,7 @@ Expect:
 - Step 2: 404 SCAN_CYLINDER_UNKNOWN.
 - AG-C0012 is still with Sana; no event was written.
 
-Spec: ADR-13; API_CONTRACT §2.3, §9.2 (STORE_RECEIVE) · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; API_CONTRACT §2.3, §9.2 (STORE_RECEIVE) · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
 ### STR-005 · Another distributor's store can't receive or see this distributor's cylinders
 
@@ -8553,9 +8425,7 @@ Expect:
 - Step 3: incoming { vans: [] } and stock without any AG cylinder.
 - AG-C0011 is still on LEA-101.
 
-Spec: ADR-01; ADR-02; API_CONTRACT §3.2, §9.2 (STORE_RECEIVE owner = caller, typed within the distributor), §9.4 · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-01; ADR-02; API_CONTRACT §3.2, §9.2 (STORE_RECEIVE owner = caller, typed within the distributor), §9.4 · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
 ### STR-006 · Only the distributor's shop app can scan cylinders into the store
 
@@ -8575,9 +8445,7 @@ Expect:
 - Steps 1-3: 403 PERMISSION_DENIED (store routes are DISTRIBUTOR only, no super-admin bypass).
 - AG-C0011 is still on LEA-101: the driver has no unload scan.
 
-Spec: ADR-02; ADR-13 (the driver has no unload scan); API_CONTRACT §3.1, §9.4 · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02; ADR-13 (the driver has no unload scan); API_CONTRACT §3.1, §9.4 · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
 ### STR-007 · Returns from any van go into the distributor's own store
 
@@ -8597,9 +8465,9 @@ Expect:
 - Step 2: AG-C0003 is Full in Ahmed Gas Store, the caller's home store.
 - Step 3: 200; T2 is COMPLETED.
 
-Spec: ADR-01; ADR-13; API_CONTRACT §5.9 (destination derived), §9.2 (STORE_RECEIVE: any van to the caller's home store), §9.3 · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
+Spec: ADR-01; ADR-13; API_CONTRACT §5.9 (destination derived), §9.2 (STORE_RECEIVE: any van to the caller's home store), §9.3 · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
-Note: With one store per distributor, returns go into the owner's one store, the caller's (ADR-13). Not automated yet.
+Note: With one store per distributor, returns go into the owner's one store, the caller's (ADR-13).
 
 ### STR-008 · The incoming list tells the store why each cylinder is coming back
 
@@ -8620,9 +8488,9 @@ Expect:
 - Step 2: counts.received 2; only the three 15 kg are left in the list.
 - Step 3: balance still Rs 3,720: Y1's cancel after loading returned nothing.
 
-Spec: ADR-07; ADR-13; API_CONTRACT §9.3 (trip finish "came"), §9.4 (GET /store/incoming), §9.8 (Cancelled after loading) · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
+Spec: ADR-07; ADR-13; API_CONTRACT §9.3 (trip finish "came"), §9.4 (GET /store/incoming), §9.8 (Cancelled after loading) · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
-Note: The "from" value for NOT_DELIVERED and SPARE cylinders is not stated (it may be null or the order), so it is not asserted. Not automated yet.
+Note: The "from" value for NOT_DELIVERED and SPARE cylinders is not stated (it may be null or the order), so it is not asserted.
 
 ### STR-009 · A wrongly loaded cylinder scanned back in during loading must be replaced before "Done loading"
 
@@ -8646,9 +8514,7 @@ Expect:
 - Step 4: 201, then 200.
 - Step 5: loadStartedAt is still set; cancel.refundPaisa "0" (taking a cylinder off the van doesn't restart the refund window).
 
-Spec: ADR-07; ADR-13; API_CONTRACT §5.5, §9.2 (STORE_RECEIVE from any van), §9.3 (STORE_PICKUP finish) · Test file: `apps/api/test/e2e/store-receive.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; ADR-13; API_CONTRACT §5.5, §9.2 (STORE_RECEIVE from any van), §9.3 (STORE_PICKUP finish) · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
 ### STR-010 · Shop app: "Receive from driver" lists each van and counts the scans
 
@@ -8768,9 +8634,9 @@ Expect:
 - The finish response contains no '/c/' link.
 - In GET /orders?tab=done the order's confirmation field is null.
 
-Spec: ADR-07, ADR-15; CUSTOMER_PAGE intro, §1, §11; API_CONTRACT §6, §9.3, §9.7 · Test file: `apps/api/test/e2e/confirmation-issue.e2e-spec.ts`
+Spec: ADR-07, ADR-15; CUSTOMER_PAGE intro, §1, §11; API_CONTRACT §6, §9.3, §9.7 · Test file: `apps/api/test/inc2/confirm/confirmation-issue.e2e-spec.ts`
 
-Note: The setting is off by default, so this is the path the pilot uses until the owner switches confirmation on. The docs don't fix 200 vs 201 for the finish route. Not automated yet.
+Note: The setting is off by default, so this is the path the pilot uses until the owner switches confirmation on. The docs don't fix 200 vs 201 for the finish route.
 
 ### CNF-002 · Setting off: the confirmation routes answer "switched off"
 
@@ -8796,9 +8662,7 @@ Expect:
 - Step 6: both 410 with the page "This link is closed"; nothing is recorded (T2 stays PENDING, no audit row).
 - Step 7: GET /orders/{D1}/confirmation answers 404 NOT_FOUND and D1's confirmation is null (switching on never back-fills); GET /c/T2 answers 200 with its main page.
 
-Spec: ADR-15; API_CONTRACT §2.3, §3.4, §6, §9.7; CUSTOMER_PAGE §10, §11 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; API_CONTRACT §2.3, §3.4, §6, §9.7; CUSTOMER_PAGE §10, §11 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### CNF-003 · Setting on: finishing the visit issues one pending link
 
@@ -8820,9 +8684,9 @@ Expect:
 - Exactly one outbound_messages row: channel SMS, provider 'mock', templateKey 'sms.deliveryConfirm.v1', locale 'en', toPhoneE164 '+923001234567', idempotencyKey 'confirm:\<orderId>:v1:sms', confirmationId and orderId set.
 - That row was written QUEUED in the finish transaction and ends SKIPPED with errorCode NOT_A_TEST_PHONE after the after-commit send (the defaults: test mode on, empty allowlist); it is never left QUEUED.
 
-Spec: ADR-15; CUSTOMER_PAGE §1, §2, §3, §8; API_CONTRACT §9.3, §9.7; DATA_MODEL §4.3, §4.5 · Test file: `apps/api/test/e2e/confirmation-issue.e2e-spec.ts`
+Spec: ADR-15; CUSTOMER_PAGE §1, §2, §3, §8; API_CONTRACT §9.3, §9.7; DATA_MODEL §4.3, §4.5 · Test file: `apps/api/test/inc2/confirm/confirmation-issue.e2e-spec.ts`
 
-Note: Take back 0 keeps finishing the visit simple; the two unlabelled rows are still recorded and must appear in the snapshot. Not automated yet.
+Note: Take back 0 keeps finishing the visit simple; the two unlabelled rows are still recorded and must appear in the snapshot.
 
 ### CNF-004 · Issuing again for the same order keeps one link and one SMS
 
@@ -8843,9 +8707,9 @@ Expect:
 - Still exactly 1 delivery_confirmations row and 1 SMS row (key 'confirm:\<orderId>:v1:sms').
 - MessagingProvider.send was called once in total.
 
-Spec: CUSTOMER_PAGE §1, §13; API_CONTRACT §4, §9.3; DATA_MODEL §7 · Test file: `apps/api/test/e2e/confirmation-issue.e2e-spec.ts`
+Spec: CUSTOMER_PAGE §1, §13; API_CONTRACT §4, §9.3; DATA_MODEL §7 · Test file: `apps/api/test/inc2/confirm/confirmation-issue.e2e-spec.ts`
 
-Note: The replay answer follows API_CONTRACT §4 rule 3 (repeat of a finished action). Not automated yet.
+Note: The replay answer follows API_CONTRACT §4 rule 3 (repeat of a finished action).
 
 ### CNF-005 · An office manual delivery also issues a link
 
@@ -8866,9 +8730,7 @@ Expect:
 - One SMS row with key 'confirm:\<orderId>:v1:sms'.
 - The page shows "None" in the "Taken back" row of its summary table.
 
-Spec: ADR-15; CUSTOMER_PAGE §1, §3, §6; API_CONTRACT §9.5, §9.8 · Test file: `apps/api/test/e2e/confirmation-issue.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; CUSTOMER_PAGE §1, §3, §6; API_CONTRACT §9.5, §9.8 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts, apps/api/test/inc2/confirm/confirmation-issue.e2e-spec.ts`
 
 ### CNF-006 · Before delivery the confirmation routes say "not delivered yet"
 
@@ -8888,9 +8750,7 @@ Expect:
 - Every call returns 409 with code CONFIRM_NOT_READY and message "This order isn't delivered yet."
 - No delivery_confirmations or outbound_messages row exists for X1 or X2.
 
-Spec: CUSTOMER_PAGE §10; API_CONTRACT §2.3, §9.7 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §10; API_CONTRACT §2.3, §9.7 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### CNF-007 · Main page shows the shop, the order number and the summary table
 
@@ -8942,9 +8802,9 @@ Expect:
 - Step 2: takenBack is [].
 - The JSON has v 1, shop { name, phoneE164 }, orderNo and deliveredAt, and no key holding a cylinder code, the customer's name or address, or a money amount.
 
-Spec: CUSTOMER_PAGE §3, §12 · Test file: `apps/api/test/unit/confirm-snapshot.spec.ts`
+Spec: CUSTOMER_PAGE §3, §12 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
-Note: The order inside one size (Empty, Part-filled, Full) is assumed; the docs only say ascending by size. Not automated yet.
+Note: The order inside one size (Empty, Part-filled, Full) is assumed; the docs only say ascending by size.
 
 ### CNF-009 · Page HTML is right for every state, with no script
 
@@ -8969,9 +8829,9 @@ Expect:
 - The staging render shows "Test only · not a real delivery"; the production render has no such text.
 - Every page, the state and error pages included, has the gas safety note as its last block before the footer line.
 
-Spec: CUSTOMER_PAGE §5 (test banner), §6, §13 · Test file: `apps/api/test/unit/confirm-page-render.spec.ts`
+Spec: CUSTOMER_PAGE §5 (test banner), §6, §13 · Test file: `apps/api/test/inc2/confirm/page-render.spec.ts`
 
-Note: Build the approved snapshots from formatPkDateTime output, never by copying doc examples. Not automated yet.
+Note: Build the approved snapshots from formatPkDateTime output, never by copying doc examples.
 
 ### CNF-010 · Every value on the page is HTML-escaped
 
@@ -8991,9 +8851,7 @@ Expect:
 - All values pass through escapeHtml.
 - Step 2: the Other page re-shows the note escaped inside the textarea (&amp;lt;/textarea&amp;gt;&amp;lt;script&amp;gt;…), so the customer can correct it.
 
-Spec: CUSTOMER_PAGE §6, §12, §13 · Test file: `apps/api/test/unit/confirm-page-render.spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §6, §12, §13 · Test file: `apps/api/test/inc2/confirm/page-render.spec.ts`
 
 ### CNF-011 · The page never shows personal data, money or cylinder numbers
 
@@ -9016,9 +8874,7 @@ Expect:
 - No response sets a cookie.
 - The pages that show a phone show Ahmed Gas's 0321 1234567, never Sana's.
 
-Spec: ADR-15; CUSTOMER_PAGE §3, §6, §12 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; CUSTOMER_PAGE §3, §6, §12 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-012 · Opening the link never records an answer (previews, crawlers)
 
@@ -9040,9 +8896,7 @@ Expect:
 - There is no confirmation.answer audit row and no CUSTOMER_PROBLEM alert.
 - GET /c/T?done=1 on a pending link shows the main page ("Did you get your delivery?"), not "Thank you!".
 
-Spec: ADR-15; CUSTOMER_PAGE §2, §4, §13; API_CONTRACT §9.11 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; CUSTOMER_PAGE §2, §4, §13; API_CONTRACT §9.11 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-013 · Each of the four answers is recorded once with its own thank-you line
 
@@ -9067,9 +8921,7 @@ Expect:
 - Thank-you lines: D2 "We told Ahmed Gas something was missing. They may call you."; D3 "We told Ahmed Gas you did not get it. They may call you."; D4 "We sent your message to Ahmed Gas. They may call you."
 - Each answer wrote exactly one confirmation.answer audit row.
 
-Spec: ADR-15; CUSTOMER_PAGE §4, §6, §7; API_CONTRACT §9.7, §9.8 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; CUSTOMER_PAGE §4, §6, §7; API_CONTRACT §9.7, §9.8 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-014 · Incomplete or unknown answers are refused and nothing is recorded
 
@@ -9093,9 +8945,9 @@ Expect:
 - After steps 1-5 the row is still PENDING, with no audit row and no alert.
 - Step 6: 303 to ?done=1; the row is ANSWERED OTHER with comment 'Gas'.
 
-Spec: CUSTOMER_PAGE §4, §6; API_CONTRACT §2.3 (CONFIRM_NOTE_REQUIRED) · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
+Spec: CUSTOMER_PAGE §4, §6; API_CONTRACT §2.3 (CONFIRM_NOTE_REQUIRED) · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: Its test posts more often than the per-link limit of CNF-026 allows, so it clears the limiter between posts or sets it aside.
 
 ### CNF-015 · The note is cleaned and cut to 300 characters
 
@@ -9119,9 +8971,7 @@ Expect:
 - D4 stores the Urdu text unchanged.
 - D5 stores 'One came One missing': a line break becomes one space.
 
-Spec: CUSTOMER_PAGE §4; DATA_MODEL §4.3 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §4; DATA_MODEL §4.3 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-016 · The same answer sent again shows "Thank you" and records nothing new
 
@@ -9140,9 +8990,7 @@ Expect:
 - Step 2: 200 with "Thank you!" and "We told Ahmed Gas you got everything."
 - respondedAt is still T1; there is still one confirmation.answer audit row; no alert.
 
-Spec: CUSTOMER_PAGE §4, §7 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §4, §7 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-017 · A different second answer gets the friendly "already answered" page
 
@@ -9162,9 +9010,7 @@ Expect:
 - Step 3: 200 with the same page.
 - The row is still YES with comment NULL; no new audit row; no CUSTOMER_PROBLEM alert.
 
-Spec: CUSTOMER_PAGE §4, §6; API_CONTRACT §2.3 (CONFIRM_ALREADY_ANSWERED), §9.11 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §4, §6; API_CONTRACT §2.3 (CONFIRM_ALREADY_ANSWERED), §9.11 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-018 · Two answers at the same moment leave exactly one winner
 
@@ -9185,9 +9031,9 @@ Expect:
 - Requests with the winning answer get 303 and then "Thank you!"; requests with the other answer get HTTP 409 with the "You already answered" page; none gets 500.
 - A CUSTOMER_PROBLEM alert exists only if the winner is NO or OTHER, and then exactly one.
 
-Spec: ADR-15; CUSTOMER_PAGE §7, §13; API_CONTRACT §4, §9.8, §9.11 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
+Spec: ADR-15; CUSTOMER_PAGE §7, §13; API_CONTRACT §4, §9.8, §9.11 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: Its test posts more often than the per-link limit of CNF-026 allows, so it clears the limiter between posts or sets it aside.
 
 ### CNF-019 · State pages, their HTTP codes and the exact expiry moment
 
@@ -9212,9 +9058,9 @@ Expect:
 - Step 3: each shows its link's state page (A "You already answered", D "This link has expired"), never the form.
 - Every state page has the gas safety note as its last block before the footer line.
 
-Spec: CUSTOMER_PAGE §2, §4, §6; API_CONTRACT §9.8 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
+Spec: CUSTOMER_PAGE §2, §4, §6; API_CONTRACT §9.8 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
-Note: CANCELLED is reserved (API_CONTRACT §9.8): no pilot route writes it, so E is set in the database, and the page must still render it. Not automated yet.
+Note: CANCELLED is reserved (API_CONTRACT §9.8): no pilot route writes it, so E is set in the database, and the page must still render it. An "expired" link is made by moving delivered_at back together with expires_at. D is expired by the job before C is moved.
 
 ### CNF-020 · The expiry job closes unanswered links and moves no money
 
@@ -9238,9 +9084,9 @@ Expect:
 - The job is registered with @Cron('\*/15 \* \* \* \*', { timeZone: 'Asia/Karachi' }).
 - Step 4: P2 becomes EXPIRED: the job runs whatever the setting says.
 
-Spec: ADR-15; API_CONTRACT §9.8, §9.9; CUSTOMER_PAGE §1 · Test file: `apps/api/test/e2e/confirmation-expiry.e2e-spec.ts`
+Spec: ADR-15; API_CONTRACT §9.8, §9.9; CUSTOMER_PAGE §1 · Test file: `apps/api/test/inc2/confirm/confirmation-expiry.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: An "expired" link is made by moving delivered_at back together with expires_at.
 
 ### CNF-021 · The link lifetime setting accepts 24 to 168 hours and applies to new links
 
@@ -9266,9 +9112,9 @@ Expect:
 - D1 keeps E1: a change applies only to links issued after it.
 - Step 6: the expired pages read "Answers close 1 day after delivery." (D2), "Answers close 36 hours after delivery." (D4) and "Answers close 7 days after delivery." (D3): each states its own link's lifetime.
 
-Spec: CUSTOMER_PAGE §2, §11; API_CONTRACT §5.2, §6, §7.13, Appendix B · Test file: `apps/api/test/e2e/confirmation-expiry.e2e-spec.ts`
+Spec: CUSTOMER_PAGE §2, §11; API_CONTRACT §5.2, §6, §7.13, Appendix B · Test file: `apps/api/test/inc2/confirm/confirmation-expiry.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: An "expired" link is made by moving delivered_at back together with expires_at.
 
 ### CNF-022 · A new link stops the old one and keeps the same deadline
 
@@ -9293,9 +9139,7 @@ Expect:
 - One confirmation.new_link audit row with actor DA's user.
 - Race: either the answer is recorded and the new link is refused with 409 CONFIRM_CLOSED, or the old link gives 404 and nothing is recorded; never an answer through a dead link.
 
-Spec: CUSTOMER_PAGE §2, §10; API_CONTRACT §9.7, Appendix B · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §2, §10; API_CONTRACT §9.7, Appendix B · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### CNF-023 · Unknown or broken links show a not-found page that leaks nothing
 
@@ -9320,9 +9164,7 @@ Expect:
 - Step 4: 404 from the API (JSON error whose path is '/api/v1/c/[token]'); D1 stays PENDING.
 - Step 5: the 404 body has only "We can't find this link" and "Open the full link in your newest message.": no "Call Smart Fleet support" row and no placeholder.
 
-Spec: CUSTOMER_PAGE §2, §4, §5, §6, §13; API_CONTRACT §2.1 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §2, §4, §5, §6, §13; API_CONTRACT §2.1 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts, apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### CNF-024 · A link typed in capitals or with look-alike letters still opens
 
@@ -9342,9 +9184,7 @@ Expect:
 - Steps 1-3: 200 with D1's main page.
 - Step 4: 303; D1's row is ANSWERED YES.
 
-Spec: CUSTOMER_PAGE §2, §13 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §2, §13 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-025 · The token is stable, 26 characters, never stored raw, and does not collide
 
@@ -9368,9 +9208,9 @@ Expect:
 - Step 4: 100,000 distinct tokens.
 - Step 5: no column holds the raw token; only token_hash.
 
-Spec: CUSTOMER_PAGE §2, §12, §13; DATA_MODEL §4.3 · Test file: `apps/api/test/unit/confirm-token.spec.ts`
+Spec: CUSTOMER_PAGE §2, §12, §13; DATA_MODEL §4.3 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts, apps/api/test/inc2/confirm/confirmation-issue.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: The token rules are also unit-tested in apps/api/test/inc2/db/inc2-contracts.spec.ts (the describe "confirmation link tokens (CUSTOMER_PAGE §2)").
 
 ### CNF-026 · Rate limits on the link page, and they let requests through if Redis is down
 
@@ -9399,9 +9239,7 @@ Expect:
 - Step 7: all succeed, with no 500 (limits fail open).
 - Every 429 is HTML with the page headers, never JSON.
 
-Spec: CUSTOMER_PAGE §5, §6; API_CONTRACT §3.6 · Test file: `apps/api/test/e2e/confirm-page-limits.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §5, §6; API_CONTRACT §3.6 · Test file: `apps/api/test/inc2/confirm/confirm-page-limits.e2e-spec.ts`
 
 ### CNF-027 · Every link-page response carries the safety headers
 
@@ -9424,9 +9262,7 @@ Expect:
 - Content-Security-Policy exactly: default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
 - No Set-Cookie header, and no body is JSON.
 
-Spec: CUSTOMER_PAGE §4, §5, §12 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §4, §5, §12 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-028 · Link tokens never reach logs, error bodies, Sentry or the message log
 
@@ -9447,9 +9283,9 @@ Expect:
 - Every body_redacted contains '[link]'.
 - The mock-provider log lines contain no 'http'.
 
-Spec: CUSTOMER_PAGE §5 (redaction), §8, §12, §13; API_CONTRACT §2.1 · Test file: `apps/api/test/e2e/redaction.e2e-spec.ts`
+Spec: CUSTOMER_PAGE §5 (redaction), §8, §12, §13; API_CONTRACT §2.1 · Test file: `apps/api/test/inc2/confirm/redaction.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: The test checks Sentry through initSentry's beforeSend and beforeBreadcrumb hooks.
 
 ### CNF-029 · The server access log hides the link token
 
@@ -9489,9 +9325,9 @@ Expect:
 - http base URL: exit code 1 with a one-line reason naming PUBLIC_LINK_BASE_URL. https: boots.
 - 'whatsapp': refuses to boot with a one-line reason. Unset or 'mock': boots with MockMessagingProvider.
 
-Spec: ADR-20; CUSTOMER_PAGE §2, §8, §11; API_CONTRACT §3.7, §6 · Test file: `apps/api/test/unit/boot-guards.spec.ts`
+Spec: ADR-20; CUSTOMER_PAGE §2, §8, §11; API_CONTRACT §3.7, §6 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
-Note: "Unset means mock" follows the default in CUSTOMER_PAGE §11. Not automated yet.
+Note: "Unset means mock" follows the default in CUSTOMER_PAGE §11.
 
 ### CNF-031 · The page stays under 12 KB and loads nothing from outside
 
@@ -9513,9 +9349,7 @@ Expect:
 - No Set-Cookie.
 - 95th-percentile server time is at most 150 ms (report the number).
 
-Spec: CUSTOMER_PAGE §6 (low-end budget), §13 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §6 (low-end budget), §13 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-032 · The page works on a cheap phone over a 2G connection
 
@@ -9664,9 +9498,7 @@ Expect:
 - GET /wallet/statement as DA is unchanged.
 - The wallet check reports ok: true.
 
-Spec: ADR-05, ADR-06, ADR-07, ADR-15; CUSTOMER_PAGE §7, §13; API_CONTRACT §5.5, §5.9, §9.8, §9.11 · Test file: `apps/api/test/e2e/confirmation-no-money.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-05, ADR-06, ADR-07, ADR-15; CUSTOMER_PAGE §7, §13; API_CONTRACT §5.5, §5.9, §9.8, §9.11 · Test file: `apps/api/test/inc2/confirm/confirmation-records.e2e-spec.ts`
 
 ### CNF-038 · Confirmation and messaging code cannot reach the wallet
 
@@ -9684,9 +9516,7 @@ Expect:
 - Zero matching imports; the test fails as soon as one is added.
 - Neither module imports WalletModule; ConfirmationsService's constructor has no wallet or ledger dependency.
 
-Spec: ADR-15; CUSTOMER_PAGE §7; API_CONTRACT §5.1, §5.9 · Test file: `apps/api/test/unit/confirmations-no-wallet.spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; CUSTOMER_PAGE §7; API_CONTRACT §5.1, §5.9 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
 ### CNF-039 · The audit entry for an answer has actor kind CUSTOMER and no IP
 
@@ -9707,9 +9537,9 @@ Expect:
 - ip and user_agent are NULL; request_id is set.
 - Step 4 leaves no audit row (it is written in the same transaction as the answer).
 
-Spec: CUSTOMER_PAGE §7, §12; API_CONTRACT §5.3, Appendix B; DATA_MODEL §3.2, §3.4 · Test file: `apps/api/test/e2e/confirmation-audit.e2e-spec.ts`
+Spec: CUSTOMER_PAGE §7, §12; API_CONTRACT §5.3, Appendix B; DATA_MODEL §3.2, §3.4 · Test file: `apps/api/test/inc2/confirm/confirmation-records.e2e-spec.ts`
 
-Note: The website's Activity sentence for this row ("Customer answered “Not received” for AG-0001", Who "Customer") is checked in CAS-011. Not automated yet.
+Note: The website's Activity sentence for this row ("Customer answered “Not received” for AG-0001", Who "Customer") is checked in CAS-011. Step 4 makes the answer's update fail with a temporary database trigger.
 
 ### CNF-040 · The driver never gets the link
 
@@ -9729,9 +9559,7 @@ Expect:
 - No body from steps 1 and 3 contains '/c/', the token, a confirmation url field or the SMS text.
 - No share row was written and tokenVersion is still 1.
 
-Spec: ADR-02, ADR-15; CUSTOMER_PAGE §10; API_CONTRACT §3.2, §9.3, §9.7, §9.11 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02, ADR-15; CUSTOMER_PAGE §10; API_CONTRACT §3.2, §9.3, §9.7, §9.11 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts, apps/api/test/inc2/confirm/confirmation-issue.e2e-spec.ts`
 
 ### CNF-041 · Another distributor gets 404 on DA's confirmation
 
@@ -9750,9 +9578,7 @@ Expect:
 - Each returns 404 NOT_FOUND (not 403), with no order number or shop name in the body.
 - D1's tokenVersion is still 1; no share or SMS row was written.
 
-Spec: ADR-02; API_CONTRACT §3.2, §9.7; CUSTOMER_PAGE §10 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02; API_CONTRACT §3.2, §9.7; CUSTOMER_PAGE §10 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### CNF-042 · The confirmation view for the shop and the office
 
@@ -9774,9 +9600,7 @@ Expect:
 - caseOpen false; allowedActions ['SHARE', 'NEW_LINK'].
 - No token, url, tokenHash or money field in the body.
 
-Spec: CUSTOMER_PAGE §10; API_CONTRACT §3.5, §9.7 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §10; API_CONTRACT §3.5, §9.7 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### CNF-043 · The office sees each answer in plain words, and the cost line does not change
 
@@ -9870,9 +9694,7 @@ Expect:
 - After step 1 nothing is recorded and there is no audit row.
 - Step 2: 303 then "Thank you!"; D1 is ANSWERED OTHER with comment 'Valve is loose'; one audit row; one CUSTOMER_PROBLEM case.
 
-Spec: CUSTOMER_PAGE §5, §6 · Test file: `apps/api/test/e2e/confirm-page.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §5, §6 · Test file: `apps/api/test/inc2/confirm/confirm-page.e2e-spec.ts`
 
 ### CNF-047 · The link page's error filter turns each CONFIRM\_\* code into its HTML page, never JSON
 
@@ -9896,9 +9718,7 @@ Expect:
 - RATE_LIMITED: 429 with the "Too many tries" page. A plain Error: 500 with "Something went wrong" and "Your answer was not saved."
 - Every response is text/html; charset=utf-8. No body is JSON, echoes the URL or the token, or contains a stack trace.
 
-Spec: API_CONTRACT §2.3 (Customer confirmation and cases); CUSTOMER_PAGE §4 (state order), §5 (PublicPageExceptionFilter), §6 (result pages), §13 · Test file: `apps/api/test/unit/public-page-filter.spec.ts`
-
-Note: Not automated yet.
+Spec: API_CONTRACT §2.3 (Customer confirmation and cases); CUSTOMER_PAGE §4 (state order), §5 (PublicPageExceptionFilter), §6 (result pages), §13 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
 ## CAS · Cases
 
@@ -9924,9 +9744,7 @@ Expect:
 - No case for D3 or D4.
 - DA's /alerts/mine answers { items, nextCursor } with the same two; D1's view has caseOpen true; D3's view has caseOpen false.
 
-Spec: ADR-15; CUSTOMER_PAGE §1, §7; API_CONTRACT §9.6, §9.11; DATA_MODEL §4.1, §4.5 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; CUSTOMER_PAGE §1, §7; API_CONTRACT §9.6, §9.11; DATA_MODEL §4.1, §4.5 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
 ### CAS-002 · The "answers that open a case" setting decides, on and off
 
@@ -9951,9 +9769,9 @@ Expect:
 - Each accepted change has a setting.update audit row with its reason.
 - D0 still has no case: a setting change doesn't open cases for old answers.
 
-Spec: ADR-15; CUSTOMER_PAGE §7, §11; API_CONTRACT §6, §7.13, Appendix B; UX_ADMIN §3.6 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
+Spec: ADR-15; CUSTOMER_PAGE §7, §11; API_CONTRACT §6, §7.13, Appendix B; UX_ADMIN §3.6 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
-Note: confirmation.caseOnAnswers is read when an answer is recorded (CUSTOMER_PAGE §7), so a change never opens cases for older answers. An empty list being valid is assumed. Not automated yet.
+Note: confirmation.caseOnAnswers is read when an answer is recorded (CUSTOMER_PAGE §7), so a change never opens cases for older answers. An empty list being valid is assumed.
 
 ### CAS-003 · One case per order, even with repeated or parallel answers
 
@@ -9973,9 +9791,7 @@ Expect:
 - D2: exactly one case.
 - Step 3: still one OPEN case for D1 (deduplicated on Order + D1's id + CUSTOMER_PROBLEM).
 
-Spec: CUSTOMER_PAGE §7, §13; API_CONTRACT §9.6, §9.11 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §7, §13; API_CONTRACT §9.6, §9.11 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
 ### CAS-004 · If opening the case fails, the answer is not saved and can be sent again
 
@@ -9997,9 +9813,7 @@ Expect:
 - Step 3: 303, then "Thank you!".
 - Step 4: the row is ANSWERED NO, with exactly one audit row and one case.
 
-Spec: CUSTOMER_PAGE §7; API_CONTRACT §4 (rule 5); DATA_MODEL §4.5 (customer answer) · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §7; API_CONTRACT §4 (rule 5); DATA_MODEL §4.5 (customer answer) · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
 ### CAS-005 · The office resolves a case with a note, and it is audited
 
@@ -10019,9 +9833,7 @@ Expect:
 - The case is gone from both open lists; D1's view shows caseOpen false; the customer's answer is still 'NO'.
 - One audit row: action 'case.resolve', actor SA1 (USER, SUPER_ADMIN), resourceType 'Alert', resourceId the case id, reason = the note.
 
-Spec: ADR-15; API_CONTRACT §9.6, Appendix B; CUSTOMER_PAGE §12 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; API_CONTRACT §9.6, Appendix B; CUSTOMER_PAGE §12 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
 ### CAS-006 · The resolve note must be 5 to 300 characters
 
@@ -10040,9 +9852,9 @@ Expect:
 - Step 1: each returns 400 VALIDATION_FAILED with details.fields[0].path 'note'; C-A stays OPEN with no audit row.
 - Steps 2 and 3: 200 and RESOLVED.
 
-Spec: API_CONTRACT §2.2, §9.6 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
+Spec: API_CONTRACT §2.2, §9.6 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
-Note: The note is trimmed before the length check (API_CONTRACT §9.6), so five spaces are refused. Not automated yet.
+Note: The note is trimmed before the length check (API_CONTRACT §9.6), so five spaces are refused.
 
 ### CAS-007 · A case closes only once, even when two office users click together
 
@@ -10062,9 +9874,7 @@ Expect:
 - Step 3: exactly one 200 and one 409 CASE_ALREADY_RESOLVED naming the winner.
 - Each case has exactly one case.resolve audit row and keeps the winner's note.
 
-Spec: API_CONTRACT §2.3, §4, §9.6, Appendix B · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: API_CONTRACT §2.3, §4, §9.6, Appendix B · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
 ### CAS-008 · Resolving a case never moves money
 
@@ -10084,9 +9894,9 @@ Expect:
 - Step 2: 404 (no such routes).
 - DA's balance is still Rs 4,520; still N ledger rows; no wallet.correction audit row; D1's fee.status is still 'DEDUCTED'.
 
-Spec: ADR-07, ADR-15; API_CONTRACT §9.6, §9.11; UX_ADMIN §3.3 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
+Spec: ADR-07, ADR-15; API_CONTRACT §9.6, §9.11; UX_ADMIN §3.3 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
-Note: Whether unknown body fields are refused or stripped isn't stated. Not automated yet.
+Note: Whether unknown body fields are refused or stripped isn't stated.
 
 ### CAS-009 · Only the office closes cases; each shop sees only its own
 
@@ -10108,9 +9918,9 @@ Expect:
 - Step 3: 403 PERMISSION_DENIED "Your account can't do this."
 - Step 4: 403 PERMISSION_DENIED for each; the case stays OPEN; no audit row.
 
-Spec: ADR-02; API_CONTRACT §3.1, §3.2, §7.2, §9.4, §9.6 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
+Spec: ADR-02; API_CONTRACT §3.1, §3.2, §7.2, §9.4, §9.6 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
-Note: The /alerts routes are "office exact" (API_CONTRACT §7.2), so a wrong role gets 403, not 404. Not automated yet.
+Note: The /alerts routes are "office exact" (API_CONTRACT §7.2), so a wrong role gets 403, not 404.
 
 ### CAS-010 · Customer problems page: loading, list, error and empty states
 
@@ -10205,9 +10015,9 @@ Expect:
 - Step 3: the resolve answers 200 with the CaseDto. status=RESOLVED answers { items, nextCursor } with only C-B; with no status the list is the open cases (C-A only), oldest first.
 - Step 4: C-A is still OPEN with no resolution; C-B is RESOLVED with its note; exactly one case.resolve row.
 
-Spec: API_CONTRACT §9.6 (resolve, list routes); UX_ADMIN §3.3 · Test file: `apps/api/test/e2e/cases.e2e-spec.ts`
+Spec: API_CONTRACT §9.6 (resolve, list routes); UX_ADMIN §3.3 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
-Note: A case is only ever OPEN or RESOLVED (G07-02, G07-21). Not automated yet.
+Note: A case is only ever OPEN or RESOLVED (G07-02, G07-21).
 
 ## MSG · Messaging
 
@@ -10230,9 +10040,7 @@ Expect:
 - body_redacted starts 'Ahmed Gas: Order AG-0001 delivered. Did you get it? Tap ', contains '[link]' and no 26-character token.
 - The row was QUEUED inside the finish transaction and updated after commit; it is never left QUEUED.
 
-Spec: ADR-20; CUSTOMER_PAGE §1, §8, §9; API_CONTRACT §5.9; DATA_MODEL §4.3 · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-20; CUSTOMER_PAGE §1, §8, §9; API_CONTRACT §5.9; DATA_MODEL §4.3 · Test file: `apps/api/test/inc2/confirm/confirmation-issue.e2e-spec.ts, apps/api/test/inc2/confirm/messaging.e2e-spec.ts`
 
 ### MSG-002 · The mock provider never logs the message text or the link
 
@@ -10252,9 +10060,9 @@ Expect:
 - The logged output has no 'http', no token, no 'Ahmed Gas' and no full phone number.
 - Step 2: no import of SmsService or mock-sms.provider (which logs whole bodies).
 
-Spec: ADR-20; CUSTOMER_PAGE §8, §12 · Test file: `apps/api/test/unit/mock-messaging.provider.spec.ts`
+Spec: ADR-20; CUSTOMER_PAGE §8, §12 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
-Note: The mask format follows today's maskPhone in shared-utils (first 4 characters, \*\*\*\*\*, last 2). Not automated yet.
+Note: The mask format follows today's maskPhone in shared-utils (first 4 characters, \*\*\*\*\*, last 2). Also unit-tested in apps/api/test/inc2/db/inc2-contracts.spec.ts.
 
 ### MSG-003 · Test mode sends real messages only to allowlisted phones
 
@@ -10274,9 +10082,7 @@ Expect:
 - Step 2: the spy is called once with toE164 '+923001234567', templateKey 'sms.deliveryConfirm.v1', messageId = the row id and the full text; the row is SENT with providerMessageId 'spy-1' and sentAt set. While the spy was still sending, the view showed reach 'SMS_SENDING'.
 - Step 3: the spy is called once; the row is SENT.
 
-Spec: ADR-20; CUSTOMER_PAGE §1, §8, §11; API_CONTRACT §6, §9.11 · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-20; CUSTOMER_PAGE §1, §8, §11; API_CONTRACT §6, §9.11 · Test file: `apps/api/test/inc2/confirm/messaging.e2e-spec.ts`
 
 ### MSG-004 · A failed send is recorded and logged, the delivery still finishes, and nothing retries
 
@@ -10300,9 +10106,7 @@ Expect:
 - Step 4: 409 DELIVERY_SCANS_INCOMPLETE; no confirmation row, no message row and no provider call (the send happens only after commit).
 - Step 5: reach 'SMS_FAILED', lastMessage { channel 'SMS', status 'FAILED', errorCode 'INVALID_NUMBER' }, allowedActions ['SHARE', 'NEW_LINK']; after the job D1's row is still FAILED and the provider was called once in total. The shop card built from this view reads "The text message didn't send: the number looks wrong. Send this link to Sana (0300 1234567)." with the send buttons primary (confirm.ask.smsFailed).
 
-Spec: CUSTOMER_PAGE §8; API_CONTRACT §4 (rule 5), §9.3 · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §8; API_CONTRACT §4 (rule 5), §9.3 · Test file: `apps/api/test/inc2/confirm/messaging.e2e-spec.ts`
 
 ### MSG-005 · The SMS text template and its 160-character limit
 
@@ -10329,9 +10133,7 @@ Expect:
 - Step 6: 151 characters, nothing dropped.
 - Every output uses only the GSM-7 basic set, is at most 160 characters, and the character after the link is a space or the end of the text.
 
-Spec: CUSTOMER_PAGE §9, §13 · Test file: `apps/api/test/unit/render-sms.spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §9, §13 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
 ### MSG-006 · Shop names are made SMS-safe and cut to 20 characters
 
@@ -10351,9 +10153,7 @@ Expect:
 - 'Ahmed Gas & Sons Traders Lahore' becomes its first 20 characters, trimmed: 'Ahmed Gas & Sons Tra'.
 - The Urdu-only name becomes 'Smart Fleet', so the text starts 'Smart Fleet: Order …'; nothing throws.
 
-Spec: CUSTOMER_PAGE §9 · Test file: `apps/api/test/unit/render-sms.spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §9 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
 ### MSG-007 · Sharing returns the link, the message and app links, and logs each share
 
@@ -10377,9 +10177,7 @@ Expect:
 - One row per share: channel SHARE_LINK, provider 'share-whatsapp', 'share-sms', 'share-sheet' or 'share-copy', status SENT, createdByUserId = the caller (DA's user, then SA2's), idempotencyKey 'share:\<orderId>:\<uuid>', body_redacted containing '[link]'.
 - The view shows reach 'SHARED' and lastMessage { channel 'SHARE_LINK', status 'SENT', via 'COPY', byName 'Ops' }.
 
-Spec: ADR-15; CUSTOMER_PAGE §8, §9, §10; API_CONTRACT §9.7; DATA_MODEL §4.3 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15; CUSTOMER_PAGE §8, §9, §10; API_CONTRACT §9.7; DATA_MODEL §4.3 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### MSG-008 · Retrying share or new link with the same Idempotency-Key does not double it
 
@@ -10401,9 +10199,7 @@ Expect:
 - Step 3: tokenVersion 3; the v2 link now shows "We can't find this link".
 - Step 4: 409 IDEMPOTENCY_CONFLICT; no row is written.
 
-Spec: API_CONTRACT §1.2, §4; CUSTOMER_PAGE §2, §10; DATA_MODEL §4.3, §7 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: API_CONTRACT §1.2, §4; CUSTOMER_PAGE §2, §10; DATA_MODEL §4.3, §7 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### MSG-009 · Sharing is refused once the link is closed, and after 20 shares in an hour
 
@@ -10423,9 +10219,7 @@ Expect:
 - Step 2: allowedActions [].
 - Step 3: shares 1-20 return 200; the 21st returns 429 RATE_LIMITED and writes no share row.
 
-Spec: CUSTOMER_PAGE §10; API_CONTRACT §2.3, §9.7 · Test file: `apps/api/test/e2e/confirmation-api.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §10; API_CONTRACT §2.3, §9.7 · Test file: `apps/api/test/inc2/confirm/confirmation-api.e2e-spec.ts`
 
 ### MSG-010 · A new link can be sent by SMS and the SMS carries the new link
 
@@ -10445,9 +10239,7 @@ Expect:
 - The text handed to the provider contains the v2 link, not the v1 link.
 - One confirmation.new_link audit row with actor DA's user.
 
-Spec: CUSTOMER_PAGE §2, §8, §10; API_CONTRACT §9.7, Appendix B · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §2, §8, §10; API_CONTRACT §9.7, Appendix B · Test file: `apps/api/test/inc2/confirm/messaging.e2e-spec.ts`
 
 ### MSG-011 · Fixing the customer's number while a link is pending
 
@@ -10469,9 +10261,7 @@ Expect:
 - Step 3: whatsappUrl starts 'https://wa.me/923017654321?text='.
 - Step 4: the response has no confirmationNeedsNewLink (nothing is pending).
 
-Spec: CUSTOMER_PAGE §2, §10; API_CONTRACT §7.4, §9.4, Appendix B; UX_MOBILE §7.3 (S15b) · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §2, §10; API_CONTRACT §7.4, §9.4, Appendix B; UX_MOBILE §7.3 (S15b) · Test file: `apps/api/test/inc2/confirm/messaging.e2e-spec.ts`
 
 ### MSG-012 · A customer with a wrong number gets no SMS and copy-only links
 
@@ -10493,9 +10283,7 @@ Expect:
 - Step 3: 200 with url and message, and whatsappUrl null and smsUrl null for both.
 - Step 4: 400 CLIENT_PHONE_INVALID "Enter a number like 300 1234567."; tokenVersion unchanged (the phone is checked before rotating); no SMS row.
 
-Spec: CUSTOMER_PAGE §1, §10; API_CONTRACT §2.3, §9.7; DATA_MODEL §3.4 (customer phones), §4.3 · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: CUSTOMER_PAGE §1, §10; API_CONTRACT §2.3, §9.7; DATA_MODEL §3.4 (customer phones), §4.3 · Test file: `apps/api/test/inc2/confirm/messaging.e2e-spec.ts`
 
 ### MSG-013 · A stored +92 number is written correctly for each use: display, SMS help, WhatsApp, sms:, tel: and logs
 
@@ -10511,9 +10299,9 @@ Expect:
 
 - display '0300 1234567'; SMS help '03001234567'; wa.me '923001234567'; sms: '+923001234567'; tel: '+923001234567'; mask '+923\*\*\*\*\*67'.
 
-Spec: CUSTOMER_PAGE §6, §8, §9, §10; API_CONTRACT §7.4; UX_MOBILE §4 (S1, S8) · Test file: `apps/api/test/unit/phone-format.spec.ts`
+Spec: CUSTOMER_PAGE §6, §8, §9, §10; API_CONTRACT §7.4; UX_MOBILE §4 (S1, S8) · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
-Note: normalizePkPhone itself is covered by FND-031. The display and SMS forms are formatPkPhone's 'local' and 'compact' styles (API_CONTRACT §1.1); the expected values match CUSTOMER_PAGE §6, §9 and §10. Not automated yet.
+Note: normalizePkPhone itself is covered by FND-031. The display and SMS forms are formatPkPhone's 'local' and 'compact' styles (API_CONTRACT §1.1); the expected values match CUSTOMER_PAGE §6, §9 and §10.
 
 ### MSG-014 · There is no messaging webhook in the pilot
 
@@ -10531,9 +10319,7 @@ Expect:
 - Both return 404 NOT_FOUND with the JSON error envelope: the route isn't registered.
 - D1's row is still SKIPPED (not DELIVERED); no other message row changes.
 
-Spec: ADR-15, ADR-20; API_CONTRACT §9.7; CUSTOMER_PAGE §8 · Test file: `apps/api/test/e2e/messaging.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-15, ADR-20; API_CONTRACT §9.7; CUSTOMER_PAGE §8 · Test file: `apps/api/test/inc2/confirm/messaging.e2e-spec.ts`
 
 ### MSG-015 · Send on WhatsApp from the shop app; the preview answers nothing
 
@@ -10901,33 +10687,29 @@ Spec: ADR-16; API_CONTRACT §7.11, §8.4, §4 (repeating a finished action), App
 
 Note: Inc 1 allows cancel while PENDING or ASSIGNED. The Inc 3 rule (no cylinder picked up yet) is REF-023.
 
-### REF-008 · Inc 1 count steps run to the office's "complete" with no money
+### REF-008 · From Inc 3 the Inc 1 count steps and the office's "complete" change nothing and move no money
 
 **P1** · AUTO-API · Inc 1 · Role: Driver (Kashif); Super admin (Owner); Distributor (Ahmed Gas)
 
-Before: Inc 1 build (before the Inc 3 scan release). Ahmed Gas refill R (3 × 11.8 kg) assigned to Kashif. Balance Rs 5,000; note the ledger_entries count.
+Before: Inc 3 build. Ahmed Gas refill R (3 × 11.8 kg) assigned to Kashif, nothing picked up. Balance Rs 5,000; note the ledger_entries count.
 
 Steps:
 
-1. As DR1, PATCH /api/v1/filling-orders/\<R>/picked-empties { emptyCount: 0 }, then { emptyCount: 4 }.
-2. As DR1, PATCH picked-empties { emptyCount: 3 }.
-3. As Ahmed Gas, PATCH /api/v1/filling-orders/\<R>/cancel { reason: "Too late" }.
-4. As DR1, PATCH at-station; PATCH filled { filledCount: 4 }; PATCH filled { filledCount: 3 }; PATCH returned.
-5. As SA1, PATCH /api/v1/filling-orders/\<R>/complete. Send it again.
-6. Count ledger_entries. As SA1, GET /api/v1/admin/distributors/\<Ahmed Gas>/wallet.
+1. As DR1, PATCH /api/v1/filling-orders/\<R>/picked-empties { emptyCount: 3 }, then at-station, filled { filledCount: 3 } and returned.
+2. As SA1, PATCH /api/v1/filling-orders/\<R>/complete.
+3. Read R. Then, as Ahmed Gas, PATCH /api/v1/filling-orders/\<R>/cancel { reason: "Not needed now" }.
+4. Count ledger_entries and the refill.complete audit rows. As SA1, GET /api/v1/admin/distributors/\<Ahmed Gas>/wallet.
 
 Expect:
 
-- Step 1: 400 REFILL_INVALID_COUNT "Check the number of cylinders." for both 0 and 4.
-- Step 2: 200, status EMPTIES_PICKED.
-- Step 3: 409 REFILL_NOT_CANCELLABLE "This refill can't be cancelled after pickup."
-- Step 4: filledCount 4 gives 400 REFILL_INVALID_COUNT (more than the 3 picked up); 3 gives 200; returned gives status RETURNED.
-- Step 5: 200 with status COMPLETED, then 200 with X-Already-Applied: true. One refill.complete audit row with actor SA1, and none for the repeat.
-- Step 6: no new ledger row (no DEBIT_REFILL, no ADJUSTMENT). Balance Rs 5,000 and integrity.ok true.
+- Step 1: each call gives 410 REFILL_USE_SCANS.
+- Step 2: 410 REFILL_AUTO_COMPLETES.
+- Step 3: R is unchanged: ASSIGNED, with no picked or filled count and no completedAt. The cancel gives 200 with status CANCELLED, since nothing was picked up.
+- Step 4: no new ledger row and no refill.complete row. Balance Rs 5,000 and integrity.ok true.
 
-Spec: ADR-16; API_CONTRACT §7.11, §8.4, §8.6 (refill complete never creates ledger rows), §4 · Test file: `apps/api/test/orders/refills.e2e-spec.ts`
+Spec: ADR-16; API_CONTRACT §7.11, §10.1 (Retired), §8.4, §8.6 (refill complete never creates ledger rows), §4 · Test file: `apps/api/test/orders/refills.e2e-spec.ts`
 
-Note: Inc 1 only: from Inc 3 these routes give 410 (REF-024).
+Note: From Inc 3 every refill step is a scan and the store's last receive completes a refill (REF-024 has the messages). Before Inc 3 the same test runs the Inc 1 form: the count steps to the office's complete, refused counts (REFILL_INVALID_COUNT), no cancel after pickup, one refill.complete row by SA1, and no money.
 
 ### REF-009 · Shop app Refills (Inc 1) have no do-it-yourself option and no money
 
@@ -11050,9 +10832,9 @@ Expect:
 - Step 5: "BG-R001" (Bilal Gas has its own counter).
 - Step 6: three Ahmed Gas refills.
 
-Spec: ADR-22; API_CONTRACT §1.1 (human numbers), §4.2 (create idempotency), §10.1; DATA_MODEL §3.2 (nextRefillNo), §5.2, §7 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
+Spec: ADR-22; API_CONTRACT §1.1 (human numbers), §4.2 (create idempotency), §10.1; DATA_MODEL §3.2 (nextRefillNo), §5.2, §7 · Test file: `apps/api/test/inc3/refills/refill-mapper.spec.ts, apps/api/test/inc3/refills/refill-requests.e2e-spec.ts`
 
-Note: formatNo pads refill numbers to 3 digits, as in AG-R007 (API_CONTRACT §1.1). Refill creates are idempotent from Inc 3, when filling_orders.client_request_id arrives (§10.1). Not automated yet.
+Note: formatNo pads refill numbers to 3 digits, as in AG-R007 (API_CONTRACT §1.1). Refill creates are idempotent from Inc 3, when filling_orders.client_request_id arrives (§10.1).
 
 ### REF-014 · Pickup scan moves an empty cylinder from the store onto the refill van
 
@@ -11077,9 +10859,7 @@ Expect:
 - No ledger row is written.
 - Step 5: holder.responsible is still Kashif: a FILL doesn't change it.
 
-Spec: ADR-13; ADR-16; API_CONTRACT §10.1 (PICKUP), §9.2, §5.9; DATA_MODEL §5.2, §5.3 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; ADR-16; API_CONTRACT §10.1 (PICKUP), §9.2, §5.9; DATA_MODEL §5.2, §5.3 · Test file: `apps/api/test/inc3/refills/refill-receive.e2e-spec.ts, apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
 ### REF-015 · Pickup refuses full, wrong-size and not-in-store cylinders
 
@@ -11101,9 +10881,7 @@ Expect:
 - Step 3: 409 SCAN_NOT_AT_STORE "This cylinder isn't in Ahmed Gas Store's stock. Load only from this store."
 - Step 4: R1 has picked 0 and no lines. AG-C0005 and AG-C0021 are still in the store; AG-C0008 is still on LEB-202. No new events.
 
-Spec: ADR-13; ADR-16; API_CONTRACT §10.1 (PICKUP errors), §2.3 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; ADR-16; API_CONTRACT §10.1 (PICKUP errors), §2.3 · Test file: `apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
 ### REF-016 · Pickups never exceed the request or double-book a cylinder, even when two arrive at once
 
@@ -11125,9 +10903,7 @@ Expect:
 - Step 3: one 201 and one 409 REFILL_CYLINDER_ON_OTHER_REFILL ("This cylinder is already on another refill.").
 - Step 4: AG-C0009 has exactly one PICKED_UP line across R2 and R3, one SCAN_OUT event, and one holder: the winning driver's van.
 
-Spec: ADR-13; ADR-16; API_CONTRACT §10.1, §9.2 (row lock), §4.1, §10.4 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; ADR-16; API_CONTRACT §10.1, §9.2 (row lock), §4.1, §10.4 · Test file: `apps/api/test/inc3/refills/refill-receive.e2e-spec.ts, apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
 ### REF-017 · Scans, "Leave store" and "Leave station" follow the refill steps
 
@@ -11155,9 +10931,9 @@ Expect:
 - Step 6: FILL gives 201 with status AT_STATION; the advance gives 200 with FILLED; FILL AG-C0002 gives 409 REFILL_WRONG_STEP and filled stays 1.
 - Step 7: R is COMPLETED; AG-C0001 is Full and AG-C0002 Empty in Ahmed Gas Store; the stage is DONE with counts filled 1, picked 2.
 
-Spec: ADR-16; API_CONTRACT §10.1 (phases, advance, Refill v2), §4.3 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
+Spec: ADR-16; API_CONTRACT §10.1 (phases, advance, Refill v2), §4.3 · Test file: `apps/api/test/inc3/refills/refill-mapper.spec.ts, apps/api/test/inc3/refills/refill-receive.e2e-spec.ts, apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
-Note: AG-C0002 is left unfilled on purpose: the refill completes when every picked cylinder is received, filled or not (§10.1, ADR-16). Not automated yet.
+Note: AG-C0002 is left unfilled on purpose: the refill completes when every picked cylinder is received, filled or not (§10.1, ADR-16).
 
 ### REF-018 · Only the assigned driver scans a refill, and only its own shop receives it
 
@@ -11181,9 +10957,7 @@ Expect:
 - Step 4: 409 SCAN_WRONG_OWNER "This cylinder belongs to another shop."
 - Step 5: R1 still has picked 1 and status ASSIGNED. AG-C0002 is in the store; AG-C0001 is still on LEA-101 with no new event.
 
-Spec: ADR-02; ADR-16; API_CONTRACT §10.1, §9.2 (STORE_RECEIVE), §9.4, §3.1, §3.2 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02; ADR-16; API_CONTRACT §10.1, §9.2 (STORE_RECEIVE), §9.4, §3.1, §3.2 · Test file: `apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
 ### REF-019 · Fill scan keeps the cylinder on the van and works only for picked cylinders
 
@@ -11207,9 +10981,7 @@ Expect:
 - Step 4: 200 ALREADY_RECORDED with X-Already-Applied: true; filled stays 2 (never more filled than picked up).
 - Step 5: no event moves AG-C0001 to a station. The holder is van LEA-101 throughout.
 
-Spec: ADR-13 (no filling-station holder); ADR-16; API_CONTRACT §10.1 (FILL), §10.4; DATA_MODEL §5.1 (FILLED) · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13 (no filling-station holder); ADR-16; API_CONTRACT §10.1 (FILL), §10.4; DATA_MODEL §5.1 (FILLED) · Test file: `apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
 ### REF-020 · The store's receive scans make the cylinders full and complete the refill, with no money
 
@@ -11232,9 +11004,9 @@ Expect:
 - Step 4: R1 is COMPLETED, set in the same transaction as the last receive. There is one refill.complete audit row with actor SYSTEM.
 - Step 4: the ledger_entries count is unchanged and there is no DEBIT_REFILL row. Balance Rs 5,000, integrity.ok true, and no refill row in the statement.
 
-Spec: ADR-05; ADR-16; API_CONTRACT §10.1 (return), §9.2, §10.4, Appendix B (refill.complete); DATA_MODEL §5.3 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
+Spec: ADR-05; ADR-16; API_CONTRACT §10.1 (return), §9.2, §10.4, Appendix B (refill.complete); DATA_MODEL §5.3 · Test file: `apps/api/test/inc3/refills/refill-receive.e2e-spec.ts`
 
-Note: A picked cylinder received without a fill keeps its state, and the refill still completes on the last receive (§10.1); REF-017 checks that. Not automated yet.
+Note: A picked cylinder received without a fill keeps its state, and the refill still completes on the last receive (§10.1); REF-017 checks that.
 
 ### REF-021 · A repeated scan is recorded once, and a reused scan ID is refused
 
@@ -11258,9 +11030,7 @@ Expect:
 - Step 5: the first is 201 and the repeat is 200 ALREADY_RECORDED with Idempotent-Replay: true. received is 1, with one SCAN_IN event and one RETURNED line.
 - Step 6: 200 ALREADY_RECORDED with X-Already-Applied: true (already in the store) and no new event. received stays 1.
 
-Spec: API_CONTRACT §9.2 (steps 2 and 8, STORE_RECEIVE), §9.4, §10.1, §4; DATA_MODEL §4.5, §7 (cylinder_events_actor_user_id_client_scan_id_key) · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: API_CONTRACT §9.2 (steps 2 and 8, STORE_RECEIVE), §9.4, §10.1, §4; DATA_MODEL §4.5, §7 (cylinder_events_actor_user_id_client_scan_id_key) · Test file: `apps/api/test/inc3/refills/refill-mapper.spec.ts, apps/api/test/inc3/refills/refill-receive.e2e-spec.ts, apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
 ### REF-022 · A refill pickup never counts as the start of a delivery
 
@@ -11285,9 +11055,7 @@ Expect:
 - Step 5: 409 VEHICLE_HAS_CYLINDERS { count: 1 }: refill cylinders count for the van.
 - Step 6: the finish answers 200: a cylinder on an open refill line doesn't block a delivery trip.
 
-Spec: ADR-07; ADR-16; API_CONTRACT §5.5, §7.6 (cancel), §9.2 (LOAD), §10.1; DATA_MODEL §3.6 (first load scan) · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-07; ADR-16; API_CONTRACT §5.5, §7.6 (cancel), §9.2 (LOAD), §10.1; DATA_MODEL §3.6 (first load scan) · Test file: `apps/api/test/inc3/refills/refill-delivery.e2e-spec.ts, apps/api/test/inc3/refills/refill-receive.e2e-spec.ts`
 
 ### REF-023 · The owner can cancel only before the first pickup, and a cancel never wins against a pickup
 
@@ -11309,9 +11077,9 @@ Expect:
 - Step 3: exactly one wins. Either R3 is CANCELLED and the pickup is refused (409 REFILL_WRONG_STEP) with AG-C0002 still in the store, or AG-C0002 is picked up and the cancel gets REFILL_NOT_CANCELLABLE. A cancelled refill never has a cylinder on the van.
 - Step 4: 403 PERMISSION_DENIED (the office has no cancel).
 
-Spec: ADR-16; API_CONTRACT §10.1 (Cancel), §4.1, §3.1, Appendix B (refill.cancel\*) · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
+Spec: ADR-16; API_CONTRACT §10.1 (Cancel), §4.1, §3.1, Appendix B (refill.cancel\*) · Test file: `apps/api/test/inc3/refills/refill-mapper.spec.ts, apps/api/test/inc3/refills/refill-scans.e2e-spec.ts`
 
-Note: There is no office cancel and no /fail. A refill stays open until its cylinders are received, and anything that never comes back shows at day-end (§10.1). Not automated yet.
+Note: There is no office cancel and no /fail. A refill stays open until its cylinders are received, and anything that never comes back shows at day-end (§10.1).
 
 ### REF-024 · Old count-based refill routes answer 410 after the scan release
 
@@ -11331,9 +11099,7 @@ Expect:
 - Step 2: 410 REFILL_AUTO_COMPLETES "Refills now finish by themselves when the store scans them in."
 - Step 3: R1 is unchanged (ASSIGNED, picked 2) with no new events. With 0.2.0 and with 0.1.0 the station's pricePerCylinderPaisa is "0" (no field is dropped).
 
-Spec: ADR-16; API_CONTRACT §10.1 (Retired), Appendix A, §2.3 · Test file: `apps/api/test/e2e/refill-scans.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-16; API_CONTRACT §10.1 (Retired), Appendix A, §2.3 · Test file: `apps/api/test/inc3/refills/refill-retired.e2e-spec.ts`
 
 ### REF-025 · Driver refill run: pick up, fill and unload by scans, including a scan without signal
 
@@ -11461,6 +11227,8 @@ Expect:
 
 Spec: DATA_MODEL §5.4 (Pre-check, Backfills), §2.4, §2.6; API_CONTRACT §8.5
 
+Note: An automated proof of the same pre-check runs on scratch databases: apps/api/test/inc3/db/inc3-precheck.e2e-spec.ts ("REF-029 (automated) …"). Ops still runs this drill on a restored copy before the Inc 3 deploy.
+
 ### REF-030 · Every refill and day-end error code has its status, English text and app keys
 
 **P2** · AUTO-UNIT · Inc 3 · Role: Developer
@@ -11480,9 +11248,7 @@ Expect:
 - Each code has exactly the §2.3 English text and an errors.\<CODE> key in both apps.
 - The rendered messages read, for example, "This refill is for 11.8 kg only.", "All picked up: 2 of 2.", "Too many cylinders. A refill can have at most 30." and "This sheet is for Tue 20 Oct. Upload the sheet for Wed 21 Oct.", with no {{…}} left in them.
 
-Spec: ADR-18; API_CONTRACT §2.1, §2.3 (Refills, Day-end, Settings and legacy), §8.6 (shared rules); UX_MOBILE §3.2, §3.3; UX_ADMIN §1.6 · Test file: `apps/api/test/unit/error-catalogue-inc3.spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-18; API_CONTRACT §2.1, §2.3 (Refills, Day-end, Settings and legacy), §8.6 (shared rules); UX_MOBILE §3.2, §3.3; UX_ADMIN §1.6 · Test file: `apps/api/test/inc3/db/ref-030-error-catalogue-inc3.spec.ts`
 
 ### REF-031 · The old reconciliation form is retired: POST /reconciliations answers 410
 
@@ -11500,9 +11266,9 @@ Expect:
 - Step 1: 410 RECONCILIATION_RETIRED "The day-end sheet replaces this form."
 - Step 2: no new reconciliations row, and the balance is unchanged.
 
-Spec: API_CONTRACT §2.3 (RECONCILIATION_RETIRED), §7.2 (POST /reconciliations: DRIVER, unchanged until Inc 3), §10.4 (Retirements); UX_MOBILE Appendix A (Reconcile hidden) · Test file: `apps/api/test/e2e/retired-routes.e2e-spec.ts`
+Spec: API_CONTRACT §2.3 (RECONCILIATION_RETIRED), §7.2 (POST /reconciliations: DRIVER, unchanged until Inc 3), §10.4 (Retirements); UX_MOBILE Appendix A (Reconcile hidden) · Test file: `apps/api/test/inc3/refills/refill-retired.e2e-spec.ts`
 
-Note: Inc 1 and Inc 2 keep the route as it is today (DRIVER only). Not automated yet.
+Note: Inc 1 and Inc 2 keep the route as it is today (DRIVER only).
 
 ## DAY · Day-end Excel
 
@@ -11535,9 +11301,7 @@ Expect:
 - Step 5: (Ahmed Gas, 2026-10-21) has status OPEN, with sheet_snapshot_at = the download time. No cylinder changed.
 - Step 6: 404 DAY_NOT_FOUND for 2026-10-25. 2026-10-19 answers status OPEN, stage NOT_STARTED and lastUpload null, and no row is created for it.
 
-Spec: ADR-17; API_CONTRACT §10.2 (sheet.xlsx, DayClose), §1.4; DATA_MODEL §5.3, §7 (day_closes_distributor_id_business_date_key) · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (sheet.xlsx, DayClose), §1.4; DATA_MODEL §5.3, §7 (day_closes_distributor_id_business_date_key) · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
 ### DAY-002 · Uploading shows every difference and changes nothing
 
@@ -11558,9 +11322,9 @@ Expect:
 - Step 3: lastUpload is { version: 1, differences: 4 } and the status is OPEN. day_close_lines has 35 rows (one per cylinder), 31 of them MATCH; the four differing lines' note has the typed reasons. upload_version is 1 and uploaded_by_user_id is Ahmed Gas's user.
 - Step 4: no cylinder changed. There are no new cylinder_events and no ledger rows, and AG-C0010 is still on van LEA-101.
 
-Spec: ADR-17; API_CONTRACT §10.2 (upload: "changes nothing in the holder data"); DATA_MODEL §5.1 (DayCloseDiff), §5.3 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
+Spec: ADR-17; API_CONTRACT §10.2 (upload: "changes nothing in the holder data"); DATA_MODEL §5.1 (DayCloseDiff), §5.3 · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
-Note: Blank "Your count" cells mean the same as the app (API_CONTRACT §10.2 row rules), as UX_MOBILE S19 tells the shop to fill in only the rows that differ. Not automated yet.
+Note: Blank "Your count" cells mean the same as the app (API_CONTRACT §10.2 row rules), as UX_MOBILE S19 tells the shop to fill in only the rows that differ.
 
 ### DAY-003 · A new upload replaces the draft
 
@@ -11582,9 +11346,7 @@ Expect:
 - The holder data is still unchanged.
 - Step 4: 422 DAY_SHEET_OUTDATED "This is an old copy. Download a new sheet and use that."; the version and the lines don't change.
 
-Spec: ADR-17; API_CONTRACT §10.2 (upload replaces the day's lines and bumps upload_version) · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (upload replaces the day's lines and bumps upload_version) · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
 ### DAY-004 · A file that isn't the day-end sheet is refused clearly
 
@@ -11611,9 +11373,7 @@ Expect:
 - Step 7: the 2,097,152-byte file isn't refused for its size (no 413); the 2,097,153-byte file gets 413 FILE_TOO_LARGE { maxMb: 2 }.
 - Step 8: still version 2, with the same lines.
 
-Spec: ADR-17; API_CONTRACT §10.2 (≤ 2 MB, magic-byte check, upload errors), §2.3 (Day-end, Files) · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (≤ 2 MB, magic-byte check, upload errors), §2.3 (Day-end, Files) · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
 ### DAY-005 · A sheet from another shop or another day is refused
 
@@ -11633,9 +11393,9 @@ Expect:
 - Step 2: 422 DAY_SHEET_WRONG_DATE with details { sheetDate: "2026-10-20", date: "2026-10-21" } and message "This sheet is for Tue 20 Oct. Upload the sheet for Wed 21 Oct."
 - Step 3: neither day changed (same versions and lines).
 
-Spec: ADR-17; API_CONTRACT §10.2 (upload errors), §2.3, §3.2 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
+Spec: ADR-17; API_CONTRACT §10.2 (upload errors), §2.3, §3.2 · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
-Note: The sheet records its shop and date in its hidden "About" sheet (API_CONTRACT §10.2). Messages show dates with formatIsoDay, while details keep the YYYY-MM-DD dates (§2.1). Not automated yet.
+Note: The sheet records its shop and date in its hidden "About" sheet (API_CONTRACT §10.2). Messages show dates with formatIsoDay, while details keep the YYYY-MM-DD dates (§2.1).
 
 ### DAY-006 · Rows that can't be read are listed by row number and block sending
 
@@ -11647,7 +11407,7 @@ Steps:
 
 1. Download a fresh sheet. Set AG-C0007 "Your count: where" to "Shop" and AG-C0008 "Your count: state" to "Half"; set AG-C0009 to In my store / Empty with "Why different" left blank; and on the "Extra cylinders" sheet add AG-C0098 with no size and the state Empty.
 2. Upload it.
-3. POST /api/v1/day-end/2026-10-21/submit { version: \<the current version> }.
+3. POST /api/v1/day-end/2026-10-21/submit { version: 1 }.
 4. Fix the rows: AG-C0007 In my store (as the app), AG-C0008 Empty with "Why different" "Used at the shop", AG-C0009 with "Why different" "Used at the shop", and the extra row with the size 11.8 kg. Upload again, then submit the newest version.
 
 Expect:
@@ -11656,9 +11416,9 @@ Expect:
 - Step 3: 409 DAY_SHEET_NOT_UPLOADED "Upload the filled sheet first." (nothing valid was uploaded from the newest sheet). The status stays OPEN.
 - Step 4: the upload answers 200 with no errors field, and the submit gives 200 with SUBMITTED.
 
-Spec: ADR-17; API_CONTRACT §10.2 (upload errors, submit "Row errors block it"), §2.3; UX_MOBILE S20 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
+Spec: ADR-17; API_CONTRACT §10.2 (upload errors, submit "Row errors block it"), §2.3; UX_MOBILE S20 · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
-Note: The row texts are the shorter ones of UX_MOBILE §8.3 (shared-types DAY_END_ROW_ERROR_EN, changed when Inc 3 is built). Not automated yet.
+Note: The row texts are the shorter ones of UX_MOBILE §8.3, as built in shared-types DAY_END_ROW_ERROR_EN. Step 3 sends version 1, the number the newest sheet's first upload would get: with nothing uploaded the day is still at version 0, and the schema refuses { version: 0 } with 400 VALIDATION_FAILED.
 
 ### DAY-007 · Extra cylinders: an unknown number is added on approval, and another shop's number is never touched
 
@@ -11681,9 +11441,9 @@ Expect:
 - Step 4: 200; the approve answer lists the new cylinder in registered.
 - Step 5: a new 11.8 kg Empty cylinder AG-C0036, owned by Ahmed Gas, in Ahmed Gas Store with one REGISTERED event; the line has sheet_key 'AG-C0099' and applied_event_id. BG-C0001's owner, holder, state and last event are unchanged, with no new event, and Bilal Gas's day-end is untouched.
 
-Spec: ADR-17; API_CONTRACT §10.2 (Extra cylinders), §3.2; DATA_MODEL §5.3, §5.4 (unknown cylinder with a size → REGISTERED); UX_ADMIN §4.3 · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
+Spec: ADR-17; API_CONTRACT §10.2 (Extra cylinders), §3.2; DATA_MODEL §5.3, §5.4 (unknown cylinder with a size → REGISTERED); UX_ADMIN §4.3 · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts`
 
-Note: The row texts are the shorter ones of UX_MOBILE §8.3 (shared-types DAY_END_ROW_ERROR_EN, changed when Inc 3 is built). Not automated yet.
+Note: The row texts are the shorter ones of UX_MOBILE §8.3 (shared-types DAY_END_ROW_ERROR_EN, changed when Inc 3 is built).
 
 ### DAY-008 · Sending for approval: the day is submitted once and the office is told
 
@@ -11709,9 +11469,7 @@ Expect:
 - Step 5: one DAY_END_SUBMITTED alert for Ahmed Gas, and the day is in the list to approve.
 - Step 6: exactly one day.submit row, with actor Ahmed Gas's user.
 
-Spec: ADR-17; API_CONTRACT §10.2 (submit, DayClose), §2.3, Appendix B (day.submit); DATA_MODEL §5.1 (AlertType DAY_END_SUBMITTED); UX_ADMIN §4.4 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (submit, DayClose), §2.3, Appendix B (day.submit); DATA_MODEL §5.1 (AlertType DAY_END_SUBMITTED); UX_ADMIN §4.4 · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
 ### DAY-009 · Approval applies every listed fix with its reason, who asked and who approved, locks the day and moves no money
 
@@ -11736,9 +11494,7 @@ Expect:
 - Step 4: the fix shows as a day-end fix on 21 Oct, approved by Owner, with the reason "Valve leaking".
 - Step 5: one day.approve row with actor SA1. No ledger row is written, and the balance stays Rs 5,000 with integrity ok.
 
-Spec: ADR-17; API_CONTRACT §10.2 (approve), Appendix B (day.approve); DATA_MODEL §5.1, §5.3, §5.4; UX_ADMIN §4.3, §3.5 · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (approve), Appendix B (day.approve); DATA_MODEL §5.1, §5.3, §5.4; UX_ADMIN §4.3, §3.5 · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts, apps/api/test/inc3/gate/refill-dayend.e2e-spec.ts`
 
 ### DAY-010 · Approving an old version is refused and changes nothing
 
@@ -11758,9 +11514,7 @@ Expect:
 - Step 3: 409 DAY_VERSION_CHANGED "A newer sheet was uploaded. Load the new version." No ADJUSTED events are written, and the day stays SUBMITTED.
 - Step 4: the day shows version 3. The approve gives 200 and applies only version 3's fixes.
 
-Spec: ADR-17; API_CONTRACT §10.2 (approve { version }), §2.3; UX_ADMIN §4.3 · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (approve { version }), §2.3; UX_ADMIN §4.3 · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts`
 
 ### DAY-011 · Approving twice, or by two super admins at once, applies the fixes once
 
@@ -11780,9 +11534,9 @@ Expect:
 - Step 2: both 200, and exactly one has no X-Already-Applied header. There is one approved_by.
 - Step 3: one ADJUSTED event per difference line (3 and 2), each applied_event_id unique, and one day.approve row per day.
 
-Spec: API_CONTRACT §4.1, §4.3, §10.2; DATA_MODEL §5.3 (applied_event_id unique), §5.4 · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
+Spec: API_CONTRACT §4.1, §4.3, §10.2; DATA_MODEL §5.3 (applied_event_id unique), §5.4 · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts`
 
-Note: An approve repeated with the same version answers 200 with X-Already-Applied (API_CONTRACT §10.2). Not automated yet.
+Note: An approve repeated with the same version answers 200 with X-Already-Applied (API_CONTRACT §10.2).
 
 ### DAY-012 · A cylinder that moved after the sheet is flagged and its fix is skipped, and no scan is lost
 
@@ -11801,14 +11555,12 @@ Steps:
 
 Expect:
 
-- Step 3: the AG-C0011 difference has movedSinceSheet true.
-- Step 5: the approve gives 200, and the AG-C0016 scan gives 201 RECORDED (it is never refused).
+- Step 3: the AG-C0011 difference has movedSinceSheet true; AG-C0014 and AG-C0016 have it false.
+- Step 5: the approve gives 200. The day never refuses the AG-C0016 scan: if the scan comes first it gives 201 RECORDED; if the approval comes first, AG-C0016 is already Empty and the load is refused by its own rule with 409 SCAN_NOT_FULL, never DAY_LOCKED.
 - Step 6: AG-C0011 and AG-C0014 have skipped_moved_at set and no ADJUSTED event. Both are on van LEA-101 and Full.
-- Step 6: AG-C0016 is either skipped (the scan came first) or fixed and then loaded (the approval came first). Its history shows every event in order, it has exactly one holder, and no scan is lost.
+- Step 6: AG-C0016 is either skipped and on LEA-101, Full (the scan came first), or fixed to Empty in Ahmed Gas Store (the approval came first). Its history shows every event in order, it has exactly one holder, and no recorded scan is lost.
 
-Spec: ADR-13; ADR-17; API_CONTRACT §10.2, §10.4; DATA_MODEL §5.3 (system_last_event_id), §5.4; UX_ADMIN §4.3 · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-13; ADR-17; API_CONTRACT §10.2, §10.4; DATA_MODEL §5.3 (system_last_event_id), §5.4; UX_ADMIN §4.3 · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts`
 
 ### DAY-013 · Sending back needs a note and opens the day for a new sheet
 
@@ -11836,9 +11588,7 @@ Expect:
 - Step 6: 409 DAY_SHEET_NOT_UPLOADED "Upload the filled sheet first." (no upload since the send-back).
 - Step 7: 200 with version 3, then 200 with SUBMITTED.
 
-Spec: ADR-17; API_CONTRACT §10.2 (send-back, DayClose), §2.3, Appendix B (day.send_back\*) · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (send-back, DayClose), §2.3, Appendix B (day.send_back\*) · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts`
 
 ### DAY-014 · A locked day refuses changes until the office reopens it
 
@@ -11868,9 +11618,7 @@ Expect:
 - Step 7: 409 CONFLICT_STALE_STATE with details.currentStatus OPEN (the day has an upload since the reopen).
 - Step 8: AG-C0005 is still FAULTY: a reopen doesn't undo applied fixes.
 
-Spec: ADR-17; API_CONTRACT §10.2 (locked day, reopen, DayClose), §2.3, Appendix B (day.reopen\*); DATA_MODEL §5.4 (day_closes_locked_chk) · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; API_CONTRACT §10.2 (locked day, reopen, DayClose), §2.3, Appendix B (day.reopen\*); DATA_MODEL §5.4 (day_closes_locked_chk) · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts`
 
 ### DAY-015 · Scans after the lock are recorded on the new business day
 
@@ -11893,9 +11641,7 @@ Expect:
 - Step 4: still APPROVED, with the same version, differences, approvedAt and lines.
 - Step 5: AG-C0007 shows "On driver's van" and AG-C0024 shows "In my store".
 
-Spec: ADR-17; ADR-21; API_CONTRACT §10.2, §9.2 · Test file: `apps/api/test/e2e/day-end-approve.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-17; ADR-21; API_CONTRACT §10.2, §9.2 · Test file: `apps/api/test/inc3/dayend/day-end-approve.e2e-spec.ts`
 
 ### DAY-016 · Each shop sees only its own days, and the office routes are office only
 
@@ -11921,9 +11667,7 @@ Expect:
 - Step 5: 403 PERMISSION_DENIED.
 - Step 6: 404 FILE_NOT_FOUND.
 
-Spec: ADR-02; ADR-17; API_CONTRACT §10.2 (DISTRIBUTOR exact, own days; office routes), §3.1, §3.2 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
-
-Note: Not automated yet.
+Spec: ADR-02; ADR-17; API_CONTRACT §10.2 (DISTRIBUTOR exact, own days; office routes), §3.1, §3.2 · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
 ### DAY-017 · The cut-off decides which day a scan counts for, and follows the setting
 
@@ -11933,28 +11677,29 @@ Before: Inc 3 build, dayEnd.enabled on, standard test data. Business date 2026-1
 
 Steps:
 
-1. At 2026-10-22 02:30 Asia/Karachi (2026-10-21T21:30:00Z), Ahmed Gas scans in AG-C0024.
-2. GET /api/v1/day-end/2026-10-21 and /api/v1/day-end/2026-10-22.
+1. At 2026-10-22 02:30 Asia/Karachi (2026-10-21T21:30:00Z), Ahmed Gas scans in AG-C0024. At once, GET /api/v1/day-end/2026-10-22.
+2. Later that morning (10:00), GET /api/v1/day-end/2026-10-21 and /api/v1/day-end/2026-10-22.
 3. As SA1, PATCH /api/v1/settings/day.cutoffLocalTime { value: "00:00", reason: "Cut-off test" }.
-4. At 2026-10-23 02:30 Asia/Karachi, Ahmed Gas scans in AG-C0025. GET the 2026-10-22 and 2026-10-23 days.
-5. As SA1, PATCH the setting back to "03:00", then try "25:00".
+4. At 2026-10-23 02:30 Asia/Karachi, Ahmed Gas scans in AG-C0025. GET the 2026-10-21, 2026-10-22 and 2026-10-23 days.
+5. As SA1, PATCH the setting back to "03:00", then try "25:00". GET the 2026-10-21 day.
 
 Expect:
 
-- Step 2: AG-C0024 counts in 2026-10-21's summary.receivedToday, not 2026-10-22's. 2026-10-21 has cutoffAt 2026-10-21T22:00:00.000Z.
+- Step 1: the scan is 201; the 2026-10-22 day gives 404 DAY_NOT_FOUND, because at 02:30 the 22nd isn't a business date yet.
+- Step 2: AG-C0024 counts in 2026-10-21's summary.receivedToday (1), not 2026-10-22's (0). cutoffAt is 2026-10-21T22:00:00.000Z for the 21st and 2026-10-22T22:00:00.000Z for the 22nd.
 - Step 3: 200, and an audit row setting.update from "03:00" to "00:00" with the reason.
-- Step 4: AG-C0025 counts for 2026-10-23, not 2026-10-22.
-- Step 5: "03:00" gives 200; "25:00" gives 400 SETTING_INVALID_VALUE.
+- Step 4: AG-C0025 counts for 2026-10-23 (cutoffAt 2026-10-23T19:00:00.000Z), not 2026-10-22. The days regroup at once under the 00:00 cut-off: AG-C0024's 02:30 receive now counts for 2026-10-22, and 2026-10-21 shows 0.
+- Step 5: "03:00" gives 200, and 2026-10-21 counts AG-C0024 again; "25:00" gives 400 SETTING_INVALID_VALUE.
 
-Spec: ADR-21; API_CONTRACT §6 (day.\*), §10.2 (cutoffAt, summary), §7.13; DATA_MODEL §5.4; UX_ADMIN §4.4 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
+Spec: ADR-21; API_CONTRACT §6 (day.\*), §10.2 (cutoffAt, summary), §7.13; DATA_MODEL §5.4; UX_ADMIN §4.4 · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
-Note: Rejecting "25:00" follows the setting's type: a local "HH:mm" from 00:00 to 23:59 (API_CONTRACT §6). Not automated yet.
+Note: Rejecting "25:00" follows the setting's type: a local "HH:mm" from 00:00 to 23:59 (API_CONTRACT §6).
 
 ### DAY-018 · dayEnd.enabled switches the day-end on and off
 
 **P2** · AUTO-API · Inc 3 · Role: Super admin (Owner); Distributor (Ahmed Gas)
 
-Before: Inc 3 build with dayEnd.enabled false.
+Before: Inc 3 build with dayEnd.enabled switched off. It is on by default from Inc 3, so SA1 first sends PATCH /api/v1/settings/dayEnd.enabled { value: false, reason: "Day-end off for the switch test" }.
 
 Steps:
 
@@ -11970,9 +11715,9 @@ Expect:
 - Step 3: 200, and an audit row setting.update with the reason.
 - Step 4: features.dayEnd is true, the sheet downloads, and the upload is accepted.
 
-Spec: API_CONTRACT §6 (dayEnd.enabled, PublicAppConfig.features.dayEnd), §3.4; UX_MOBILE §8.3, §3.6; UX_ADMIN §4.4 · Test file: `apps/api/test/e2e/day-end.e2e-spec.ts`
+Spec: API_CONTRACT §6 (dayEnd.enabled, PublicAppConfig.features.dayEnd), §3.4; UX_MOBILE §8.3, §3.6; UX_ADMIN §4.4 · Test file: `apps/api/test/inc3/dayend/day-end.e2e-spec.ts`
 
-Note: The shop app hides its Day-end tile while features.dayEnd is false (UX_MOBILE §8.3); DAY-019 runs on the phone with it on. Not automated yet.
+Note: The shop app hides its Day-end tile while features.dayEnd is false (UX_MOBILE §8.3); DAY-019 runs on the phone with it on.
 
 ### DAY-019 · Shop app: download, fill, upload and send the day-end sheet on the phone
 
@@ -12149,9 +11894,9 @@ Expect:
 - Step 3: North, South and East, and no zone for Outside.
 - Step 4: Outside gives 200 { serviceable: false, blockCode: "PRICING_ZONE_NOT_COVERED" }. East gives blockCode "PRICING_PRICE_NOT_SET" with zone East.
 
-Spec: API_CONTRACT §10.3, §7.2 (zones), §7.5, §5.6; DATA_MODEL §6.6 · Test file: `apps/api/test/e2e/pilot-setup.e2e-spec.ts`
+Spec: API_CONTRACT §10.3, §7.2 (zones), §7.5, §5.6; DATA_MODEL §6.6 · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
 
-Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-004 · Setup refuses broken or overlapping zone shapes
 
@@ -12175,9 +11920,9 @@ Expect:
 - Step 5: exit code 0. Touching isn't overlapping.
 - Step 6: nothing is written by a refused run (all counts are 0).
 
-Spec: API_CONTRACT §10.3 (ST_IsValid, area > 0, no overlap), §7.2 (ZONE_INVALID_SHAPE), §2.3; DATA_MODEL §6.6 · Test file: `apps/api/test/e2e/pilot-setup.e2e-spec.ts`
+Spec: API_CONTRACT §10.3 (ST_IsValid, area > 0, no overlap), §7.2 (ZONE_INVALID_SHAPE), §2.3; DATA_MODEL §6.6 · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
 
-Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-005 · Setup creates both shops, their stores, prices and the company account through the normal rules
 
@@ -12204,9 +11949,9 @@ Expect:
 - Step 5: one distributor.create row per shop and one price.set row per price (3).
 - Step 6: refused (exit 1), naming the openingBalances entry; nothing is written.
 
-Spec: ADR-01; ADR-08; ADR-09; ADR-22; API_CONTRACT §10.3, §7.3, §7.5, §7.9, §5.2, Appendix B (distributor.create, price.set) · Test file: `apps/api/test/e2e/pilot-setup.e2e-spec.ts`
+Spec: ADR-01; ADR-08; ADR-09; ADR-22; API_CONTRACT §10.3, §7.3, §7.5, §7.9, §5.2, Appendix B (distributor.create, price.set) · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
 
-Note: In paisa, the prices are 25000 (with sizes 3000, 4000, 8000, 15000), 40000 and 30000. No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: In paisa, the prices are 25000 (with sizes 3000, 4000, 8000, 15000), 40000 and 30000. No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-006 · Setup creates drivers with vans and the test customers
 
@@ -12228,9 +11973,9 @@ Expect:
 - Step 3: 200, with originStoreId = Ahmed Gas Store.
 - Step 4: Ahmed Gas sees Sana (phone +923001234567, zone North, priceStatus SET) and Usman (zone South, SET). Bilal Gas sees only Hina (zone South, SET).
 
-Spec: ADR-12; API_CONTRACT §10.3, §7.2, §7.4, §7.6 (assign-driver), §3.5 · Test file: `apps/api/test/e2e/pilot-setup.e2e-spec.ts`
+Spec: ADR-12; API_CONTRACT §10.3, §7.2, §7.4, §7.6 (assign-driver), §3.5 · Test file: `apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
 
-Note: The customers come from the setup file's customers section (API_CONTRACT §10.3). No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: The customers come from the setup file's customers section (API_CONTRACT §10.3). No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-007 · Setup registers the labelled stock, writes the labels file and prints passwords once
 
@@ -12252,9 +11997,9 @@ Expect:
 - Step 3: next_cylinder_no is 36, and there is one pilot.setup audit row (actor SYSTEM).
 - Step 4: no password is found.
 
-Spec: ADR-13; ADR-22; API_CONTRACT §10.3, §9.2 (REGISTER), §9.5 (bulk-register), Appendix B (pilot.setup) · Test file: `apps/api/test/e2e/pilot-setup.e2e-spec.ts`
+Spec: ADR-13; ADR-22; API_CONTRACT §10.3, §9.2 (REGISTER), §9.5 (bulk-register), Appendix B (pilot.setup) · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
 
-Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-008 · A dry run writes nothing, and a second run makes no duplicates
 
@@ -12277,9 +12022,9 @@ Expect:
 - Step 4: the same counts as after step 3: 2 shops, 2 stores, 3 price rows, 2 drivers, 2 vans, 35 cylinders and 3 customers. No new passwords are printed.
 - Step 5: the sign-in works.
 
-Spec: API_CONTRACT §10.3 (upsert by natural key, --dry-run) · Test file: `apps/api/test/e2e/pilot-setup.e2e-spec.ts`
+Spec: API_CONTRACT §10.3 (upsert by natural key, --dry-run) · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
 
-Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-009 · The reset deletes only test rows and what hangs off them
 
@@ -12301,9 +12046,9 @@ Expect:
 - Step 3: unchanged.
 - Step 4: one pilot.reset row with actor System (cli:pilot-reset) and the rows deleted per table.
 
-Spec: API_CONTRACT §10.3 (pilot:reset), Appendix B (pilot.reset); DATA_MODEL §5.2 (isTest) · Test file: `apps/api/test/e2e/pilot-reset.e2e-spec.ts`
+Spec: API_CONTRACT §10.3 (pilot:reset), Appendix B (pilot.reset); DATA_MODEL §5.2 (isTest) · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-reset.e2e-spec.ts`
 
-Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-010 · The reset refuses when a real record points at test data
 
@@ -12321,15 +12066,15 @@ Expect:
 - Step 1: non-zero exit, with a message naming the table, id and short number of the first Live Gas row that points at Kashif or LEA-101 (the order or its trip). Nothing is deleted.
 - Step 2: every count is identical to before.
 
-Spec: API_CONTRACT §10.3 ("Refuses if any non-test row references them") · Test file: `apps/api/test/e2e/pilot-reset.e2e-spec.ts`
+Spec: API_CONTRACT §10.3 ("Refuses if any non-test row references them") · Test file: `apps/api/test/inc3/setup/pilot-reset.e2e-spec.ts`
 
-Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-011 · The reset refuses to run on live, and needs --yes
 
 **P1** · AUTO-API · Inc 3 · Role: Ops (engineering)
 
-Before: A copy of the test database named smartfleet_prod_copy. Steps 3 to 5 set NODE_ENV=production for the command only.
+Before: For step 5, a copy of the test database: a scratch database whose name contains "test" (the e2e test makes one, such as sfmig_prodcopy\_\<random>\_test), migrated and loaded with the setup data. Steps 3 to 5 set NODE_ENV=production for the command only.
 
 Steps:
 
@@ -12337,7 +12082,7 @@ Steps:
 2. With the test environment, run: npm run pilot:reset (no --yes).
 3. With production, run: npm run pilot:reset -- --yes
 4. With production, run: npm run pilot:reset -- --yes --allow-production --confirm-db wrong_name
-5. With production, on the copy only, run: npm run pilot:reset -- --yes --allow-production --confirm-db smartfleet_prod_copy
+5. With production, on the copy only, run: npm run pilot:reset -- --yes --allow-production --confirm-db \<the copy's name>
 
 Expect:
 
@@ -12345,11 +12090,11 @@ Expect:
 - Step 2: the plan prints, nothing is deleted, and it exits 1 with "Nothing deleted. Run again with --yes to delete."
 - Step 3: refused, with a message that production needs --allow-production --confirm-db \<name>. Nothing is deleted.
 - Step 4: refused (wrong database name), and nothing is deleted.
-- Step 5: it runs on the copy (the positive control).
+- Step 5: it runs on the copy (the positive control): every shop on the copy is deleted (all are test shops), the 2 office users stay, and it prints "Audit row pilot.reset written". The test database itself is unchanged.
 
-Spec: API_CONTRACT §10.3 (reset refuses on production), §3.7 · Test file: `apps/api/test/e2e/pilot-reset.e2e-spec.ts`
+Spec: API_CONTRACT §10.3 (reset refuses on production), §3.7 · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-reset.e2e-spec.ts`
 
-Note: Never run steps 3 to 5 against the real live database. NODE_ENV=production on its own counts as production. No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API. Not automated yet.
+Note: Never run steps 3 to 5 against the real live database. NODE_ENV=production on its own counts as production. No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-012 · Two-shop leak test on the setup data
 
@@ -12361,7 +12106,7 @@ Steps:
 
 1. As Bilal Gas, GET each of: /api/v1/orders/\<X1>, /api/v1/orders/\<X1>/tracking, /api/v1/payments/\<AG-T001 id>, /api/v1/filling-orders/\<AG-R001 id>, /api/v1/clients/\<C1>/addresses, /api/v1/cylinders/AG-C0001/history, /api/v1/cylinders/by-qr/\<AG-C0001's QR value>, /api/v1/custody/cylinders/\<AG-C0001 id>/history.
 2. As Bilal Gas, GET each of: /api/v1/orders, /api/v1/clients, /api/v1/payments/mine, /api/v1/filling-orders/mine, /api/v1/wallet/statement, /api/v1/day-end, /api/v1/store/stock, /api/v1/store/incoming.
-3. As Bilal Gas, POST /api/v1/orders { clientId: \<C1>, deliveryLabel: "Test", lines: [{ cylinderTypeId: \<11.8 kg>, fullCount: 1, expectedReturnCount: 1 }] }.
+3. As Bilal Gas, POST /api/v1/orders { clientId: \<C1>, deliveryLocation: \<a pin in South>, deliveryLabel: "Test", lines: [{ cylinderTypeId: \<11.8 kg>, fullCount: 1, expectedReturnCount: 1 }] }.
 4. As Bilal Gas, POST /api/v1/orders/\<X1>/cancel { reasonCode: "OTHER", note: "Not mine" }.
 5. As Bilal Gas, POST /api/v1/store/scans for AG-C0001 (while it is on a van).
 
@@ -12373,9 +12118,9 @@ Expect:
 - Step 4: 404, and X1 is unchanged.
 - Step 5: 409 SCAN_WRONG_OWNER.
 
-Spec: ADR-02; API_CONTRACT §3.2, §7.2, §7.4, §7.6, §9.4, §10.4 (two-distributor leak test) · Test file: `apps/api/test/e2e/tenant-leak.e2e-spec.ts`
+Spec: ADR-02; API_CONTRACT §3.2, §7.2, §7.4, §7.6, §9.4, §10.4 (two-distributor leak test) · Test file: `apps/api/test/inc3/setup/tenant-leak.e2e-spec.ts`
 
-Note: Not automated yet.
+Note: Step 3 names a place (a pin in South, where Bilal Gas has a price) because an order needs an addressId or a deliveryLocation: the customer is the only thing wrong with it.
 
 ## UXQ · UI and UX quality
 
@@ -13255,7 +13000,7 @@ Steps:
 
 1. Run migrate.sh up to inc1a.
 2. Query fee_status, fee_strategy, delivered_at, delivery_method and cancelled_at for the four orders.
-3. Start the API. As D01's user, cancel the old PENDING order with reason WRONG_ORDER.
+3. Run migrate.sh up to the current release (from Inc 2 the API needs the current schema), then start the API. As D01's user, cancel the old PENDING order with reason WRONG_ORDER.
 4. As D01's user, GET the old IN_TRANSIT order, then cancel it with reason WRONG_ORDER.
 5. Read D01's balance, its ledger rows and the order.cancel audit row.
 
@@ -13268,6 +13013,8 @@ Expect:
 - Both order.cancel audit rows record refunded false and refundPaisa 0.
 
 Spec: ADR-07; API_CONTRACT §5.5 (cancelTerms), §7.6 (cancel), §8.1, §8.5 (checklist step 3); DATA_MODEL §3.4 (backfills 3 and 4), §3.8 (invariants 6–7) · Test file: `apps/api/test/migrations/inc1a-legacy.e2e-spec.ts`
+
+Note: From Inc 2 the API runs only on the current release (inc1b and inc2 ship with it, DATA_MODEL §3.5), so the old open orders are cancelled through today's API once the copy has gone through it; the copy has no run in progress, so the inc2 pre-check passes.
 
 ### MIG-007 · Running the backfills a second time changes nothing
 
@@ -13446,9 +13193,9 @@ Expect:
 - Step 3: the update fails with 23514 on distributors_balance_chk, and each of the three ledger inserts fails with 23514 on ledger_entries_sign_chk; DA's balance and ledger are unchanged.
 - Step 4: distributors.home_store_id, distributors.code, ledger_entries.idempotency_key, expenses.type_id, orders.order_no and payments.request_no are NOT NULL; clients (distributor_id, phone) is unique; the FAILED BANK_MANUAL payment is now REJECTED.
 
-Spec: ADR-06; ADR-19; API_CONTRACT §2.2 (23514 mapping); DATA_MODEL §2.6, §3.5, §3.8 (invariants 17–20) · Test file: `apps/api/test/migrations/inc1b.e2e-spec.ts`
+Spec: ADR-06; ADR-19; API_CONTRACT §2.2 (23514 mapping); DATA_MODEL §2.6, §3.5, §3.8 (invariants 17–20) · Test file: `apps/api/test/inc2/db/inc1b.e2e-spec.ts`
 
-Note: inc1b ships with the first Inc 2 deploy. The pre-checks run in order (store, negative balance, duplicate phones), and the first that fails stops the file, so the next problem shows on the next run. Not automated yet.
+Note: inc1b ships with the first Inc 2 deploy. The pre-checks run in order (store, negative balance, duplicate phones), and the first that fails stops the file, so the next problem shows on the next run.
 
 ### MIG-015 · A prod deploy snapshots the database and waits for it before migrating, and Railway checks the env before migrating
 
@@ -13470,7 +13217,7 @@ Expect:
 
 Spec: DATA_MODEL §1 (rule 6), §2.5, §2.6; API_CONTRACT §8.5 step 4 · Test file: `apps/api/test/unit/rev-deploy-pipeline.spec.ts`
 
-Note: Regression case for review finding robustness-ops-01 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV robustness-ops-01 …". Rolling back past a migration is a forward fix or a restore of that snapshot: apps/api/test/review/robustness-ops/rollback-compat.e2e-spec.ts shows the previous release can't read inc1a data.
+Note: Regression case for review finding robustness-ops-01 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV robustness-ops-01 …". Rolling back past a migration is a forward fix or a restore of that snapshot: apps/api/test/review/robustness-ops/rollback-compat.e2e-spec.ts shows the previous release can't read inc1a data. Its first test there runs on a scratch database at inc1a (0_baseline and inc1a), since the test database itself is at the current release.
 
 ### MIG-016 · deploy.sh runs exactly the image it built and waits until /health reports that commit
 
@@ -14142,7 +13889,7 @@ Built from each case's "Spec" line.
 
 | ADR | Decision | Cases | Case IDs |
 |---|---|---:|---|
-| ADR-01 | Distributor = shop-keeper = store | 15 | ORD-001, ORD-018, ASG-002, ASG-011, OFF-004, OFF-005, OFF-006, OFF-007, DRV-044, HLD-009, STR-005, STR-007, REF-001, SET-005, RHS-007 |
+| ADR-01 | Distributor = shop-keeper = store | 14 | ORD-001, ASG-002, ASG-011, OFF-004, OFF-005, OFF-006, OFF-007, DRV-044, HLD-009, STR-005, STR-007, REF-001, SET-005, RHS-007 |
 | ADR-02 | The office is SUPER_ADMIN only | 45 | FND-017, FND-022, SEC-004, SEC-005, SEC-011, SEC-012, SEC-013, SEC-014, SEC-022, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, WAL-007, TOP-008, PRC-007, FEE-011, FEE-012, CUS-002, CUS-009, CUS-010, ORD-005, ORD-009, ASG-003, ASG-008, EXP-013, OFF-001, DRV-001, DRV-005, DRV-047, HLD-006, HLD-015, STR-005, STR-006, CNF-040, CNF-041, CAS-009, REF-005, REF-006, REF-018, DAY-016, SET-001, SET-012, RHS-006 |
 | ADR-03 | Customer login and the customer app are off | 6 | FND-001, SEC-002, SEC-004, SEC-008, SEC-020, UXQ-013 |
 | ADR-04 | Modules not used by the pilot are switched off | 9 | FND-001, FND-012, SEC-012, SEC-020, SEC-021, EXP-018, OFF-009, OFF-012, HLD-002 |
@@ -14176,9 +13923,9 @@ Built from each case's "Spec" line.
 | §1.4 | Words the server derives | 15 | FND-030, WAL-005, WAL-006, TOP-002, TOP-011, FEE-001, ORD-001, ORD-005, ORD-008, ASG-005, ASG-009, DRV-016, REF-001, DAY-001, MIG-003 |
 | §1.5 | Reason code lists | 13 | WAL-012, TOP-012, TOP-021, TOP-024, FEE-012, FEE-017, FEE-020, FEE-027, ORD-007, ORD-012, DRV-007, DRV-009, DRV-029 |
 | §1.6 | allowedActions | 7 | SEC-031, TOP-013, FEE-016, FEE-029, ORD-007, ORD-011, ASG-012 |
-| §2.1 | Envelope | 17 | FND-005, FND-006, FND-007, FND-008, FND-009, FND-019, FND-023, SEC-002, SEC-004, FEE-002, FEE-030, CUS-002, ORD-016, CNF-023, CNF-028, REF-030, UXQ-013 |
+| §2.1 | Envelope | 16 | FND-005, FND-006, FND-007, FND-008, FND-009, FND-019, FND-023, SEC-002, SEC-004, FEE-002, CUS-002, ORD-016, CNF-023, CNF-028, REF-030, UXQ-013 |
 | §2.2 | Mapping | 14 | FND-005, FND-006, FND-007, FND-038, FND-039, FND-041, WAL-012, PRC-004, ORD-012, ORD-020, EXP-006, DRV-002, CAS-006, MIG-014 |
-| §2.3 | Catalogue | 93 | FND-002, FND-003, FND-004, FND-007, FND-008, FND-016, FND-020, SEC-002, SEC-003, SEC-006, SEC-007, SEC-009, SEC-023, SEC-024, SEC-025, WAL-007, WAL-011, WAL-012, TOP-001, TOP-003, TOP-004, TOP-005, TOP-006, TOP-016, TOP-017, TOP-018, TOP-025, PRC-004, PRC-009, PRC-011, PRC-014, FEE-002, FEE-004, FEE-014, FEE-016, FEE-030, CUS-002, CUS-008, CUS-011, ORD-002, ORD-018, ASG-003, EXP-002, EXP-004, EXP-006, EXP-007, OFF-001, OFF-005, OFF-013, OFF-014, OFF-015, DRV-004, DRV-011, DRV-012, DRV-016, DRV-019, DRV-029, DRV-033, DRV-038, DRV-040, DRV-041, DRV-042, HLD-009, HLD-018, STR-004, STR-011, CNF-002, CNF-006, CNF-014, CNF-017, CNF-047, CAS-007, MSG-009, MSG-012, REF-002, REF-005, REF-012, REF-015, REF-024, REF-030, REF-031, DAY-004, DAY-005, DAY-006, DAY-008, DAY-010, DAY-013, DAY-014, DAY-020, SET-004, UXQ-013, UXQ-015, UXQ-026 |
+| §2.3 | Catalogue | 91 | FND-002, FND-003, FND-004, FND-007, FND-008, FND-016, FND-020, SEC-002, SEC-003, SEC-006, SEC-007, SEC-009, SEC-023, SEC-024, SEC-025, WAL-007, WAL-011, WAL-012, TOP-001, TOP-003, TOP-004, TOP-005, TOP-006, TOP-016, TOP-017, TOP-018, TOP-025, PRC-004, PRC-009, PRC-011, PRC-014, FEE-002, FEE-004, FEE-014, FEE-016, CUS-002, CUS-008, CUS-011, ORD-002, ASG-003, EXP-002, EXP-004, EXP-006, EXP-007, OFF-001, OFF-005, OFF-013, OFF-014, OFF-015, DRV-004, DRV-011, DRV-012, DRV-016, DRV-019, DRV-029, DRV-033, DRV-038, DRV-040, DRV-041, DRV-042, HLD-009, HLD-018, STR-004, STR-011, CNF-002, CNF-006, CNF-014, CNF-017, CNF-047, CAS-007, MSG-009, MSG-012, REF-002, REF-005, REF-012, REF-015, REF-024, REF-030, REF-031, DAY-004, DAY-005, DAY-006, DAY-008, DAY-010, DAY-013, DAY-014, DAY-020, SET-004, UXQ-013, UXQ-015, UXQ-026 |
 | §3.1 | Roles | 28 | FND-014, SEC-004, SEC-005, SEC-008, SEC-011, SEC-012, SEC-022, SEC-023, WAL-007, TOP-008, PRC-007, FEE-011, FEE-012, CUS-010, ORD-010, ASG-003, EXP-013, DRV-001, DRV-005, DRV-047, HLD-006, STR-006, CAS-009, REF-005, REF-018, REF-023, DAY-016, SET-001 |
 | §3.2 | Ownership policies | 33 | FND-017, FND-022, SEC-013, SEC-014, SEC-031, SEC-033, WAL-007, TOP-008, PRC-007, FEE-012, CUS-002, CUS-009, CUS-010, CUS-013, ORD-006, ORD-009, ASG-004, ASG-008, DRV-005, DRV-047, HLD-015, STR-005, CNF-040, CNF-041, CAS-009, REF-006, REF-011, REF-018, DAY-005, DAY-007, DAY-016, SET-012, RHS-006 |
 | §3.3 | Sessions | 16 | SEC-001, SEC-003, SEC-005, SEC-009, SEC-010, SEC-015, SEC-023, SEC-024, SEC-026, SEC-032, SEC-033, SEC-034, OFF-006, OFF-014, OFF-016, OFF-018 |
@@ -14204,10 +13951,10 @@ Built from each case's "Spec" line.
 | §7 | Increment 1 endpoints | 1 | ORD-011 |
 | §7.1 | App and auth | 18 | FND-001, FND-031, FND-035, SEC-001, SEC-002, SEC-003, SEC-004, SEC-005, SEC-006, SEC-007, SEC-008, SEC-009, SEC-010, SEC-033, OFF-001, SET-001, UXQ-013, UXQ-015 |
 | §7.2 | Safety table for existing routes | 46 | FND-023, FND-035, SEC-001, SEC-003, SEC-010, SEC-011, SEC-012, SEC-016, SEC-017, SEC-020, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, SEC-028, SEC-029, SEC-033, SEC-034, TOP-025, PRC-017, CUS-004, CUS-005, CUS-011, ASG-001, ASG-003, EXP-018, OFF-006, OFF-007, OFF-015, OFF-016, OFF-017, DRV-040, DRV-048, HLD-002, HLD-015, HLD-016, CAS-009, REF-004, REF-012, REF-031, SET-003, SET-004, SET-006, SET-012, MIG-016 |
-| §7.3 | Distributors and their one store | 14 | FND-031, SEC-003, SEC-011, WAL-001, WAL-002, ORD-018, OFF-004, OFF-005, OFF-006, OFF-007, OFF-013, OFF-014, OFF-017, SET-005 |
+| §7.3 | Distributors and their one store | 13 | FND-031, SEC-003, SEC-011, WAL-001, WAL-002, OFF-004, OFF-005, OFF-006, OFF-007, OFF-013, OFF-014, OFF-017, SET-005 |
 | §7.4 | Customers | 22 | FND-031, SEC-011, PRC-005, PRC-009, CUS-001, CUS-002, CUS-003, CUS-005, CUS-006, CUS-007, CUS-008, CUS-009, CUS-010, CUS-012, CUS-014, ORD-016, MSG-011, MSG-013, SET-006, SET-012, MIG-005, RHS-004 |
-| §7.5 | Delivery prices and quotes | 28 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-018, FEE-007, FEE-008, FEE-030, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, RHS-004 |
-| §7.6 | Orders | 92 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, FEE-030, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-018, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
+| §7.5 | Delivery prices and quotes | 27 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-018, FEE-007, FEE-008, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, RHS-004 |
+| §7.6 | Orders | 90 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
 | §7.7 | Trips and the legacy scan route | 19 | SEC-011, SEC-035, FEE-013, FEE-015, FEE-021, ASG-005, ASG-006, ASG-008, ASG-009, ASG-012, DRV-001, DRV-002, DRV-003, DRV-004, DRV-006, DRV-051, HLD-002, HLD-008, HLD-019 |
 | §7.8 | Wallet | 23 | FND-012, FND-014, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, WAL-004, WAL-005, WAL-006, WAL-007, WAL-008, WAL-009, WAL-010, WAL-011, WAL-012, WAL-013, WAL-017, WAL-019, WAL-022, WAL-023, WAL-024, SET-002 |
 | §7.9 | Top-ups | 39 | FND-003, FND-004, FND-018, FND-020, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, TOP-001, TOP-002, TOP-003, TOP-004, TOP-005, TOP-006, TOP-007, TOP-008, TOP-009, TOP-011, TOP-013, TOP-014, TOP-015, TOP-016, TOP-017, TOP-018, TOP-019, TOP-020, TOP-021, TOP-022, TOP-023, TOP-024, TOP-026, TOP-028, TOP-029, TOP-030, FEE-024, SET-005, RHS-002, RHS-003 |
@@ -14223,16 +13970,17 @@ Built from each case's "Spec" line.
 | §8.5 | Jobs and switch-over | 24 | FND-004, FND-033, SEC-022, SEC-033, SEC-035, SEC-036, WAL-016, WAL-020, WAL-023, ORD-017, ASG-001, DRV-043, REF-029, SET-001, SET-002, MIG-003, MIG-006, MIG-012, MIG-015, MIG-016, MIG-017, MIG-018, MIG-019, RHS-020 |
 | §8.6 | Contract tests that gate Inc 1 | 40 | FND-008, FND-021, SEC-004, SEC-008, SEC-010, SEC-012, SEC-015, SEC-016, SEC-017, SEC-032, WAL-016, WAL-018, WAL-020, TOP-017, TOP-018, TOP-019, TOP-020, TOP-025, PRC-003, PRC-009, PRC-011, FEE-002, FEE-005, FEE-006, FEE-010, FEE-013, FEE-014, FEE-015, FEE-019, FEE-020, CUS-010, ORD-014, ASG-008, EXP-014, DRV-001, DRV-005, DRV-015, REF-008, REF-030, MIG-019 |
 | §9.2 | Holder rules | 52 | FEE-027, DRV-010, DRV-011, DRV-012, DRV-013, DRV-014, DRV-018, DRV-019, DRV-020, DRV-024, DRV-026, DRV-027, DRV-028, DRV-029, DRV-032, DRV-033, DRV-036, DRV-037, DRV-039, DRV-044, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-016, STR-001, STR-002, STR-003, STR-004, STR-005, STR-007, STR-009, REF-014, REF-016, REF-018, REF-020, REF-021, REF-022, DAY-015, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015 |
-| §9.3 | Driver endpoints | 32 | FEE-027, DRV-010, DRV-011, DRV-013, DRV-016, DRV-018, DRV-019, DRV-021, DRV-022, DRV-023, DRV-026, DRV-029, DRV-030, DRV-037, DRV-038, DRV-039, DRV-042, DRV-045, DRV-047, DRV-049, HLD-011, STR-007, STR-008, STR-009, CNF-001, CNF-003, CNF-004, CNF-040, MSG-004, RHS-009, RHS-011, RHS-013 |
-| §9.4 | Store endpoints | 20 | CUS-013, DRV-032, HLD-001, HLD-013, HLD-014, HLD-015, STR-001, STR-002, STR-005, STR-006, STR-008, STR-012, CAS-009, CAS-012, MSG-011, REF-018, REF-021, SET-012, RHS-013, RHS-015 |
-| §9.5 | Office endpoints | 11 | DRV-040, DRV-041, DRV-044, HLD-004, HLD-005, HLD-006, HLD-016, HLD-018, CNF-005, SET-007, RHS-007 |
+| §9.3 | Driver endpoints | 34 | FEE-027, ORD-019, ASG-009, DRV-010, DRV-011, DRV-013, DRV-016, DRV-018, DRV-019, DRV-021, DRV-022, DRV-023, DRV-026, DRV-029, DRV-030, DRV-037, DRV-038, DRV-039, DRV-042, DRV-045, DRV-047, DRV-049, HLD-011, STR-007, STR-008, STR-009, CNF-001, CNF-003, CNF-004, CNF-040, MSG-004, RHS-009, RHS-011, RHS-013 |
+| §9.4 | Store endpoints | 21 | CUS-013, ASG-012, DRV-032, HLD-001, HLD-013, HLD-014, HLD-015, STR-001, STR-002, STR-005, STR-006, STR-008, STR-012, CAS-009, CAS-012, MSG-011, REF-018, REF-021, SET-012, RHS-013, RHS-015 |
+| §9.5 | Office endpoints | 15 | ORD-015, ORD-019, ASG-009, ASG-010, DRV-040, DRV-041, DRV-044, HLD-004, HLD-005, HLD-006, HLD-016, HLD-018, CNF-005, SET-007, RHS-007 |
 | §9.6 | Cases | 12 | CAS-001, CAS-003, CAS-005, CAS-006, CAS-007, CAS-008, CAS-009, CAS-010, CAS-011, CAS-012, CAS-013, RHS-012 |
 | §9.7 | Confirmation | 15 | CNF-001, CNF-002, CNF-003, CNF-006, CNF-013, CNF-022, CNF-040, CNF-041, CNF-042, MSG-007, MSG-009, MSG-010, MSG-012, MSG-014, RHS-012 |
 | §9.8 | State machines | 15 | FEE-027, ASG-010, DRV-008, DRV-015, DRV-016, DRV-022, DRV-038, STR-008, CNF-005, CNF-013, CNF-018, CNF-019, CNF-020, CNF-037, RHS-010 |
 | §9.9 | Jobs | 3 | FND-033, DRV-043, CNF-020 |
-| §9.10 | Legacy routes in Inc 2 | 2 | DRV-023, DRV-024 |
+| §9.10 | Legacy routes in Inc 2 | 4 | ASG-009, ASG-012, DRV-023, DRV-024 |
 | §9.11 | Contract tests that gate Inc 2 | 18 | FEE-027, DRV-011, DRV-014, DRV-020, DRV-021, DRV-027, DRV-038, HLD-003, HLD-012, CNF-012, CNF-017, CNF-018, CNF-037, CNF-040, CAS-001, CAS-003, CAS-008, MSG-003 |
-| §10.1 | Refills on QR scans | 15 | FEE-028, REF-013, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-021, REF-022, REF-023, REF-024, RHS-016, RHS-017 |
+| §9.12 | As built | 1 | ORD-014 |
+| §10.1 | Refills on QR scans | 16 | FEE-028, REF-008, REF-013, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-021, REF-022, REF-023, REF-024, RHS-016, RHS-017 |
 | §10.2 | Day-end | 23 | FEE-028, DAY-001, DAY-002, DAY-003, DAY-004, DAY-005, DAY-006, DAY-007, DAY-008, DAY-009, DAY-010, DAY-011, DAY-012, DAY-013, DAY-014, DAY-015, DAY-016, DAY-017, DAY-019, DAY-021, RHS-018, RHS-019, RHS-020 |
 | §10.3 | Pilot setup and reset CLI | 11 | SET-003, SET-004, SET-005, SET-006, SET-007, SET-008, SET-009, SET-010, SET-011, MIG-011, RHS-001 |
 | §10.4 | Retirements and tests | 7 | FEE-028, REF-016, REF-019, REF-020, REF-031, DAY-012, SET-012 |

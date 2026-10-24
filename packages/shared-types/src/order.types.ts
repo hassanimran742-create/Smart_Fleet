@@ -1,4 +1,5 @@
 import type { GeoPoint, IdName, IsoDateTime, ISODateString, Paisa, UUID } from './common.types';
+import type { OrderConfirmationSummary } from './confirmation.types';
 import type { DistributorRef } from './distributor.types';
 import type { DeliveryQuote } from './pricing.types';
 import type { TripStatusValue } from './trip.types';
@@ -232,6 +233,13 @@ export interface OrderDto {
   allowedActions: OrderAction[];
   /** Office only. */
   distributor?: DistributorRef;
+  /**
+   * [Inc 2] The customer's confirmation, for the owning shop and the office on every order answer
+   * (`GET /orders`, `?tab`, `GET /orders/board`, `GET /orders/:id`): null when there is none (not
+   * delivered, or delivered while `confirmation.enabled` was off). Absent for a driver, who never gets
+   * anything of the customer's link. Never money. The apps show it only while `features.confirmations`.
+   */
+  confirmation?: OrderConfirmationSummary | null;
 }
 
 /** `POST /orders/quote` (distributor): the cost of the order as it stands, and whether the wallet covers it. */
@@ -259,4 +267,9 @@ export interface AssignDriverResult {
   driverId: UUID;
   originStoreId: UUID;
   reassignedFromTripId?: UUID;
+  /**
+   * [Inc 2] True when the order joined the driver's PLANNED trip from the same store (it had no load
+   * scan yet); false when a new trip was made (API_CONTRACT §9.5).
+   */
+  appendedToExistingTrip?: boolean;
 }

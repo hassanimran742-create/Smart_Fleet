@@ -13,8 +13,68 @@ export const ConfirmationResponse = {
 } as const;
 export type ConfirmationResponse = (typeof ConfirmationResponse)[keyof typeof ConfirmationResponse];
 
+/** The four answers, in the page's order. */
+export const CONFIRMATION_RESPONSES = ['YES', 'PARTLY', 'NO', 'OTHER'] as const satisfies readonly ConfirmationResponse[];
+
 /** [Inc 2] Mirrors Prisma `ConfirmationStatus`. CANCELLED is reserved: no pilot route writes it (G07-04). */
-export type ConfirmationStatus = 'PENDING' | 'ANSWERED' | 'EXPIRED' | 'CANCELLED';
+export const ConfirmationStatus = {
+  PENDING: 'PENDING',
+  ANSWERED: 'ANSWERED',
+  EXPIRED: 'EXPIRED',
+  CANCELLED: 'CANCELLED',
+} as const;
+export type ConfirmationStatus = (typeof ConfirmationStatus)[keyof typeof ConfirmationStatus];
+
+/** [Inc 2] Mirrors Prisma `MessageChannel`. SHARE_LINK is the shop or the office passing the link on from an app. */
+export const MessageChannel = {
+  SMS: 'SMS',
+  WHATSAPP: 'WHATSAPP',
+  SHARE_LINK: 'SHARE_LINK',
+} as const;
+export type MessageChannel = (typeof MessageChannel)[keyof typeof MessageChannel];
+
+/** [Inc 2] Mirrors Prisma `MessageStatus`. SKIPPED: the mock provider, or test mode. DELIVERED comes with delivery reports (later). */
+export const MessageStatus = {
+  QUEUED: 'QUEUED',
+  SENT: 'SENT',
+  DELIVERED: 'DELIVERED',
+  FAILED: 'FAILED',
+  SKIPPED: 'SKIPPED',
+} as const;
+export type MessageStatus = (typeof MessageStatus)[keyof typeof MessageStatus];
+
+/** [Inc 2] Why a message was not sent (`outbound_messages.error_code` of a SKIPPED row, CUSTOMER_PAGE §8). */
+export const MESSAGE_SKIP_REASONS = ['MOCK_PROVIDER', 'NOT_A_TEST_PHONE'] as const;
+export type MessageSkipReason = (typeof MESSAGE_SKIP_REASONS)[number];
+
+/** [Inc 2] Why a send failed (`error_code` of a FAILED row); the shop maps each to `confirm.smsFailReason.<CODE>`. */
+export const MESSAGE_FAIL_CODES = ['INVALID_NUMBER', 'REJECTED', 'TIMEOUT', 'AUTH', 'UNAVAILABLE', 'UNKNOWN'] as const;
+export type MessageFailCode = (typeof MESSAGE_FAIL_CODES)[number];
+
+/**
+ * [Inc 2] `delivery_confirmations.snapshot`, frozen at delivery: everything the public page shows
+ * (CUSTOMER_PAGE §3). Never the customer's name, address, any money, or cylinder numbers.
+ */
+export interface ConfirmationSnapshot {
+  v: 1;
+  shop: { name: string; phoneE164: string | null };
+  /** The order's short code, for example "AG-0142". */
+  orderNo: string;
+  deliveredAt: string;
+  /** The stop's GIVEN list by size, ascending by weight. */
+  delivered: { cylinderTypeId: string; size: string; count: number }[];
+  /** The TAKEN_BACK list by size and state, plus the unlabelled counts. */
+  takenBack: { cylinderTypeId: string; size: string; state: 'EMPTY' | 'PART_FILLED' | 'FULL'; count: number; unlabelled: boolean }[];
+}
+
+/** [Inc 2] The `context` of a CUSTOMER_PROBLEM alert (API_CONTRACT §9.6). */
+export interface CustomerProblemContext {
+  orderId: string;
+  orderShortCode: string;
+  distributorId: string;
+  answer: ConfirmationResponse;
+  comment: string | null;
+}
 
 /**
  * [Inc 2] How far the current link got, from the newest message row of the current link version
@@ -71,7 +131,8 @@ export interface OrderConfirmationSummary {
 }
 
 /** [Inc 2] A customer problem case is OPEN until the office resolves it with a note (API_CONTRACT §9.6). */
-export type CaseStatus = 'OPEN' | 'RESOLVED';
+export const CASE_STATUSES = ['OPEN', 'RESOLVED'] as const;
+export type CaseStatus = (typeof CASE_STATUSES)[number];
 
 /**
  * [Inc 2] A customer problem (`GET /alerts?type=CUSTOMER_PROBLEM`, `GET /alerts/mine`,

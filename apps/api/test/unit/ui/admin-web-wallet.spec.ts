@@ -42,7 +42,8 @@ function findAll<T extends ts.Node>(root: ts.Node, test: (node: ts.Node) => node
 
 describe('REV money-data-02 a wallet below zero whose history matches is not a history mismatch', () => {
   it('REV money-data-02 the API answer of the review (balance −Rs 300, history −Rs 300) reads as below zero, not "doesn\'t match by Rs 0"', () => {
-    // negative-legacy-balance.e2e-spec.ts N1: {ok:false, ledgerSumPaisa:'-30000', differencePaisa:'0'}.
+    // The Inc 1 review's API answer (negative-legacy-balance.e2e-spec.ts N1, retired at Inc 2 once inc1b
+    // refused balances below zero): {ok:false, ledgerSumPaisa:'-30000', differencePaisa:'0'}.
     expect(integrityState(detail('-30000', false, '-30000', '0'))).toBe('belowZero');
   });
 

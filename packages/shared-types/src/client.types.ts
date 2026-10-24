@@ -40,6 +40,15 @@ export interface ClientCreateResult {
   price: PriceView | null;
 }
 
+/**
+ * [Inc 2] `PATCH /clients/:id` (the owning distributor): the customer as `GET /clients` lists it.
+ * `confirmationNeedsNewLink` is true when the phone changed while a confirmation is pending, so the
+ * shop makes a new link for the new number.
+ */
+export interface ClientUpdateResult extends ClientDto {
+  confirmationNeedsNewLink?: boolean;
+}
+
 /** `POST /clients/:id/addresses`: the address passed the coverage check, so it has a zone and a price. */
 export interface ClientAddressCreateResult {
   id: UUID;

@@ -20,6 +20,7 @@ import { toFieldErrors } from '../../common/pipes/zod-body.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { SessionCheckService } from '../auth/session-check.service';
+import { assertVansEmptyForDriverChange } from '../custody/van';
 import { CnicVault } from '../users/cnic-vault.service';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -363,6 +364,10 @@ export class DriversService {
    * `PATCH /drivers/:id/vehicle` (office) `{ vehicleId }`: gives the driver a van (taking it from
    * whoever had it) or, with null, takes theirs away. Each driver whose van changes gets a
    * `driver.update` row. Giving the van they already have is 200 with X-Already-Applied.
+   *
+   * From Inc 2 (API_CONTRACT §9.5): while the driver's current van or the new one holds any cylinder,
+   * the change is refused with 409 `VEHICLE_HAS_CYLINDERS` `{count}` and nothing is written; the store
+   * scans them in first, so every cylinder keeps one responsible driver.
    */
   async assignVehicle(actor: UserActor, id: string, body: DriverVehicleInput): Promise<DriverView | IdempotentResponse<DriverView>> {
     const vehicleId = body.vehicleId;
@@ -373,6 +378,7 @@ export class DriversService {
       }
       const current = await this.lockDriver(tx, id);
       if (current.currentVehicleId === vehicleId) return false;
+      await assertVansEmptyForDriverChange(tx, [current.currentVehicleId, vehicleId]);
       if (vehicleId) {
         const previous = await tx.driver.findFirst({
           where: { currentVehicleId: vehicleId, id: { not: id } },

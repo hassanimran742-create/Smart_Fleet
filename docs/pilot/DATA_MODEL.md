@@ -112,7 +112,7 @@ npx prisma migrate deploy --schema "$SCHEMA"
 
 ### 2.4 One migration per change, generated with no database
 1. `npm run db:new-migration -- inc1a_foundations`. The script `apps/api/scripts/new-migration.mjs`:
-   - writes `git show <base>:apps/api/prisma/schema.prisma` to `.tmp/prev.prisma` (`--base`, default `HEAD`);
+   - writes `git show <base>:apps/api/prisma/schema.prisma` to `.tmp/prev.prisma` (`--base`, default `HEAD`), or, with `--base-file <schema.prisma>`, that file: a second migration on top of one not yet committed, diffed from a snapshot of the first one's schema (as inc2 was diffed from `test/helpers/fixtures/schema.inc1b.prisma`);
    - creates `prisma/migrations/<UTC yyyymmddHHMMSS>_<name>/`;
    - runs `npx prisma migrate diff --from-schema-datamodel .tmp/prev.prisma --to-schema-datamodel prisma/schema.prisma --script`;
    - writes the output as UTF-8 with LF line endings.
@@ -423,16 +423,18 @@ ALTER TABLE expenses    ADD CONSTRAINT expenses_amount_chk    CHECK (amount_pais
 ```
 
 ### 3.5 inc1b_contract (one release after inc1a)
-1. **Pre-checks**, in this order, each raising `MIGRATION_BLOCKED inc1b` with the fix; the first that fails stops the file:
-   - distributors without a store;
-   - negative balances (fix with a super-admin correction);
-   - duplicate customer phones within one distributor (merge or correct them).
-2. **Re-derive** values the previous release may have written without the new columns:
-   - `legacy:` keys for any keyless ledger rows;
-   - expense `type_id` from `category` (same CASE as above);
-   - `order_no` for orders where it is NULL (continue from max, then bump `next_order_no`);
-   - `request_no` for payments where it is NULL (likewise);
-   - `code` for distributors where it is NULL.
+inc1b ships in the first Increment 2 deploy, together with `inc2_driver_flow` (§4.4): `migrate deploy` applies inc1b, then inc2. Before that deploy, finish every run in progress with the Increment 1 apps (the inc2 pre-check). If the inc2 pre-check blocks, inc1b is already committed, and the Increment 1 code runs fine on it; finish the runs and deploy again. (As built 2026-10-23; proven on the inc1a legacy fixture chain.)
+
+1. **Pre-checks**, in this order, each raising `MIGRATION_BLOCKED inc1b` with the fix; the first that fails stops the file. Each message names at most 20 rows, then "and N more", and ends with `run "prisma migrate resolve --rolled-back <folder>", then deploy again.`:
+   - distributors without a store: `distributors without a store (<code> <id>, …). Give each of them its store`;
+   - negative balances: `distributors with a negative balance (<code> <n> paisa). Fix with a super-admin correction`;
+   - duplicate customer phones within one distributor: `customers of one distributor sharing a phone number (<code> <phone> (customers <ids>)). Merge or correct them`.
+2. **Re-derive** values the previous release may have written without the new columns, so the `SET NOT NULL`s below can't fail. Every step is safe to run again:
+   - `legacy:<id>` keys for any keyless ledger rows;
+   - expense `type_id` from `category` (the inc1a CASE). A category first used after inc1a first gets its archived `LEGACY_<CAT>` type; when that name is already taken by an office type, the expense takes that office type;
+   - `order_no` for orders where it is NULL, continuing from `GREATEST(highest number, next_order_no − 1)`; the counter then only goes up;
+   - `request_no` for payments where it is NULL (likewise, with `next_topup_no`);
+   - `code` for distributors where it is NULL: the next free D-number after the highest D-number in use (re-running inc1a's `row_number` scheme could collide with codes set since).
 3. Relabel: `UPDATE payments SET status = 'REJECTED' WHERE provider = 'BANK_MANUAL' AND status = 'FAILED';`
 4. **Generated DDL**
    - `distributors.home_store_id SET NOT NULL`, with the FK re-added `ON DELETE RESTRICT`;
@@ -678,15 +680,15 @@ model OutboundMessage {                 // every send attempt and every app shar
   @@map("outbound_messages")
 }
 ```
-Add the relations in full (`tripStop`, `order`, `cylinder`, `cylinderType` and `event`, all `onDelete: Restrict`) when writing the schema.
+Add the relations in full (`tripStop`, `order`, `cylinder`, `cylinderType` and `event`, all `onDelete: Restrict`) when writing the schema. As built: `DeliveryConfirmation` also has its `order` relation (`order_id` → `orders`, RESTRICT), as §4.2's "Order back-relations" implies. Because `Cylinder.lastEvent` adds a second relation between `Cylinder` and `CylinderEvent` (named `CylinderLastEvent`), the existing one is named `CylinderEvents`; field names and DDL are unchanged.
 
 ### 4.4 inc2 hand edits
-- **Pre-check:** block if any trip is `IN_PROGRESS`. A run started under the old rules can't be finished under the new ones.
+- **Pre-check:** block if any trip is `IN_PROGRESS`. A run started under the old rules can't be finished under the new ones. The message, as built: `runs in progress (<tripId> (<plate>), …). Finish each run with the Increment 1 apps first`, naming at most 20 runs and ending like inc1b's (§3.5).
 - **Backfills**
   1. `last_event_id` = the newest event per cylinder, only where its `to_custody` matches the current custody. Otherwise leave it NULL; the cylinder must be scanned into the store before it can go out.
   2. `short_no` = `row_number()` per distributor by `created_at`. Then `next_cylinder_no = max + 1`. Labels are reprinted to show the number, written `AG-C0042`.
 - **CHECKs**
-  - `stop_cylinders_return_state_chk`: `(direction = 'GIVEN' AND return_state IS NULL) OR (direction = 'TAKEN_BACK' AND return_state::text IN ('EMPTY','PART_FILLED','FULL'))`. The `::text` is needed because PART_FILLED is new in this file.
+  - `stop_cylinders_return_state_chk`: `(direction = 'GIVEN' AND return_state IS NULL) OR (direction = 'TAKEN_BACK' AND return_state IS NOT NULL AND return_state::text IN ('EMPTY','PART_FILLED','FULL'))`. The `::text` is needed because PART_FILLED is new in this file. The `IS NOT NULL` is needed because a CHECK passes when its expression is NULL: without it a TAKEN_BACK row with no return state would pass.
   - `cylinder_events_reason_chk`: `source IN ('SCAN','TYPED','REGISTRATION') OR reason IS NOT NULL`.
   - `stop_unlabelled_returns_count_chk`: `count > 0` (the API deletes the row for a count of 0).
   - `delivery_confirmations_answer_chk`: `(status = 'ANSWERED') = (response IS NOT NULL)`.
@@ -818,6 +820,17 @@ model DayCloseLine {                    // one row per cylinder on the uploaded 
   Then set the day to APPROVED with `approved_at`, `approved_by_user_id`, `locked_at` and the frozen `totals`, resolve its `DAY_END_SUBMITTED` alert, and write the `day.approve` audit row (diff: applied, skipped, unchanged and registered counts).
 - **Business date in SQL:** never write the zone or the cut-off as literals. A query for one business day filters `ts >= $start AND ts < $end`, with the bounds from `businessDayRange(date, { timezone, cutoffLocalTime })` (shared-utils). A query that groups by business date uses `((ts AT TIME ZONE 'UTC') AT TIME ZONE $tz - $cutoff::interval)::date`, with `$tz` = `day.timezone` and `$cutoff` = `day.cutoffLocalTime` (for example '03:00'), both read from SettingsService. With the defaults this is the old `'Asia/Karachi'` and `interval '3 hours'`. Prisma `DateTime` columns are `timestamp(3)` without time zone, holding UTC.
 - **Calendar date in SQL** (an expense's "today", fuel-log months): the same zone with no cut-off, `((ts AT TIME ZONE 'UTC') AT TIME ZONE $tz)::date`, with `$tz` = `day.timezone` (Asia/Karachi).
+
+### 5.5 As built (inc3, 2026-10-24)
+The migration is `20261024021613_inc3_refills_dayend`. Its generated DDL is `prisma migrate diff` from a snapshot of the Inc 2 schema (`--base-file`, §2.4), then hand-edited as §5.4 says. It was proven on a fresh database (no drift, including the CI shadow-database check), on Inc 2-shaped data through `migrate.sh` (exact numbers, nothing else changed, no money moved, a re-run changes nothing), with the pre-check blocking (nothing applied) and with resolve-then-redeploy.
+- **The fix is not stored** (G09-03). `DayCloseFix` (MOVE_TO_STORE, SET_STATE, MARK_LOST, REGISTER, NOTE_ONLY) follows from `(system_place, system_state, reported_place, reported_state)` through `deriveDayCloseFix` in shared-utils. A blank sheet cell means the app's value, Missing means LOST (so a Missing row of a FULL cylinder is PLACE_AND_STATE_DIFFER), and NOTE_ONLY changes nothing.
+- **Relations and foreign keys, all RESTRICT:** `filling_order_cylinders` to `filling_orders` and `cylinders`; `cylinder_events.filling_order_id` to `filling_orders`; `day_closes` to `distributors` and twice to `stored_files` (relations `DayCloseSheet` and `DayCloseUpload`); `day_close_lines` to `day_closes`, `cylinders`, `cylinder_types` and `cylinder_events` (the applied event, relation `DayCloseLineAppliedEvent`). Every new table and foreign key is also in the pilot reset's map (`reset-graph.ts`, API_CONTRACT §10.5), which a DB test checks.
+- **`cylinder_events.filling_order_id`** is set on a refill pickup (SCAN_OUT, no trip), a fill (FILLED) and the store's receive of a refill cylinder (SCAN_IN), and on an approved day-end MOVE_TO_STORE fix of a cylinder still on an open refill line. The schema comment says so.
+- **Pre-check message:** `MIGRATION_BLOCKED inc3: refills in progress (<code> <id> (<status>), … and N more). Finish each refill with the Increment 2 apps first (the driver's steps up to Returned, then the office's Mark complete; a refill not yet picked up may instead be cancelled by its shop), run "prisma migrate resolve --rolled-back 20261024021613_inc3_refills_dayend", then deploy again.` It names at most 20 refills.
+- **Backfill:** refill numbers per shop by `(created_at, id)`, continuing after `GREATEST(max refill_no, next_refill_no − 1)` as inc2's `short_no` does, then the counter moves on; `cancelled_at = updated_at` for CANCELLED refills. Re-running it changes nothing.
+- **CHECKs:** the five of §5.4, of which only `filling_orders_count_chk` is NOT VALID. `foc_steps_chk`: PICKED_UP has neither time, FILLED has `filled_at`, RETURNED has `returned_at`, filled or not.
+- **`day_closes`:** the first sheet download creates the row (`INSERT … ON CONFLICT` on `day_closes_distributor_id_business_date_key`, then `FOR UPDATE`); `totals` is the `DayCloseTotals` of API_CONTRACT §10.5, counted after the approval's fixes.
+- **`day_close_lines`:** `system_*` are read inside the upload's transaction; `reported_place` and `reported_state` keep the sheet's raw values (null for a blank cell); an Extra cylinders line has `cylinder_id` NULL, `reported_place` STORE and `sheet_key` the sheet's number, and `applied_event_id` points at the new cylinder's REGISTERED event; `skipped_moved_at` is the time of the move that caused the skip.
 
 ---
 

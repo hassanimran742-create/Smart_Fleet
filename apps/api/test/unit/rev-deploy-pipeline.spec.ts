@@ -17,7 +17,9 @@ import { runBootPreflight } from '../../src/common/bootstrap/boot-preflight';
 import { checkBootEnvironment } from '../../src/common/bootstrap/boot-guards';
 
 const REPO = path.resolve(__dirname, '..', '..', '..', '..');
-const read = (...parts: string[]) => fs.readFileSync(path.join(REPO, ...parts), 'utf8');
+// The repository stores these files with LF; a Windows checkout with core.autocrlf=true has CRLF, which
+// the multi-line patterns below would not match. Read them as git stores them.
+const read = (...parts: string[]) => fs.readFileSync(path.join(REPO, ...parts), 'utf8').replace(/\r\n/g, '\n');
 
 /** The KEY=value lines of an env template. */
 function envOf(text: string): Record<string, string> {
@@ -37,6 +39,7 @@ function filled(env: Record<string, string>): Record<string, string> {
     if (/^(ENCRYPTION_KEY|BLIND_INDEX_KEY)$/.test(key)) next = '0123456789abcdef'.repeat(4);
     else if (key === 'JWT_ACCESS_SECRET') next = 'a'.repeat(64);
     else if (key === 'JWT_REFRESH_SECRET') next = 'b'.repeat(64);
+    else if (key === 'CONFIRM_LINK_SECRET') next = 'c'.repeat(64);
     else if (key === 'CORS_ORIGINS') next = 'https://admin.smartfleetpk.com';
     else next = value.replace(/REPLACE_[A-Z0-9_]*/g, 'filled-in');
     out[key] = next;

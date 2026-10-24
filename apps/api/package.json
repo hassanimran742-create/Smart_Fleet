@@ -23,6 +23,8 @@
     "seed": "ts-node prisma/seed.ts",
     "seed:demo": "ts-node prisma/demo-seed.ts",
     "settings:set": "ts-node scripts/set-setting.ts",
+    "pilot:setup": "ts-node scripts/pilot-setup.ts",
+    "pilot:reset": "ts-node scripts/pilot-reset.ts",
     "users:create-office": "ts-node src/modules/users/cli/create-office-user.ts"
   },
   "dependencies": {
@@ -50,6 +52,7 @@
     "bullmq": "^5.7.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "exceljs": "4.4.0",
     "ioredis": "^5.4.0",
     "multer": "^1.4.5-lts.1",
     "nestjs-zod": "^3.0.0",

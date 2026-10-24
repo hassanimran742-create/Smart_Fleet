@@ -49,10 +49,13 @@ describeDb('foundation: public app config and the update gate', () => {
         support: false,
         clientApp: false,
         refills: true,
-        scanFlow: false,
+        // Increment 2 (API_CONTRACT §9.1): runs are on scans and typed numbers are on by default;
+        // confirmations follow `confirmation.enabled`, false by default (ADR-15). Increment 3 (§6): day-end
+        // is on by default once Inc 3 ships (`dayEnd.enabled` "false (true when Inc 3 ships)").
+        scanFlow: true,
         confirmations: false,
-        dayEnd: false,
-        typedCylinderNumber: false,
+        dayEnd: true,
+        typedCylinderNumber: true,
         languageSwitch: false,
       });
       expect(body.minVersion).toEqual({ driver: '0.0.0', distributor: '0.0.0' });

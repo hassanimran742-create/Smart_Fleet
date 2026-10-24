@@ -24,6 +24,21 @@ export interface TestRequest extends PromiseLike<TestResponse> {
   field(name: string, value: string): TestRequest;
   attach(field: string, file: Buffer, options?: { filename?: string; contentType?: string }): TestRequest;
   expect(status: number): TestRequest;
+  /** [Inc 3] Buffer the whole response (with `parse`, for a binary download such as the day-end sheet). */
+  buffer(value?: boolean): TestRequest;
+  /** [Inc 3] Parse the body yourself: `parse(binaryParser)` makes `body` the response's bytes. */
+  parse(parser: (res: NodeJS.ReadableStream, callback: (error: Error | null, body: unknown) => void) => void): TestRequest;
+}
+
+/**
+ * [Inc 3] A supertest parser that keeps the body as raw bytes (a Buffer), for `.xlsx` and other binary
+ * downloads: `await api.get(url).buffer(true).parse(binaryParser)` gives `res.body` as a Buffer.
+ */
+export function binaryParser(res: NodeJS.ReadableStream, callback: (error: Error | null, body: unknown) => void): void {
+  const chunks: Buffer[] = [];
+  res.on('data', (chunk: Buffer | string) => chunks.push(typeof chunk === 'string' ? Buffer.from(chunk, 'binary') : chunk));
+  res.on('end', () => callback(null, Buffer.concat(chunks)));
+  res.on('error', (error: Error) => callback(error, null));
 }
 
 export interface TestClient {

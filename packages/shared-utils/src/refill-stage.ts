@@ -94,6 +94,32 @@ export function legacyRefillCounts(refill: LegacyRefillCountsInput): RefillCount
   };
 }
 
+/** shared-types `FillingOrderCylinderStatus`. */
+export type RefillLineStatusLike = 'PICKED_UP' | 'FILLED' | 'RETURNED';
+
+/** The fields of a refill line (`filling_order_cylinders`) its counts depend on. */
+export interface RefillLineLike {
+  status: RefillLineStatusLike;
+  /** Set by the fill scan; kept when the line is RETURNED. */
+  filledAt?: string | Date | null;
+}
+
+/**
+ * [Inc 3] A refill's counts from its lines (API_CONTRACT §1.4: "Inc 3 counts the lines"): picked = every
+ * line, filled = the lines with a fill (`filledAt`, or status FILLED), received = the RETURNED lines
+ * (the store's receive scans). A refill with no line (an Inc 1 refill) reads its legacy columns with
+ * {@link legacyRefillCounts} instead.
+ */
+export function refillLineCounts(refill: { requestedCount: number; lines: readonly RefillLineLike[] }): RefillCountsLike {
+  let filled = 0;
+  let received = 0;
+  for (const line of refill.lines) {
+    if (line.status === 'FILLED' || (line.filledAt !== null && line.filledAt !== undefined)) filled += 1;
+    if (line.status === 'RETURNED') received += 1;
+  }
+  return { requested: count(refill.requestedCount), picked: refill.lines.length, filled, received };
+}
+
 function count(value: number | null | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }

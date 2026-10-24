@@ -259,43 +259,6 @@ describeDb('migrations: inc1a on a copy of the old database', () => {
     expect(free[0].fee_status).toBe('NONE');
   });
 
-  it('MIG-006 cancelling the old open orders returns nothing and writes no ledger row', async () => {
-    const previous = process.env.DATABASE_URL;
-    process.env.DATABASE_URL = legacy.url;
-    let app: INestApplication | undefined;
-    try {
-      app = await createTestApp();
-      const actor = { userId: ID('000000000d01'), role: UserRole.DISTRIBUTOR, distributorId: D01 };
-      const ledgerBefore = await db.ledgerEntry.count();
-      const balanceBefore = (await db.distributor.findUniqueOrThrow({ where: { id: D01 } })).advanceBalancePaisa;
-      // Step 3.
-      const pending = await client(app)
-        .post(`/api/v1/orders/${ID('00000000b002')}/cancel`)
-        .set(authHeader(actor))
-        .send({ reasonCode: 'WRONG_ORDER' })
-        .expect(200);
-      expect(pending.body.refundedPaisa).toBe('0');
-      // Step 4.
-      const view = await client(app).get(`/api/v1/orders/${ID('00000000b004')}`).set(authHeader(actor)).expect(200);
-      expect(view.body.cancel).toMatchObject({ refundPaisa: '0', noRefundReason: null });
-      const charged = await client(app)
-        .post(`/api/v1/orders/${ID('00000000b004')}/cancel`)
-        .set(authHeader(actor))
-        .send({ reasonCode: 'WRONG_ORDER' })
-        .expect(200);
-      expect(charged.body.refundedPaisa).toBe('0');
-      // Step 5.
-      expect(await db.ledgerEntry.count()).toBe(ledgerBefore);
-      expect((await db.distributor.findUniqueOrThrow({ where: { id: D01 } })).advanceBalancePaisa).toBe(balanceBefore);
-      const audits = await db.auditLog.findMany({ where: { action: 'order.cancel' } });
-      expect(audits).toHaveLength(2);
-      for (const row of audits) expect(row.diff).toMatchObject({ refunded: false, refundPaisa: '0' });
-    } finally {
-      await app?.close();
-      process.env.DATABASE_URL = previous;
-    }
-  });
-
   it('inc1a deactivates the retired DISTRIBUTOR_CREDIT_OVER alert rules and keeps the others (backfill 12, invariant 13)', async () => {
     const rules = await db.$queryRaw<Array<{ rule_kind: string; is_active: boolean }>>`
       SELECT rule_kind::text, is_active FROM alert_rules ORDER BY rule_kind`;
@@ -324,4 +287,48 @@ describeDb('migrations: inc1a on a copy of the old database', () => {
     expect({ code: rerun.code, output: rerun.code === 0 ? '' : rerun.output }).toEqual({ code: 0, output: '' });
     expect(await digest()).toEqual(first);
   });
+
+  // From Inc 2 the API runs only on the current release: inc1b and inc2 ship with it (DATA_MODEL §3.5), and
+  // migrate.sh applies them before the new API starts. So the old open orders are cancelled through
+  // today's API once this copy has gone through the Inc 2 release too (it has no run in progress, so the
+  // inc2 pre-check passes). Last in the file: the cases above read the copy at the inc1a release.
+  it('MIG-006 cancelling the old open orders returns nothing and writes no ledger row (after the Inc 2 release)', async () => {
+    const upgraded = runMigrateSh(makeRelease('current'), legacy.url);
+    expect({ code: upgraded.code, output: upgraded.code === 0 ? '' : upgraded.output }).toEqual({ code: 0, output: '' });
+    const previous = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = legacy.url;
+    let app: INestApplication | undefined;
+    try {
+      app = await createTestApp();
+      const actor = { userId: ID('000000000d01'), role: UserRole.DISTRIBUTOR, distributorId: D01 };
+      const ledgerBefore = await db.ledgerEntry.count();
+      const balanceBefore = (await db.distributor.findUniqueOrThrow({ where: { id: D01 } })).advanceBalancePaisa;
+      // Step 3.
+      const pending = await client(app)
+        .post(`/api/v1/orders/${ID('00000000b002')}/cancel`)
+        .set(authHeader(actor))
+        .send({ reasonCode: 'WRONG_ORDER' })
+        .expect(200);
+      expect(pending.body.refundedPaisa).toBe('0');
+      // Step 4.
+      const view = await client(app).get(`/api/v1/orders/${ID('00000000b004')}`).set(authHeader(actor)).expect(200);
+      expect(view.body.cancel).toMatchObject({ refundPaisa: '0', noRefundReason: null });
+      expect(view.body.confirmation).toBeNull();
+      const charged = await client(app)
+        .post(`/api/v1/orders/${ID('00000000b004')}/cancel`)
+        .set(authHeader(actor))
+        .send({ reasonCode: 'WRONG_ORDER' })
+        .expect(200);
+      expect(charged.body.refundedPaisa).toBe('0');
+      // Step 5.
+      expect(await db.ledgerEntry.count()).toBe(ledgerBefore);
+      expect((await db.distributor.findUniqueOrThrow({ where: { id: D01 } })).advanceBalancePaisa).toBe(balanceBefore);
+      const audits = await db.auditLog.findMany({ where: { action: 'order.cancel' } });
+      expect(audits).toHaveLength(2);
+      for (const row of audits) expect(row.diff).toMatchObject({ refunded: false, refundPaisa: '0' });
+    } finally {
+      await app?.close();
+      process.env.DATABASE_URL = previous;
+    }
+  }, 600_000);
 });

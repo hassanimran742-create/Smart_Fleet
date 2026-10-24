@@ -160,24 +160,9 @@ describeDb('money: the nightly wallet check', () => {
     expect(await walletMismatches()).toEqual([]);
   });
 
-  it('WAL-016 a negative balance is a break even when the history adds up to it', async () => {
-    await db().$transaction([
-      db().ledgerEntry.create({
-        data: {
-          distributorId: std.DB.id,
-          entryType: 'ADJUSTMENT',
-          amountPaisa: -5_000n,
-          balanceAfterPaisa: -5_000n,
-          idempotencyKey: `legacy:${key('2', 1)}`,
-        },
-      }),
-      db().distributor.update({ where: { id: std.DB.id }, data: { advanceBalancePaisa: -5_000n } }),
-    ]);
-    const run = await job().run();
-    expect(run).toMatchObject({ mismatches: 1, distributorIds: [std.DB.id], raised: 1 });
-    const [alert] = await mismatchAlerts();
-    expect(alert.context).toEqual({ balancePaisa: '-5000', ledgerSumPaisa: '-5000', differencePaisa: '0' });
-  });
+  // 'WAL-016 a negative balance is a break even when the history adds up to it' was retired at
+  // Increment 2: from inc1b `distributors_balance_chk` refuses a balance below zero (DATA_MODEL §3.5), and
+  // the inc1b pre-check refuses to deploy while one exists (MIG-014, test/inc2/db/inc1b.e2e-spec.ts).
 
   it('WAL-018 a burst of parallel money actions keeps balance, ledger sum and running balances consistent (wallet side)', async () => {
     // Before: five X1 orders (Rs 2,600 left) and three Rs 1,000 top-up requests.

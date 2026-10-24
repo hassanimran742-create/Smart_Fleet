@@ -6,7 +6,7 @@ import {
   cancelOrderSchema,
   createOrderSchema,
   failOrderSchema,
-  manualDeliverySchema,
+  manualDeliveryV2Schema,
   officeCancelOrderSchema,
   officeFailOrderSchema,
   orderBoardQuerySchema,
@@ -15,7 +15,7 @@ import {
   updateOrderStatusSchema,
   type AssignDriverInput,
   type CreateOrderInput,
-  type ManualDeliveryInput,
+  type ManualDeliveryV2Input,
   type OrderBoardQuery,
   type OrdersQuery,
   type QuoteOrderInput,
@@ -135,14 +135,15 @@ export class OrdersController {
     return this.orders.assignDriver(actor, id, body);
   }
 
+  /** [Inc 2] v2: the office names the cylinders handed over (and, optionally, those taken back). No money. */
   @ExactRoles(UserRole.SUPER_ADMIN)
   @Post(':id/manual-delivery')
   @HttpCode(200)
   manualDelivery(
     @CurrentActor() actor: UserActor,
     @Param('id', new UuidParam()) id: string,
-    @Body(new ZodBody(manualDeliverySchema)) body: ManualDeliveryInput,
+    @Body(new ZodBody(manualDeliveryV2Schema)) body: ManualDeliveryV2Input,
   ) {
-    return this.orders.manualDelivery(actor, id, body.reason);
+    return this.orders.manualDelivery(actor, id, body);
   }
 }

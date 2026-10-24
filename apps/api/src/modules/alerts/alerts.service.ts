@@ -23,10 +23,18 @@ export interface RaiseAlertInput {
   body: string;
   resourceType?: string;
   resourceId?: string;
+  /** [Inc 2] The distributor the alert belongs to, so the shop sees its own cases (`GET /alerts/mine`). */
+  distributorId?: string;
   /** Codes and values the apps render from; never free English. */
   context?: Prisma.InputJsonValue;
   /** With a key, an OPEN alert for the same resource and type is updated instead of a new one. */
   dedupeKey?: { resourceType?: string; resourceId?: string; alertType: AlertType };
+  /**
+   * The statuses the dedupe looks at; OPEN when left out. VAN_NOT_EMPTY passes OPEN and ACKNOWLEDGED (one
+   * unresolved alert per van, API_CONTRACT §9.9): a new raise only refreshes that alert's context and
+   * keeps its status.
+   */
+  dedupeStatuses?: readonly AlertStatus[];
 }
 
 @Injectable()
@@ -94,8 +102,9 @@ export class AlertsService {
           alertType: input.dedupeKey.alertType,
           resourceType: input.dedupeKey.resourceType,
           resourceId: input.dedupeKey.resourceId,
-          status: AlertStatus.OPEN,
+          status: { in: [...(input.dedupeStatuses ?? [AlertStatus.OPEN])] },
         },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
       if (existing) {
         return db.alert.update({ where: { id: existing.id }, data: { updatedAt: new Date(), context: input.context } });
@@ -109,6 +118,7 @@ export class AlertsService {
         body: input.body,
         resourceType: input.resourceType,
         resourceId: input.resourceId,
+        distributorId: input.distributorId,
         context: input.context,
       },
     });

@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // Creates a Prisma migration without a database (docs/pilot/DATA_MODEL.md §2.4):
 //
-//   npm run db:new-migration -- <name> [--base <git ref>] [--allow-empty]
+//   npm run db:new-migration -- <name> [--base <git ref> | --base-file <schema.prisma>] [--allow-empty]
 //
-// 1. Writes `git show <base>:apps/api/prisma/schema.prisma` to .tmp/prev.prisma (base: HEAD).
+// 1. Writes `git show <base>:apps/api/prisma/schema.prisma` to .tmp/prev.prisma (base: HEAD), or, with
+//    --base-file, that schema file (for a second migration on top of an uncommitted one, as inc2 was
+//    diffed from the inc1b schema; snapshot the schema first, e.g. test/helpers/fixtures/schema.inc1b.prisma).
 // 2. Creates prisma/migrations/<UTC yyyymmddHHMMSS>_<name>/.
 // 3. Runs `prisma migrate diff --from-schema-datamodel .tmp/prev.prisma
 //    --to-schema-datamodel prisma/schema.prisma --script`.
@@ -14,9 +16,9 @@
 //   (1) pre-checks, (2) the generated DDL unchanged, (3) re-runnable backfills, (4) CHECK constraints.
 // Never edit a migration once it has been applied anywhere; fix forward with a new one.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const apiDir = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -33,19 +35,26 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const opts = { name: undefined, base: 'HEAD', allowEmpty: false };
+  const opts = { name: undefined, base: 'HEAD', baseGiven: false, baseFile: undefined, allowEmpty: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
-      console.log('Usage: npm run db:new-migration -- <name> [--base <git ref>] [--allow-empty]');
+      console.log('Usage: npm run db:new-migration -- <name> [--base <git ref> | --base-file <schema.prisma>] [--allow-empty]');
       process.exit(0);
     } else if (arg === '--allow-empty') {
       opts.allowEmpty = true;
     } else if (arg === '--base') {
       opts.base = argv[++i];
+      opts.baseGiven = true;
       if (!opts.base) fail('--base needs a git ref');
     } else if (arg.startsWith('--base=')) {
       opts.base = arg.slice('--base='.length);
+      opts.baseGiven = true;
+    } else if (arg === '--base-file') {
+      opts.baseFile = argv[++i];
+      if (!opts.baseFile) fail('--base-file needs a schema file');
+    } else if (arg.startsWith('--base-file=')) {
+      opts.baseFile = arg.slice('--base-file='.length);
     } else if (arg.startsWith('-')) {
       fail(`unknown option ${arg}`);
     } else if (opts.name === undefined) {
@@ -55,6 +64,7 @@ function parseArgs(argv) {
     }
   }
   if (!opts.name) fail('give a name, e.g. npm run db:new-migration -- inc1a_foundations');
+  if (opts.baseFile !== undefined && opts.baseGiven) fail('give --base or --base-file, not both');
   if (!NAME_RE.test(opts.name)) fail(`name "${opts.name}" must be lower-case letters, digits and single underscores`);
   return opts;
 }
@@ -105,16 +115,25 @@ if (newest && newest >= folder) {
 }
 
 let prev;
-try {
-  // `./` makes the path relative to apps/api, wherever the repository is checked out.
-  prev = execFileSync('git', ['show', `${opts.base}:./prisma/schema.prisma`], {
-    cwd: apiDir,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-} catch (e) {
-  fail(`could not read prisma/schema.prisma at ${opts.base}: ${String(e.stderr || e.message).trim()}`);
+const baseLabel = opts.baseFile !== undefined ? opts.baseFile : opts.base;
+if (opts.baseFile !== undefined) {
+  try {
+    prev = readFileSync(resolve(process.cwd(), opts.baseFile), 'utf8');
+  } catch (e) {
+    fail(`could not read --base-file ${opts.baseFile}: ${e.message}`);
+  }
+} else {
+  try {
+    // `./` makes the path relative to apps/api, wherever the repository is checked out.
+    prev = execFileSync('git', ['show', `${opts.base}:./prisma/schema.prisma`], {
+      cwd: apiDir,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (e) {
+    fail(`could not read prisma/schema.prisma at ${opts.base}: ${String(e.stderr || e.message).trim()}`);
+  }
 }
 
 let sql;
@@ -141,7 +160,7 @@ try {
 let text = sql.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
 if (!text.endsWith('\n')) text += '\n';
 if (/^-- This is an empty migration\.\s*$/.test(text.trim()) && !opts.allowEmpty) {
-  fail(`schema.prisma has no change against ${opts.base}; nothing written (use --allow-empty for a data-only migration)`);
+  fail(`schema.prisma has no change against ${baseLabel}; nothing written (use --allow-empty for a data-only migration)`);
 }
 
 const dir = join(migrationsDir, folder);
@@ -149,7 +168,7 @@ mkdirSync(dir);
 const file = join(dir, 'migration.sql');
 writeFileSync(file, text, 'utf8');
 
-console.log(`Created ${relative(apiDir, file).split('\\').join('/')} (diff against ${opts.base}).`);
+console.log(`Created ${relative(apiDir, file).split('\\').join('/')} (diff against ${baseLabel}).`);
 console.log('Hand-edit it in this order, with a -- comment on every edit (DATA_MODEL §2.4):');
 console.log('  (1) pre-checks that RAISE EXCEPTION \'MIGRATION_BLOCKED ...\' with the fix;');
 console.log('  (2) the generated DDL, unchanged;');

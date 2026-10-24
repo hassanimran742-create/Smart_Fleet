@@ -7,3 +7,7 @@ process.env.JWT_ACCESS_SECRET ??= 'test_only_access_secret_not_for_any_deploymen
 process.env.JWT_REFRESH_SECRET ??= 'test_only_refresh_secret_not_for_any_deployment_1';
 // Queues created by tests never share Redis keys with a developer's API.
 process.env.BULLMQ_PREFIX ??= 'sf-test';
+// [Inc 2] The customer's link (CUSTOMER_PAGE §2, §5): every suite signs and builds links the same way
+// (test/helpers/customer-links.ts and test/inc2/confirm/support.ts read the same values).
+process.env.CONFIRM_LINK_SECRET ??= 'test_only_confirm_link_secret_not_for_any_deployment';
+process.env.PUBLIC_LINK_BASE_URL ??= 'https://smartfleetpk.com';

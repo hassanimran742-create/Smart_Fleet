@@ -43,6 +43,35 @@ export async function markTripOrdersOnTheWay(tx: Tx, tripId: string): Promise<nu
 }
 
 /**
+ * [Inc 2] The DELIVERY stop finish ("Finish visit", DATA_MODEL §4.5), and the legacy Delivered tap that
+ * behaves like it: a guarded ASSIGNED or IN_TRANSIT → DELIVERED by SCANNED, `delivered_at` written once.
+ * Returns `delivered_at`, or null when the order wasn't open (nothing changed). No money.
+ */
+export async function markOrderDeliveredByScans(tx: Tx, orderId: string, userId: string): Promise<Date | null> {
+  const rows = await tx.$queryRaw<Array<{ delivered_at: Date }>>`
+    UPDATE orders
+    SET status = 'DELIVERED', delivered_at = (now() AT TIME ZONE 'UTC'), delivered_by_user_id = ${userId}::uuid,
+        delivery_method = 'SCANNED', updated_at = (now() AT TIME ZONE 'UTC')
+    WHERE id = ${orderId}::uuid AND delivered_at IS NULL AND status IN ('ASSIGNED','IN_TRANSIT')
+    RETURNING delivered_at`;
+  return rows[0]?.delivered_at ?? null;
+}
+
+/**
+ * [Inc 2] The office's manual delivery v2 (API_CONTRACT §9.5): a guarded ASSIGNED or IN_TRANSIT →
+ * DELIVERED by MANUAL with the reason. Returns `delivered_at`, or null when nothing changed. No money.
+ */
+export async function markOrderDeliveredManually(tx: Tx, orderId: string, userId: string, reason: string): Promise<Date | null> {
+  const rows = await tx.$queryRaw<Array<{ delivered_at: Date }>>`
+    UPDATE orders
+    SET status = 'DELIVERED', delivered_at = (now() AT TIME ZONE 'UTC'), delivered_by_user_id = ${userId}::uuid,
+        delivery_method = 'MANUAL', manual_delivery_reason = ${reason}, updated_at = (now() AT TIME ZONE 'UTC')
+    WHERE id = ${orderId}::uuid AND delivered_at IS NULL AND status IN ('ASSIGNED','IN_TRANSIT')
+    RETURNING delivered_at`;
+  return rows[0]?.delivered_at ?? null;
+}
+
+/**
  * The office aborts a trip before anything happened on it: its ASSIGNED orders need a driver again,
  * PENDING with `trip_id` and `assigned_at` cleared (§7.7). Returns their ids.
  */
