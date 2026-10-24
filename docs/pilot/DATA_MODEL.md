@@ -112,7 +112,7 @@ npx prisma migrate deploy --schema "$SCHEMA"
 
 ### 2.4 One migration per change, generated with no database
 1. `npm run db:new-migration -- inc1a_foundations`. The script `apps/api/scripts/new-migration.mjs`:
-   - writes `git show <base>:apps/api/prisma/schema.prisma` to `.tmp/prev.prisma` (`--base`, default `HEAD`);
+   - writes `git show <base>:apps/api/prisma/schema.prisma` to `.tmp/prev.prisma` (`--base`, default `HEAD`), or, with `--base-file <schema.prisma>`, that file: a second migration on top of one not yet committed, diffed from a snapshot of the first one's schema (as inc2 was diffed from `test/helpers/fixtures/schema.inc1b.prisma`);
    - creates `prisma/migrations/<UTC yyyymmddHHMMSS>_<name>/`;
    - runs `npx prisma migrate diff --from-schema-datamodel .tmp/prev.prisma --to-schema-datamodel prisma/schema.prisma --script`;
    - writes the output as UTF-8 with LF line endings.

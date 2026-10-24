@@ -7,6 +7,7 @@ The Increment 2 server is built: the inc1b and inc2 migrations, scans with the o
 - The inc1b pre-checks name at most 20 rows with their fix, and the re-derive step is written so the `SET NOT NULL`s can't fail and can run again: `legacy:<id>` ledger keys, expense types with the archived `LEGACY_<CAT>` fallback, order and request numbers continuing from the higher of the highest number and the counter, and the next free D-code. (DATA_MODEL §3.5)
 - `stop_cylinders_return_state_chk` also requires `return_state IS NOT NULL` for a taken-back row, since a CHECK passes when its expression is NULL. (DATA_MODEL §4.4)
 - The inc2 pre-check names the runs in progress. `DeliveryConfirmation` has its `order` relation, and the Cylinder-to-events relation is named `CylinderEvents` beside `CylinderLastEvent` (no DDL change). (DATA_MODEL §4.3, §4.4)
+- `npm run db:new-migration` takes `--base-file <schema.prisma>`, for a migration on top of one not yet committed (inc2 was diffed from the inc1b schema that way). (DATA_MODEL §2.4)
 
 ## Scans, visits and runs
 - The shapes §9.3 left open are fixed: `TripSummary`, `VanCounts`, `StoreStockDto`, `ScanResult.stop` null for store scans, and `GET /trips/:tripId` as `TripDetailDto` with stop titles, progress, the van and the trip's buttons. (API_CONTRACT §9.12)
@@ -22,7 +23,7 @@ The Increment 2 server is built: the inc1b and inc2 migrations, scans with the o
 - Manual delivery v2 names one problem per cylinder in a fixed order, counts a cylinder the driver already scanned on the visit as named, and audits each move; the audit diffs of the Inc 2 actions are written down. (API_CONTRACT §9.12, Appendix B)
 - `PATCH /clients/:id` is built for the owning shop: name, phone and notes, one `client.update` row per change, `confirmationNeedsNewLink` only when the phone changed while a link is pending. (API_CONTRACT §9.4, §9.12; TEST_CASES CUS-013)
 - `GET /admin/summary` adds `problems: { open, oldestOpenAt }`. (code only: API_CONTRACT §7.13)
-- `VAN_NOT_EMPTY` is raised on the van (resourceType `Vehicle`) and the 03:00 van check writes no audit row. (API_CONTRACT §9.12)
+- `VAN_NOT_EMPTY` is raised on the van (resourceType `Vehicle`), one OPEN or ACKNOWLEDGED alert per van through the alerts module's dedupe, and the 03:00 van check writes no audit row. (API_CONTRACT §9.9, §9.12)
 
 ## Customer confirmation, cases and messages
 - Every order answer to the shop and the office carries `confirmation` (null when there is none); a driver's never does. (API_CONTRACT §9.7, §9.12)

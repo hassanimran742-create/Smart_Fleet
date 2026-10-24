@@ -15,23 +15,7 @@ export const VAN_ALERT_RESOURCE_TYPE = 'Vehicle';
 export async function raiseVanNotEmpty(alerts: AlertsService, tx: Tx, context: VanNotEmptyContext): Promise<void> {
   // Two raises for one van at once (the job and a late finish) must still leave one alert.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`van-not-empty:${context.vehicleId}`}))`;
-  const unresolved = await tx.alert.findFirst({
-    where: {
-      alertType: AlertType.VAN_NOT_EMPTY,
-      resourceType: VAN_ALERT_RESOURCE_TYPE,
-      resourceId: context.vehicleId,
-      status: { in: [AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED] },
-    },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    select: { id: true, status: true },
-  });
   const json = context as unknown as Prisma.InputJsonValue;
-  if (unresolved && unresolved.status === AlertStatus.ACKNOWLEDGED) {
-    // AlertsService's dedupe looks at OPEN alerts only; an acknowledged one keeps its status and gets
-    // the new count and reason.
-    await tx.alert.update({ where: { id: unresolved.id }, data: { context: json, updatedAt: new Date() } });
-    return;
-  }
   const reason = context.leftoverReason ? ` Reason: ${context.leftoverReason}` : '';
   await alerts.raise(
     {
@@ -43,6 +27,8 @@ export async function raiseVanNotEmpty(alerts: AlertsService, tx: Tx, context: V
       resourceId: context.vehicleId,
       context: json,
       dedupeKey: { alertType: AlertType.VAN_NOT_EMPTY, resourceType: VAN_ALERT_RESOURCE_TYPE, resourceId: context.vehicleId },
+      // One OPEN or ACKNOWLEDGED alert per van: an acknowledged one keeps its status and gets the new count and reason.
+      dedupeStatuses: [AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED],
     },
     tx,
   );
