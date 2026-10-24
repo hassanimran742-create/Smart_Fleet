@@ -5,6 +5,7 @@ import type { UserActor } from '../../common/auth/actor';
 import { canSeeCylinder } from '../../common/auth/policies';
 import { AppError } from '../../common/errors/app-error';
 import { PrismaService } from '../../prisma/prisma.service';
+import { refillShortCode } from '../filling-orders/refill.mapper';
 import { orderShortCode } from '../orders/orders.mapper';
 import { sizeLabelOf } from '../pricing/size-label';
 import { cylinderShortCode, resolveQrOrFullNumber, resolveQrOrNumber } from './cylinder-codes';
@@ -64,6 +65,7 @@ export class CylinderHistoryService {
         toCustodyId: true,
         reason: true,
         orderId: true,
+        fillingOrderId: true,
         createdAt: true,
         actor: { select: { name: true, role: true } },
         stopCylinder: { select: { returnState: true, direction: true } },
@@ -78,9 +80,10 @@ export class CylinderHistoryService {
       event.toCustodyType && event.toCustodyId ? { type: event.toCustodyType, id: event.toCustodyId } : null,
     ]);
     const current = { type: cylinder.custodyType, id: cylinder.custodyId };
-    const [labels, orders, responsible] = await Promise.all([
+    const [labels, orders, refills, responsible] = await Promise.all([
       holderLabels(this.prisma, [...holders, current]),
       this.orderCodes(events.map((event) => event.orderId)),
+      this.refillCodes(events.map((event) => event.fillingOrderId)),
       responsibleDriver(this.prisma, cylinderId),
     ]);
     const ref = (type: CustodyType | null, id: string | null) => (type && id ? { type, id } : null);
@@ -107,12 +110,29 @@ export class CylinderHistoryService {
         to: labelOf(labels, ref(event.toCustodyType, event.toCustodyId)),
         actor: { name: event.actor.name, role: event.actor.role },
         order: event.orderId && orders.has(event.orderId) ? { shortCode: orders.get(event.orderId) as string } : null,
-        refill: null,
+        // [Inc 3] A refill pickup, fill or receive names its refill (G06-06).
+        refill: event.fillingOrderId && refills.has(event.fillingOrderId) ? { shortCode: refills.get(event.fillingOrderId) as string } : null,
         source: event.source as CylinderEventSource,
         returnState: event.stopCylinder?.direction === 'TAKEN_BACK' ? ((event.stopCylinder.returnState as CylinderStateValue | null) ?? null) : null,
         reason: event.reason,
       })),
     };
+  }
+
+  /** [Inc 3] The refills' numbers (AG-R007), by id. */
+  private async refillCodes(ids: readonly (string | null)[]): Promise<Map<string, string>> {
+    const wanted = [...new Set(ids.filter((id): id is string => !!id))];
+    if (wanted.length === 0) return new Map();
+    const refills = await this.prisma.fillingOrder.findMany({
+      where: { id: { in: wanted } },
+      select: { id: true, refillNo: true, distributor: { select: { code: true } } },
+    });
+    const out = new Map<string, string>();
+    for (const refill of refills) {
+      const code = refillShortCode(refill.distributor.code, refill.refillNo);
+      if (code) out.set(refill.id, code);
+    }
+    return out;
   }
 
   private async orderCodes(ids: readonly (string | null)[]): Promise<Map<string, string>> {

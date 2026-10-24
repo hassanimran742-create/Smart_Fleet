@@ -4,6 +4,7 @@
  * and complete. The office has no cancel.
  */
 import type { INestApplication } from '@nestjs/common';
+import { RELEASE_INCREMENT } from '../../src/modules/settings/registry';
 import { getTestPrisma, resetDb } from '../helpers/db';
 import { describeDb } from '../helpers/describe-db';
 import { http } from '../helpers/http';
@@ -244,6 +245,28 @@ describeDb('api-orders: refills', () => {
     await assign(R.id).expect(200);
     const ledgerBefore = await db.ledgerEntry.count();
     const step = (path: string, body: Record<string, unknown> = {}) => f.as(std.DR1).patch(`/filling-orders/${R.id}/${path}`).send(body);
+    if (RELEASE_INCREMENT >= 3) {
+      // From Inc 3 every refill step is a scan and the store's last receive completes a refill (API_CONTRACT
+      // §10.1 "Retired"; REF-024): the count steps and the office's complete answer 410 and change nothing.
+      for (const [path, body] of [
+        ['picked-empties', { emptyCount: 3 }],
+        ['at-station', {}],
+        ['filled', { filledCount: 3 }],
+        ['returned', {}],
+      ] as const) {
+        expect({ path, code: (await step(path, body).expect(410)).body.code }).toEqual({ path, code: 'REFILL_USE_SCANS' });
+      }
+      expect((await f.as(std.SA1).patch(`/filling-orders/${R.id}/complete`).expect(410)).body.code).toBe('REFILL_AUTO_COMPLETES');
+      const row = await db.fillingOrder.findUniqueOrThrow({ where: { id: R.id } });
+      expect([row.status, row.pickedUpEmptyCount, row.filledCount, row.completedAt]).toEqual(['ASSIGNED', null, null, null]);
+      // The owner can still cancel it: nothing was picked up.
+      expect((await f.as(std.DA).patch(`/filling-orders/${R.id}/cancel`).send({ reason: 'Not needed now' }).expect(200)).body.status).toBe('CANCELLED');
+      expect(await f.audits('refill.complete', R.id)).toEqual([]);
+      expect(await db.ledgerEntry.count()).toBe(ledgerBefore);
+      expect(await f.balance()).toBe(500_000n);
+      await f.expectWalletsConsistent();
+      return;
+    }
     // Step 1.
     for (const emptyCount of [0, 4]) {
       const res = await step('picked-empties', { emptyCount }).expect(400);

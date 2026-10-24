@@ -3,8 +3,16 @@
  * copy drifts (type-level checks fail the ts-jest compile; the rest fail at run time).
  */
 import {
+  DAY_CLOSE_FIXES,
   DAY_END_STAGES,
+  DAY_SHEET_PLACE_WORDS,
+  DAY_SHEET_STATE_WORDS,
+  DayCloseDiff,
+  DayClosePlace,
   ERROR_CODES,
+  FillingOrderCylinderStatus,
+  type DayCloseFix,
+  type DayCloseState,
   ERROR_DETAIL_KEYS,
   ERROR_MESSAGE_EN,
   FillingOrderStatus,
@@ -17,7 +25,21 @@ import {
   type RefillCounts,
   type RefillStage,
 } from '../../../shared-types/src';
+import {
+  appSaysWhere,
+  daySheetPlaceWords,
+  daySheetStateWords,
+  deriveDayCloseDiff,
+  deriveDayCloseFix,
+  parseDaySheetPlace,
+  parseDaySheetState,
+  type DayCloseDiffLike,
+  type DayCloseFixLike,
+  type DayClosePlaceLike,
+  type DayCloseStateLike,
+} from '../day-end-sheet';
 import { deriveDayEndStage, type DayCloseStatusLike, type DerivedDayEndStage } from '../day-end-stage';
+import type { RefillLineStatusLike } from '../refill-stage';
 import { renderMessage } from '../messages';
 import { deriveOrderStage, type DerivedOrderStage, type OrderStatusLike } from '../order-stage';
 import { deriveRefillStage, type DerivedRefillStage, type RefillCountsLike, type RefillStatusLike } from '../refill-stage';
@@ -72,6 +94,49 @@ describe('shared-utils matches shared-types', () => {
       deriveDayEndStage({ status: 'APPROVED' }),
     ]);
     expect([...seen].sort()).toEqual([...DAY_END_STAGES].sort());
+  });
+
+  it('[Inc 3] repeats the day-end and refill-line unions, and its sheet words are the shared-types ones', () => {
+    const checks: true[] = [
+      true as Equals<DayClosePlaceLike, DayClosePlace>,
+      true as Equals<DayCloseStateLike, DayCloseState>,
+      true as Equals<DayCloseDiffLike, DayCloseDiff>,
+      true as Equals<DayCloseFixLike, DayCloseFix>,
+      true as Equals<RefillLineStatusLike, FillingOrderCylinderStatus>,
+    ];
+    expect(checks.every(Boolean)).toBe(true);
+    for (const place of Object.values(DayClosePlace)) {
+      expect(daySheetPlaceWords(place)).toBe(DAY_SHEET_PLACE_WORDS[place]);
+      expect(parseDaySheetPlace(DAY_SHEET_PLACE_WORDS[place])).toEqual({ kind: 'WORD', value: place });
+    }
+    for (const [state, words] of Object.entries(DAY_SHEET_STATE_WORDS)) {
+      expect(daySheetStateWords(state as DayCloseState)).toBe(words);
+      expect(parseDaySheetState(words)).toEqual({ kind: 'WORD', value: state });
+    }
+    expect(daySheetStateWords('LOST')).toBe('');
+    expect(appSaysWhere({ place: 'STORE' })).toBe(DAY_SHEET_PLACE_WORDS.STORE);
+    // Every fix and every diff can come out of the derivation.
+    const fixes = new Set<string>();
+    const diffs = new Set<string>();
+    const places: DayClosePlace[] = Object.values(DayClosePlace);
+    const states: DayCloseState[] = ['FULL', 'EMPTY', 'PART_FILLED', 'FAULTY', 'LOST'];
+    for (const appPlace of places) {
+      for (const appState of states) {
+        for (const place of [null, ...places]) {
+          for (const state of [null, ...states.filter((s) => s !== 'LOST')]) {
+            const line = { app: { place: appPlace, state: appState }, sheet: { place, state } };
+            diffs.add(deriveDayCloseDiff(line));
+            const fix = deriveDayCloseFix(line);
+            if (fix) fixes.add(fix.fix);
+          }
+        }
+      }
+    }
+    const extra = { app: null, sheet: { place: null, state: 'EMPTY' as const } };
+    diffs.add(deriveDayCloseDiff(extra));
+    fixes.add(deriveDayCloseFix(extra)?.fix ?? '');
+    expect([...diffs].sort()).toEqual(Object.values(DayCloseDiff).sort());
+    expect([...fixes].sort()).toEqual([...DAY_CLOSE_FIXES].sort());
   });
 
   it('renders every error template from its documented details', () => {

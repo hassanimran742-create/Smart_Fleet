@@ -67,6 +67,8 @@ enum CylinderEventType {
   MARK_FAULTY
   MARK_LOST
   REGISTERED // Inc 2: bulk-registered into the home store (source REGISTRATION)
+  FILLED // Inc 3: a refill's fill scan at the station (VEHICLE → VEHICLE; the state changes on the store's receive)
+  ADJUSTED // Inc 3: an approved day-end fix (source DAY_END_FIX, the sheet's reason)
 }
 
 // Inc 2: how a cylinder move was recorded.
@@ -75,6 +77,7 @@ enum CylinderEventSource {
   TYPED // a cylinder number typed in (logged: audit custody.typed_entry)
   MANUAL // the office, with a reason (cylinder_events_reason_chk)
   REGISTRATION // bulk-register
+  DAY_END_FIX // Inc 3: an approved day-end fix; the reason is required (cylinder_events_reason_chk)
 }
 
 // Inc 2: the two per-visit lists of a DELIVERY stop.
@@ -268,6 +271,9 @@ model User {
   passwordHash String?    @map("password_hash")
   /// Sent as the `tv` token claim; bumped on suspend, archive, role change and password reset.
   tokenVersion Int        @default(0) @map("token_version")
+  /// Inc 3: made by `pilot:setup --test` (a test distributor's user or a test driver's user; never a
+  /// SUPER_ADMIN). The pilot reset deletes only test rows and what hangs off them (API_CONTRACT §10.3).
+  isTest       Boolean    @default(false) @map("is_test")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
@@ -332,6 +338,8 @@ model Distributor {
   nextCylinderNo      Int               @default(1) @map("next_cylinder_no") // Inc 2
   /// The Idempotency-Key of POST /distributors: a retry returns this distributor (API_CONTRACT §4.2).
   clientRequestId     String?           @unique @map("client_request_id") @db.Uuid
+  /// Inc 3: made by `pilot:setup --test`; the pilot reset deletes it and what hangs off it.
+  isTest              Boolean           @default(false) @map("is_test")
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
 
@@ -345,6 +353,7 @@ model Distributor {
   fillingOrders FillingOrder[]
   zonePrices    DistributorZonePrice[]
   files         StoredFile[]
+  dayCloses     DayClose[]
 
   @@map("distributors")
 }
@@ -464,6 +473,8 @@ model Vehicle {
   homeZoneId        String        @map("home_zone_id") @db.Uuid
   status            VehicleStatus @default(ACTIVE)
   currentOdometerKm Int           @default(0) @map("current_odometer_km")
+  /// Inc 3: a test driver's van made by `pilot:setup --test`; the pilot reset deletes it.
+  isTest            Boolean       @default(false) @map("is_test")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
@@ -542,6 +553,7 @@ model CylinderType {
   zonePriceSizes DistributorZonePriceSize[]
   stopCylinders     StopCylinder[]
   unlabelledReturns StopUnlabelledReturn[]
+  dayCloseLines     DayCloseLine[]
 
   @@map("cylinder_types")
 }
@@ -572,6 +584,8 @@ model Cylinder {
   events        CylinderEvent[] @relation("CylinderEvents")
   transferLines TransferLine[]
   stopCylinders StopCylinder[]
+  refillLines   FillingOrderCylinder[]
+  dayCloseLines DayCloseLine[]
 
   @@unique([distributorId, shortNo])
   @@index([distributorId, cylinderTypeId, state, custodyType])
@@ -606,19 +620,25 @@ model CylinderEvent {
   tripStopId      String?             @map("trip_stop_id") @db.Uuid
   orderId         String?             @map("order_id") @db.Uuid
   transferId      String?             @map("transfer_id") @db.Uuid
+  /// Inc 3: the refill of a refill move (PICKUP: SCAN_OUT with no trip; FILL: FILLED; the store's receive
+  /// of a refill cylinder: SCAN_IN). A refill pickup never touches an order (DATA_MODEL §3.6).
+  fillingOrderId  String?             @map("filling_order_id") @db.Uuid
   createdAt       DateTime            @default(now()) @map("created_at")
 
   cylinder      Cylinder      @relation("CylinderEvents", fields: [cylinderId], references: [id])
   actor         User          @relation("ActorEvents", fields: [actorUserId], references: [id])
   tripStop      TripStop?     @relation(fields: [tripStopId], references: [id], onDelete: Restrict)
+  fillingOrder  FillingOrder? @relation(fields: [fillingOrderId], references: [id], onDelete: Restrict)
   lastEventOf   Cylinder?     @relation("CylinderLastEvent")
   stopCylinder  StopCylinder?
+  dayCloseLine  DayCloseLine? @relation("DayCloseLineAppliedEvent")
 
   @@unique([actorUserId, clientScanId])
   @@index([cylinderId, createdAt])
   @@index([tripId])
   @@index([orderId])
   @@index([createdAt])
+  @@index([fillingOrderId])
   @@map("cylinder_events")
 }
 
@@ -1175,6 +1195,7 @@ enum AlertType {
   WALLET_CHECK_MISMATCH // nightly check: ledger sum <> balance, or balance < 0
   CUSTOMER_PROBLEM // Inc 2: a case, opened by a confirmation answer; the answer is in context
   VAN_NOT_EMPTY // Inc 2: a van holding cylinders at the cut-off, or a run finished with leftovers
+  DAY_END_SUBMITTED // Inc 3: a shop sent its day-end for approval (resource the day; approve and send-back resolve it)
 }
 
 // User-defined alert rules. Evaluated lazily when the admin opens the
@@ -1356,6 +1377,14 @@ enum FillingServiceType {
   DIY
 }
 
+// Inc 3: one picked cylinder of a refill (filling_order_cylinders). RETURNED is the store's receive scan,
+// whether or not it was filled; the refill completes when every picked line is RETURNED (ADR-16).
+enum FillingOrderCylinderStatus {
+  PICKED_UP
+  FILLED
+  RETURNED
+}
+
 model FillingOrder {
   id                    String             @id @default(uuid()) @db.Uuid
   distributorId         String             @map("distributor_id") @db.Uuid
@@ -1365,16 +1394,30 @@ model FillingOrder {
   ownStationName        String?            @map("own_station_name")
   ownStationAddress     String?            @map("own_station_address")
   ownStationNotes       String?            @map("own_station_notes")
+  /// One size per refill; at most `refill.maxCylinders` (30), enforced in code (filling_orders_count_chk: > 0).
   requestedCount        Int                @map("requested_count")
+  /// Legacy (Inc 1 count steps). From Inc 3 the counts come from the refill's lines.
   pickedUpEmptyCount    Int?               @map("picked_up_empty_count")
+  /// Legacy (Inc 1 count steps).
   filledCount           Int?               @map("filled_count")
+  /// Always written as 0: refills carry no money (ADR-16).
   pricePerCylinderPaisa BigInt             @map("price_per_cylinder_paisa")
+  /// Always written as 0: refills carry no money (ADR-16).
   totalCostPaisa        BigInt             @default(0) @map("total_cost_paisa")
   status                FillingOrderStatus @default(PENDING)
   assignedDriverId      String?            @map("assigned_driver_id") @db.Uuid
   assignedVehicleId     String?            @map("assigned_vehicle_id") @db.Uuid
   pickupStoreId         String?            @map("pickup_store_id") @db.Uuid
   cancellationReason    String?            @map("cancellation_reason")
+  /// Inc 3: the human number (AG-R007), from Distributor.nextRefillNo in the creating transaction.
+  refillNo              Int?               @map("refill_no")
+  /// Inc 3: the Idempotency-Key of POST /filling-orders: a retry returns this refill (API_CONTRACT §10.1).
+  clientRequestId       String?            @map("client_request_id") @db.Uuid
+  /// Inc 3: the first pickup scan (after it, the owner can no longer cancel).
+  pickedUpAt            DateTime?          @map("picked_up_at")
+  /// Inc 3: the owner's cancel (only before pickup); old CANCELLED rows were backfilled from updated_at.
+  cancelledAt           DateTime?          @map("cancelled_at")
+  cancelledByUserId     String?            @map("cancelled_by_user_id") @db.Uuid
   createdAt             DateTime           @default(now()) @map("created_at")
   updatedAt             DateTime           @updatedAt @map("updated_at")
   completedAt           DateTime?          @map("completed_at")
@@ -1386,10 +1429,39 @@ model FillingOrder {
   assignedVehicle Vehicle?        @relation(fields: [assignedVehicleId], references: [id])
   pickupStore     Store?          @relation(fields: [pickupStoreId], references: [id])
   ledgerEntries   LedgerEntry[]
+  cylinders       FillingOrderCylinder[]
+  cylinderEvents  CylinderEvent[]
 
+  @@unique([distributorId, refillNo])
+  @@unique([distributorId, clientRequestId])
   @@index([assignedDriverId, status])
   @@index([status, createdAt])
+  @@index([distributorId, createdAt])
   @@map("filling_orders")
+}
+
+// Inc 3: the cylinders a refill picked up, one row each (API_CONTRACT §10.1). The cylinder stays with the
+// van during the refill (no station holder); the store's receive scan makes the line RETURNED, and FULL
+// when it has filled_at.
+model FillingOrderCylinder {
+  id             String                     @id @default(uuid()) @db.Uuid
+  fillingOrderId String                     @map("filling_order_id") @db.Uuid
+  cylinderId     String                     @map("cylinder_id") @db.Uuid
+  status         FillingOrderCylinderStatus @default(PICKED_UP)
+  /// EMPTY or PART_FILLED (foc_pickup_state_chk).
+  stateAtPickup  CylinderState              @map("state_at_pickup")
+  pickedUpAt     DateTime                   @default(now()) @map("picked_up_at")
+  /// The fill scan at the station.
+  filledAt       DateTime?                  @map("filled_at")
+  /// The store's receive scan.
+  returnedAt     DateTime?                  @map("returned_at")
+
+  fillingOrder FillingOrder @relation(fields: [fillingOrderId], references: [id], onDelete: Restrict)
+  cylinder     Cylinder     @relation(fields: [cylinderId], references: [id], onDelete: Restrict)
+
+  @@unique([fillingOrderId, cylinderId])
+  @@index([cylinderId])
+  @@map("filling_order_cylinders")
 }
 
 // ---------- FUEL REFILLS ----------
@@ -1507,13 +1579,120 @@ model StoredFile {
   distributorId    String?           @map("distributor_id") @db.Uuid
   createdAt        DateTime          @default(now()) @map("created_at")
 
-  distributor Distributor? @relation(fields: [distributorId], references: [id])
-  payments    Payment[]
-  expenses    Expense[]
+  distributor     Distributor? @relation(fields: [distributorId], references: [id])
+  payments        Payment[]
+  expenses        Expense[]
+  dayCloseSheets  DayClose[]   @relation("DayCloseSheet")
+  dayCloseUploads DayClose[]   @relation("DayCloseUpload")
 
   @@index([uploadedByUserId, sha256])
   @@index([distributorId, purpose, createdAt])
   @@map("stored_files")
+}
+
+// ---------- DAY-END (Inc 3) ----------
+
+// One business day of one distributor (DATA_MODEL §5.3). Send-back and reopen return a day to OPEN.
+enum DayCloseStatus {
+  OPEN
+  SUBMITTED
+  APPROVED // locked: its lines and summary are frozen (scans carry on)
+}
+
+// Where a cylinder is, as the sheet and the comparison say it.
+enum DayClosePlace {
+  STORE
+  VAN
+  CUSTOMER
+  NOT_FOUND // the sheet's "Missing", and the app's place for a LOST cylinder
+}
+
+// How a sheet row compares with the app. Each differing line's fix (MOVE_TO_STORE, SET_STATE, MARK_LOST,
+// REGISTER or NOTE_ONLY, settled point G09-03) follows from its stored values (API_CONTRACT §10.2).
+enum DayCloseDiff {
+  MATCH
+  PLACE_DIFFERS
+  STATE_DIFFERS
+  PLACE_AND_STATE_DIFFER
+  UNKNOWN_CYLINDER // a number on the "Extra cylinders" sheet the app doesn't know: registered on approval
+}
+
+// Created OPEN by the first sheet download for that date (two at once still make one row:
+// day_closes_distributor_id_business_date_key). No job creates rows, and a read never does.
+model DayClose {
+  id               String         @id @default(uuid()) @db.Uuid
+  distributorId    String         @map("distributor_id") @db.Uuid
+  /// The business date (Asia/Karachi with the 03:00 cut-off: day.timezone, day.cutoffLocalTime).
+  businessDate     DateTime       @map("business_date") @db.Date
+  status           DayCloseStatus @default(OPEN)
+  /// When the newest sheet was made (the sheet time); only that sheet can be uploaded.
+  sheetSnapshotAt  DateTime?      @map("sheet_snapshot_at")
+  sheetFileId      String?        @map("sheet_file_id") @db.Uuid
+  uploadFileId     String?        @map("upload_file_id") @db.Uuid
+  uploadVersion    Int            @default(0) @map("upload_version")
+  uploadedAt       DateTime?      @map("uploaded_at")
+  uploadedByUserId String?        @map("uploaded_by_user_id") @db.Uuid
+  submittedAt      DateTime?      @map("submitted_at")
+  approvedAt       DateTime?      @map("approved_at")
+  approvedByUserId String?        @map("approved_by_user_id") @db.Uuid
+  sentBackReason   String?        @map("sent_back_reason")
+  sentBackAt       DateTime?      @map("sent_back_at")
+  reopenReason     String?        @map("reopen_reason")
+  reopenedAt       DateTime?      @map("reopened_at")
+  /// Set exactly while APPROVED (day_closes_locked_chk).
+  lockedAt         DateTime?      @map("locked_at")
+  /// Counts by place, state and size; frozen at approval: an APPROVED day's summary is read from it.
+  totals           Json?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  distributor Distributor    @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  sheetFile   StoredFile?    @relation("DayCloseSheet", fields: [sheetFileId], references: [id], onDelete: Restrict)
+  uploadFile  StoredFile?    @relation("DayCloseUpload", fields: [uploadFileId], references: [id], onDelete: Restrict)
+  lines       DayCloseLine[]
+
+  @@unique([distributorId, businessDate])
+  @@index([status, businessDate])
+  @@map("day_closes")
+}
+
+// One row per cylinder on the uploaded sheet, plus one per extra number. An upload replaces them all.
+model DayCloseLine {
+  id                String         @id @default(uuid()) @db.Uuid
+  dayCloseId        String         @map("day_close_id") @db.Uuid
+  /// NULL = a number the app doesn't know (dcl_unknown_chk: exactly the UNKNOWN_CYLINDER lines).
+  cylinderId        String?        @map("cylinder_id") @db.Uuid
+  /// The number in its normal form (AG-C0042, read by parseCylinderNo). A registered extra cylinder gets
+  /// the next short_no instead.
+  sheetKey          String         @map("sheet_key")
+  cylinderTypeId    String?        @map("cylinder_type_id") @db.Uuid
+  systemPlace       DayClosePlace? @map("system_place")
+  systemHolderId    String?        @map("system_holder_id") @db.Uuid
+  systemState       CylinderState? @map("system_state")
+  /// The cylinder's last event at upload (the review's Last scan). A fix is skipped when the cylinder's
+  /// last event is newer than the day's sheet_snapshot_at.
+  systemLastEventId String?        @map("system_last_event_id") @db.Uuid
+  reportedPlace     DayClosePlace? @map("reported_place")
+  reportedState     CylinderState? @map("reported_state")
+  /// Reserved: NULL in the pilot (there is no reason list).
+  reasonCode        String?        @map("reason_code")
+  /// "Why different": 3–200 characters on a differing row; the fix's reason.
+  note              String?
+  diff              DayCloseDiff   @default(MATCH)
+  /// The ADJUSTED or REGISTERED event an approved fix wrote.
+  appliedEventId    String?        @unique @map("applied_event_id") @db.Uuid
+  /// Approval skipped this line's fix: the cylinder moved after the sheet was made.
+  skippedMovedAt    DateTime?      @map("skipped_moved_at")
+
+  dayClose     DayClose       @relation(fields: [dayCloseId], references: [id], onDelete: Restrict)
+  cylinder     Cylinder?      @relation(fields: [cylinderId], references: [id], onDelete: Restrict)
+  cylinderType CylinderType?  @relation(fields: [cylinderTypeId], references: [id], onDelete: Restrict)
+  appliedEvent CylinderEvent? @relation("DayCloseLineAppliedEvent", fields: [appliedEventId], references: [id], onDelete: Restrict)
+
+  @@unique([dayCloseId, sheetKey])
+  @@index([dayCloseId, diff])
+  @@index([cylinderId])
+  @@map("day_close_lines")
 }
 
 model FuelRefill {

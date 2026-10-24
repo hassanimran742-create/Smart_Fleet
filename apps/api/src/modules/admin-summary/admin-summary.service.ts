@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { AlertStatus, AlertType, LedgerEntryType, PaymentStatus, UserStatus } from '@prisma/client';
+import { AlertStatus, AlertType, FillingOrderStatus, LedgerEntryType, PaymentStatus, UserStatus } from '@prisma/client';
 import type { AdminSummaryDto } from '@smartfleet/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
+import { dayEndTodayCard } from '../day-end/day-end-today';
 import { boardTabWhere, CANCELLED_FAILED_DAYS_BEFORE } from '../orders/order-tabs';
 import { currentBusinessDays } from '../orders/support/business-day';
 import { SettingsService } from '../settings/settings.service';
@@ -11,7 +12,9 @@ import { SettingsService } from '../settings/settings.service';
  * "Today" is the current business day (`day.timezone`, `day.cutoffLocalTime`: Asia/Karachi with a
  * 03:00 cut-off by default). The order figures use the board's tab definitions (G04-06), and
  * `costTakenTodayPaisa` comes from the ledger: Σ DEBIT_ORDER − Σ CREDIT_ORDER_REVERSAL for the day.
- * From Inc 2 it adds `problems`: the open customer problems (G07-22).
+ * From Inc 2 it adds `problems`: the open customer problems (G07-22). From Inc 3 it adds `refills`: the
+ * refills waiting for a driver (PENDING) and the oldest one, and `dayEnd`: the days waiting for approval and
+ * the oldest of them (left out while `dayEnd.enabled` is off).
  */
 @Injectable()
 export class AdminSummaryService {
@@ -41,6 +44,8 @@ export class AdminSummaryService {
       waitingToStart,
       drivers,
       problems,
+      refills,
+      dayEnd,
     ] = await Promise.all([
       this.prisma.payment.count({ where: { status: PaymentStatus.PENDING } }),
       this.prisma.payment.findFirst({ where: { status: PaymentStatus.PENDING }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { createdAt: true } }),
@@ -62,6 +67,8 @@ export class AdminSummaryService {
       }),
       this.driverCounts(),
       this.openProblems(),
+      this.refillsNeedingDriver(),
+      dayEndTodayCard(this.prisma, this.settings),
     ]);
 
     // Debits are negative, reversals positive: the cost taken is minus their sum.
@@ -84,6 +91,8 @@ export class AdminSummaryService {
       distributors: { waitingToStart: waitingToStart.map((row) => ({ id: row.id, name: row.businessName })) },
       drivers,
       problems,
+      refills,
+      ...(dayEnd ? { dayEnd } : {}),
     };
   }
 
@@ -117,6 +126,19 @@ export class AdminSummaryService {
     return distributors
       .map((row) => ({ distributorId: row.id, distributorName: row.businessName, zones: activeZones - row._count.zonePrices }))
       .filter((row) => row.zones > 0);
+  }
+
+  /**
+   * [Inc 3] The Today card "Refills need a driver" (UX spec §3.4): the refills waiting for the office to
+   * assign a driver (PENDING) and the oldest one's `createdAt` (0 and null when none waits).
+   */
+  private async refillsNeedingDriver(): Promise<NonNullable<AdminSummaryDto['refills']>> {
+    const where = { status: FillingOrderStatus.PENDING };
+    const [needsDriver, oldest] = await Promise.all([
+      this.prisma.fillingOrder.count({ where }),
+      this.prisma.fillingOrder.findFirst({ where, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { createdAt: true } }),
+    ]);
+    return { needsDriver, oldestNeedsDriverAt: oldest ? oldest.createdAt.toISOString() : null };
   }
 
   /**

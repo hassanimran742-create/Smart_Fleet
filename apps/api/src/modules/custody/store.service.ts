@@ -82,7 +82,7 @@ export class StoreService {
           state: cylinder.state,
           came: cylinder.came,
           from: cylinder.from,
-          refill: null,
+          refill: cylinder.refill,
         })),
         counts: { total: cylinders.length + received.length, received: received.length, bySize: await this.sizeCounts(bySizeCount) },
       });

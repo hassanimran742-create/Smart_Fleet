@@ -8,14 +8,16 @@
  *   (test/helpers/fixtures/schema.inc1a.prisma);
  * - `inc1b`: inc1a + inc1b_contract alone, with its schema (fixtures/schema.inc1b.prisma). In production
  *   inc1b ships together with inc2; this release exercises it on its own;
- * - `inc2`: the first Increment 2 release, inc1a + inc1b + inc2_driver_flow, with today's schema;
+ * - `inc2`: the first Increment 2 release, inc1a + inc1b + inc2_driver_flow, with the schema it shipped
+ *   (fixtures/schema.inc2.prisma, prisma/schema.prisma at the Increment 2 commit);
+ * - `inc3`: the Increment 3 release, every migration up to inc3_refills_dayend, with today's schema;
  * - `current`: today's schema with every migration (the release being built now).
  *
  * Every database made here has a name containing "test" and is dropped by `drop()`. migrate.sh runs
  * under `sh` with an `npx` shim on PATH that calls the installed Prisma CLI, so nothing is downloaded.
  *
- * When a later increment changes prisma/schema.prisma, snapshot the inc2 schema into
- * fixtures/schema.inc2.prisma and point the `inc2` release at it, as inc1a and inc1b are.
+ * When a later increment changes prisma/schema.prisma, snapshot the inc3 schema into
+ * fixtures/schema.inc3.prisma and point the `inc3` release at it, as inc1a, inc1b and inc2 are.
  */
 import { spawnSync } from 'child_process';
 import { randomBytes } from 'crypto';
@@ -36,10 +38,13 @@ export const HELPER_FIXTURES_DIR = path.join(__dirname, 'fixtures');
 export const INC1A_SCHEMA = path.join(HELPER_FIXTURES_DIR, 'schema.inc1a.prisma');
 /** prisma/schema.prisma right after inc1b_contract (the schema inc2_driver_flow was diffed from). */
 export const INC1B_SCHEMA = path.join(HELPER_FIXTURES_DIR, 'schema.inc1b.prisma');
+/** prisma/schema.prisma as the Increment 2 release shipped it (the schema inc3_refills_dayend was diffed from). */
+export const INC2_SCHEMA = path.join(HELPER_FIXTURES_DIR, 'schema.inc2.prisma');
 export const BASELINE_MIGRATION = '0_baseline';
 export const INC1A_MIGRATION = '20261021195005_inc1a_foundations';
 export const INC1B_MIGRATION = '20261023112537_inc1b_contract';
 export const INC2_MIGRATION = '20261023112824_inc2_driver_flow';
+export const INC3_MIGRATION = '20261024021613_inc3_refills_dayend';
 
 const PRISMA_CLI = require.resolve('prisma/build/index.js');
 
@@ -168,7 +173,7 @@ export function pushAf889bfSchema(db: ScratchDb): void {
   prismaOk(['db', 'push', '--schema', AF889BF_SCHEMA, '--skip-generate'], db.url);
 }
 
-export type ReleaseKind = 'baseline' | 'inc1a' | 'inc1b' | 'inc2' | 'current';
+export type ReleaseKind = 'baseline' | 'inc1a' | 'inc1b' | 'inc2' | 'inc3' | 'current';
 
 /** Every migration folder of the repo, in the order Prisma applies them (by name). */
 export function migrationNames(): string[] {
@@ -195,7 +200,9 @@ export function releaseContents(kind: ReleaseKind): { schema: string; migrations
     case 'inc1b':
       return { schema: INC1B_SCHEMA, migrations: upTo(INC1B_MIGRATION) };
     case 'inc2':
-      return { schema: path.join(PRISMA_DIR, 'schema.prisma'), migrations: upTo(INC2_MIGRATION) };
+      return { schema: INC2_SCHEMA, migrations: upTo(INC2_MIGRATION) };
+    case 'inc3':
+      return { schema: path.join(PRISMA_DIR, 'schema.prisma'), migrations: upTo(INC3_MIGRATION) };
     case 'current':
       return { schema: path.join(PRISMA_DIR, 'schema.prisma'), migrations: migrationNames() };
   }
@@ -276,6 +283,16 @@ export function inc1bRederiveSql(): string {
 /** The backfill section (3) of the inc2 migration, for re-running it (it must change nothing). */
 export function inc2BackfillSql(): string {
   return migrationSection(INC2_MIGRATION, '-- (3) BACKFILLS', '-- (4) CHECK CONSTRAINTS');
+}
+
+/** The backfill section (3) of the inc3 migration, for re-running it (it must change nothing). */
+export function inc3BackfillSql(): string {
+  return migrationSection(INC3_MIGRATION, '-- (3) BACKFILLS', '-- (4) CHECK CONSTRAINTS');
+}
+
+/** The pre-check section (1) of the inc3 migration, for running it on its own against a database. */
+export function inc3PrecheckSql(): string {
+  return migrationSection(INC3_MIGRATION, '-- (1) PRE-CHECK', '-- (2) GENERATED DDL');
 }
 
 /** The rows of `_prisma_migrations` that finished and were not rolled back, by name. */

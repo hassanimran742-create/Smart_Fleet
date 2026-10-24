@@ -16,8 +16,12 @@ import { z } from 'zod';
  *
  * Increment 2 (API_CONTRACT §9.1): the Inc 2 keys are live and editable, and `features.scanFlow` is
  * true. `confirmation.enabled` stays false by default until the owner confirms it (ADR-15).
+ *
+ * Increment 3 (API_CONTRACT §10): `dayEnd.enabled` is live and editable, and on by default from this
+ * release ("false (true when Inc 3 ships)", §6), so `features.dayEnd` follows it. Refills on scans need no
+ * switch: `features.refills` was always true.
  */
-export const RELEASE_INCREMENT = 2;
+export const RELEASE_INCREMENT = 3;
 
 /** One setting (API_CONTRACT §5.2, §6). The code holds the typed default; an `app_settings` row overrides it. */
 export interface SettingDefinition<K extends SettingKey> {
@@ -399,7 +403,10 @@ export const SETTINGS: SettingsRegistry = {
   // Not built.
   'walkIn.counterSwap.enabled': boolSetting('walkIn.counterSwap.enabled', false, { public: false, editable: false, inc: 2 }),
   // ---- Inc 3 ----
-  'dayEnd.enabled': boolSetting('dayEnd.enabled', false, { public: true, editable: true, inc: 3 }),
+  // "false (true when Inc 3 ships)" (API_CONTRACT §6): off in an Inc 1 or Inc 2 build, on from the Inc 3
+  // release. The office can still switch it off (setting switch `dayEnd`: every day-end route then answers
+  // 403 FEATURE_DISABLED, §3.4).
+  'dayEnd.enabled': boolSetting('dayEnd.enabled', RELEASE_INCREMENT >= 3, { public: true, editable: true, inc: 3 }),
 };
 
 export function isSettingKey(key: string): key is SettingKey {

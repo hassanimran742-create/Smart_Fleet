@@ -27,6 +27,7 @@ import { isUniqueViolation } from '../../common/errors/prisma-errors';
 import { alreadyApplied, replayed, type IdempotentResponse } from '../../common/idempotency/idempotency';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { finishRefillReceive, planRefillReceive } from '../filling-orders/refill-receive';
 import { lockOrder, lockTripOrders, stampLoadStarted } from '../orders/order-writes';
 import { currentBusinessDays } from '../orders/support/business-day';
 import { LOCKING_TX, type Tx } from '../orders/support/tx';
@@ -161,10 +162,13 @@ const OPEN_STOP: TripStopStatus[] = [TripStopStatus.PENDING, TripStopStatus.ARRI
 const SCAN_ID_KEY = 'cylinder_events_actor_user_id_client_scan_id_key';
 
 /** The action a recorded event stands for (§5.9: each action is one event code). */
-export function actionOfEvent(event: Pick<CylinderEvent, 'eventType' | 'source' | 'tripId'>): ScanAction | null {
+export function actionOfEvent(event: Pick<CylinderEvent, 'eventType' | 'source' | 'tripId'> & { fillingOrderId?: string | null }): ScanAction | null {
   switch (event.eventType) {
     case CylinderEventType.SCAN_OUT:
-      return 'LOAD';
+      // [Inc 3] A refill pickup is a SCAN_OUT with the refill and no trip.
+      return event.fillingOrderId && !event.tripId ? 'REFILL_PICKUP' : 'LOAD';
+    case CylinderEventType.FILLED:
+      return 'REFILL_FILL';
     case CylinderEventType.DELIVERED:
       return event.source === CylinderEventSource.MANUAL ? 'OFFICE_MANUAL_DELIVERY' : 'HANDOVER';
     case CylinderEventType.PICKED_UP_EMPTY:
@@ -395,7 +399,10 @@ export class ScanService {
 
   /**
    * `POST /store/scans` (the distributor's shop app): VEHICLE (any van) → the caller's one store, state
-   * unchanged (FAULTY and LOST included). No body field can name a store (ADR-13).
+   * unchanged (FAULTY and LOST included). No body field can name a store (ADR-13). [Inc 3] A cylinder on an
+   * open refill line comes back for its refill (API_CONTRACT §10.1): the receive carries the refill, the
+   * cylinder is FULL when its line was filled, the line is RETURNED, and the last one back completes the
+   * refill in this transaction (refill-receive.ts; audit `refill.complete`, SYSTEM). No money.
    */
   async storeScan(actor: UserActor, cmd: StoreScanCommand): Promise<ScanAnswer<StoreScanResult>> {
     const distributorId = ownDistributorId(actor);
@@ -440,17 +447,27 @@ export class ScanService {
     // 10. Only a cylinder on a van comes back through the store's scan.
     if (cylinder.custody_type !== CustodyType.VEHICLE) throw new AppError('SCAN_NOT_ON_A_VAN');
 
-    // 11. Write it: the state stays as it is.
+    // [Inc 3] A cylinder on an open refill line comes back for its refill (locks the refill row).
+    const refill = await planRefillReceive(tx, cylinder);
+
+    // 11. Write it: the state stays as it is, except a filled refill cylinder, which comes back FULL.
     const event = await this.writeMove(tx, {
       cylinder,
-      move: { eventType: CylinderEventType.SCAN_IN, to: { type: CustodyType.STORE, id: distributor.homeStoreId }, newState: cylinder.state, orderId: null },
+      move: {
+        eventType: CylinderEventType.SCAN_IN,
+        to: { type: CustodyType.STORE, id: distributor.homeStoreId },
+        newState: refill?.toState ?? cylinder.state,
+        orderId: null,
+      },
       actorUserId: actor.userId,
       source: cmd.entryMethod === 'TYPED' ? CylinderEventSource.TYPED : CylinderEventSource.SCAN,
       reason: null,
       clientScanId: cmd.scanId,
       tripId: null,
       tripStopId: null,
+      fillingOrderId: refill?.fillingOrderId ?? null,
     });
+    if (refill) await finishRefillReceive(tx, this.audit, refill, { eventId: event.id, receivedByUserId: actor.userId, at: event.createdAt });
     if (cmd.entryMethod === 'TYPED') await this.auditTyped(tx, actor, cylinder, distributor.code, cmd.code, 'STORE_RECEIVE', event.id, null);
     return this.storeAnswer(tx, 'RECORDED', distributor, cylinder.id, event, event);
   }
@@ -835,6 +852,8 @@ export class ScanService {
       clientScanId: string | null;
       tripId: string | null;
       tripStopId: string | null;
+      /** [Inc 3] The refill of the store's receive of a refill cylinder. */
+      fillingOrderId?: string | null;
       lat?: number;
       lng?: number;
     },
@@ -857,6 +876,7 @@ export class ScanService {
         tripId: p.tripId,
         tripStopId: p.tripStopId,
         orderId: move.orderId,
+        fillingOrderId: p.fillingOrderId ?? null,
       },
     });
     if (p.lat !== undefined && p.lng !== undefined) {

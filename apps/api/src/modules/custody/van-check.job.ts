@@ -4,6 +4,7 @@ import { CustodyType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { LOCKING_TX } from '../orders/support/tx';
+import { openRefillLineCylinderIds } from './custody-moves';
 import { countCylindersOnVehicle } from './van';
 import { raiseVanNotEmpty } from './van-alerts';
 
@@ -49,8 +50,10 @@ export class VanCheckJob {
     const plates: string[] = [];
     for (const { custodyId: vehicleId } of loaded) {
       const plate = await this.prisma.$transaction(async (tx) => {
-        const count = await countCylindersOnVehicle(tx, vehicleId);
-        if (count === 0) return null;
+        // [Inc 3] Cylinders on an open refill line are the refill's, not leftovers (§9.9).
+        const onRefill = await openRefillLineCylinderIds(tx, { vehicleId });
+        const count = (await countCylindersOnVehicle(tx, vehicleId)) - onRefill.size;
+        if (count <= 0) return null;
         const van = await tx.vehicle.findUnique({ where: { id: vehicleId }, select: { plateNo: true } });
         const lastTrip = await tx.trip.findFirst({
           where: { vehicleId },

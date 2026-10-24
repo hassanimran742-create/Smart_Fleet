@@ -21,6 +21,8 @@ const LANE_MODULES = [
   'filling-stations',
   'cylinders',
   'admin-summary',
+  // [Inc 3] Day-end moves cylinders and never money (API_CONTRACT §10.2).
+  'day-end',
 ];
 
 function files(dir: string): string[] {
@@ -57,8 +59,8 @@ describe('api-orders: money moves only through WalletService', () => {
     const policy = fs.readFileSync(path.join(SRC, 'orders', 'orders-fee.policy.ts'), 'utf8');
     expect(policy).toMatch(/this\.wallet\.debit\(/);
     expect(policy).toMatch(/this\.wallet\.reverse\(/);
-    // Refills carry no money: the refill and station modules never import the wallet.
-    for (const module of ['filling-orders', 'filling-stations']) {
+    // Refills and day-end carry no money: the refill, station and day-end modules never import the wallet.
+    for (const module of ['filling-orders', 'filling-stations', 'day-end']) {
       for (const file of files(path.join(SRC, module))) {
         const text = fs.readFileSync(file, 'utf8');
         expect({ file: path.basename(file), importsWallet: /from '\.\.\/wallet\//.test(text) }).toEqual({ file: path.basename(file), importsWallet: false });

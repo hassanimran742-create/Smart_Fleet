@@ -28,6 +28,9 @@ export type CustodyTypeValue = `${CustodyType}`;
  * Mirrors Prisma `CylinderEventType`. The driver's words read backwards from these codes (README):
  * Load = SCAN_OUT, Deliver = DELIVERED, Take back = PICKED_UP_EMPTY, the store's receive = SCAN_IN.
  * REGISTERED [Inc 2] is a bulk registration into the home store. RETURNED_TO_DISTRIBUTOR is legacy.
+ * [Inc 3] A refill pickup is SCAN_OUT with the refill and no trip; FILLED is the fill scan at the station
+ * (the van keeps the cylinder; it becomes FULL only on the store's receive); ADJUSTED is an approved
+ * day-end fix (source DAY_END_FIX, with the sheet's reason).
  */
 export enum CylinderEventType {
   SCAN_IN = 'SCAN_IN',
@@ -39,6 +42,8 @@ export enum CylinderEventType {
   MARK_FAULTY = 'MARK_FAULTY',
   MARK_LOST = 'MARK_LOST',
   REGISTERED = 'REGISTERED',
+  FILLED = 'FILLED',
+  ADJUSTED = 'ADJUSTED',
 }
 
 /** The wire value of a {@link CylinderEventType}. */
@@ -46,13 +51,15 @@ export type CylinderEventTypeValue = `${CylinderEventType}`;
 
 /**
  * [Inc 2] Mirrors Prisma `CylinderEventSource`: how a move was recorded. TYPED is a cylinder number
- * typed in (logged, audit `custody.typed_entry`); MANUAL is the office, with a reason.
+ * typed in (logged, audit `custody.typed_entry`); MANUAL is the office, with a reason. [Inc 3]
+ * DAY_END_FIX is an approved day-end fix, with the sheet's "Why different" as its reason.
  */
 export const CylinderEventSource = {
   SCAN: 'SCAN',
   TYPED: 'TYPED',
   MANUAL: 'MANUAL',
   REGISTRATION: 'REGISTRATION',
+  DAY_END_FIX: 'DAY_END_FIX',
 } as const;
 export type CylinderEventSource = (typeof CylinderEventSource)[keyof typeof CylinderEventSource];
 
@@ -110,6 +117,8 @@ export interface CylinderEvent {
   tripStopId?: UUID | null;
   orderId?: UUID;
   transferId?: UUID;
+  /** [Inc 3] The refill of a refill move (pickup, fill, or the store's receive of a refill cylinder). */
+  fillingOrderId?: UUID | null;
   createdAt: string;
 }
 
@@ -118,7 +127,9 @@ export interface CylinderEvent {
 /**
  * [Inc 2] The moves `ScanService.apply` handles (API_CONTRACT §5.9). REFILL_PICKUP and REFILL_FILL come
  * in Inc 3. Each is one event code: LOAD SCAN_OUT, HANDOVER DELIVERED, TAKE_BACK PICKED_UP_EMPTY,
- * STORE_RECEIVE SCAN_IN, OFFICE_MANUAL_DELIVERY DELIVERED (source MANUAL), REGISTER REGISTERED.
+ * STORE_RECEIVE SCAN_IN, OFFICE_MANUAL_DELIVERY DELIVERED (source MANUAL), REGISTER REGISTERED,
+ * REFILL_PICKUP SCAN_OUT (with `filling_order_id`, no trip), REFILL_FILL FILLED. A day-end fix is not a
+ * scan: it is an ADJUSTED event (source DAY_END_FIX), or REGISTERED for an extra number.
  */
 export const SCAN_ACTIONS = [
   'LOAD',

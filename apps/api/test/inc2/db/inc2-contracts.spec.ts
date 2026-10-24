@@ -41,7 +41,7 @@ import {
 } from '../../../src/modules/messaging/messaging.interface';
 import { isEditableOverApi, isShipped, RELEASE_INCREMENT, SETTINGS } from '../../../src/modules/settings/registry';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
-import { INC1A_SCHEMA, INC1B_MIGRATION, INC1B_SCHEMA, INC2_MIGRATION, MIGRATIONS_DIR, PRISMA_DIR } from '../../helpers/migrations';
+import { INC1A_SCHEMA, INC1B_MIGRATION, INC1B_SCHEMA, INC2_MIGRATION, INC2_SCHEMA, MIGRATIONS_DIR } from '../../helpers/migrations';
 
 const API_DIR = path.resolve(__dirname, '..', '..', '..');
 
@@ -73,8 +73,8 @@ describe('inc2 enum mirrors (shared-types = schema.prisma)', () => {
 describe('Inc 2 settings (API_CONTRACT §6, §9.1)', () => {
   const INC2_KEYS = types.SETTING_KEYS.filter((key) => SETTINGS[key].inc === 2);
 
-  it('this build ships Increment 2: the Inc 2 keys are live, the Inc 3 key is not', () => {
-    expect(RELEASE_INCREMENT).toBe(2);
+  it('from Increment 2 on, the Inc 2 keys are live; the Inc 3 key ships with Increment 3', () => {
+    expect(RELEASE_INCREMENT).toBeGreaterThanOrEqual(2);
     expect(INC2_KEYS).toEqual([
       'confirmation.enabled',
       'confirmation.linkTtlHours',
@@ -87,8 +87,8 @@ describe('Inc 2 settings (API_CONTRACT §6, §9.1)', () => {
       'walkIn.counterSwap.enabled',
     ]);
     for (const key of INC2_KEYS) expect({ key, shipped: isShipped(key) }).toEqual({ key, shipped: true });
-    expect(isShipped('dayEnd.enabled')).toBe(false);
-    expect(isEditableOverApi('dayEnd.enabled')).toBe(false);
+    expect(isShipped('dayEnd.enabled')).toBe(RELEASE_INCREMENT >= 3);
+    expect(isEditableOverApi('dayEnd.enabled')).toBe(RELEASE_INCREMENT >= 3);
   });
 
   it('only the built Inc 2 keys can be changed over the API; confirmation stays off by default (ADR-15)', () => {
@@ -130,16 +130,16 @@ describe('Inc 2 settings (API_CONTRACT §6, §9.1)', () => {
     return { db, service: new SettingsService(db as never, new AuditLogService(db as never), config) };
   }
 
-  it('GET /app/config reports the scan flow on; confirmations follow the stored switch; day-end stays off until Inc 3', async () => {
+  it('GET /app/config reports the scan flow on; confirmations follow the stored switch; day-end is on from Inc 3', async () => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const defaults = await serviceWith([]).service.publicConfig();
-    expect(defaults.features).toMatchObject({ scanFlow: true, confirmations: false, typedCylinderNumber: true, dayEnd: false });
+    expect(defaults.features).toMatchObject({ scanFlow: true, confirmations: false, typedCylinderNumber: true, dayEnd: RELEASE_INCREMENT >= 3 });
     const switched = await serviceWith([
       { key: 'confirmation.enabled', value: true },
       { key: 'custody.typedEntry.enabled', value: false },
       { key: 'dayEnd.enabled', value: true },
     ]).service.publicConfig();
-    expect(switched.features).toMatchObject({ scanFlow: true, confirmations: true, typedCylinderNumber: false, dayEnd: false });
+    expect(switched.features).toMatchObject({ scanFlow: true, confirmations: true, typedCylinderNumber: false, dayEnd: RELEASE_INCREMENT >= 3 });
   });
 
   it('PATCH /settings/:key accepts the editable Inc 2 keys and refuses the reserved ones and bad values', async () => {
@@ -157,7 +157,7 @@ describe('Inc 2 settings (API_CONTRACT §6, §9.1)', () => {
     };
     expect(await code('custody.forgottenInPolicy', 'BLOCK_OUT_MANUAL_DELIVERY')).toBe('SETTING_NOT_EDITABLE');
     expect(await code('walkIn.counterSwap.enabled', true)).toBe('SETTING_NOT_EDITABLE');
-    expect(await code('dayEnd.enabled', true)).toBe('SETTING_NOT_EDITABLE');
+    expect(await code('dayEnd.enabled', true)).toBe(RELEASE_INCREMENT >= 3 ? 'OK' : 'SETTING_NOT_EDITABLE');
     expect(await code('confirmation.linkTtlHours', 23)).toBe('SETTING_INVALID_VALUE');
     expect(await code('confirmation.linkTtlHours', 169)).toBe('SETTING_INVALID_VALUE');
     expect(await code('confirmation.caseOnAnswers', ['NO', 'NO'])).toBe('SETTING_INVALID_VALUE');
@@ -357,10 +357,8 @@ describe('the inc1b and inc2 migration files', () => {
     expect(section(sql(INC1B_MIGRATION), '-- (4) GENERATED DDL (unchanged)', '-- (5) WALLET INVARIANTS')).toBe(diff(INC1A_SCHEMA, INC1B_SCHEMA));
   }, 120_000);
 
-  it('inc2 keeps the generated DDL unchanged (the diff from the inc1b schema to prisma/schema.prisma)', () => {
-    expect(section(sql(INC2_MIGRATION), '-- (2) GENERATED DDL (unchanged)', '-- (3) BACKFILLS')).toBe(
-      diff(INC1B_SCHEMA, path.join(PRISMA_DIR, 'schema.prisma')),
-    );
+  it('inc2 keeps the generated DDL unchanged (the diff from the inc1b schema to the Inc 2 schema)', () => {
+    expect(section(sql(INC2_MIGRATION), '-- (2) GENERATED DDL (unchanged)', '-- (3) BACKFILLS')).toBe(diff(INC1B_SCHEMA, INC2_SCHEMA));
   }, 120_000);
 
   it('inc2 uses no value it adds to an existing enum as a literal (55P04), except through ::text', () => {

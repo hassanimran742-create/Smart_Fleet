@@ -32,6 +32,23 @@ export interface IncomingFile {
   originalname?: string;
 }
 
+/**
+ * [Inc 3] Bytes kept by {@link FilesService.storeGenerated}: a file the server made, or one a route checked
+ * itself (the day-end sheet and the shop's filled copy, API_CONTRACT §10.2).
+ */
+export interface StoreGeneratedInput {
+  /** Chosen first when the file carries its own id (the day-end sheet's hidden "About"). */
+  id?: string;
+  bytes: Buffer;
+  mimeType: string;
+  /** The key's extension, e.g. "xlsx". */
+  extension: string;
+  purpose: StoredFilePurpose;
+  uploadedByUserId: string;
+  distributorId: string | null;
+  originalName?: string | null;
+}
+
 /** Who may use a file: its purpose, and optionally who uploaded it. */
 export interface FileUse {
   purpose: StoredFilePurpose;
@@ -170,6 +187,50 @@ export class FilesService implements OnModuleInit {
       throw error;
     }
     return this.toUploadResult(row);
+  }
+
+  /**
+   * [Inc 3] Stores bytes that aren't a picture upload (the picture rules of {@link upload} don't apply: the
+   * caller checked them): the day-end sheet the server made (DAY_END_SHEET) and the shop's filled sheet
+   * (DAY_END_UPLOAD). The object is put first, then its `stored_files` row is written on `tx` when given, so
+   * the row commits with the caller's change. Storage being down is 503 SERVICE_UNAVAILABLE.
+   */
+  async storeGenerated(input: StoreGeneratedInput, tx?: Prisma.TransactionClient): Promise<StoredFile> {
+    const id = input.id ?? randomUUID();
+    const key = `uploads/${new Date().toISOString().slice(0, 10)}/${id}.${input.extension}`;
+    try {
+      await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: input.bytes, ContentType: input.mimeType }));
+    } catch (error) {
+      this.logger.error(`Upload to ${this.bucket} failed: ${(error as Error).message}`);
+      throw new AppError('SERVICE_UNAVAILABLE', undefined, { cause: error });
+    }
+    try {
+      return await (tx ?? this.prisma).storedFile.create({
+        data: {
+          id,
+          storageKey: key,
+          purpose: input.purpose,
+          mimeType: input.mimeType,
+          sizeBytes: input.bytes.length,
+          sha256: createHash('sha256').update(input.bytes).digest('hex'),
+          originalName: safeOriginalName(input.originalName ?? undefined),
+          uploadedByUserId: input.uploadedByUserId,
+          distributorId: input.distributorId,
+        },
+      });
+    } catch (error) {
+      // Best effort: don't leave an object nobody can reach.
+      await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key })).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  /**
+   * [Inc 3] Best effort: removes the object of a {@link storeGenerated} file whose `stored_files` row never
+   * committed (the caller's transaction failed after the put). Never throws.
+   */
+  async discardObject(storageKey: string): Promise<void> {
+    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: storageKey })).catch(() => undefined);
   }
 
   /** `GET /files/:id/url`: a fresh 1-hour URL for the uploader or the office; FILE_NOT_FOUND otherwise. */

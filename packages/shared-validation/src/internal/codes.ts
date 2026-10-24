@@ -53,6 +53,13 @@ export const SCAN_ENTRY_METHODS = ['QR', 'TYPED'] as const;
 /** [Inc 2] The actions a driver scans at a stop (shared-types `DRIVER_SCAN_ACTIONS`). */
 export const DRIVER_SCAN_ACTIONS = ['LOAD', 'HANDOVER', 'TAKE_BACK'] as const;
 
+/** [Inc 3] The two driver scans of a refill run (shared-types `REFILL_SCAN_PHASES`). */
+export const REFILL_SCAN_PHASES = ['PICKUP', 'FILL'] as const;
+/** [Inc 3] "Leave store" and "Leave station" (shared-types `REFILL_ADVANCE_TARGETS`). */
+export const REFILL_ADVANCE_TARGETS = ['EMPTIES_PICKED', 'FILLED'] as const;
+/** [Inc 3] Prisma `DayCloseStatus` (shared-types `DayCloseStatus`). */
+export const DAY_CLOSE_STATUSES = ['OPEN', 'SUBMITTED', 'APPROVED'] as const;
+
 /** The four driver moves the legacy `POST /custody/scan` still accepts (API_CONTRACT §7.7). */
 export const LEGACY_SCAN_EVENT_TYPES = ['SCAN_OUT', 'DELIVERED', 'PICKED_UP_EMPTY', 'SCAN_IN'] as const;
 

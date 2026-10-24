@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { latSchema, lngSchema, optionalTextSchema, requireBothCoordinates, textSchema, uuidSchema } from './common.schema';
-import { DRIVER_SCAN_ACTIONS, RETURN_STATES, SCAN_ENTRY_METHODS, TAKE_BACK_SHORT_REASONS } from './internal/codes';
+import { DRIVER_SCAN_ACTIONS, REFILL_SCAN_PHASES, RETURN_STATES, SCAN_ENTRY_METHODS, TAKE_BACK_SHORT_REASONS } from './internal/codes';
 
 /**
  * [Inc 2 and Inc 3] Scan bodies (API_CONTRACT §9.2-§9.5, §10.1). Every one refuses `toCustodyType` and
@@ -56,11 +56,15 @@ export const storeScanSchema = z.object({
 });
 export type StoreScanInput = z.infer<typeof storeScanSchema>;
 
-/** [Inc 3] `POST /filling-orders/:id/scans` (the refill's assigned driver). */
+/**
+ * [Inc 3] `POST /filling-orders/:id/scans` (the refill's assigned driver, API_CONTRACT §10.1): PICKUP
+ * (store → the refill's van) or FILL (at the station; the van keeps it). Like every scan body it
+ * refuses `toCustodyType` and `toCustodyId` and drops other unknown fields.
+ */
 export const refillScanSchema = z
   .object({
     scanId: uuidSchema,
-    phase: z.enum(['PICKUP', 'FILL']),
+    phase: z.enum(REFILL_SCAN_PHASES),
     code: cylinderCodeSchema,
     entryMethod: z.enum(ENTRY_METHODS),
     lat: latSchema.optional(),

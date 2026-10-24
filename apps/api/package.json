@@ -23,6 +23,8 @@
     "seed": "ts-node prisma/seed.ts",
     "seed:demo": "ts-node prisma/demo-seed.ts",
     "settings:set": "ts-node scripts/set-setting.ts",
+    "pilot:setup": "ts-node scripts/pilot-setup.ts",
+    "pilot:reset": "ts-node scripts/pilot-reset.ts",
     "users:create-office": "ts-node src/modules/users/cli/create-office-user.ts"
   },
   "dependencies": {

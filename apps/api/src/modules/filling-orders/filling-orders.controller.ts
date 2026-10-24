@@ -1,40 +1,53 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { FillingOrderStatus, UserRole, type Prisma } from '@prisma/client';
 import {
   assignDriverSchema,
   cancelFillingOrderSchema,
   createFillingOrderSchema,
-  refillFilledSchema,
-  refillPickedEmptiesSchema,
+  refillAdvanceSchema,
+  refillScanSchema,
   type AssignDriverInput,
   type CancelFillingOrderInput,
   type CreateFillingOrderInput,
-  type RefillFilledInput,
-  type RefillPickedEmptiesInput,
+  type RefillAdvanceInput,
+  type RefillScanInput,
 } from '@smartfleet/shared-validation';
 import type { UserActor } from '../../common/auth/actor';
 import { ownDistributorId, ownDriverId } from '../../common/auth/own-driver-id';
 import { CurrentActor } from '../../common/decorators/current-user.decorator';
 import { ExactRoles } from '../../common/decorators/roles.decorator';
+import { IdempotencyKey } from '../../common/idempotency/idempotency';
 import { ZodBody } from '../../common/pipes/zod-body.pipe';
+import { scanResponse } from '../custody/scan.service';
 import { UuidParam } from '../orders/support/uuid-param.pipe';
 import { FillingOrdersService } from './filling-orders.service';
+import { RefillScanService } from './refill-scans.service';
 import type { RefillView } from './refill.mapper';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Refills (API_CONTRACT §7.11): exact roles throughout. The distributor requests and cancels its own,
- * the office assigns and completes, and only the assigned driver moves the steps.
+ * Refills (API_CONTRACT §7.11, §10.1): exact roles throughout. The distributor requests and cancels its own,
+ * the office assigns, and only the assigned driver moves the steps: by PICKUP and FILL scans and the two
+ * "Leave" steps. The store's receive scans (`POST /store/scans`) bring the cylinders back and finish the
+ * refill by themselves. No route here moves money.
  */
 @Controller('filling-orders')
 export class FillingOrdersController {
-  constructor(private readonly refills: FillingOrdersService) {}
+  constructor(
+    private readonly refills: FillingOrdersService,
+    private readonly scans: RefillScanService,
+  ) {}
 
+  /** 201 with the new refill (AG-R007); a retry with the same Idempotency-Key 200 `Idempotent-Replay`. */
   @ExactRoles(UserRole.DISTRIBUTOR)
   @Post()
-  create(@CurrentActor() actor: UserActor, @Body(new ZodBody(createFillingOrderSchema)) body: CreateFillingOrderInput): Promise<RefillView> {
-    return this.refills.create(actor, body);
+  create(
+    @CurrentActor() actor: UserActor,
+    @IdempotencyKey() key: string | undefined,
+    @Body(new ZodBody(createFillingOrderSchema)) body: CreateFillingOrderInput,
+  ) {
+    return this.refills.create(actor, body, key);
   }
 
   /** The office list, optionally by status or driver. */
@@ -78,42 +91,70 @@ export class FillingOrdersController {
     return this.refills.assign(actor, actor, id, body.driverId);
   }
 
+  // ---------- Inc 3: the refill run on scans (API_CONTRACT §10.1) ----------
+
+  /**
+   * PICKUP or FILL (the assigned driver): 201 RECORDED; a resend 200 `Idempotent-Replay`; the same move
+   * again 200 `X-Already-Applied`. `toCustodyType` and `toCustodyId` are refused (400).
+   */
+  @ExactRoles(UserRole.DRIVER)
+  @Post(':id/scans')
+  async scan(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string, @Body(new ZodBody(refillScanSchema)) body: RefillScanInput) {
+    return scanResponse(
+      await this.scans.scan(actor, id, {
+        scanId: body.scanId.toLowerCase(),
+        phase: body.phase,
+        code: body.code,
+        entryMethod: body.entryMethod,
+        lat: body.lat,
+        lng: body.lng,
+      }),
+    );
+  }
+
+  /** "Leave store" (EMPTIES_PICKED) or "Leave station" (FILLED), the assigned driver: 200; the same again 200 `X-Already-Applied`. */
+  @ExactRoles(UserRole.DRIVER)
+  @Post(':id/advance')
+  @HttpCode(200)
+  advance(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string, @Body(new ZodBody(refillAdvanceSchema)) body: RefillAdvanceInput) {
+    return this.refills.advance(actor, id, body.to);
+  }
+
+  // ---------- retired from Inc 3 (§10.1 "Retired", Appendix A) ----------
+
+  /** The Inc 1 count steps: 410 REFILL_USE_SCANS for the assigned driver (the body is ignored). */
   @ExactRoles(UserRole.DRIVER)
   @Patch(':id/picked-empties')
-  pickedEmpties(
-    @CurrentActor() actor: UserActor,
-    @Param('id', new UuidParam()) id: string,
-    @Body(new ZodBody(refillPickedEmptiesSchema)) body: RefillPickedEmptiesInput,
-  ) {
-    return this.refills.step(actor, id, 'picked-empties', body.emptyCount);
+  pickedEmpties(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
+    return this.refills.retiredStep(actor, id);
   }
 
   @ExactRoles(UserRole.DRIVER)
   @Patch(':id/at-station')
   atStation(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
-    return this.refills.step(actor, id, 'at-station');
+    return this.refills.retiredStep(actor, id);
   }
 
   @ExactRoles(UserRole.DRIVER)
   @Patch(':id/filled')
-  filled(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string, @Body(new ZodBody(refillFilledSchema)) body: RefillFilledInput) {
-    return this.refills.step(actor, id, 'filled', body.filledCount);
+  filled(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
+    return this.refills.retiredStep(actor, id);
   }
 
   @ExactRoles(UserRole.DRIVER)
   @Patch(':id/returned')
   returned(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
-    return this.refills.step(actor, id, 'returned');
+    return this.refills.retiredStep(actor, id);
   }
 
-  /** The office's "Mark complete": no money. */
+  /** The office's Inc 1 "Mark complete": 410 REFILL_AUTO_COMPLETES (the last receive scan completes a refill). */
   @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id/complete')
-  complete(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
-    return this.refills.complete(actor, actor, id);
+  complete(@Param('id', new UuidParam()) id: string) {
+    return this.refills.retiredComplete(id);
   }
 
-  /** The owning distributor only, before pickup. The office has no cancel. */
+  /** The owning distributor only, before the first pickup. The office has no cancel. */
   @ExactRoles(UserRole.DISTRIBUTOR)
   @Patch(':id/cancel')
   cancel(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string, @Body(new ZodBody(cancelFillingOrderSchema)) body: CancelFillingOrderInput) {

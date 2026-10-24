@@ -105,7 +105,8 @@ describeDb('migrations: a fresh database through inc2', () => {
       app = await createTestApp();
       expect((await http(app).get('/api/v1/health').expect(200)).body.status).toBe('ok');
       const config = await http(app).get('/api/v1/app/config').expect(200);
-      expect(config.body.features).toMatchObject({ scanFlow: true, confirmations: false, typedCylinderNumber: true, dayEnd: false });
+      // From the Inc 3 release day-end is on by default (API_CONTRACT §6).
+      expect(config.body.features).toMatchObject({ scanFlow: true, confirmations: false, typedCylinderNumber: true, dayEnd: true });
     } finally {
       await app?.close();
       process.env.DATABASE_URL = previous;

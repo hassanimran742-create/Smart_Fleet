@@ -1,8 +1,10 @@
 import { CylinderEventType, CylinderState } from '@prisma/client';
 import type { CylinderStateValue, VanCounts, VanCylinderCame } from '@smartfleet/shared-types';
 import { AppError } from '../../common/errors/app-error';
+import { formatNo } from '@smartfleet/shared-utils';
 import { orderShortCode } from '../orders/orders.mapper';
 import type { Db } from '../orders/support/tx';
+import { openRefillLineCylinderIds } from './custody-moves';
 import { cylinderShortCode } from './cylinder-codes';
 import { sizeLabels } from './holders';
 
@@ -20,11 +22,14 @@ export interface VanCylinder {
   /**
    * TAKEN_BACK: its last move onto the van was a take-back. NOT_DELIVERED: loaded for an order of its
    * run that wasn't delivered (still open, or could not deliver). SPARE: loaded for an order cancelled
-   * after loading, more than the run needs, or left on the van from an earlier run. REFILL is Inc 3.
+   * after loading, more than the run needs, or left on the van from an earlier run. REFILL [Inc 3]: on an
+   * open refill line (picked up for a refill and not yet received).
    */
   came: VanCylinderCame;
   /** For a taken-back cylinder: the customer and the order it came back from. */
   from: { clientName: string; orderShortCode: string } | null;
+  /** [Inc 3] For a refill cylinder: the refill's number (AG-R007). */
+  refill: { shortCode: string } | null;
   /** The run of its last move onto the van (a LOAD or a take-back), if any. */
   tripId: string | null;
   /** When it went onto the van. */
@@ -47,8 +52,10 @@ interface VanRow {
 
 /**
  * Every cylinder on a van, with its `came` (API_CONTRACT §9.3). `perspectiveTripId` is the run being
- * finished: a cylinder loaded on another run is a SPARE from its point of view. Without it (the store's
- * incoming list) a loaded cylinder is judged against its own run. `distributorId` keeps one owner's.
+ * finished: a cylinder loaded on another run is a SPARE from its point of view, and a cylinder on an open
+ * refill line isn't the run's at all, so it is left out (Inc 3, §10.1: it doesn't block "Finish trip").
+ * Without it (the store's incoming list) a loaded cylinder is judged against its own run, and a refill
+ * cylinder is listed as REFILL with its refill. `distributorId` keeps one owner's.
  */
 export async function vanCylinders(
   db: Db,
@@ -63,7 +70,9 @@ export async function vanCylinders(
     LEFT JOIN cylinder_events e ON e.id = c.last_event_id
     WHERE c.custody_type = 'VEHICLE' AND c.custody_id = ${vehicleId}::uuid
     ORDER BY e.created_at ASC NULLS FIRST, c.id`;
-  const mine = opts.distributorId ? rows.filter((row) => row.distributor_id === opts.distributorId) : rows;
+  const owned = opts.distributorId ? rows.filter((row) => row.distributor_id === opts.distributorId) : rows;
+  const refills = await openRefillLineCylinderIds(db, { cylinderIds: owned.map((row) => row.id) });
+  const mine = opts.perspectiveTripId ? owned.filter((row) => !refills.has(row.id)) : owned;
   if (mine.length === 0) return [];
   const sizes = await sizeLabels(db, mine.map((row) => row.cylinder_type_id));
 
@@ -91,7 +100,12 @@ export async function vanCylinders(
   return mine.map((row) => {
     let came: VanCylinderCame = 'SPARE';
     let from: VanCylinder['from'] = null;
-    if (row.event_type === CylinderEventType.PICKED_UP_EMPTY) {
+    let refill: VanCylinder['refill'] = null;
+    const onRefill = refills.get(row.id);
+    if (onRefill) {
+      came = 'REFILL';
+      if (onRefill.refillNo !== null) refill = { shortCode: formatNo(row.distributor_code, 'REFILL', onRefill.refillNo) };
+    } else if (row.event_type === CylinderEventType.PICKED_UP_EMPTY) {
       came = 'TAKEN_BACK';
       const order = row.order_id ? orderById.get(row.order_id) : undefined;
       if (order) from = { clientName: order.client.name, orderShortCode: orderShortCode(order.distributor.code, order.orderNo) };
@@ -114,6 +128,7 @@ export async function vanCylinders(
       state: row.state as CylinderStateValue,
       came,
       from,
+      refill,
       tripId: row.trip_id,
       since: row.event_at,
     };

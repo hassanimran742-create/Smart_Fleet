@@ -4,7 +4,8 @@
  * inc2_driver_flow (DATA_MODEL §3.5, §3.8 invariants 17–20, §4). Proves the contract step, the inc2
  * backfills (`last_event_id`, `short_no`, `next_cylinder_no`), the CHECKs and unique keys, that no money
  * moves, that both backfill sections can run again without changing anything, that the result has no
- * drift from schema.prisma, and that the API runs on it.
+ * drift from the Increment 2 schema, and that the API runs on it once it has gone on through the current
+ * release (from Inc 3 the API runs only on the current release).
  */
 import * as path from 'path';
 import type { INestApplication } from '@nestjs/common';
@@ -24,6 +25,7 @@ import {
   INC1A_MIGRATION,
   INC1B_MIGRATION,
   INC2_MIGRATION,
+  INC2_SCHEMA,
   makeRelease,
   prisma,
   removeScratchRoot,
@@ -96,8 +98,8 @@ describeDb('inc2 release (inc1b + inc2) on today-shaped Increment 1 data', () =>
     expect(run.output).toContain(INC1B_MIGRATION);
     expect(run.output).toContain(INC2_MIGRATION);
     expect(await appliedMigrations(today.client())).toEqual(['0_baseline', INC1A_MIGRATION, INC1B_MIGRATION, INC2_MIGRATION]);
-    // No drift: the migrated database is exactly prisma/schema.prisma.
-    const live = prisma(['migrate', 'diff', '--from-url', today.url, '--to-schema-datamodel', 'prisma/schema.prisma', '--exit-code'], today.url);
+    // No drift: the migrated database is exactly the Increment 2 schema.
+    const live = prisma(['migrate', 'diff', '--from-url', today.url, '--to-schema-datamodel', INC2_SCHEMA, '--exit-code'], today.url);
     expect({ code: live.code, output: live.code === 0 ? '' : live.output }).toEqual({ code: 0, output: '' });
   });
 
@@ -316,14 +318,16 @@ describeDb('inc2 release (inc1b + inc2) on today-shaped Increment 1 data', () =>
     expect(await digest()).toEqual(first);
   });
 
-  it('the API runs on the migrated database: Inc 2 is on, confirmation stays off, and Inc 1 reads still work', async () => {
+  it('the API runs once the database has gone on through the current release: Inc 2 is on, confirmation stays off, and Inc 1 reads still work', async () => {
+    const upgraded = runMigrateSh(makeRelease('current'), today.url);
+    expect({ code: upgraded.code, output: upgraded.code === 0 ? '' : upgraded.output }).toEqual({ code: 0, output: '' });
     const previous = process.env.DATABASE_URL;
     process.env.DATABASE_URL = today.url;
     let app: INestApplication | undefined;
     try {
       app = await createTestApp();
       const config = await http(app).get('/api/v1/app/config').expect(200);
-      expect(config.body.features).toMatchObject({ scanFlow: true, confirmations: false, typedCylinderNumber: true, dayEnd: false });
+      expect(config.body.features).toMatchObject({ scanFlow: true, confirmations: false, typedCylinderNumber: true, dayEnd: true });
       expect(config.body.support.phone).toBe('0300 1112222');
       const shop = { userId: ID('000000000da1'), role: UserRole.DISTRIBUTOR, distributorId: AG };
       const orders = await http(app).get('/api/v1/orders').set(authHeader(shop)).expect(200);

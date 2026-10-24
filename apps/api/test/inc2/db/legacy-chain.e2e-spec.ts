@@ -10,7 +10,8 @@
  *   inc1b  two spellings of one phone (D01's Fatima)      → the customers are merged
  *   inc2   a run in progress (ISB-102)                    → the run is finished
  *
- * Afterwards the database is exactly schema.prisma, every wallet adds up, and the API runs on it.
+ * Afterwards the database is exactly the Increment 2 schema and every wallet adds up. From Inc 3 the API runs
+ * only on the current release, so it is started once the database has gone on through it too.
  */
 import * as path from 'path';
 import type { INestApplication } from '@nestjs/common';
@@ -132,9 +133,9 @@ describeDb('migrations: the legacy database through baseline, inc1a and the inc2
     expect(await appliedMigrations(db)).toEqual(['0_baseline', INC1A_MIGRATION, INC1B_MIGRATION, INC2_MIGRATION]);
   }, 900_000);
 
-  it('the upgraded legacy database is exactly schema.prisma, its wallets add up, and the old refused top-ups are REJECTED', async () => {
+  it('the upgraded legacy database is exactly the Increment 2 schema, its wallets add up, and the old refused top-ups are REJECTED', async () => {
     const db = legacy.client();
-    const live = prisma(['migrate', 'diff', '--from-url', legacy.url, '--to-schema-datamodel', 'prisma/schema.prisma', '--exit-code'], legacy.url);
+    const live = prisma(['migrate', 'diff', '--from-url', legacy.url, '--to-schema-datamodel', releaseSchema(inc2Release), '--exit-code'], legacy.url);
     ok(live);
     const mismatches = await db.$queryRaw`
       SELECT d.id FROM distributors d LEFT JOIN ledger_entries l ON l.distributor_id = d.id
@@ -147,7 +148,8 @@ describeDb('migrations: the legacy database through baseline, inc1a and the inc2
     expect(await db.$queryRaw`SELECT count(*)::int AS n FROM expenses WHERE type_id IS NULL`).toEqual([{ n: 0 }]);
   });
 
-  it('the API runs on the upgraded legacy database', async () => {
+  it('the API runs on the upgraded legacy database once it has gone through the current release', async () => {
+    ok(runMigrateSh(makeRelease('current'), legacy.url));
     const previous = process.env.DATABASE_URL;
     process.env.DATABASE_URL = legacy.url;
     let app: INestApplication | undefined;
