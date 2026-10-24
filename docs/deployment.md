@@ -89,9 +89,11 @@ openssl rand -hex 32  # JWT_ACCESS_SECRET (prod)
 openssl rand -hex 32  # JWT_REFRESH_SECRET (prod)
 openssl rand -hex 32  # ENCRYPTION_KEY (prod)
 openssl rand -hex 32  # BLIND_INDEX_KEY (prod)
-# Repeat 4 times for staging.
+openssl rand -hex 32  # CONFIRM_LINK_SECRET (prod, from Inc 2)
+# Repeat 5 times for staging.
 ```
-Store all eight values in your password manager.
+Store all ten values in your password manager. `CONFIRM_LINK_SECRET` signs the customers'
+delivery links: changing it later breaks every link already sent, so set it once.
 
 ---
 
@@ -121,6 +123,9 @@ Store all eight values in your password manager.
    - `BLIND_INDEX_KEY=<from B7>`
    - `SMS_PROVIDER=mock`             # Pilot mode — read OTPs from Railway logs
    - `SMS_FROM=SmartFleet`
+   - `PUBLIC_LINK_BASE_URL=https://api.smartfleetpk.com`   # From Inc 2: required, https (the API host)
+   - `CONFIRM_LINK_SECRET=<from B7>`                     # From Inc 2: required, at least 32 characters
+   - `MESSAGING_PROVIDER=mock`                           # From Inc 2: the confirmation SMS provider
    # When ready for real SMS, switch SMS_PROVIDER=eocean and add:
    # - EOCEAN_USERNAME=<from Eocean>
    # - EOCEAN_PASSWORD=<from Eocean>
@@ -145,6 +150,8 @@ Store all eight values in your password manager.
    - `JWT_REFRESH_SECRET=<staging value>`
    - `ENCRYPTION_KEY=<staging value>`
    - `BLIND_INDEX_KEY=<staging value>`
+   - `PUBLIC_LINK_BASE_URL=https://staging.smartfleetpk.com`
+   - `CONFIRM_LINK_SECRET=<staging value>`
    - `SENTRY_DSN=<SENTRY_DSN_STAGING>`
    - `BETTER_STACK_TOKEN=<staging token>`
    - `SMS_PROVIDER=mock` (until Eocean sandbox is set up)

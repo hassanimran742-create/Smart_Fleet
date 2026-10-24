@@ -1,9 +1,10 @@
 import { APP_ENVIRONMENTS } from '@smartfleet/shared-types';
+import { confirmationLinkProblems } from '../../modules/confirmation/confirmation-token';
+import { messagingProviderProblem } from '../../modules/messaging/messaging.contract';
 
 type Env = Record<string, string | undefined>;
 
 const JWT_MIN_LENGTH = 32;
-const LINK_SECRET_MIN_LENGTH = 32;
 /** CNIC encryption and its blind index each need a 256-bit key written as 64 hex characters. */
 const HEX_KEY_256 = /^[0-9a-f]{64}$/i;
 const CNIC_KEYS = ['ENCRYPTION_KEY', 'BLIND_INDEX_KEY'] as const;
@@ -96,14 +97,15 @@ function checkRequired(env: Env, name: string, problems: string[]): void {
   }
 }
 
-/** The confirmation-link settings arrive with Inc 2: checked when present, required from then. */
-function checkLinkSettings(env: Env, problems: string[]): void {
-  if (isSet(env.PUBLIC_LINK_BASE_URL) && !/^https:\/\/[^\s/]+/i.test(env.PUBLIC_LINK_BASE_URL)) {
-    problems.push('PUBLIC_LINK_BASE_URL must be an https URL');
-  }
-  if (isSet(env.CONFIRM_LINK_SECRET) && env.CONFIRM_LINK_SECRET.length < LINK_SECRET_MIN_LENGTH) {
-    problems.push(`CONFIRM_LINK_SECRET must be at least ${LINK_SECRET_MIN_LENGTH} characters`);
-  }
+/**
+ * From Inc 2 (API_CONTRACT §3.7, CUSTOMER_PAGE §2, §8; CNF-030): the customer's link needs its https
+ * base and a link secret of at least 32 characters, and `MESSAGING_PROVIDER` must name a known provider
+ * (unset means `mock`). The rules live with their modules, which use the same ones at run time.
+ */
+function checkInc2Settings(env: Env, problems: string[]): void {
+  problems.push(...confirmationLinkProblems(env));
+  const provider = messagingProviderProblem(env);
+  if (provider) problems.push(provider);
 }
 
 function isOn(value: string | undefined): boolean {
@@ -139,7 +141,7 @@ export function checkBootEnvironment(env: Env = process.env): string[] {
   const name = deploymentName(env);
   checkJwtSecrets(env, problems);
   checkRequired(env, name, problems);
-  checkLinkSettings(env, problems);
+  checkInc2Settings(env, problems);
   if (name === 'production') checkProductionOnly(env, problems);
   checkPlaceholders(env, problems);
   return problems;

@@ -75,7 +75,7 @@ describeRollback('review robustness: rolling back to the previous release after 
     removeScratchRoot();
   });
 
-  it('REV robustness-ops-01 right after inc1a is applied, with no Inc 1 traffic yet, the old code can no longer read a shop's old top-ups', async () => {
+  it("REV robustness-ops-01 right after inc1a is applied, with no Inc 1 traffic yet, the old code can no longer read a shop's old top-ups", async () => {
     // A database at inc1a (0_baseline + inc1a, as the first Inc 1 deploy left it), with today's rows: the
     // test database itself is at the current release, where inc1b requires every payment's request_no.
     const scratch = await createScratchDb('rollback');

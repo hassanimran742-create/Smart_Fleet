@@ -24,8 +24,6 @@ import {
   currentToken,
   deliverX1,
   freshStandard,
-  itAfterGate,
-  itWithScanLane,
   messagesOf,
   messagingOf,
   setSetting,
@@ -202,7 +200,7 @@ describeDb('messaging: the SMS of a confirmation link', () => {
     }
   });
 
-  itWithScanLane('MSG-004 step 4: a visit that cannot finish writes no confirmation, no message and calls no provider', async () => {
+  it('MSG-004 step 4: a visit that cannot finish writes no confirmation, no message and calls no provider', async () => {
     await setSetting(app, 'messaging.testMode', false);
     spy.next = { kind: 'FAILED', code: 'INVALID_NUMBER' };
     const d4 = await deliverX1(app, std, { deliver: false });
@@ -250,7 +248,7 @@ describeDb('messaging: the SMS of a confirmation link', () => {
     expect(await app.get(ConfirmationService).hasPendingForClient(std.C1.id)).toBe(true);
   });
 
-  itAfterGate('MSG-011 fixing the customer\'s number while a link is pending (PATCH /clients/:id)', async () => {
+  it('MSG-011 fixing the customer\'s number while a link is pending (PATCH /clients/:id)', async () => {
     const d1 = await deliverX1(app, std, { takeBack118: 2 });
     const patched = await http(app).patch(`/api/v1/clients/${std.C1.id}`).set(authHeader(std.DA.actor)).send({ phone: '0301 7654321' }).expect(200);
     expect(patched.body).toMatchObject({ confirmationNeedsNewLink: true });

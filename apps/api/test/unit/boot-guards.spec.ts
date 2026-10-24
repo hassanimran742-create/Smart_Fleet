@@ -15,6 +15,9 @@ const GOOD_PRODUCTION = {
   CORS_ORIGINS: 'https://office.smartfleet.pk',
   ENCRYPTION_KEY: '0123456789abcdef'.repeat(4),
   BLIND_INDEX_KEY: 'FEDCBA9876543210'.repeat(4),
+  // Required from Inc 2 (API_CONTRACT §3.7).
+  PUBLIC_LINK_BASE_URL: 'https://api.smartfleetpk.com',
+  CONFIRM_LINK_SECRET: 'c'.repeat(64),
 };
 
 describe('boot guards (API_CONTRACT §3.7)', () => {
@@ -153,10 +156,18 @@ describe('boot guards (API_CONTRACT §3.7)', () => {
     ).toEqual([]);
   });
 
-  it('check the Inc 2 link settings when they are set', () => {
+  it('check the Inc 2 link settings and message provider (required from Inc 2)', () => {
     expect(
       checkBootEnvironment({ ...GOOD_PRODUCTION, PUBLIC_LINK_BASE_URL: 'http://c.smartfleet.pk', CONFIRM_LINK_SECRET: 'short' }),
-    ).toEqual(['PUBLIC_LINK_BASE_URL must be an https URL', 'CONFIRM_LINK_SECRET must be at least 32 characters']);
+    ).toEqual(['CONFIRM_LINK_SECRET must be at least 32 characters', 'PUBLIC_LINK_BASE_URL must be an https URL']);
+    expect(checkBootEnvironment({ ...GOOD_PRODUCTION, PUBLIC_LINK_BASE_URL: undefined, CONFIRM_LINK_SECRET: undefined })).toEqual([
+      'CONFIRM_LINK_SECRET is not set',
+      'PUBLIC_LINK_BASE_URL is not set',
+    ]);
+    expect(checkBootEnvironment({ ...GOOD_PRODUCTION, MESSAGING_PROVIDER: 'eocean' })).toEqual(['MESSAGING_PROVIDER must be one of mock']);
+    expect(checkBootEnvironment({ ...GOOD_PRODUCTION, MESSAGING_PROVIDER: 'mock' })).toEqual([]);
+    // Development and test still boot without them (the link falls back to a development secret).
+    expect(checkBootEnvironment({ NODE_ENV: 'development' })).toEqual([]);
   });
 
   it('refuse an unknown APP_ENV', () => {

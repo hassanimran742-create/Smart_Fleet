@@ -10,7 +10,6 @@ import { describeDb } from '../../helpers/describe-db';
 import { VanCheckJob } from '../../../src/modules/custody/van-check.job';
 import { assertVansEmptyForDriverChange } from '../../../src/modules/custody/van';
 import { buildWorld, messageOf, X1, X2, type World } from './support/world';
-import { itWhenReady } from './support/waiting';
 
 jest.setTimeout(180_000);
 
@@ -188,7 +187,7 @@ describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
     await expect(assertVansEmptyForDriverChange(w.db, [std.DR1.vehicleId, null])).resolves.toBeUndefined();
   });
 
-  itWhenReady('drivers-vehicle-guard', 'DRV-040 A loaded van\'s driver can\'t be changed until the store has scanned everything in', async () => {
+  it('DRV-040 A loaded van\'s driver can\'t be changed until the store has scanned everything in', async () => {
     const { std } = w;
     const x1 = await w.placeOrder(X1);
     const t1 = await w.assign(x1, std.DR1);

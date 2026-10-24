@@ -1,13 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import type { ClientAddressCreateResult, ClientAddressDto } from '@smartfleet/shared-types';
+import type { ClientAddressCreateResult, ClientAddressDto, ClientUpdateResult } from '@smartfleet/shared-types';
 import {
   clientsQuerySchema,
   createClientAddressSchema,
   createClientSchema,
+  updateClientSchema,
   type ClientsQuery,
   type CreateClientAddressInput,
   type CreateClientInput,
+  type UpdateClientInput,
 } from '@smartfleet/shared-validation';
 import type { UserActor } from '../../common/auth/actor';
 import { ownDistributorId } from '../../common/auth/own-driver-id';
@@ -49,6 +51,17 @@ export class ClientsController {
     @Body(new ZodBody(createClientSchema)) body: CreateClientInput,
   ) {
     return this.clients.create(ownDistributorId(actor), body, key);
+  }
+
+  /** [Inc 2] Fix a customer's name, phone or notes (API_CONTRACT §9.4); the addresses stay add-only. */
+  @ExactRoles(UserRole.DISTRIBUTOR)
+  @Patch(':id')
+  update(
+    @CurrentActor() actor: UserActor,
+    @Param('id', new UuidParam('CLIENT_NOT_FOUND')) id: string,
+    @Body(new ZodBody(updateClientSchema)) body: UpdateClientInput,
+  ): Promise<ClientUpdateResult> {
+    return this.clients.update(actor, id, body);
   }
 
   @ExactRoles(UserRole.DISTRIBUTOR, UserRole.SUPER_ADMIN)

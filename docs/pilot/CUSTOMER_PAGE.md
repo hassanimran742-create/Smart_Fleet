@@ -117,17 +117,20 @@ Order: the per-IP GET/POST limit (every request); an IP with 30 misses in its 10
 - **main.ts**
   - `NestFactory.create<NestExpressApplication>`, and `app.set('trust proxy', 1)`. Today main.ts:20 doesn't trust the proxy.
   - `app.setGlobalPrefix('api/v1', { exclude: [{ path: 'c/(.*)', method: RequestMethod.ALL }] })`, plus a catch-all controller route rendering the 404 page for anything that isn't one of the four routes.
+  - As built: the exclusion is `CONFIRM_PAGE_PREFIX_EXCLUDE` (modules/confirmation/public/page-routes.ts, which imports nothing but Nest), applied in `configureApp`, which main.ts and the API tests share. It has two entries, `c/(.*)` and `c/*`, both method ALL: Nest matches route paths against `c/(.*)` (path-to-regexp 3), while the app-wide middleware (the request id, the request log) is mounted on Express with each excluded path, and Express 4 reads only `c/*` as "anything under /c/". Without `c/*` the page gets no request id and the answer's audit row loses it. The controller's catch-all is `@All('*')`, declared last.
 - **The controller:** `PublicConfirmController` with `@Controller('c')`, `@Public()` (public.decorator.ts:4) and `@UseFilters(PublicPageExceptionFilter)`.
   - The filter turns every error, throttling included, into an HTML page with the code's status, never JSON, never echoing the URL: `CONFIRM_LINK_INVALID` 404 not found; `CONFIRM_LINK_INACTIVE` 410 no longer active; `CONFIRM_LINK_EXPIRED` 410 expired; `CONFIRM_ALREADY_ANSWERED` 409 already answered; `CONFIRM_NOTE_REQUIRED` 400 Other page with its error; `VALIDATION_FAILED` 400 main page with "Please choose one of the answers below."; `RATE_LIMITED` 429 too many tries; anything else 500. GET of an ANSWERED or PENDING link renders its 200 page directly.
   - Pages are sent with `res.status(code).type('html').send(html)`.
 - **Redaction:** `/c/<token>` becomes `/c/[token]` in:
   - the global filter's `path` (http-exception.filter.ts:33);
   - Sentry `beforeSend` for `event.request.url` and breadcrumbs (sentry.ts:15-20);
-  - the Caddy access log, with `format filter { wrap json; fields { request>uri regexp "^/c/[0-9a-z]+" "/c/[token]"; request>headers>Referer delete } }` (Caddyfile:5-25).
+  - the Caddy access log, with `format filter { wrap json; fields { request>uri regexp "^/c/[0-9a-z]+" "/c/[token]"; request>headers>Referer delete } }` (Caddyfile:5-25). As built, both API hosts log this way, and their site-wide `header` block skips `/c` and `/c/*` (only HSTS applies there), so it neither overrides nor duplicates the page's own Referrer-Policy, X-Content-Type-Options and CSP. The short-link-domain block is in the Caddyfile, commented out, until a domain is chosen.
 - **The link host** is the API host until a short domain is chosen. When it is, a Caddy site block serves only `/c/*`, `/robots.txt` (`Disallow: /`) and 404 for everything else.
 - **Test banner:** when `APP_ENV` is not `production`, a yellow strip reads "Test system — this is not a real delivery."
 
 ## 6. The page: content, copy, design tokens, accessibility
+As built (Inc 2 server, 2026-10-23): the page lives in `modules/confirmation/page/` (singular, as the module is named): `messages.en.ts`, `tokens.ts`, `icons.ts`, `templates.ts` (layout, eyebrow, statusMark, callRow, buttonForm, buttonLink, textLink, commentField, safetyNote, testBanner) and `pages.ts`. The copy and layout are the simple design's (the UX spec for the customer page, with DECIDED's inline SVG icons). Additions: the lifetime word "1 hour" for a 1-hour link (the list below had only days and "n hours"); state tags at 15 px (the skeleton's 14 px was below "text at least 15 px"); the column width written `max-width:30rem` (480 px at the default root size). The largest page measured 5,954 bytes (2,104 gzipped).
+
 Pure TypeScript template functions return escaped HTML, in `modules/confirmations/page/`:
 - `layout`, `card`, `itemList`, `stateTag`, `buttonForm` (POST), `buttonLink` (GET), `textLink`, `commentField`, `helpLine`, `safetyNote`, `statusMark`, `testBanner`.
 - All text comes from `t(key, params)` in `page/messages.en.ts` (`confirm.page.*`), and all values go through `escapeHtml`.
@@ -270,6 +273,8 @@ One transaction:
 
 **No wallet call exists anywhere in this module.** A test asserts it.
 
+As built: the page itself runs the §4 state order without a lock and validates the body only for a PENDING link; `record` then re-checks everything under the row lock above. Of two racing answers, the same answer gets 303 and another gets 409, and the loser's page is drawn from the link as it now is. The case's dedupe is Order + orderId + CUSTOMER_PROBLEM.
+
 ## 8. Messaging
 The module is `apps/api/src/modules/messaging/` (@Global). The OTP `SmsService` stays as it is.
 ```ts
@@ -298,7 +303,8 @@ export interface MessagingProvider {
   - There is **no queue, no sweeper and no automatic retry** for the pilot. A row still `QUEUED` 2 minutes after it was written (the process died) counts as not sent (reach `NOT_SENT`) and the shop shares the link.
 - **The message log** (`outbound_messages`) has one row per SMS attempt and per app share:
   - a share is channel `SHARE_LINK`, provider `share-whatsapp`, `share-sms`, `share-sheet` or `share-copy`, status `SENT`, with `createdByUserId`;
-  - `bodyRedacted` has the token replaced by `[link]`.
+  - `bodyRedacted` has the token replaced by `[link]`. As built it keeps the link's host and replaces only the token: `…Tap https://smartfleetpk.com/c/[link] Help: 03211234567`;
+  - an SMS row's `provider` is the live provider's name even when test mode skips it, and `sent_at` is set only on `SENT`.
 - **Later**, not in Inc 2: an `EoceanMessagingProvider` that sends the text in the POST body, not the query string (eocean-sms.provider.ts:28-41), plus delivery reports by webhook (no messaging webhook is registered in the pilot: `POST /webhooks/messaging/:provider` answers 404 until a provider that sends reports arrives, behind its own signature check) and a WhatsApp provider after Meta's written OK.
 - **Status words** (the office website, from `reach` and `lastMessage`; the shop card uses the §10 bodies):
 
@@ -452,7 +458,7 @@ Error codes are in API_CONTRACT §2.3, under "Customer confirmation and cases".
 - **Abuse is low value**, because an answer moves no money: at worst it opens a case.
   - The link is shared by the shop or the office, never by the driver.
   - Only a super admin closes cases, and every close is audited.
-- **Retention:** `outbound_messages` are kept for 12 months. No IP address or user agent is stored for answers.
+- **Retention:** `outbound_messages` are kept for 12 months. No IP address or user agent is stored for answers. (As built, no retention job deletes older rows yet; it belongs to the housekeeping job, before the pilot's first year ends.)
 
 ## 13. Tests (added to the Inc 2 suite)
 **Unit**

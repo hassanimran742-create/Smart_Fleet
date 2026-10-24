@@ -24,7 +24,7 @@ import { CustodyType, CylinderState } from '@prisma/client';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
 import { createTestApp } from '../../helpers/app';
 import { authHeader } from '../../helpers/auth';
-import { getTestPrisma } from '../../helpers/db';
+import { getTestPrisma, resetDb } from '../../helpers/db';
 import { describeDb } from '../../helpers/describe-db';
 import { http } from '../../helpers/http';
 import { createStandardData, x1OrderBody, type StandardData } from '../../helpers/standard-data';
@@ -38,6 +38,13 @@ describeDb('REVIEW contract-compat: reassign after an unload scan', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
+  });
+
+  // Fresh data per case: from Inc 2 an order assigned to a driver joins that driver's PLANNED trip while
+  // it has no load (API_CONTRACT §9.5), so one case's reassigned order would otherwise share the next
+  // case's trip.
+  beforeEach(async () => {
+    await resetDb();
     app.get(SettingsService).invalidate();
     std = await createStandardData({ cylinders: true });
   });

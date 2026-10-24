@@ -186,8 +186,7 @@ describe('CNF-030 The API refuses to start with an unsafe link secret, link URL 
     expect(mock).toBeInstanceOf(MockMessagingProvider);
   });
 
-  const gateWired = (process.env.SF_READY_LANES ?? '').split(',').map((s) => s.trim()).some((s) => s === 'all' || s === 'inc2-gate');
-  (gateWired ? it : it.skip)('CNF-030 the boot guards require the link env and check MESSAGING_PROVIDER from Inc 2 [waits on the inc2 gate]', () => {
+  it('CNF-030 the boot guards require the link env and check MESSAGING_PROVIDER from Inc 2', () => {
     expect(checkBootEnvironment(ready({ CONFIRM_LINK_SECRET: undefined }))).toEqual(['CONFIRM_LINK_SECRET is not set']);
     expect(checkBootEnvironment(ready({ PUBLIC_LINK_BASE_URL: undefined }))).toEqual(['PUBLIC_LINK_BASE_URL is not set']);
     expect(checkBootEnvironment(ready({ MESSAGING_PROVIDER: 'whatsapp' }))).toEqual(['MESSAGING_PROVIDER must be one of mock']);

@@ -236,10 +236,13 @@ describeDb('api-orders: orders', () => {
     await f.setBalance(std.DA, 2_000_000n);
     const P = await f.x1();
     const A = await f.x1();
-    await f.assign(A.id, std.DR1);
     const L = await f.x1();
+    // From Inc 2 an order joins its driver's PLANNED trip while that trip has no load (API_CONTRACT §9.5),
+    // and the first LOAD stamps every open order of the trip: so L is assigned and loaded first, and A, assigned
+    // after it, gets a trip of its own with nothing loaded.
     const lTrip = await f.assign(L.id, std.DR1);
     await f.loadScan(std.DR1, lTrip.tripId, 'AG-C0001').expect(201);
+    await f.assign(A.id, std.DR1);
     const T = await f.x1();
     const tTrip = await f.assign(T.id, std.DR2);
     // From Inc 2 the depart is "Done loading" (API_CONTRACT §9.10): all of X1's cylinders are loaded first.

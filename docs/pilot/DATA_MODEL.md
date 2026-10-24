@@ -423,16 +423,18 @@ ALTER TABLE expenses    ADD CONSTRAINT expenses_amount_chk    CHECK (amount_pais
 ```
 
 ### 3.5 inc1b_contract (one release after inc1a)
-1. **Pre-checks**, in this order, each raising `MIGRATION_BLOCKED inc1b` with the fix; the first that fails stops the file:
-   - distributors without a store;
-   - negative balances (fix with a super-admin correction);
-   - duplicate customer phones within one distributor (merge or correct them).
-2. **Re-derive** values the previous release may have written without the new columns:
-   - `legacy:` keys for any keyless ledger rows;
-   - expense `type_id` from `category` (same CASE as above);
-   - `order_no` for orders where it is NULL (continue from max, then bump `next_order_no`);
-   - `request_no` for payments where it is NULL (likewise);
-   - `code` for distributors where it is NULL.
+inc1b ships in the first Increment 2 deploy, together with `inc2_driver_flow` (§4.4): `migrate deploy` applies inc1b, then inc2. Before that deploy, finish every run in progress with the Increment 1 apps (the inc2 pre-check). If the inc2 pre-check blocks, inc1b is already committed, and the Increment 1 code runs fine on it; finish the runs and deploy again. (As built 2026-10-23; proven on the inc1a legacy fixture chain.)
+
+1. **Pre-checks**, in this order, each raising `MIGRATION_BLOCKED inc1b` with the fix; the first that fails stops the file. Each message names at most 20 rows, then "and N more", and ends with `run "prisma migrate resolve --rolled-back <folder>", then deploy again.`:
+   - distributors without a store: `distributors without a store (<code> <id>, …). Give each of them its store`;
+   - negative balances: `distributors with a negative balance (<code> <n> paisa). Fix with a super-admin correction`;
+   - duplicate customer phones within one distributor: `customers of one distributor sharing a phone number (<code> <phone> (customers <ids>)). Merge or correct them`.
+2. **Re-derive** values the previous release may have written without the new columns, so the `SET NOT NULL`s below can't fail. Every step is safe to run again:
+   - `legacy:<id>` keys for any keyless ledger rows;
+   - expense `type_id` from `category` (the inc1a CASE). A category first used after inc1a first gets its archived `LEGACY_<CAT>` type; when that name is already taken by an office type, the expense takes that office type;
+   - `order_no` for orders where it is NULL, continuing from `GREATEST(highest number, next_order_no − 1)`; the counter then only goes up;
+   - `request_no` for payments where it is NULL (likewise, with `next_topup_no`);
+   - `code` for distributors where it is NULL: the next free D-number after the highest D-number in use (re-running inc1a's `row_number` scheme could collide with codes set since).
 3. Relabel: `UPDATE payments SET status = 'REJECTED' WHERE provider = 'BANK_MANUAL' AND status = 'FAILED';`
 4. **Generated DDL**
    - `distributors.home_store_id SET NOT NULL`, with the FK re-added `ON DELETE RESTRICT`;
@@ -678,15 +680,15 @@ model OutboundMessage {                 // every send attempt and every app shar
   @@map("outbound_messages")
 }
 ```
-Add the relations in full (`tripStop`, `order`, `cylinder`, `cylinderType` and `event`, all `onDelete: Restrict`) when writing the schema.
+Add the relations in full (`tripStop`, `order`, `cylinder`, `cylinderType` and `event`, all `onDelete: Restrict`) when writing the schema. As built: `DeliveryConfirmation` also has its `order` relation (`order_id` → `orders`, RESTRICT), as §4.2's "Order back-relations" implies. Because `Cylinder.lastEvent` adds a second relation between `Cylinder` and `CylinderEvent` (named `CylinderLastEvent`), the existing one is named `CylinderEvents`; field names and DDL are unchanged.
 
 ### 4.4 inc2 hand edits
-- **Pre-check:** block if any trip is `IN_PROGRESS`. A run started under the old rules can't be finished under the new ones.
+- **Pre-check:** block if any trip is `IN_PROGRESS`. A run started under the old rules can't be finished under the new ones. The message, as built: `runs in progress (<tripId> (<plate>), …). Finish each run with the Increment 1 apps first`, naming at most 20 runs and ending like inc1b's (§3.5).
 - **Backfills**
   1. `last_event_id` = the newest event per cylinder, only where its `to_custody` matches the current custody. Otherwise leave it NULL; the cylinder must be scanned into the store before it can go out.
   2. `short_no` = `row_number()` per distributor by `created_at`. Then `next_cylinder_no = max + 1`. Labels are reprinted to show the number, written `AG-C0042`.
 - **CHECKs**
-  - `stop_cylinders_return_state_chk`: `(direction = 'GIVEN' AND return_state IS NULL) OR (direction = 'TAKEN_BACK' AND return_state::text IN ('EMPTY','PART_FILLED','FULL'))`. The `::text` is needed because PART_FILLED is new in this file.
+  - `stop_cylinders_return_state_chk`: `(direction = 'GIVEN' AND return_state IS NULL) OR (direction = 'TAKEN_BACK' AND return_state IS NOT NULL AND return_state::text IN ('EMPTY','PART_FILLED','FULL'))`. The `::text` is needed because PART_FILLED is new in this file. The `IS NOT NULL` is needed because a CHECK passes when its expression is NULL: without it a TAKEN_BACK row with no return state would pass.
   - `cylinder_events_reason_chk`: `source IN ('SCAN','TYPED','REGISTRATION') OR reason IS NOT NULL`.
   - `stop_unlabelled_returns_count_chk`: `count > 0` (the API deletes the row for a count of 0).
   - `delivery_confirmations_answer_chk`: `(status = 'ANSWERED') = (response IS NOT NULL)`.

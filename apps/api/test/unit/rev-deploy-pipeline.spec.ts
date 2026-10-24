@@ -39,6 +39,7 @@ function filled(env: Record<string, string>): Record<string, string> {
     if (/^(ENCRYPTION_KEY|BLIND_INDEX_KEY)$/.test(key)) next = '0123456789abcdef'.repeat(4);
     else if (key === 'JWT_ACCESS_SECRET') next = 'a'.repeat(64);
     else if (key === 'JWT_REFRESH_SECRET') next = 'b'.repeat(64);
+    else if (key === 'CONFIRM_LINK_SECRET') next = 'c'.repeat(64);
     else if (key === 'CORS_ORIGINS') next = 'https://admin.smartfleetpk.com';
     else next = value.replace(/REPLACE_[A-Z0-9_]*/g, 'filled-in');
     out[key] = next;

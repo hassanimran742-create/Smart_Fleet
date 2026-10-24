@@ -3,13 +3,14 @@
  * as CUSTOMER_PAGE §5 says, the X1 delivery of the cases ("Standard D1 set-up"), calls to the public
  * page from their own IPs, a spy provider, and small readers.
  *
- * - `createConfirmApp()` is test/helpers/app.ts's createTestApp plus the one line main.ts needs for the
- *   page (`setGlobalPrefix('api/v1', { exclude: CONFIRM_PAGE_PREFIX_EXCLUDE })`); the gate adds that line
- *   to configureApp, after which the extra call is harmless.
+ * - `createConfirmApp()` is test/helpers/app.ts's createTestApp with providers that can be overridden;
+ *   configureApp (as main.ts runs it) keeps the page outside `/api/v1` (CONFIRM_PAGE_PREFIX_EXCLUDE,
+ *   wired at the Inc 2 gate).
  * - `deliverX1()` builds the delivery with the run fixtures (helpers/runs.ts) and delivers it the way the
  *   stop finish does: the order DELIVERED and the stop DONE in one transaction that also issues the
  *   confirmation, then the SMS after commit. Cases about the finish route itself run the real route
- *   with `itWithScanLane` once the scan lane has landed (SF_READY_LANES=inc2-scan or all).
+ *   (the gate merged the scan lane and turned `itWithScanLane`/`itAfterGate` into plain `it`; the helpers
+ *   stay for later lanes).
  */
 import type { INestApplication } from '@nestjs/common';
 import { WorkerHost } from '@nestjs/bullmq';
@@ -21,12 +22,8 @@ import type { SettingKey, SettingValue } from '@smartfleet/shared-types';
 import { AppModule } from '../../../src/app.module';
 import { systemActor } from '../../../src/common/auth/actor';
 import { installBigIntJson } from '../../../src/common/bootstrap/bigint-json';
-import { configureApp, GLOBAL_PREFIX } from '../../../src/common/bootstrap/configure-app';
-import {
-  CONFIRM_PAGE_PREFIX_EXCLUDE,
-  ConfirmationService,
-  type IssuedConfirmation,
-} from '../../../src/modules/confirmation/confirmation.interface';
+import { configureApp } from '../../../src/common/bootstrap/configure-app';
+import { ConfirmationService, type IssuedConfirmation } from '../../../src/modules/confirmation/confirmation.interface';
 import { MESSAGING_PROVIDER, MessagingServiceImpl, MockMessagingProvider, type MessagingProvider, type OutboundRequest, type SendResult } from '../../../src/modules/messaging/messaging.interface';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
@@ -93,7 +90,6 @@ export async function createConfirmApp(customize?: (builder: TestingModuleBuilde
   const moduleRef = await (customize ? customize(builder) : builder).compile();
   const app = moduleRef.createNestApplication({ logger: ['error', 'warn'] });
   configureApp(app);
-  app.setGlobalPrefix(GLOBAL_PREFIX, { exclude: [...CONFIRM_PAGE_PREFIX_EXCLUDE] });
   await app.init();
   await settleWorkers(app);
   await app.listen(0, '127.0.0.1');

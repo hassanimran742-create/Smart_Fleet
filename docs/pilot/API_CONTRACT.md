@@ -529,7 +529,7 @@ These apply when `NODE_ENV` is `production` or `staging`:
   - `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY`, not the minio defaults (files.service.ts:31-34);
   - `CORS_ORIGINS`: a comma-separated list of website origins, each a scheme and host with an optional port (`https://admin.smartfleetpk.com`; a trailing slash is ignored), never `*`, a path or a bare host;
   - `ENCRYPTION_KEY` and `BLIND_INDEX_KEY`, each 64 hex characters (CNIC encryption and its blind index);
-  - from Inc 2: `PUBLIC_LINK_BASE_URL` (https) and `CONFIRM_LINK_SECRET` (at least 32 characters).
+  - from Inc 2: `PUBLIC_LINK_BASE_URL` (https) and `CONFIRM_LINK_SECRET` (at least 32 characters), each refused with one line naming it (`… is not set`, `… must be an https URL`, `… must be at least 32 characters`); and `MESSAGING_PROVIDER`, when set, must name a known provider (`mock` in the pilot; else `MESSAGING_PROVIDER must be one of mock`).
 - **Template placeholders:** a variable whose value still holds `REPLACE_…` (the placeholders of infrastructure/aws/.env.*.example) is refused, naming the variables, never their values.
 - **Refused in production:** `AUTH_EXPOSE_OTP`, `TEST_PHONES`, `ALLOW_DEMO_SEED` and any `SEED_*` variable. `PAYMENTS_WEBHOOK_ENABLED=true` is refused too.
 - **CORS:** `NestFactory.create(AppModule, { cors: true })` (main.ts:20) becomes `enableCors({ origin: CORS_ORIGINS, exposedHeaders: ['X-Request-Id','Idempotent-Replay','X-Already-Applied','X-Feature-Disabled'] })`. The socket gateway's `cors: true` (drivers.gateway.ts:14) uses the same list.
@@ -715,6 +715,11 @@ assertUsable(fileId, p: { purpose; uploadedByUserId }): Promise<StoredFile>;    
   - The destination is always derived on the server. Every scan body refuses `toCustodyType` and `toCustodyId` with 400 `VALIDATION_FAILED` (field code NOT_ALLOWED); other unknown fields are dropped. Today custody.service.ts:63-75 accepts them.
 - **MessagingProvider.send(m)** returns SENT, SKIPPED or FAILED. `MessagingService.record(...)` writes `outbound_messages`.
 - **ConfirmationsService:** `issueForDeliveredOrder(tx, …)`, `view(orderId, actor)`, `share(orderId, via, idempotencyKey, actor)`, `newLink(orderId, { send, idempotencyKey }, actor)`, `record(token, answer, comment)`. **It never calls the wallet.**
+- **As built (Inc 2 server, 2026-10-23):**
+  - The scan service is `ScanService` in modules/custody/scan.service.ts, with `driverScan(actor, { action: LOAD | HANDOVER | TAKE_BACK, tripId, stopId, scanId, code, entryMethod, returnState?, lat?, lng? })`, `storeScan(actor, { scanId, code, entryMethod })`, `officeManualDelivery(tx, actor, …)` and `registerMoves(tx, …)` in place of one `apply(cmd)`.
+  - The confirmation service is `ConfirmationService` (also the Nest DI token) in modules/confirmation/confirmation.interface.ts, implemented by `ConfirmationServiceImpl`; the module is global. `issueForDeliveredOrder(tx, { orderId, stopId, deliveredAt })` takes the stop too, so the snapshot reads that visit's lists; it returns the issued row or null (switch off, or already issued). Every delivering transaction (the visit finish, the legacy Delivered tap and depart, the office manual delivery v2) calls it inside the transaction, then `sendIssued(issued)` after commit, which never throws.
+  - Added: `sendIssued(issued)`, `summariesFor(orderIds)` (the order answers' `confirmation`, one query per list), `hasPendingForClient(clientId)` (`PATCH /clients/:id`'s `confirmationNeedsNewLink`) and `expireDue(now?)` (the expiry job).
+  - The link-token functions (`deriveConfirmationToken`, `normalizeConfirmationToken`, `confirmationTokenHash`) live in modules/confirmation/confirmation-token.ts and are re-exported by the interface file, with `confirmationLinkProblems(env)` for the boot guards. `MessagingService` and `MessagingProvider` are in modules/messaging/messaging.contract.ts, with `messagingProviderProblem(env)`.
 
 ---
 
@@ -1312,7 +1317,10 @@ Every `@Cron` passes `{ timeZone: 'Asia/Karachi' }` literally, even where it cha
 6. Ops checks each `OPENING_BALANCE` row against the bank.
 7. Create missing stores. Set the delivery price for each distributor in each pilot zone. Activate the distributors.
 8. Create the two named super admins with the CLI `npm run users:create-office`. The seeded ADMIN stays refused by `auth.lockedRoles`. Signed in as one of them, suspend the seeded SUPER_ADMIN "LPG Super Admin" (+923000000000) with `PATCH /users/:id/status`; on live also suspend "Test Distributor" (+923001111111, `PATCH /distributors/:id/suspend`) and archive "Test Driver" (+923002222222, `DELETE /drivers/:id`), each with a reason. On the test server those two may stay as test logins.
-9. In the next release: inc1b.
+9. In the next release: inc1b. As built, inc1b ships in the first Increment 2 deploy together with `inc2_driver_flow` (DATA_MODEL §3.5, §4.4):
+   - before deploying, set `PUBLIC_LINK_BASE_URL`, `CONFIRM_LINK_SECRET` and `MESSAGING_PROVIDER` in both env files (§3.7; the templates carry them), and finish every run in progress with the Increment 1 apps;
+   - `migrate deploy` applies inc1b, then inc2. If the inc2 pre-check blocks (a run in progress), inc1b is already committed and the Increment 1 code runs fine on it: finish the runs, `prisma migrate resolve --rolled-back <folder>`, then deploy again;
+   - `confirmation.enabled` stays false until the owner switches it on (ADR-15); set `support.phone` first (§9.1).
 
 ### 8.6 Contract tests that gate Inc 1 (CI PostGIS and Redis services)
 **Top-ups**
@@ -1539,6 +1547,50 @@ Message sends happen right after commit (CUSTOMER_PAGE §8). There is no queue a
 - A NO or OTHER answer opens exactly one case.
 - A driver can't read the link.
 - Test mode never sends outside the allowlist.
+
+### 9.12 As built (Inc 2 server, 2026-10-23)
+These points settle what §9.1–§9.10 left open, as the Increment 2 server builds them (CHANGELOG "Increment 2 server, 2026-10-23"). The money model is unchanged: no Inc 2 path writes money.
+
+**Shapes left undefined in §9.3–§9.4** (shared-types):
+- `TripSummary = { id, status, plannedAt, startedAt, store: { id, name }, customers /* DELIVERY stops not CANCELLED */, stops: { done, total } /* DONE, FAILED or CANCELLED of all */ }`.
+- `VanCounts = { full, empty, partFilled, total }`; `total` counts every cylinder on the van, damaged or lost ones included. `GET /driver/home` `van` is this shape.
+- `StoreStockDto = { total, sizes: [{ cylinderTypeId, sizeLabel, total, byState: { EMPTY, FULL, PART_FILLED, FAULTY, LOST } }] }`, counted from cylinders.
+- `ScanResult.stop` is null for a store scan (`POST /store/scans`).
+- `GET /trips/:tripId` from Inc 2 answers `TripDetailDto`: the Inc 1 `TripViewDto` with `stops: TripStopViewDto[]` (each Inc 1 `TripStopDto` plus `type`, `title`, `address`, `progress`), `van: VanCounts | null`, `leftoverReason` and the trip's `allowedActions`. A stop's title and address are the store's name and address, or the customer's name and the delivery label. `COMPLETE` is offered once every stop is closed and the van is empty, or leftovers are allowed. Appendix A's "plus progress" is built on `GET /trips/:tripId` only, the route §9.3 defines; `/trips/mine` and `/next-suggestions` are unchanged.
+
+**Scans and visits:**
+- §9.2 step 4: a typed scan while typing is off answers 403 `FEATURE_DISABLED` without `details.progress` (the catalogue keeps `progress` on SCAN_ and REFILL_ codes only); the app keeps the progress it last had.
+- The first LOAD sets the STORE_PICKUP stop ARRIVED, as a first scan does at a DELIVERY stop (§9.8). A store-stop finish on a closed trip gives 409 `TRIP_INVALID_TRANSITION`.
+- Unlabelled returns accept any known cylinder size, not only the order's sizes; an unknown one gives 404 `NOT_FOUND` `{field: 'cylinderTypeId'}`. Their refusals follow the scans' step 3 order: trip closed, then stop closed, then 403 `SCAN_EVENT_NOT_ALLOWED` at the STORE_PICKUP stop.
+- A short take-back's reason is kept in `trip_stops.notes` as JSON: `{"takeBackShort": {reasonCode, note, expected, taken, oldApp?}}`.
+- Finishing a visit the office already closed by manual delivery is a different kind of action (§4 rule 3): 409 `ORDER_INVALID_TRANSITION` `{from: 'DELIVERED', to: 'DELIVERED', currentStatus: 'DELIVERED'}`. Only a repeat of the visit finish gets `X-Already-Applied`.
+- "Handed over on this trip" in the STORE_PICKUP `done` counts every GIVEN row of the trip's visits, whichever holder the cylinder left. After a forgotten IN, the office's manual delivery may hand a cylinder straight from the home store; that order's need is then met on the trip, so "Done loading" and "Finish trip" still close the run.
+- `TRIP_VAN_NOT_EMPTY` judges `came` from the finishing run: a cylinder loaded on another run is SPARE, a taken-back one is TAKEN_BACK whatever the run. `shortCode` falls back to the QR value for an unnumbered cylinder.
+
+**The 0.1.0 driver app (§9.10):** the old app scans its empties after the Delivered tap. The tap needs matching hand-overs (`DELIVERY_SCANS_INCOMPLETE`) and makes the order DELIVERED by SCANNED. When the take-back is short, the tap leaves the visit open, so the empties can still be scanned; the legacy depart then closes the visit and records the shortfall as reasonCode OTHER with `oldApp: true`, since the old app can't say why. Otherwise an old app could never finish an order that expects returns.
+
+**Store (§9.4):**
+- `POST /store/scans`: `receivedToday` counts the SCAN_IN moves into the caller's store in the current business day. `fromVan.driver` is the driver of the run of the newest move onto that van before the receive. Store receives carry no `trip_id`, so a hand-back never blocks a driver change or keeps an idle trip open (§7.6 rule 4, cancel step 6, unchanged).
+- `GET /store/incoming`: `counts.received` is what came off that van into the caller's store in the current business day; `counts.total` is that plus what is still on the van, so "{{done}} of {{total}} received" reads right; `bySize` covers the same set. Vans with nothing left aren't listed. `trip` is the run of the newest move onto the van; `driver` is that run's driver, else the van's current driver. `came` is judged against each cylinder's own run: NOT_DELIVERED up to the open or failed orders' undelivered need per size, then SPARE; `from` is set for TAKEN_BACK only.
+- `PATCH /clients/:id` (DISTRIBUTOR exact; the office and drivers get 403): the change and its `client.update` audit row (`before` and `after` of the changed fields, `diff: { client, changed }`) commit together; a body that changes nothing writes nothing. `confirmationNeedsNewLink: true` is added only when the phone changed while a link is pending; otherwise the key is absent.
+
+**Office (§9.5):**
+- Manual delivery v2: for each delivered cylinder the first failing check names the problem, in the order WRONG_OWNER, BLOCKED, NOT_FULL, WRONG_SIZE, NOT_AVAILABLE (BLOCKED before NOT_FULL, since FAULTY and LOST are never FULL). A cylinder the driver already gave (or took back) on this visit by scan counts as named and doesn't move again; naming a given-this-visit cylinder as taken back gives LISTED_TWICE. `sizes[].named` counts every distinct named cylinder of an order size. NOT_AVAILABLE has no `holderType` for a cylinder in another store.
+- `PATCH /drivers/:id/vehicle`: the guard checks both the driver's current van and the new one, before any write; giving the van the driver already has stays 200 `X-Already-Applied`.
+- Audit diffs: `custody.typed_entry` `{typed, shortCode, action, eventId, tripId?}`; `custody.manual_event` `{eventId, from: {type, id, label}, to: {type, id, label}, orderId, no, code, direction}` with the reason; `order.manual_delivery` `{no, cylinders, takenBack}`; `cylinders.bulk_register` adds the first and last short codes; `order.assign` and `order.reassign` add `appended`.
+- `GET /admin/summary` `problems` is built as §7.13 says.
+
+**Order answers:** every OrderDto the owning shop or the office gets (`GET /orders`, `?tab`, `GET /orders/board`, `GET /orders/:id`, the transitions' answers) carries `confirmation: { status, response, caseOpen } | null` (one query per list; an expired PENDING link reads EXPIRED). A driver's OrderDto has no `confirmation` key at all.
+
+**Cases and confirmation (§9.6, §9.7, §9.9):**
+- `case.resolve` carries `diff { orderId }` plus the note as its reason; `CASE_ALREADY_RESOLVED` `by` is the resolver's name. Cases are only ever OPEN or RESOLVED; the legacy acknowledge route answers 404 for them.
+- A PENDING link whose `expiresAt` has passed reads EXPIRED, with `allowedActions: []`, in the view and the order summary before the job stores it; share and new link then answer `CONFIRM_CLOSED`. A replayed share returns the link of the version it shared, and the share's 429 carries `Retry-After`. `lastMessage.byName` is also set for an SMS a user asked for with new-link `{ send: 'SMS' }`.
+- `ConfirmationView.customer` describes the link's target: `phoneValid` means the link has a mobile number (`phone_e164`); `phoneDisplay` is that number in local style, or, when it is NULL, the customer's stored number as stored. A fixed number takes effect with a new link.
+- The page runs the CUSTOMER_PAGE §4 state order without a lock and validates the body only for a PENDING link; `record` re-checks everything under `SELECT … FOR UPDATE`. Of two racing answers the same one gets 303 and another 409, and the loser's page is drawn from the link as it now is. The case is raised in the answer's transaction, deduplicated on Order + orderId + CUSTOMER_PROBLEM.
+- The expiry job is `ConfirmationExpiryJob` (`confirmation-expiry`); it closes rows with `expires_at <= now`, matching the page, where now ≥ expiresAt reads expired.
+- `VAN_NOT_EMPTY` uses resourceType `Vehicle` and resourceId the van; the job's `context.tripId` and `leftoverReason` come from the van's latest trip. The day-cutoff van check writes no audit row (Appendix B has no action for it).
+
+**Appendix A, `GET /inventory/my-vehicle`:** counted from cylinders, as the office's vehicle summaries are; it adds `totalPartFilled` and `byType[].partFilled`, the old keys unchanged. The legacy inventory lots are still kept in step on every move, so the Inc 1 inventory screens hold.
 
 ---
 

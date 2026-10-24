@@ -538,8 +538,9 @@ describeDb('api-orders: delivery costs', () => {
     // Step 3.
     await f.assign(x2.id, std.DR1);
     expect((await f.as(std.SA1).post(`/orders/${x2.id}/manual-delivery`).send({ reason: 'Too short' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
-    // Manual delivery v2 names the cylinders (API_CONTRACT §9.5): X2's three 15 kg, from the home store.
-    const cylinders = ['AG-C0021', 'AG-C0022', 'AG-C0023'].map((code) => ({ code }));
+    // Manual delivery v2 names the cylinders (API_CONTRACT §9.5): X2's three 15 kg, from the home store, by
+    // their QR values (the Inc 1 standard data registers no cylinder numbers).
+    const cylinders = ['AG-C0021', 'AG-C0022', 'AG-C0023'].map((code) => ({ code: `${code}-QR` }));
     const manual = await f.as(std.SA1).post(`/orders/${x2.id}/manual-delivery`).send({ reason: 'Driver phone broken at the door', cylinders }).expect(200);
     expect(manual.body).toMatchObject({ status: 'DELIVERED', deliveryMethod: 'MANUAL' });
     expect(await f.audits('order.manual_delivery', x2.id)).toHaveLength(1);

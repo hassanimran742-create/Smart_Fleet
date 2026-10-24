@@ -25,8 +25,6 @@ import {
   deliverX1,
   finishDelivery,
   freshStandard,
-  itAfterGate,
-  itWithScanLane,
   messagesOf,
   moneyOf,
   pageCalls,
@@ -121,7 +119,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect((await app.get(ConfirmationService).summariesFor([d1.order.id])).get(d1.order.id)).toBeUndefined();
     });
 
-    itWithScanLane('CNF-001 setting off: finishing a visit makes no link and no message (POST …/finish)', async () => {
+    it('CNF-001 setting off: finishing a visit makes no link and no message (POST …/finish)', async () => {
       const d1 = await deliverX1(app, std, { deliver: false });
       const before = await moneyOf(std.DA.id);
       const res = await scans().finishStop(std.DR1, d1.trip.id, d1.stopId, {}).expect(200);
@@ -136,7 +134,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect(await moneyOf(std.DA.id)).toEqual(before);
     });
 
-    itAfterGate("CNF-001 step 4: the order lists carry `confirmation` (null for an order delivered while it was off)", async () => {
+    it("CNF-001 step 4: the order lists carry `confirmation` (null for an order delivered while it was off)", async () => {
       const d1 = await deliverX1(app, std);
       expect(d1.issued).toBeNull();
       await setSetting(app, 'confirmation.enabled', true, 'Owner switched confirmation on');
@@ -173,7 +171,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect((await app.get(ConfirmationService).summariesFor([d1.order.id])).get(d1.order.id)).toEqual({ status: 'PENDING', response: null, caseOpen: false });
     });
 
-    itWithScanLane('CNF-003 setting on: finishing the visit issues one pending link (POST …/finish)', async () => {
+    it('CNF-003 setting on: finishing the visit issues one pending link (POST …/finish)', async () => {
       const d1 = await deliverX1(app, std, { deliver: false });
       const res = await scans().finishStop(std.DR1, d1.trip.id, d1.stopId, {}).expect(200);
       expect(res.body.order).toMatchObject({ status: 'DELIVERED' });
@@ -218,7 +216,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect((await messagesOf(d1.order.id)).map((m) => m.idempotencyKey)).toEqual([`confirm:${d1.order.id}:v1:sms`]);
     });
 
-    itWithScanLane('CNF-004 a double tap on Finish visit keeps one link and one SMS (POST …/finish twice)', async () => {
+    it('CNF-004 a double tap on Finish visit keeps one link and one SMS (POST …/finish twice)', async () => {
       await setSetting(app, 'messaging.allowlist', ['+923001234567']);
       const d1 = await deliverX1(app, std, { deliver: false });
       await scans().finishStop(std.DR1, d1.trip.id, d1.stopId, {}).expect(200);
@@ -230,7 +228,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect(spy.calls).toHaveLength(1);
     });
 
-    itWithScanLane('CNF-005 an office manual delivery also issues a link (POST /orders/:id/manual-delivery)', async () => {
+    it('CNF-005 an office manual delivery also issues a link (POST /orders/:id/manual-delivery)', async () => {
       // The driver could not scan at the door: the cylinders are still loaded on the van.
       const d1 = await deliverX1(app, std, { deliver: false, handOver: false, unlabelled: [] });
       const before = await moneyOf(std.DA.id);
@@ -253,7 +251,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect(textOf(open.text)).toContain('Taken back None');
     });
 
-    itWithScanLane('CNF-040 the driver never gets the link (the finish, trips, stops, orders and home answers)', async () => {
+    it('CNF-040 the driver never gets the link (the finish, trips, stops, orders and home answers)', async () => {
       const d1 = await deliverX1(app, std, { deliver: false });
       const finish = await scans().finishStop(std.DR1, d1.trip.id, d1.stopId, {}).expect(200);
       await waitForSends();
@@ -277,7 +275,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect(row.tokenVersion).toBe(1);
     });
 
-    itWithScanLane('MSG-001 the mock provider records the outgoing SMS of a finished visit (POST …/finish)', async () => {
+    it('MSG-001 the mock provider records the outgoing SMS of a finished visit (POST …/finish)', async () => {
       await setSetting(app, 'messaging.allowlist', ['+923001234567']);
       const d1 = await deliverX1(app, std, { deliver: false });
       await scans().finishStop(std.DR1, d1.trip.id, d1.stopId, {}).expect(200);

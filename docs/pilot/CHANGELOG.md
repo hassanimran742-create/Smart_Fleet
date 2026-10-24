@@ -1,3 +1,48 @@
+# Increment 2 server, 2026-10-23
+
+The Increment 2 server is built: the inc1b and inc2 migrations, scans with the one-holder rule (load at the shop's store, hand over, take back, could not deliver, the store's receive), the office's manual delivery naming the cylinders, runs that finish with an empty van, and the customer's confirmation link with its cases and message log. Each line below gives what building it settled and where the docs now say it; "code only" means the docs already said so. The money model is unchanged: the delivery cost is deducted when the order is placed, it is returned only on a cancel before delivery has started, and no delivery, take-back, receive, customer answer, case or job moves money.
+
+## Migrations
+- inc1b and inc2 ship in the same deploy, the first of Increment 2. Finish every run in progress with the Increment 1 apps first; if the inc2 pre-check still blocks, inc1b is already committed and the Increment 1 code runs fine on it. (DATA_MODEL §3.5; API_CONTRACT §8.5 step 9)
+- The inc1b pre-checks name at most 20 rows with their fix, and the re-derive step is written so the `SET NOT NULL`s can't fail and can run again: `legacy:<id>` ledger keys, expense types with the archived `LEGACY_<CAT>` fallback, order and request numbers continuing from the higher of the highest number and the counter, and the next free D-code. (DATA_MODEL §3.5)
+- `stop_cylinders_return_state_chk` also requires `return_state IS NOT NULL` for a taken-back row, since a CHECK passes when its expression is NULL. (DATA_MODEL §4.4)
+- The inc2 pre-check names the runs in progress. `DeliveryConfirmation` has its `order` relation, and the Cylinder-to-events relation is named `CylinderEvents` beside `CylinderLastEvent` (no DDL change). (DATA_MODEL §4.3, §4.4)
+
+## Scans, visits and runs
+- The shapes §9.3 left open are fixed: `TripSummary`, `VanCounts`, `StoreStockDto`, `ScanResult.stop` null for store scans, and `GET /trips/:tripId` as `TripDetailDto` with stop titles, progress, the van and the trip's buttons. (API_CONTRACT §9.12)
+- A typed scan while typing is off answers 403 `FEATURE_DISABLED` without `details.progress`; the catalogue keeps `progress` on scan and refill codes only. (API_CONTRACT §9.12)
+- The first LOAD marks the store stop arrived; unlabelled returns take any known size; a short take-back's reason is kept on the stop; finishing a visit the office already closed is 409 `ORDER_INVALID_TRANSITION`. (API_CONTRACT §9.12)
+- The installed 0.1.0 driver app can still finish an order that expects returns: the Delivered tap needs the hand-overs, leaves a short visit open for the empties, and the legacy depart records the shortfall with `oldApp: true`. (API_CONTRACT §9.12, Appendix A)
+- After a forgotten IN, the office's manual delivery may hand a cylinder straight from the store; "Done loading" counts it as handed over on the trip, so the run can still close. (API_CONTRACT §9.3, §9.12)
+- `PATCH /drivers/:id/vehicle` is refused with 409 `VEHICLE_HAS_CYLINDERS` while either van holds a cylinder, before anything is written; giving the same van again stays `X-Already-Applied`. (API_CONTRACT §9.5, §9.12)
+- `GET /inventory/my-vehicle` is counted from cylinders and adds the part-filled counts. (API_CONTRACT §9.12, Appendix A)
+
+## Store and office
+- `POST /store/scans` and `GET /store/incoming` count "received today" by business day, name the van's run and driver, and list only vans with something left; store receives carry no trip, so a hand-back never blocks a driver change. (API_CONTRACT §9.12)
+- Manual delivery v2 names one problem per cylinder in a fixed order, counts a cylinder the driver already scanned on the visit as named, and audits each move; the audit diffs of the Inc 2 actions are written down. (API_CONTRACT §9.12, Appendix B)
+- `PATCH /clients/:id` is built for the owning shop: name, phone and notes, one `client.update` row per change, `confirmationNeedsNewLink` only when the phone changed while a link is pending. (API_CONTRACT §9.4, §9.12; TEST_CASES CUS-013)
+- `GET /admin/summary` adds `problems: { open, oldestOpenAt }`. (code only: API_CONTRACT §7.13)
+- `VAN_NOT_EMPTY` is raised on the van (resourceType `Vehicle`) and the 03:00 van check writes no audit row. (API_CONTRACT §9.12)
+
+## Customer confirmation, cases and messages
+- Every order answer to the shop and the office carries `confirmation` (null when there is none); a driver's never does. (API_CONTRACT §9.7, §9.12)
+- `ConfirmationService` is named and placed as built, takes the stop when issuing, and adds `sendIssued`, `summariesFor`, `hasPendingForClient` and `expireDue`; the link-token rules live in one file the boot guards also use. (API_CONTRACT §5.9)
+- The link page sits outside `/api/v1` with a two-entry prefix exclusion, so the app-wide request id and log reach it. (CUSTOMER_PAGE §5)
+- The page's files, its three additions to the copy and layout, the answer's lock and the case's dedupe are written as built. (CUSTOMER_PAGE §6, §7)
+- The message log keeps the link's host in `bodyRedacted`, names the live provider even when test mode skips, and sets `sent_at` only on SENT; retention has no job yet. (CUSTOMER_PAGE §8, §12)
+- An expired pending link reads EXPIRED before the job stores it; the case resolve, the share replay and the view's customer fields are written as built. (API_CONTRACT §9.12)
+
+## Deploy
+- From Inc 2 the boot guards require `PUBLIC_LINK_BASE_URL` (https) and `CONFIRM_LINK_SECRET` (32 or more characters) and check `MESSAGING_PROVIDER`; the env templates and the deployment notes carry all three. (API_CONTRACT §3.7; docs/deployment.md)
+- The Caddyfile redacts link tokens in the access log and leaves the link page's own headers alone; a commented block is ready for a short link domain. (CUSTOMER_PAGE §5)
+
+## Test cases for the catalogue (final.json is the source; TEST_CASES.md is regenerated from it)
+- Retired at Inc 2, with their Inc 2 forms where they exist: ORD-018 (a shop without a store can't exist after inc1b; MIG-014 covers it), the EXP-012 test of a row with only a category (covered by the inc1b re-derive), the WAL-016 negative-balance test and REV money-data-02 N1, N1b and money-data-03 N2 (inc1b refuses balances below zero), the Inc 1 forms of ASG-009, ASG-010, ORD-014, ORD-015 and ORD-019 (their "(Inc 2)" forms run), and REV contract-compat-02's hand-over without a load (refused now; ASG-012 (Inc 2) covers the driver change).
+- REV robustness-ops-01's first test runs on an inc1a-level scratch database. MIG-006's API step (cancelling the old open orders) runs after the copy has gone through the Inc 2 release, since from Inc 2 the API runs only on the current release.
+- The case texts with the shortened English (DRV-012, DRV-021, DRV-027, DRV-029, DRV-032, HLD-002, HLD-003, HLD-012) and the customer page's copy (CNF, CAS, MSG) already match final.json. To update: HLD-002 step 3 expects 403 `FEATURE_DISABLED` for both callers, but §3.4's order of checks gives the shop (never a role of `POST /transfers`) 403 `PERMISSION_DENIED`; only the office gets `FEATURE_DISABLED`, as the test asserts.
+- Fixture notes for the case texts: CNF-014 and CNF-018 post more often than the per-link limit of CNF-026 allows, so their tests clear the limiter or set it aside; an "expired" link in CNF-019, CNF-020 and CNF-021 moves `delivered_at` with `expires_at`, and CNF-019's link D is expired by the job before C is moved; CNF-039 step 4 fails the update with a temporary trigger; CNF-028 checks Sentry through `initSentry`'s `beforeSend` and `beforeBreadcrumb`.
+- CNF-025 (token rules) and MSG-002 (the mock never logs text or link) also have unit coverage in test/inc2/db/inc2-contracts.spec.ts. DRV-035 (the driver app's scan reducer) waits on the driver app's test runner.
+
 # Review fixes, 2026-10-23
 
 The Increment 1 review reported 47 findings. The verifier confirmed 43 and refuted 4 as documented behaviour (money-data-08, robustness-ops-12, robustness-ops-13, mobile-ux-01), which are unchanged. Each line below gives how one confirmed finding was fixed and where the docs now say it; "code only" means the docs already said so. The money model is unchanged: the delivery cost is deducted when the order is placed, it is returned only on a cancel before delivery has started, and refills carry no money.

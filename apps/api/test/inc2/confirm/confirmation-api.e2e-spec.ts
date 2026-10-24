@@ -27,7 +27,6 @@ import {
   deliverX1,
   finishDelivery,
   freshStandard,
-  itAfterGate,
   LINK_BASE,
   messagesOf,
   pageCalls,
@@ -107,7 +106,7 @@ describeDb('confirmation routes for the shop and the office', () => {
     expect(textOf(open.text)).toContain('Did you get your delivery?');
   });
 
-  itAfterGate("CNF-002 step 7: an order delivered while the setting was off reads confirmation null (GET /orders/:id)", async () => {
+  it("CNF-002 step 7: an order delivered while the setting was off reads confirmation null (GET /orders/:id)", async () => {
     await setSetting(app, 'confirmation.enabled', false, 'Owner switched confirmation off');
     const d1 = await deliverX1(app, std);
     await setSetting(app, 'confirmation.enabled', true, 'Owner switched confirmation back on');
@@ -115,7 +114,7 @@ describeDb('confirmation routes for the shop and the office', () => {
     expect(order.body).toHaveProperty('confirmation', null);
   });
 
-  itAfterGate('CNF-023 (wiring) the API as main.ts sets it up serves the page at /c/ and not under /api/v1', async () => {
+  it('CNF-023 (wiring) the API as main.ts sets it up serves the page at /c/ and not under /api/v1', async () => {
     // test/helpers/app.ts is createTestApp with configureApp alone, as main.ts runs it.
     const { createTestApp } = await import('../../helpers/app');
     const plain = await createTestApp();

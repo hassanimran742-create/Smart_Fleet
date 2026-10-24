@@ -951,9 +951,18 @@ export class OrdersService {
     return (await this.views(caller, [row]))[0];
   }
 
+  /**
+   * The OrderDtos of `rows`. From Inc 2 each carries the customer's `confirmation` summary for the
+   * owning shop and the office, read with one query per list (API_CONTRACT §9.7; null when there is
+   * none, as for an order delivered while `confirmation.enabled` was off). A driver never gets it: the
+   * driver never receives anything of the customer's link (CUSTOMER_PAGE §1, CNF-040).
+   */
   private async views(caller: PolicyCaller, rows: OrderViewRow[]): Promise<OrderDto[]> {
     const rule = await this.feePolicy.deliveryStartedRule();
-    return toOrderDtos(this.prisma, rows, caller, rule);
+    const dtos = await toOrderDtos(this.prisma, rows, caller, rule);
+    if (caller.role === UserRole.DRIVER || dtos.length === 0) return dtos;
+    const summaries = await this.confirmations.summariesFor(dtos.map((dto) => dto.id));
+    return dtos.map((dto) => ({ ...dto, confirmation: summaries.get(dto.id) ?? null }));
   }
 
   /** A cursor page of orders sorted by `createdAt`, then id (ascending for the needs-driver tab). */

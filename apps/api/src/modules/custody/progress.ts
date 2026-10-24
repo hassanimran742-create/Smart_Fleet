@@ -34,9 +34,13 @@ function byWeight(a: { weightKg: number; code: string }, b: { weightKg: number; 
  * The loads the trip's orders still need, per size (API_CONTRACT §9.3): `needed` is Σ fullCount of the
  * trip's orders that aren't CANCELLED or FAILED; `done` counts the cylinders whose latest LOAD is on this
  * trip and that haven't gone back into a store since: on the trip's van with that LOAD as their last
- * move, or handed over from the van on this trip. LOAD events themselves aren't counted, so a cylinder
- * the store took back off the van no longer counts, and spares never exceed what is needed in
- * `doneCount`.
+ * move, or handed over on this trip. LOAD events themselves aren't counted, so a cylinder the store took
+ * back off the van no longer counts, and spares never exceed what is needed in `doneCount`.
+ *
+ * "Handed over on this trip" is every GIVEN row of the trip's visits, whichever holder the cylinder left:
+ * after a forgotten IN the office's manual delivery may hand a cylinder straight from the home store
+ * (§9.5). That order's need is met on this trip, so "Done loading" (and with it "Finish trip") can still
+ * close the run (API_CONTRACT §9.12).
  */
 export async function pickupProgress(db: Db, trip: ProgressTrip): Promise<PickupProgress> {
   const [needed, onVan, handedOver] = await Promise.all([
@@ -56,7 +60,7 @@ export async function pickupProgress(db: Db, trip: ProgressTrip): Promise<Pickup
       FROM stop_cylinders sc
       JOIN trip_stops ts ON ts.id = sc.trip_stop_id
       JOIN cylinder_events e ON e.id = sc.event_id
-      WHERE ts.trip_id = ${trip.id}::uuid AND sc.direction = 'GIVEN' AND e.from_custody_type = 'VEHICLE'
+      WHERE ts.trip_id = ${trip.id}::uuid AND sc.direction = 'GIVEN'
         AND NOT EXISTS (
           SELECT 1 FROM cylinder_events s
           WHERE s.cylinder_id = sc.cylinder_id AND s.to_custody_type = 'STORE' AND s.created_at > e.created_at)

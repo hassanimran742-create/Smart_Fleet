@@ -5,19 +5,30 @@ import type {
   ClientAddressDto,
   ClientCreateResult,
   ClientDto,
+  ClientUpdateResult,
   IdName,
   LocationQuote,
   PriceStatus,
 } from '@smartfleet/shared-types';
 import { normalizePkPhone } from '@smartfleet/shared-utils';
-import type { ClientAddressInput, CreateClientInput } from '@smartfleet/shared-validation';
+import type { ClientAddressInput, CreateClientInput, UpdateClientInput } from '@smartfleet/shared-validation';
+import type { UserActor } from '../../common/auth/actor';
 import { canSeeClient, type PolicyCaller } from '../../common/auth/policies';
 import { AppError } from '../../common/errors/app-error';
 import { isUniqueViolation } from '../../common/errors/prisma-errors';
 import { assertSameRequest, replayed, type IdempotentResponse } from '../../common/idempotency/idempotency';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { ConfirmationService } from '../confirmation/confirmation.interface';
 import { LOCKING_TX, type Db, type Tx } from '../orders/support/tx';
 import { PricingService } from '../pricing/pricing.service';
+
+/** The fields `PATCH /clients/:id` may change, as stored. */
+interface ClientContact {
+  name: string;
+  phone: string;
+  notes: string | null;
+}
 
 /** A row of `GET /clients`: the ClientDto plus the free-text fields installed 0.1.0 apps still read. */
 export interface ClientRow extends ClientDto {
@@ -68,13 +79,16 @@ function assertServiceable(quote: LocationQuote): asserts quote is LocationQuote
 /**
  * Customers (API_CONTRACT §7.4): a distributor's own data. Phones are stored normalised and unique
  * within the distributor; an address must be covered by an active zone with this distributor's price.
- * Adding a customer or an address writes no audit row (Appendix B).
+ * Adding a customer or an address writes no audit row (Appendix B); from Inc 2 an edit writes
+ * `client.update`.
  */
 @Injectable()
 export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricing: PricingService,
+    private readonly audit: AuditLogService,
+    private readonly confirmations: ConfirmationService,
   ) {}
 
   /** `GET /clients` (a bare array, newest first), each address with its live zone and price status. */
@@ -195,11 +209,79 @@ export class ClientsService {
     return { id, label: body.label, lat: body.lat, lng: body.lng, zone: quote.zone, price: quote.price, ok: true };
   }
 
+  /**
+   * [Inc 2] `PATCH /clients/:id` (the owning distributor; API_CONTRACT §9.4) `{ name?, phone?, notes? }`.
+   * In order: the customer is the caller's (else 404 CLIENT_NOT_FOUND, as for an unknown id); the phone
+   * (400 CLIENT_PHONE_INVALID); then, under the distributor-row lock `POST /clients` takes, the phone is
+   * unique within the distributor (409 CLIENT_PHONE_EXISTS) and the change is saved with its
+   * `client.update` audit row in one transaction. A body that changes nothing writes nothing. Addresses
+   * are add-only (§7.4). When the phone changed while a confirmation is pending, the answer adds
+   * `confirmationNeedsNewLink: true`: a pending link keeps the number it was made for until the shop
+   * makes a new link (CUSTOMER_PAGE §10).
+   */
+  async update(actor: UserActor, clientId: string, body: UpdateClientInput): Promise<ClientUpdateResult> {
+    const owned = canSeeClient(
+      actor,
+      await this.prisma.client.findUnique({ where: { id: clientId }, select: { id: true, distributorId: true } }),
+      { access: 'write' },
+    );
+    const phone = body.phone === undefined ? undefined : normalizePkPhone(body.phone);
+    if (phone === null) throw new AppError('CLIENT_PHONE_INVALID');
+
+    let phoneChanged = false;
+    try {
+      phoneChanged = await this.prisma.$transaction(async (tx): Promise<boolean> => {
+        // The lock POST /clients takes: an add and an edit to one number can't both pass the check.
+        await tx.$queryRaw`SELECT id FROM distributors WHERE id = ${owned.distributorId}::uuid FOR UPDATE`;
+        const current = await tx.client.findUniqueOrThrow({ where: { id: clientId }, select: { name: true, phone: true, notes: true } });
+        const before: ClientContact = { name: current.name, phone: current.phone, notes: current.notes };
+        const after: ClientContact = {
+          name: body.name ?? before.name,
+          phone: phone ?? before.phone,
+          notes: body.notes === undefined ? before.notes : body.notes,
+        };
+        const changed = (Object.keys(before) as Array<keyof ClientContact>).filter((key) => before[key] !== after[key]);
+        if (changed.length === 0) return false;
+        if (after.phone !== before.phone) await this.assertPhoneFree(tx, owned.distributorId, after.phone, clientId);
+        await tx.client.update({ where: { id: clientId }, data: { name: after.name, phone: after.phone, notes: after.notes } });
+        await this.audit.record(
+          {
+            action: 'client.update',
+            actor,
+            resourceType: 'client',
+            resourceId: clientId,
+            distributorId: owned.distributorId,
+            before: Object.fromEntries(changed.map((key) => [key, before[key]])),
+            after: Object.fromEntries(changed.map((key) => [key, after[key]])),
+            diff: { client: after.name, changed },
+          },
+          tx,
+        );
+        return after.phone !== before.phone;
+      }, LOCKING_TX);
+    } catch (error) {
+      if (phone && isUniqueViolation(error, 'clients_distributor_id_phone_key')) {
+        await this.assertPhoneFree(this.prisma, owned.distributorId, phone, clientId);
+      }
+      throw error;
+    }
+
+    const client = await this.prisma.client.findUniqueOrThrow({
+      where: { id: clientId },
+      select: { id: true, name: true, phone: true, area: true, notes: true },
+    });
+    const addresses = (await this.liveAddresses(this.prisma, owned.distributorId, clientId)).map(toAddressDto);
+    const result: ClientUpdateResult = { ...client, addresses };
+    if (phoneChanged && (await this.confirmations.hasPendingForClient(clientId))) result.confirmationNeedsNewLink = true;
+    return result;
+  }
+
   // ---------- internals ----------
 
-  private async assertPhoneFree(db: Db, distributorId: string, phone: string): Promise<void> {
+  /** 409 CLIENT_PHONE_EXISTS when another customer of the distributor has `phone` (`exceptClientId` aside). */
+  private async assertPhoneFree(db: Db, distributorId: string, phone: string, exceptClientId?: string): Promise<void> {
     const existing = await db.client.findFirst({
-      where: { distributorId, phone },
+      where: { distributorId, phone, ...(exceptClientId ? { id: { not: exceptClientId } } : {}) },
       orderBy: { createdAt: 'asc' },
       select: { id: true, name: true },
     });

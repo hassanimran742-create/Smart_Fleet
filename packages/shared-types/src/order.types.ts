@@ -234,8 +234,10 @@ export interface OrderDto {
   /** Office only. */
   distributor?: DistributorRef;
   /**
-   * [Inc 2] The customer's confirmation, on order lists (`GET /orders?tab`, `GET /orders/board`): null
-   * when there is none (not delivered, or delivered while `confirmation.enabled` was off). Never money.
+   * [Inc 2] The customer's confirmation, for the owning shop and the office on every order answer
+   * (`GET /orders`, `?tab`, `GET /orders/board`, `GET /orders/:id`): null when there is none (not
+   * delivered, or delivered while `confirmation.enabled` was off). Absent for a driver, who never gets
+   * anything of the customer's link. Never money. The apps show it only while `features.confirmations`.
    */
   confirmation?: OrderConfirmationSummary | null;
 }
