@@ -364,6 +364,7 @@ ConfirmationView = { orderId; orderShortCode; status: 'PENDING' | 'ANSWERED' | '
   delivered: { size; count }[]; takenBack: { size; state; count; unlabelled }[];
   caseOpen: boolean; allowedActions: ('SHARE' | 'NEW_LINK')[] }
 ```
+As built (API_CONTRACT §9.12): `customer` describes the link's target. `phoneValid` means the link has a mobile number (`phone_e164`); `phoneDisplay` is that number in local style, or, when it is NULL, the customer's stored number as stored; a fixed number takes effect with a new link (`PATCH /clients/:id` answers `confirmationNeedsNewLink: true` while a link is pending). A PENDING link past its `expiresAt` reads EXPIRED, with `allowedActions: []`, before the job stores it. `lastMessage.byName` is also set for an SMS a user asked for with new-link `{ send: 'SMS' }`. The order answers carry the short form `confirmation: { status, response, caseOpen } | null` for the shop and the office, never for a driver.
 - **`GET /orders/:id/confirmation`**: `ConfirmationView`. Checks in order: setting off 403 `FEATURE_DISABLED` (`X-Feature-Disabled: confirmations`) for every caller; driver or other distributor 404; not DELIVERED 409 `CONFIRM_NOT_READY`; no confirmation row (delivered while off, no back-fill) 404 `NOT_FOUND`. Share and new link run these first.
 - **`POST /orders/:id/confirmation/share`** `{ via: 'WHATSAPP' | 'SMS' | 'SHARE_SHEET' | 'COPY' }` returns `{ url, message, whatsappUrl, smsUrl, expiresAt }`.
   - The current token is re-derived (no rotation).
