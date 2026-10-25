@@ -77,6 +77,7 @@ Exit: the rehearsal day passes its go / no-go rules. The test server's company a
 | [UX_ADMIN.md](UX_ADMIN.md) | Super-admin website screens, states, copy, web design tokens and components |
 | [CUSTOMER_PAGE.md](CUSTOMER_PAGE.md) | The public confirmation link page, the SMS text and messaging (Inc 2, optional) |
 | [CHANGELOG.md](CHANGELOG.md) | The record of spec changes, one line per gap id, with the defaults the owner may still change |
+| [DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md) | The two deploy checklists for the IT person: release 1, the baseline, and release 2, the switch-over. It covers the env files, the snapshots, the checks, the rollback, the phone update and the pilot setup. Its readiness check is [release2-ready.sql](release2-ready.sql) |
 
 Rules when the docs and the code disagree:
 1. **Precedence:** DECISIONS beats DATA_MODEL for names, which beats API_CONTRACT, which beats the UX docs. Between CUSTOMER_PAGE and API_CONTRACT, API_CONTRACT wins on routes, status codes and error codes, and CUSTOMER_PAGE wins on page content, copy and layout. On look, feel, layout, controls, copy and screen states, UX_PRINCIPLES beats UX_MOBILE, UX_ADMIN and CUSTOMER_PAGE; it never changes a behaviour, money or safety rule. Fix the lower doc in the same pull request.

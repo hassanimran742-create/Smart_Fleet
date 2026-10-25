@@ -87,6 +87,12 @@ apps/api/scripts/new-migration.mjs
 
    It has no schema change.
 
+   As built, it is the first commit of branch `release/pilot` (DEPLOY_RUNBOOK.md). It also carries what its tooling needs:
+   - the release-2 `package-lock.json`: the af889bf lock is out of sync with its package.json files, so `npm ci` fails on it;
+   - the Dockerfile's `GIT_COMMIT_SHA` build argument: deploy.sh waits until `GET /health` reports the commit.
+
+   On a database still on the schema of the older `main`, its `db push` stops on one data-loss warning: a unique index on the new, empty `clients.user_id`. One `db push --accept-data-loss` then lets it baseline (CHANGELOG "Release prep, 2026-10-25").
+
 `prisma/scripts/migrate.sh` is the only path to any database. AWS and Railway both call it.
 ```sh
 #!/bin/sh

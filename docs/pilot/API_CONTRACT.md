@@ -1322,6 +1322,11 @@ A distributor's "Try again" creates a new request, prefilled. `REFUNDED` is unus
 Every `@Cron` passes `{ timeZone: 'Asia/Karachi' }` literally, even where it changes nothing. Job times are fixed in code and don't follow `day.timezone` or `day.cutoffLocalTime`.
 
 **Switch-over checklist** (staging first, then prod):
+
+As shipped, the deploy is two releases on branch `release/pilot` (the steps are in DEPLOY_RUNBOOK.md):
+- release 1 is step 2;
+- release 2 carries steps 4, 9 and 10 in one deploy. One `migrate deploy` applies inc1a, inc1b, inc2, inc3 and users_app_seen, after the checks of step 3 (`docs/pilot/release2-ready.sql`).
+
 1. The owner confirms what is live (AWS or Railway) and whether it holds real data. Run the restore drill of DATA_MODEL §2.6 on the test server and record its times. Take a snapshot. On AWS, bring the host up to date before any deploy:
    - copy `infrastructure/aws/docker-compose.aws.yml` and `Caddyfile` to `/srv/smartfleet/`. The host's copies are hand-edited: deploy.sh refuses a compose file that doesn't take the service's image from `IMAGE_PROD` / `IMAGE_STAGING`, and Caddy must serve `api.smartfleetpk.com` and `staging.smartfleetpk.com`;
    - write `/srv/smartfleet/deploy.env` with `RDS_INSTANCE_ID=<the prod RDS instance>` (and `AWS_REGION` when it isn't ap-southeast-1);

@@ -1,3 +1,76 @@
+# Release prep, 2026-10-25
+
+The pilot build ships in two releases, on the local branch `release/pilot` (from af889bf, not pushed):
+- **release 1, the baseline**;
+- **release 2**, whose tree is exactly this build.
+
+[DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md) holds the two checklists for the client's IT person, and [release2-ready.sql](release2-ready.sql) is its readiness check. No code changed.
+
+## Release 1, the baseline (the branch's first commit)
+- schema.prisma and all app code stay as at af889bf.
+- It ships, as DATA_MODEL §2.3 and §2.5 list them:
+  - 0_baseline and migration_lock.toml;
+  - migrate.sh, assert-baselined.sql and new-migration.mjs;
+  - .gitattributes;
+  - deploy.sh and docker-compose.aws.yml;
+  - the AWS README (its pilot-setup section comes with release 2);
+  - railway.toml;
+  - deploy-staging.yml and promote-prod.yml;
+  - ci.yml without the DB-tests step, whose suites come with release 2;
+  - apps/api/package.json with db:new-migration, db:status and db:drift, no `prisma migrate dev`, and prisma and @prisma/client at 5.22.0 (the locked version).
+- It also carries what that tooling needs:
+  - **The release-2 `package-lock.json`.** The af889bf lock is out of sync with its own package.json files: it lacks @aws-sdk/s3-request-presigner and expo-updates, and the apps/api `@types/geojson` entry. So npm 10.5.2's `npm ci` check, run offline, fails on it. With release 1's package.json files, the release-2 lock passes that check.
+  - **The Dockerfile's `GIT_COMMIT_SHA` build argument.** deploy.sh and promote-prod wait until `GET /health` reports the commit. The af889bf health controller already reports `GIT_COMMIT_SHA`.
+- deploy.sh is the release-2 script, unchanged:
+  - It skips the env check for an image without `dist/common/bootstrap/boot-preflight.js`: release 1, or a rollback to it. The Alpine images have `test` (exit 0 when the file is there, 1 when not).
+  - With the new compose file, the compose-image check gives the image deploy.sh built.
+
+## Proofs on the Docker test server (own databases, ports and Redis prefix)
+- **Release 1's CI, without `npm ci`:**
+  - the shared packages build, `prisma generate`, migrate deploy on a fresh database and the migrations-match-schema check all pass;
+  - the API typecheck passes, and its unit tests pass (5, plus 3 smoke tests skipped);
+  - the website typecheck and build pass.
+- **Release 1 on an af889bf database made by `db push`, with `test/migrations/fixtures/legacy-full.sql`** (6 shops, 10 orders, 6 top-ups, keyless ledger rows, a run in progress):
+  - release 2's migrate.sh, run first, stops with `DB_NOT_BASELINED: deploy the baseline release first` and changes nothing;
+  - release 1's migrate.sh runs the db push (already in sync), finds no drift and marks 0_baseline applied; a second run is a no-op;
+  - assert-baselined, `migrate status` and `db:drift` are then clean;
+  - regenerated from the release-1 schema, 0_baseline is byte-identical: 998 lines, 38 tables.
+- **The release-1 API on that database** (af889bf code built from the commit, `NODE_ENV=production`), 8 of 8 checks:
+  - `GET /health` reports the commit;
+  - the office, a shop and a driver sign in with passwords;
+  - an old-style order is placed, assigned, set on the way and delivered, with the old Rs 350 fee as a keyless `DEBIT_ORDER`;
+  - the office lists read.
+- **Release 2 on the same database:**
+  - The readiness check found 9 rows: 3 open orders, a run in progress, a negative balance, 2 shops without a store, a shared store and a duplicate customer phone.
+  - A release-2 deploy at that point stopped on `MIGRATION_BLOCKED inc1a`, with nothing applied, and the release-1 API kept answering.
+  - Fixed with the old API (stores, cancels, the run finished, top-ups checked) and SQL for the balance and the merge, the check gave 0 rows.
+  - After `migrate resolve --rolled-back`, the five migrations applied in 10 to 19 s. `migrate status` and `db:drift` were then clean.
+  - 23 of the 26 legacy invariants hold. The other 3 differ only by the old API's own activity and inc1b/inc3's NOT VALID checks.
+  - Every wallet adds up, with opening entries for D02 (+Rs 30,000) and D04 (+Rs 2,350).
+- **The release-2 API on it** (`NODE_ENV=production`, boot guards on), with the legacy history moved 2 days back so "today" starts empty:
+  - The Inc 1 exit scenario passes 23 of 23. Its nightly check found 8 wallets, 0 mismatches; the `wallet.check` audit row is there, and 0 alerts.
+  - The scenario is fix23check/exit1, which is gate1/exit with step 5.2 through the store receive. gate1/exit as written stops at that step (18 of 19): from Increment 2 the driver's own hand-back answers 403 `SCAN_USE_STORE_RECEIVE`, as API_CONTRACT §9.10 says.
+  - Al-Ghani Gas (now D01) signs in to the shop app and reads its old balance and statement.
+  - The runbook's suspend commands retire "LPG Super Admin".
+- **A fresh database through release 2's migrate.sh:**
+  - all 6 migrations apply, and the CI's shadow check and `db:drift` are clean;
+  - the exit scenario passes 23 of 23.
+- **The pilot setup on a fresh production-like database:**
+  - the sample file is refused (its opening balances need `--test`), and so is `--test` on live;
+  - the client-shaped file passes the dry run, then the real run with labels (35 rows);
+  - a re-run changes nothing and makes no passwords;
+  - a printed office password signs in.
+- **The phone switch-over:**
+  - The chips compare each phone's last version with `app.minVersion`.
+  - At 0.0.0, a shop phone on the 0.1.0 JS reads `UP_TO_DATE`. Once the minimum is raised to 0.1.1, it reads `NEEDS_UPDATE` and its calls get 426 `APP_UPDATE_REQUIRED`.
+  - After the update, its calls succeed and it reads `UP_TO_DATE`.
+  - So the runbook keeps API_CONTRACT §8.5 step 10's order: publish, raise the minimum, restart the phones, check the chips, switch on.
+- **The deploy.sh preflight against today's live env file:** it gives `BOOT_REFUSED: BULLMQ_PREFIX is not set; CORS_ORIGINS is not set; CONFIRM_LINK_SECRET is not set; PUBLIC_LINK_BASE_URL is not set`. The filled-in template gives `BOOT_PREFLIGHT_OK`.
+- **On the older `main` schema** (9bb47ee, with rows), release 1's db push stops on one warning: a unique index on the new, empty `clients.user_id`. One `db push --accept-data-loss`, then migrate.sh, baselines it with every row kept (DATA_MODEL §2.3).
+
+## Left as found
+- Release 1's mobile CI job (the `apps/mobile` typecheck) fails on af889bf's own code: `FillingOrdersScreen.tsx:124` `<Caption muted>`, from 8ae4440. The deploy workflows wait only for the API job, and release 2 doesn't have the error.
+
 # Inc 2/3 follow-ups, 2026-10-25
 
 The items the review23 check left are done and checked together. The money model is unchanged: nothing here moves money; only Inc 1's delivery cost, taken when the order is placed, and its refund before the start do. One migration is added, `20261025113630_users_app_seen` (three nullable `users` columns), and no new error code or setting.
