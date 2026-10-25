@@ -7,8 +7,10 @@
  * from the binary, the new JS would report "0.1.0" like the JS it replaces, and no `app.minVersion` could
  * stop the old screens (review23 contract-compat-02). So the JS names its own release:
  * - bump it with every over-the-air release;
- * - the switch-over then raises `app.minVersion.driver` and `.distributor` to it, once every pilot phone
- *   shows it on Help ("App version 0.1.1").
+ * - the switch-over then raises `app.minVersion.driver` and `.distributor` to it once the release is
+ *   published (API_CONTRACT §8.5 step 10): a phone still on older JS is told to restart, and the office's
+ *   Drivers and Distributors lists show "App: up to date" for each phone that calls with it (the server
+ *   records every shop's and driver's app), so nobody opens Help on each phone ("App version 0.1.1").
  * appInfo.ts `APP_VERSION` takes the later of this and the native version, so a newer APK never reports
  * less than its own version.
  *

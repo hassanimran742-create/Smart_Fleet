@@ -37,6 +37,25 @@ export function parseAppVersion(value: string | undefined): string | undefined {
   return version && VERSION.test(version) ? version : undefined;
 }
 
+/**
+ * "1.10.0" > "1.9.3". Missing parts count as 0; a pre-release or build suffix is ignored. The update gate
+ * (AppVersionInterceptor) and the office's app chips (AppSeenService) compare with it.
+ */
+export function compareVersions(a: string, b: string): number {
+  const parts = (v: string) =>
+    v
+      .split(/[-+]/)[0]
+      .split('.')
+      .map((n) => Number.parseInt(n, 10) || 0);
+  const left = parts(a);
+  const right = parts(b);
+  for (let i = 0; i < Math.max(left.length, right.length, 3); i++) {
+    const diff = (left[i] ?? 0) - (right[i] ?? 0);
+    if (diff !== 0) return diff < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
 export function clampUserAgent(value: string | undefined): string | undefined {
   if (!value) return undefined;
   return value.length > MAX_USER_AGENT ? value.slice(0, MAX_USER_AGENT) : value;

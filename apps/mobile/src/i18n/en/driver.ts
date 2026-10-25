@@ -50,6 +50,12 @@ export const driver = {
     },
     /** A refill on Today, under the trips: "Refill · 1 × 6 kg · Ahmed Gas" (the line is data). */
     refillRow: 'Refill · {{line}}',
+    /**
+     * Today's one line under the van while refills are assigned: "2 refills · 7 cylinders" ({{cylinders}} is
+     * `driver.trip.cylinders`, a whole counted phrase).
+     */
+    refillSummary: '{{count}} refill · {{cylinders}}',
+    refillSummary_plural: '{{count}} refills · {{cylinders}}',
     tripTo: 'Deliver to {{name}}',
     tripCustomers: 'Deliver to {{count}} customer',
     tripCustomers_plural: 'Deliver to {{count}} customers',

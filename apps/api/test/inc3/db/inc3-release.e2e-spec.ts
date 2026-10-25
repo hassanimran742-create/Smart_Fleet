@@ -5,7 +5,8 @@
  * migrate.sh with inc3_refills_dayend (DATA_MODEL §5). Proves the backfills (refill numbers per
  * distributor by created_at and id, continuing from the counter; `cancelled_at`), the new tables, keys and
  * CHECKs, that nothing else changed and no money moved, that the backfills can run again without changing
- * anything, that the result has no drift from schema.prisma, and that the API runs on it.
+ * anything, that the result has no drift from the schema the Increment 3 release shipped
+ * (fixtures/schema.inc3.prisma; the follow-ups' users_app_seen comes after it), and that the API runs on it.
  */
 import * as path from 'path';
 import type { INestApplication } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { authHeader } from '../../helpers/auth';
 import { describeDb } from '../../helpers/describe-db';
 import { http } from '../../helpers/http';
 import {
+  APP_SEEN_MIGRATION,
   appliedMigrations,
   createScratchDb,
   deployRelease,
@@ -26,6 +28,7 @@ import {
   INC1B_MIGRATION,
   INC2_MIGRATION,
   INC3_MIGRATION,
+  INC3_SCHEMA,
   makeRelease,
   prisma,
   removeScratchRoot,
@@ -124,11 +127,11 @@ describeDb('inc3 release on today-shaped Increment 2 data', () => {
     removeScratchRoot();
   });
 
-  it('migrate.sh applies inc3_refills_dayend on the Increment 2 database, with no drift from schema.prisma', async () => {
+  it('migrate.sh applies inc3_refills_dayend on the Increment 2 database, with no drift from the Inc 3 schema', async () => {
     expect({ code: run.code, output: run.code === 0 ? '' : run.output }).toEqual({ code: 0, output: '' });
     expect(run.output).toContain(INC3_MIGRATION);
     expect(await appliedMigrations(today.client())).toEqual(['0_baseline', INC1A_MIGRATION, INC1B_MIGRATION, INC2_MIGRATION, INC3_MIGRATION]);
-    const live = prisma(['migrate', 'diff', '--from-url', today.url, '--to-schema-datamodel', 'prisma/schema.prisma', '--exit-code'], today.url);
+    const live = prisma(['migrate', 'diff', '--from-url', today.url, '--to-schema-datamodel', INC3_SCHEMA, '--exit-code'], today.url);
     expect({ code: live.code, output: live.code === 0 ? '' : live.output }).toEqual({ code: 0, output: '' });
   });
 
@@ -286,7 +289,12 @@ describeDb('inc3 release on today-shaped Increment 2 data', () => {
     expect(await digest()).toEqual(first);
   });
 
-  it('the API runs on the migrated database: day-end is on, refills and Inc 2 reads still work', async () => {
+  it('the API runs once the database has gone on through the current release: day-end is on, refills and Inc 2 reads still work', async () => {
+    // Today's code reads the follow-ups' users columns (users_app_seen), so it runs only after that migration,
+    // as every deploy migrates before it starts the new code (DATA_MODEL §2.5).
+    const upgraded = runMigrateSh(makeRelease('current'), today.url);
+    expect({ code: upgraded.code, output: upgraded.code === 0 ? '' : upgraded.output }).toEqual({ code: 0, output: '' });
+    expect(await appliedMigrations(today.client())).toEqual(['0_baseline', INC1A_MIGRATION, INC1B_MIGRATION, INC2_MIGRATION, INC3_MIGRATION, APP_SEEN_MIGRATION]);
     const previous = process.env.DATABASE_URL;
     process.env.DATABASE_URL = today.url;
     let app: INestApplication | undefined;

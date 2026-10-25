@@ -1,4 +1,5 @@
 import type { IdName, Paisa, UUID } from './common.types';
+import type { AppSeenDto } from './user.types';
 import type { WalletSummary } from './wallet.types';
 
 /** Mirrors Prisma `DistributorStatus`. Apps show PENDING as "Waiting to start". */
@@ -67,6 +68,11 @@ export interface DistributorDto {
    * leaves it out, and the CNIC itself never leaves the server.
    */
   cnicMasked?: string | null;
+  /**
+   * Office views only: the shop app the distributor last used, against `app.minVersion.distributor` ("App: up
+   * to date", "App: needs update"; API_CONTRACT §8.5 step 10). `GET /distributors/me` leaves it out.
+   */
+  app?: AppSeenDto;
 }
 
 /** `GET /distributor/home` (distributor): everything the home screen needs in one round trip. */

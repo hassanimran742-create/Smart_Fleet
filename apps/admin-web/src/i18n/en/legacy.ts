@@ -408,6 +408,11 @@ export const legacy = {
     limitRs: 'Limit (Rs)',
     limitCylinders: 'Limit (cylinders)',
     limitMissing: 'The limit must be 0 or more.',
+    /** A VAN_NOT_EMPTY alert, read from its context: the van's count now (UX_ADMIN §3.7, review23 robustness-jobs-06). */
+    vanNotEmpty: {
+      title: '{{plate}} still has cylinders on it ({{count}})',
+      reason: 'Reason: {{reason}}',
+    },
   },
   profile: {
     title: 'My profile',

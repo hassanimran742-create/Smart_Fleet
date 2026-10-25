@@ -6,6 +6,9 @@ export { ActivityList, activityActor, activityParams, activitySentence, activity
 export type { ActivityListProps } from './ActivityList';
 export { AddMore } from './AddMore';
 export type { AddMoreProps } from './AddMore';
+export { AppChip } from './AppChip';
+export type { AppChipProps } from './AppChip';
+export { appChipStatus } from './appChipStatus';
 export { Button, IconButton } from './Button';
 export type { ButtonProps, ButtonSize, ButtonVariant, IconButtonProps } from './Button';
 export { ConfirmProvider, confirmOutsideReact, useConfirm } from './ConfirmDialog';

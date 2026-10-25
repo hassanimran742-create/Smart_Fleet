@@ -21,6 +21,7 @@ import { Reflector } from '@nestjs/core';
 import type { AxiosAdapter, AxiosResponse } from 'axios';
 import { lastValueFrom, of } from 'rxjs';
 import { AppVersionInterceptor, compareVersions as serverCompare } from '../../../src/common/interceptors/app-version.interceptor';
+import type { AppSeenService } from '../../../src/common/app-seen/app-seen.service';
 import type { SettingsService } from '../../../src/modules/settings/settings.service';
 
 /** The installed APK: native version 0.1.0 (app.config.ts), the driver build. */
@@ -76,7 +77,8 @@ function gate(min: { driver: string; distributor: string }): AppVersionIntercept
   const settings = {
     get: jest.fn(async (key: string) => (key === 'app.minVersion.driver' ? min.driver : min.distributor)),
   } as unknown as SettingsService;
-  return new AppVersionInterceptor(new Reflector(), settings);
+  const appSeen = { record: jest.fn(async () => undefined) } as unknown as AppSeenService;
+  return new AppVersionInterceptor(new Reflector(), settings, appSeen);
 }
 
 /** What the gate answers a request with these headers (Express lower-cases them) and this signed-in role. */

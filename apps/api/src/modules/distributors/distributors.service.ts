@@ -8,6 +8,7 @@ import type {
   UpdateDistributorInput,
   UpdateDistributorStoreInput,
 } from '@smartfleet/shared-validation';
+import { AppSeenService } from '../../common/app-seen/app-seen.service';
 import type { Actor } from '../../common/auth/actor';
 import { CryptoService } from '../../common/crypto/crypto.service';
 import { AppError } from '../../common/errors/app-error';
@@ -27,7 +28,10 @@ import { WalletService } from '../wallet/wallet.service';
 import { ZonesService } from '../zones/zones.service';
 import { codeCandidates } from './distributor-code';
 
-/** Who reads a distributor: the office sees readiness and the masked CNIC; the shop sees neither. */
+/**
+ * Who reads a distributor: the office sees readiness, the masked CNIC and `app`, the shop app the distributor
+ * last used (API_CONTRACT §1.4 `AppStatus`); the shop sees none of them.
+ */
 export type DistributorView = 'OFFICE' | 'SELF';
 
 /** What `distributor.update` records before and after (Appendix B). */
@@ -44,7 +48,21 @@ const DISTRIBUTOR_SELECT = {
   businessName: true,
   status: true,
   homeStoreId: true,
-  user: { select: { id: true, name: true, phone: true, email: true, passwordHash: true, cnicEncrypted: true, cnic: true } },
+  user: {
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      passwordHash: true,
+      cnicEncrypted: true,
+      cnic: true,
+      // The shop app the distributor last used (office views: "App: up to date", API_CONTRACT §8.5 step 10).
+      appVariant: true,
+      appVersion: true,
+      appSeenAt: true,
+    },
+  },
   homeStore: { select: { id: true, name: true, address: true, zone: { select: { id: true, name: true } } } },
 } as const;
 
@@ -77,6 +95,7 @@ export class DistributorsService {
     private readonly crypto: CryptoService,
     private readonly settings: SettingsService,
     private readonly sessions: SessionCheckService,
+    private readonly appSeen: AppSeenService,
   ) {}
 
   // ---------- reads ----------
@@ -428,11 +447,12 @@ export class DistributorsService {
     if (ids.length === 0) return [];
     const rows = await this.prisma.distributor.findMany({ where: { id: { in: [...ids] } }, select: DISTRIBUTOR_SELECT });
     const storeIds = rows.map((row) => row.homeStoreId).filter((id): id is string => id !== null);
-    const [coverage, pins, withOrders, wallets] = await Promise.all([
+    const [coverage, pins, withOrders, wallets, apps] = await Promise.all([
       this.pricing.coverage(rows.map((row) => row.id)),
       this.storePins(storeIds),
       this.prisma.order.groupBy({ by: ['distributorId'], where: { distributorId: { in: rows.map((row) => row.id) } }, _count: { _all: true } }),
       Promise.all(rows.map((row) => this.wallet.summary(row.id))),
+      view === 'OFFICE' ? this.appSeen.viewsOf('distributor', rows.map((row) => row.user)) : Promise.resolve([]),
     ]);
     const locked = new Set(withOrders.filter((row) => row._count._all > 0).map((row) => row.distributorId));
     const byId = new Map(
@@ -471,6 +491,7 @@ export class DistributorsService {
             appPasswordSet,
           };
           dto.cnicMasked = this.maskedCnic(row.user);
+          dto.app = apps[index];
         }
         return [row.id, dto] as const;
       }),

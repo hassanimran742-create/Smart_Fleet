@@ -15,6 +15,7 @@ import {
   ActionLine,
   Button,
   EmptyState,
+  Icon,
   ListRow,
   QueryBoundary,
   SkeletonCard,
@@ -32,8 +33,10 @@ import {
   REFILLS_QUERY_KEY,
   fetchDriverRefills,
   openRefillsOf,
+  refillSummaryOf,
   useBroughtBackUnfilledIds,
   type DriverRefill,
+  type RefillSummary,
 } from './refillModel';
 import { RefillRow } from './RefillsScreen';
 import { fetchDriverHome, fetchTrip, useStartTrip } from './tripApi';
@@ -59,8 +62,9 @@ function tripsOf(home: DriverHomeDto): { current: TripSummary | null; others: Tr
  * Refills the office assigns show here too (review23 ux-02), from the query the Refills list uses
  * (`GET /filling-orders/driver/mine`): "Refill · 1 × 6 kg · Ahmed Gas" with the driver's next job
  * ("Pick up empties"); a row opens the refill, and the footer stays the trip's (rule 1). "Nothing to do."
- * shows only with no trip and no refill. Everything polls every 30 seconds while on screen, and pulls to
- * refresh.
+ * shows only with no trip and no refill. While refills are assigned, one line under the van sums them up
+ * ("2 refills · 7 cylinders"), so they are seen at once even when trips push their rows down the screen.
+ * Everything polls every 30 seconds while on screen, and pulls to refresh.
  */
 export function TodayScreen() {
   const { t } = useTranslation();
@@ -101,6 +105,7 @@ export function TodayScreen() {
   });
   const unfilled = useBroughtBackUnfilledIds();
   const openRefills = refills.data ? openRefillsOf(refills.data) : [];
+  const refillSummary = refills.data ? refillSummaryOf(refills.data) : null;
   // Known once answered (or failed): "Nothing to do." never shows before the refills are known.
   const refillsKnown = refills.data !== undefined || refills.isError;
   const pull = usePullToRefresh(home.refetch, refills.refetch, ...details.map((detail) => detail.refetch));
@@ -155,6 +160,7 @@ export function TodayScreen() {
           {(data) => (
             <View style={styles.stack}>
               <VanRow home={data} onPress={() => navigation.navigate('Van')} />
+              {refillSummary ? <RefillSummaryLine summary={refillSummary} /> : null}
               {current || openRefills.length > 0 ? (
                 <View style={styles.list}>
                   {current
@@ -202,6 +208,23 @@ export function TodayScreen() {
         </QueryBoundary>
       </View>
     </DriverScreen>
+  );
+}
+
+/**
+ * The one line about the assigned refills (UX_MOBILE §7.2 R2): the cylinder icon and "2 refills · 7
+ * cylinders". Not a button: each refill's own row below opens it.
+ */
+function RefillSummaryLine({ summary }: { summary: RefillSummary }) {
+  const { t } = useTranslation();
+  const cylinders = t('driver.trip.cylinders', { count: summary.cylinders });
+  return (
+    <View style={styles.summary} testID="home.refillSummary">
+      <Icon name="cylinder" size={24} tone="secondary" />
+      <Text variant="bodyStrong" tabular style={styles.fill}>
+        {t('driver.home.refillSummary', { count: summary.refills, cylinders })}
+      </Text>
+    </View>
   );
 }
 
@@ -308,6 +331,7 @@ const styles = StyleSheet.create({
   row: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   rowCurrent: { borderWidth: 2, borderColor: colors.brand },
   fill: { flex: 1, gap: space.xs },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },
   duty: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

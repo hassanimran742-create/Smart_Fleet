@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AppSeenService } from '../../common/app-seen/app-seen.service';
 import { CryptoModule } from '../../common/crypto/crypto.module';
 import configuration from '../../config/configuration';
 import { PrismaModule } from '../../prisma/prisma.module';
@@ -50,6 +51,8 @@ const NO_CONFIRMATIONS: Pick<ConfirmationService, 'hasPendingForClient'> = {
 /**
  * `npm run pilot:setup` (API_CONTRACT §10.3, no HTTP): the services the setup writes through, wired
  * without their HTTP modules (no controllers, guards, sockets, queues or jobs start in a CLI).
+ * AppSeenService is the office views' reader of each user's app (DistributorsService and DriversService
+ * build their DTOs with it); the setup makes no app call, so it records nothing.
  */
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true, load: [configuration] }), SetupPrismaModule, CryptoModule, SettingsModule, AuditLogModule],
@@ -63,6 +66,7 @@ const NO_CONFIRMATIONS: Pick<ConfirmationService, 'hasPendingForClient'> = {
     PricingService,
     WalletService,
     SessionCheckService,
+    AppSeenService,
     DistributorsService,
     CnicVault,
     DriversService,

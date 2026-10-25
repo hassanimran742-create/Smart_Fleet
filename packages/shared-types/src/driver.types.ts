@@ -1,5 +1,5 @@
 import type { GeoPoint, IsoDateTime, ISODateString, UUID } from './common.types';
-import type { UserStatusValue } from './user.types';
+import type { AppSeenDto, UserStatusValue } from './user.types';
 
 export interface Driver {
   id: UUID;
@@ -52,4 +52,9 @@ export interface DriverOfficeDto {
   createdAt: IsoDateTime;
   /** Office views only. */
   cnicMasked?: string | null;
+  /**
+   * Office views only: the driver app the driver last used, against `app.minVersion.driver` ("App: up to date",
+   * "App: needs update"; API_CONTRACT §8.5 step 10).
+   */
+  app?: AppSeenDto;
 }

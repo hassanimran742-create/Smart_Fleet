@@ -10,6 +10,7 @@ import {
   type DriverVehicleInput,
   type UpdateDriverProfileInput,
 } from '@smartfleet/shared-validation';
+import { AppSeenService } from '../../common/app-seen/app-seen.service';
 import type { UserActor } from '../../common/auth/actor';
 import type { AuthContext } from '../../common/decorators/current-user.decorator';
 import { AppError } from '../../common/errors/app-error';
@@ -28,8 +29,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * The driver view (API_CONTRACT §3.5, §7.2): `DriverOfficeDto`, with the last known position for the
- * office map and the live-tracking dialog. Office views add `cnicMasked`; a driver reading themselves
- * gets the same shape without it. Never the password hash or the CNIC.
+ * office map and the live-tracking dialog. Office views add `cnicMasked` and `app`, the driver app the
+ * driver last used against `app.minVersion.driver` (§1.4 `AppStatus`, §8.5 step 10); a driver reading
+ * themselves gets the same shape without them. Never the password hash or the CNIC.
  */
 export type DriverView = DriverOfficeDto;
 
@@ -56,6 +58,10 @@ const DRIVER_ROW_SELECT = {
       email: true,
       status: true,
       profilePictureUrl: true,
+      // The app the driver last used (office views: "App: up to date", API_CONTRACT §8.5 step 10).
+      appVariant: true,
+      appVersion: true,
+      appSeenAt: true,
       // Read only to mask and compare them; never copied into a response.
       cnicEncrypted: true,
       cnicIndex: true,
@@ -119,6 +125,7 @@ export class DriversService {
     private readonly audit: AuditLogService,
     private readonly cnic: CnicVault,
     private readonly sessions: SessionCheckService,
+    private readonly appSeen: AppSeenService,
   ) {}
 
   /** `GET /drivers` (office). */
@@ -598,7 +605,8 @@ export class DriversService {
           FROM drivers WHERE id = ANY(${ids}::uuid[]) AND current_location IS NOT NULL`
       : [];
     const byId = new Map(locations.map((row) => [row.id, row]));
-    return rows.map((row) => {
+    const apps = audience === 'office' ? await this.appSeen.viewsOf('driver', rows.map((row) => row.user)) : [];
+    return rows.map((row, index) => {
       const at = byId.get(row.id);
       const view: DriverView = {
         id: row.id,
@@ -623,7 +631,10 @@ export class DriversService {
         currentLocation: at && at.lat !== null && at.lng !== null ? { lat: Number(at.lat), lng: Number(at.lng) } : null,
         currentLocationUpdatedAt: iso(row.currentLocationUpdatedAt),
       };
-      if (audience === 'office') view.cnicMasked = this.cnic.maskOf(row.user);
+      if (audience === 'office') {
+        view.cnicMasked = this.cnic.maskOf(row.user);
+        view.app = apps[index];
+      }
       return view;
     });
   }

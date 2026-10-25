@@ -97,6 +97,8 @@ export const STATUS_TONES: { readonly [K in StatusKind]: Partial<Record<StatusVa
     BACK_AT_STORE: 'info',
     DONE: 'success',
   },
+  /** The app a distributor or driver last used (API_CONTRACT §8.5 step 10): an old one needs a person to act. */
+  app: { UP_TO_DATE: 'success', NEEDS_UPDATE: 'warning', NOT_SEEN: 'neutral' },
 };
 
 /**
@@ -129,6 +131,8 @@ export const STATUS_ICONS: { readonly [K in StatusKind]?: Partial<Record<StatusV
   answer: { PARTLY: TriangleAlert, OTHER: TriangleAlert },
   dayEnd: { READY: Upload },
   refillProgress: { PICKING_UP: Store, PICKED_UP: Truck, COMING_BACK: Truck, BACK_AT_STORE: Store },
+  // "App: needs update" is amber but nobody is waiting: the warning icon, never the clock.
+  app: { NEEDS_UPDATE: TriangleAlert },
 };
 
 export function toneOf<K extends StatusKind>(kind: K, value: string): Tone {

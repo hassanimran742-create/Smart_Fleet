@@ -50,6 +50,11 @@ const ALL_CHECKS = [
   'stop_unlabelled_returns_count_chk',
 ];
 
+// Every step here starts the Prisma CLI in a new process, so how long it takes depends on the machine more
+// than on the database (the Inc 3 suite's hand-written steps took 49.5 s, past jest's 30-second default,
+// while another job kept every core busy). The suite gets 10 minutes per test and hook.
+jest.setTimeout(600_000);
+
 describeDb('migrations: a fresh database through inc2', () => {
   let fresh: ScratchDb;
   let shadow: ScratchDb;

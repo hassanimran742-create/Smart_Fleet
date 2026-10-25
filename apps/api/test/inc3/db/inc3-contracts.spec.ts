@@ -45,7 +45,7 @@ import { AppError } from '../../../src/common/errors/app-error';
 import { AuditLogService } from '../../../src/modules/audit-log/audit-log.service';
 import { isEditableOverApi, isShipped, RELEASE_INCREMENT, SETTINGS } from '../../../src/modules/settings/registry';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
-import { INC2_SCHEMA, INC3_MIGRATION, MIGRATIONS_DIR, PRISMA_DIR } from '../../helpers/migrations';
+import { APP_SEEN_MIGRATION, INC2_SCHEMA, INC3_MIGRATION, INC3_SCHEMA, MIGRATIONS_DIR } from '../../helpers/migrations';
 
 const API_DIR = path.resolve(__dirname, '..', '..', '..');
 
@@ -508,17 +508,17 @@ describe('the inc3 migration file', () => {
     return run.stdout.replace(/\r\n/g, '\n').trim();
   };
 
-  it('is the newest migration, UTF-8 without a BOM, with LF line endings', () => {
+  it('is the last migration of the Increment 3 release (users_app_seen of the follow-ups comes next), UTF-8 without a BOM, with LF line endings', () => {
     const names = fs.readdirSync(MIGRATIONS_DIR).filter((name) => /^\d{14}_/.test(name)).sort();
-    expect(names[names.length - 1]).toBe(INC3_MIGRATION);
+    expect(names.slice(names.indexOf(INC3_MIGRATION))).toEqual([INC3_MIGRATION, APP_SEEN_MIGRATION]);
     const bytes = fs.readFileSync(file);
     expect(bytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf]))).toBe(false);
     expect(bytes.includes(Buffer.from('\r\n'))).toBe(false);
     expect(Buffer.from(bytes.toString('utf8'), 'utf8').equals(bytes)).toBe(true);
   });
 
-  it('keeps the generated DDL unchanged (the diff from the Inc 2 schema to prisma/schema.prisma)', () => {
-    expect(section(sql(), '-- (2) GENERATED DDL (unchanged)', '-- (3) BACKFILLS')).toBe(diff(INC2_SCHEMA, path.join(PRISMA_DIR, 'schema.prisma')));
+  it('keeps the generated DDL unchanged (the diff from the Inc 2 schema to the Inc 3 schema)', () => {
+    expect(section(sql(), '-- (2) GENERATED DDL (unchanged)', '-- (3) BACKFILLS')).toBe(diff(INC2_SCHEMA, INC3_SCHEMA));
   }, 120_000);
 
   it('uses no value it adds to an existing enum as a literal (55P04)', () => {

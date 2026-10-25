@@ -274,6 +274,15 @@ model User {
   /// Inc 3: made by `pilot:setup --test` (a test distributor's user or a test driver's user; never a
   /// SUPER_ADMIN). The pilot reset deletes only test rows and what hangs off them (API_CONTRACT §10.3).
   isTest       Boolean    @default(false) @map("is_test")
+  /// The phone app of the user's latest signed-in call (API_CONTRACT §8.5 step 10, DATA_MODEL §5.6):
+  /// `X-App-Variant`, or the role's app for the installed 0.1.0 JS, which sends no header; "driver" or
+  /// "distributor". Null until a shop or driver call is seen. Written only by AppSeenService
+  /// (common/app-seen) with raw SQL, so `updated_at` keeps meaning a change to the user.
+  appVariant   String?    @map("app_variant")
+  /// That call's `X-App-Version`, or "0.1.0" for a call without one: the version the update gate read.
+  appVersion   String?    @map("app_version")
+  /// When that call came (rewritten at most every 10 minutes per user while the app stays the same).
+  appSeenAt    DateTime?  @map("app_seen_at")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 

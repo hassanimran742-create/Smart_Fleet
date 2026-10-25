@@ -11,9 +11,12 @@ import type { Request } from 'express';
 import { catchError, from, switchMap, throwError, type Observable } from 'rxjs';
 import type { AppVariant, ErrorCode } from '@smartfleet/shared-types';
 import { SettingsService } from '../../modules/settings/settings.service';
-import { parseAppVariant, parseAppVersion } from '../context/request-context';
+import { AppSeenService } from '../app-seen/app-seen.service';
+import { compareVersions, parseAppVariant, parseAppVersion } from '../context/request-context';
 import { AppError } from '../errors/app-error';
 import { headerValue, REQUEST_HEADER } from '../http/headers';
+
+export { compareVersions };
 
 export const SKIP_VERSION_GATE_KEY = 'skipVersionGate';
 export const NEW_APP_ONLY_KEY = 'newAppOnly';
@@ -34,22 +37,6 @@ export const NewAppOnly = () => SetMetadata(NEW_APP_ONLY_KEY, true);
 export const MISSING_APP_VERSION = '0.1.0';
 
 type GatedVariant = Extract<AppVariant, 'driver' | 'distributor'>;
-
-/** "1.10.0" > "1.9.3". Missing parts count as 0; a pre-release or build suffix is ignored. */
-export function compareVersions(a: string, b: string): number {
-  const parts = (v: string) =>
-    v
-      .split(/[-+]/)[0]
-      .split('.')
-      .map((n) => Number.parseInt(n, 10) || 0);
-  const left = parts(a);
-  const right = parts(b);
-  for (let i = 0; i < Math.max(left.length, right.length, 3); i++) {
-    const diff = (left[i] ?? 0) - (right[i] ?? 0);
-    if (diff !== 0) return diff < 0 ? -1 : 1;
-  }
-  return 0;
-}
 
 /**
  * The app a request comes from: `X-App-Variant` when sent, else the signed-in role (installed 0.1.0
@@ -106,12 +93,17 @@ function deadEndsOf(req: Request): readonly ErrorCode[] {
  * the over-the-air JS's own version ("0.1.1") retires the 0.1.0 JS and nothing else. Routes marked
  * {@link NewAppOnly} refuse the 0.1.0 JS whatever the minimum, and {@link OLD_APP_DEAD_ENDS} turn the
  * 0.1.0 JS's dead ends into the restart answer. Runs after the guards, so a token's role is known.
+ *
+ * Every signed-in call of a shop or driver from its own app is also handed to {@link AppSeenService}, refused
+ * or not, with the version read here, so the office's Drivers and Distributors lists show which phones still
+ * need the update (API_CONTRACT §8.5 step 10).
  */
 @Injectable()
 export class AppVersionInterceptor implements NestInterceptor {
   constructor(
     private readonly reflector: Reflector,
     private readonly settings: SettingsService,
+    private readonly appSeen: AppSeenService,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -119,17 +111,20 @@ export class AppVersionInterceptor implements NestInterceptor {
     const targets = [context.getHandler(), context.getClass()];
     if (this.reflector.getAllAndOverride<boolean>(SKIP_VERSION_GATE_KEY, targets)) return next.handle();
 
-    const req = context.switchToHttp().getRequest<Request & { user?: { role?: string } }>();
+    const req = context.switchToHttp().getRequest<Request & { user?: { userId?: string; role?: string } }>();
     const variant = gatedVariant(parseAppVariant(headerValue(req.headers[REQUEST_HEADER.appVariant])), req.user?.role);
     if (!variant) return next.handle();
     const oldApp = isOldAppCall(req.headers);
-    if (oldApp && this.reflector.getAllAndOverride<boolean>(NEW_APP_ONLY_KEY, targets)) throw updateRefusal(true);
     const version = parseAppVersion(headerValue(req.headers[REQUEST_HEADER.appVersion])) ?? MISSING_APP_VERSION;
+    const seen = this.recordApp(req.user, variant, version);
+    if (oldApp && this.reflector.getAllAndOverride<boolean>(NEW_APP_ONLY_KEY, targets)) {
+      return from(seen).pipe(switchMap(() => throwError(() => updateRefusal(true))));
+    }
 
     const deadEnds = oldApp ? deadEndsOf(req) : [];
 
-    return from(this.settings.get(`app.minVersion.${variant}`)).pipe(
-      switchMap((minVersion) => {
+    return from(Promise.all([this.settings.get(`app.minVersion.${variant}`), seen])).pipe(
+      switchMap(([minVersion]) => {
         if (compareVersions(version, minVersion) < 0) throw updateRefusal(oldApp);
         if (deadEnds.length === 0) return next.handle();
         // A dead end of this 0.1.0 route becomes the restart answer; any other answer is kept.
@@ -138,5 +133,14 @@ export class AppVersionInterceptor implements NestInterceptor {
           .pipe(catchError((error: unknown) => throwError(() => (error instanceof AppError && deadEnds.includes(error.code) ? updateRefusal(true, error) : error))));
       }),
     );
+  }
+
+  /**
+   * Hands a signed-in call to AppSeenService when it comes from the caller's own app (a DRIVER on the driver
+   * app, a DISTRIBUTOR on the shop app); a call without a user, or from another app, isn't recorded.
+   */
+  private recordApp(user: { userId?: string; role?: string } | undefined, variant: GatedVariant, version: string): Promise<void> {
+    if (!user?.userId || gatedVariant(undefined, user.role) !== variant) return Promise.resolve();
+    return this.appSeen.record(user.userId, variant, version);
   }
 }

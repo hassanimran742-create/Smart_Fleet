@@ -201,4 +201,13 @@ export const status = {
     BACK_AT_STORE: 'Back at store · {{done}} of {{total}} in',
     DONE: 'Done · {{done}} of {{total}} filled',
   },
+  /**
+   * `AppStatus` (API_CONTRACT §1.4, §8.5 step 10): the app a distributor or driver last used, against
+   * `app.minVersion`, on the Distributors and Drivers lists. "App:" names the thing, as "Customer:" does.
+   */
+  app: {
+    UP_TO_DATE: 'App: up to date',
+    NEEDS_UPDATE: 'App: needs update',
+    NOT_SEEN: 'App: not opened yet',
+  },
 } as const;

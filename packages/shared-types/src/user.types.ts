@@ -112,6 +112,24 @@ export type AppVariant = 'driver' | 'distributor' | 'admin-web';
 export const APP_VARIANTS: readonly AppVariant[] = ['driver', 'distributor', 'admin-web'];
 
 /**
+ * How the office sees a shop's or a driver's app (API_CONTRACT §1.4 `AppStatus`, §8.5 step 10): the version
+ * their latest signed-in call came from, against `app.minVersion.<app>` now. UP_TO_DATE at or above it,
+ * NEEDS_UPDATE below it, NOT_SEEN while no call has been recorded since the release that records them.
+ */
+export type AppStatus = 'UP_TO_DATE' | 'NEEDS_UPDATE' | 'NOT_SEEN';
+
+export const APP_STATUSES: readonly AppStatus[] = ['UP_TO_DATE', 'NEEDS_UPDATE', 'NOT_SEEN'];
+
+/** `DriverOfficeDto.app` and `DistributorDto.app`: office views only. */
+export interface AppSeenDto {
+  status: AppStatus;
+  /** That call's `X-App-Version` ("0.1.0" for the installed 0.1.0 JS, which sends none); null while NOT_SEEN. */
+  version: string | null;
+  /** When that call came; null while NOT_SEEN. */
+  seenAt: IsoDateTime | null;
+}
+
+/**
  * Product names used in `AUTH_WRONG_APP` details (`details.app`, API_CONTRACT §2.3).
  * They are proper names, so they are not translated.
  */

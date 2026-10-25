@@ -832,6 +832,21 @@ The migration is `20261024021613_inc3_refills_dayend`. Its generated DDL is `pri
 - **`day_closes`:** the first sheet download creates the row (`INSERT … ON CONFLICT` on `day_closes_distributor_id_business_date_key`, then `FOR UPDATE`); `totals` is the `DayCloseTotals` of API_CONTRACT §10.5, counted after the approval's fixes.
 - **`day_close_lines`:** `system_*` are read inside the upload's transaction; `reported_place` and `reported_state` keep the sheet's raw values (null for a blank cell); an Extra cylinders line has `cylinder_id` NULL, `reported_place` STORE and `sheet_key` the sheet's number, and `applied_event_id` points at the new cylinder's REGISTERED event; `skipped_moved_at` is the time of the move that caused the skip. A new upload replaces the lines but keeps each applied fix's `applied_event_id` on the new line of the same cylinder or extra number, and a registered number left off the sheet passes it to the new cylinder's own line (API_CONTRACT §10.2). An approval counts a REGISTER line that already has an applied event as unchanged (review23 holder-scans-07).
 
+### 5.6 users_app_seen (follow-ups, 2026-10-25)
+Which app each shop and driver last used, so the switch-over checks every pilot phone with one look at the office website (API_CONTRACT §1.2, §1.4 `AppStatus`, §8.5 step 10). The migration is `20261025113630_users_app_seen`, made with `npm run db:new-migration -- users_app_seen` against HEAD, whose schema is the Increment 3 release's (snapshot `test/helpers/fixtures/schema.inc3.prisma`, which the `inc3` test release now uses, as inc1a, inc1b and inc2 use theirs).
+
+| Column (`users`) | Type | Meaning |
+|---|---|---|
+| `app_variant` | text, null | `driver` or `distributor`: the app of the user's latest signed-in call from their own app (`X-App-Variant`, or the role's app for the installed 0.1.0 JS, which sends no header) |
+| `app_version` | text, null | that call's `X-App-Version`, or "0.1.0" without one: the version the update gate read |
+| `app_seen_at` | timestamp(3), null | when that call came (UTC, like every `DateTime`) |
+
+- **Hand edits:** no pre-check (nothing can block three new nullable columns) and no backfill (a user's app is known only from their next call). Two CHECKs, both validated at once because every existing row has the three columns NULL: `users_app_seen_chk` (all three NULL, or `app_variant IN ('driver', 'distributor')` with the version and the time set) and `users_app_version_chk` (`x.y.z` with an optional `-pre` or `+build` suffix, the API's `parseAppVersion`).
+- **Expand only:** the previous release keeps starting and writing (its client never selects the new columns). Today's code reads them, so it runs only after the migration, as every deploy does (§2.5).
+- **One writer:** AppSeenService (`apps/api/src/common/app-seen`), from the update gate, with a raw `UPDATE users SET app_variant, app_version, app_seen_at = (now() AT TIME ZONE 'UTC')`, so `updated_at` keeps meaning a change to the user. It writes when the app or its version changes, and otherwise at most every 10 minutes per user and API process, also for a call the gate refuses; a failed write is logged and never fails the call. No audit row: it is not a change anyone makes.
+- **Readers:** the office's `GET /drivers`, `GET /drivers/:id`, `GET /distributors` and `GET /distributors/:id`, which derive `app.status` from it and `app.minVersion` (`AppStatus`, not stored). The pilot reset needs nothing new: the columns go with the user rows it deletes.
+- **Proved:** on a fresh database (no drift, the CI shadow check), and on an Increment 3 database with Increment 2-shaped data through `migrate.sh` (no drift, every row of every table unchanged, the users rows' old columns included, the new ones NULL, no money moved), with the CHECKs refusing what AppSeenService never writes (TEST_CASES MIG-020).
+
 ---
 
 ## 6. Raw SQL and PostGIS caveats

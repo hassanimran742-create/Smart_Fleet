@@ -228,3 +228,19 @@ export function driverStageOf(refill: DriverRefill, broughtBackUnfilled: boolean
 export function openRefillsOf(list: readonly DriverRefill[]): DriverRefill[] {
   return list.filter(isRefillOpen).sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
 }
+
+/** Today's one-line refill summary: how many open refills the driver has and their cylinders in all. */
+export interface RefillSummary {
+  refills: number;
+  cylinders: number;
+}
+
+/**
+ * Today's one line about the refills the office assigned (UX_MOBILE §7.2 R2): "2 refills · 7 cylinders", the
+ * open refills and the cylinders they ask for in all; null with none open, so the line shows only then.
+ */
+export function refillSummaryOf(list: readonly DriverRefill[]): RefillSummary | null {
+  const open = list.filter(isRefillOpen);
+  if (open.length === 0) return null;
+  return { refills: open.length, cylinders: open.reduce((sum, refill) => sum + countsOf(refill).requested, 0) };
+}

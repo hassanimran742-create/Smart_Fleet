@@ -63,6 +63,12 @@ const ALL_CHECKS = [
 /** NOT VALID only where old rows might break them (DATA_MODEL §2.4). */
 const NOT_VALID = ['expenses_amount_chk', 'filling_orders_count_chk', 'ledger_entries_sign_chk', 'order_lines_counts_chk', 'orders_fee_chk', 'payments_amount_chk'];
 
+// Every step here starts the Prisma CLI in a new process (deploy, diffs, `db execute` once per hand-written
+// step), so how long it takes depends on the machine more than on the database: the hand-written steps took
+// 13 s on a quiet machine and 49.5 s while another job kept every core busy, past jest's 30-second default.
+// The suite gets 10 minutes per test and hook; what it proves is unchanged.
+jest.setTimeout(600_000);
+
 describeDb('migrations: a fresh database through inc3', () => {
   let fresh: ScratchDb;
   let shadow: ScratchDb;

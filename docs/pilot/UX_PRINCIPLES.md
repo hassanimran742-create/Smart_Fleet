@@ -143,7 +143,7 @@ Contents: 1 People · 2 The 16 rules · 3 Which control · 4 Status words and co
 | **Grey · Nothing to do** | cancelled, closed, not started, no answer, or a plain fact | `neutral` · no icon | `neutral` · Circle |
 
 - The clock means Waiting and nothing else. Red means a person must look. Grey never marks something that needs action.
-- An amber state that isn't waiting takes the warning icon, never the clock: the customer answers Partly and Other (settled point G07-23, kept by the lead on 2026-10-23) use `warning` · `warn` on the phone and `warning` · TriangleAlert on the website. On the website the same goes for a van in the workshop (Wrench), a driver on leave (CalendarOff) and a faulty cylinder (TriangleAlert).
+- An amber state that isn't waiting takes the warning icon, never the clock: the customer answers Partly and Other (settled point G07-23, kept by the lead on 2026-10-23) use `warning` · `warn` on the phone and `warning` · TriangleAlert on the website. On the website the same goes for a van in the workshop (Wrench), a driver on leave (CalendarOff), a faulty cylinder (TriangleAlert) and a phone whose app needs the update (TriangleAlert, follow-ups 2026-10-25).
 - A cancelled order's timeline ends with the neutral `stopped` marker (a cross), never a tick.
 - A chip has 1–3 words from the table below. A count may follow after "·" ("Loading · 3 of 5 loaded").
 - Where the table gives two words, the website uses the office's words ("To check", "Needs a driver", "Rejected") and the phone the shop's ("Being checked", "Waiting for driver", "Not added"). Nowhere else may the words differ, and the colour and the icon never do.
@@ -202,6 +202,7 @@ Contents: 1 People · 2 The 16 rules · 3 Which control · 4 Status words and co
 | | APPROVED | Approved · day closed | Approved · day closed | Green |
 | | SENT_BACK | Sent back | Sent back | Red |
 | **Distributor** (website) | PENDING · ACTIVE · SUSPENDED | | Waiting to start · Active · Suspended | Amber · Green · Red |
+| **App** (website, Distributors and Drivers; API_CONTRACT §1.4 `AppStatus`) | UP_TO_DATE · NEEDS_UPDATE · NOT_SEEN | | App: up to date · App: needs update · App: not opened yet ("App:" names the thing, as "Customer:" does; follow-ups, 2026-10-25) | Green · Amber · Grey |
 | **Delivery price** | SET | | Set | Green |
 | | NOT_SET | No price yet | Not set | Red |
 | | OUTSIDE | Outside delivery area | Outside every zone | Red |
@@ -319,7 +320,7 @@ The third column says where each word was found before the 2026-10-23 pass. Ever
 | Skipped (a stop) | Not delivered, or Cancelled | `stages.step.SKIPPED` |
 
 **Allowed, because the person's own bank or Easypaisa shows them:** IBAN, Transaction ID, Raast and, on the website, bank reference.
-**Shown only for support:** the small "Reference: 7f3a2c" under the message in the website's `ErrorState`, and "App version 0.1.1 · update 1a2b3c4d" on Help. Never on any other screen.
+**Shown only for support:** the small "Reference: 7f3a2c" under the message in the website's `ErrorState`, "App version 0.1.1 · update 1a2b3c4d" on Help, and the version and time of a phone's last call as the website's app chip's hover text ("0.1.1 · 25 Oct, 4:12 pm"). Never on any other screen.
 
 ---
 

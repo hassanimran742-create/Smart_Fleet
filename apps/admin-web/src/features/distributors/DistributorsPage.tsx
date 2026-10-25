@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ButtonLink } from '../../app/ButtonLink';
 import { formatPhone } from '../../i18n/format';
 import {
+  AppChip,
   Button,
   Chip,
   EmptyState,
@@ -112,6 +113,7 @@ export function DistributorsPage() {
           <span className="sf-dist__chips">
             <StatusChip kind="distributor" value={d.status} />
             {d.store ? null : <Chip tone="danger">{t('list.noStore')}</Chip>}
+            <AppChip app={d.app} active={d.status !== 'SUSPENDED'} />
           </span>
         ),
         priority: 1,

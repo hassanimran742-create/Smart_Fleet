@@ -12,7 +12,11 @@ import {
   SKIP_VERSION_GATE_KEY,
 } from '../../src/common/interceptors/app-version.interceptor';
 import { JS_RELEASE_VERSION } from '../../../mobile/src/api/release';
+import type { AppSeenService } from '../../src/common/app-seen/app-seen.service';
 import type { SettingsService } from '../../src/modules/settings/settings.service';
+
+/** The update gate's app recorder, unused by these cases (test/unit/app-seen.spec.ts covers it). */
+const appSeen = { record: jest.fn(async () => undefined) } as unknown as AppSeenService;
 
 function settingsWith(min: { driver: string; distributor: string }): SettingsService {
   return {
@@ -43,7 +47,7 @@ async function run(interceptor: AppVersionInterceptor, context: ExecutionContext
 }
 
 describe('426 update gate (API_CONTRACT §6)', () => {
-  const interceptor = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.2.0', distributor: '0.0.0' }));
+  const interceptor = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.2.0', distributor: '0.0.0' }), appSeen);
 
   it('refuses a driver app below app.minVersion.driver with 426 APP_UPDATE_REQUIRED', async () => {
     const error = await run(interceptor, httpContext({ headers: { 'x-app-variant': 'driver', 'x-app-version': '0.1.9' } })).catch(
@@ -98,11 +102,11 @@ describe('REV23 contract-compat-02 the gate tells the 0.1.0 JS apart from the ov
 
   it('REV23 contract-compat-02 a minimum of the over-the-air release retires only the 0.1.0 JS', async () => {
     expect(compareVersions(JS_RELEASE_VERSION, '0.1.0')).toBe(1);
-    const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: JS_RELEASE_VERSION, distributor: '0.0.0' }));
+    const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: JS_RELEASE_VERSION, distributor: '0.0.0' }), appSeen);
     await expect(run(gate, httpContext(oldJs))).rejects.toMatchObject({ code: 'APP_RESTART_TO_UPDATE' });
     await expect(run(gate, httpContext(otaJs))).resolves.toBe('handled');
     // With no minimum set, both keep working.
-    const open = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.0.0', distributor: '0.0.0' }));
+    const open = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.0.0', distributor: '0.0.0' }), appSeen);
     await expect(run(open, httpContext(oldJs))).resolves.toBe('handled');
     await expect(run(open, httpContext(otaJs))).resolves.toBe('handled');
   });
@@ -110,7 +114,7 @@ describe('REV23 contract-compat-02 the gate tells the 0.1.0 JS apart from the ov
   it('REV23 contract-compat-02 the 0.1.0 JS is told to restart, in words its screens show; later builds get their update gate', async () => {
     expect(ERROR_HTTP.APP_RESTART_TO_UPDATE).toBe(426);
     expect(ERROR_MESSAGE_EN.APP_RESTART_TO_UPDATE).toBe('Close the app and open it again to update.');
-    const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '9.0.0', distributor: '9.0.0' }));
+    const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '9.0.0', distributor: '9.0.0' }), appSeen);
     const refusal = (await run(gate, httpContext(oldJs)).catch((e: unknown) => e)) as AppError;
     expect({ status: refusal.getStatus(), code: refusal.code, message: refusal.message }).toEqual({
       status: 426,
@@ -125,7 +129,7 @@ describe('REV23 contract-compat-02 the gate tells the 0.1.0 JS apart from the ov
   });
 
   it('REV23 contract-compat-01 a route marked NewAppOnly refuses the 0.1.0 JS whatever the minimum, and nobody else', async () => {
-    const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.0.0', distributor: '0.0.0' }));
+    const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.0.0', distributor: '0.0.0' }), appSeen);
     const shopOldJs = { headers: {}, user: { role: 'DISTRIBUTOR' } };
     await expect(run(gate, httpContext(shopOldJs, false, true))).rejects.toMatchObject({ code: 'APP_RESTART_TO_UPDATE' });
     await expect(run(gate, httpContext(oldJs, false, true))).rejects.toMatchObject({ code: 'APP_RESTART_TO_UPDATE' });
@@ -139,7 +143,7 @@ describe('REV23 contract-compat-02 the gate tells the 0.1.0 JS apart from the ov
 });
 
 describe('REV23 contract-compat-01 a dead end of a 0.1.0 route becomes the restart answer', () => {
-  const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.0.0', distributor: '0.0.0' }));
+  const gate = new AppVersionInterceptor(new Reflector(), settingsWith({ driver: '0.0.0', distributor: '0.0.0' }), appSeen);
   const vanNotEmpty = () => new AppError('TRIP_VAN_NOT_EMPTY', { count: 1, cylinders: [], leftoversAllowed: false });
   const refusing = (error: unknown): CallHandler => ({ handle: () => throwError(() => error) });
   const call = (headers: Record<string, string>, method: string, route: string) =>

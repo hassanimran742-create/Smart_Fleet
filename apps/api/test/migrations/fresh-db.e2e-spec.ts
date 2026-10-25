@@ -19,6 +19,11 @@ import {
   type ScratchDb,
 } from '../helpers/migrations';
 
+// The steps start the Prisma CLI in new processes, so their time depends on the machine more than on the
+// database (another fresh-db suite's steps took 49.5 s, past jest's 30-second default, while another job
+// kept every core busy). The suite gets 10 minutes per test and hook.
+jest.setTimeout(600_000);
+
 describeDb('migrations: a fresh database', () => {
   let fresh: ScratchDb;
   let shadow: ScratchDb;

@@ -1,6 +1,6 @@
 # Smart Fleet pilot test cases
 
-**Date:** 2026-10-25 · **Cases:** 597 (P1 272 · P2 292 · P3 33) · **Branch:** `pilot/happy-path`
+**Date:** 2026-10-25 · **Cases:** 604 (P1 275 · P2 296 · P3 33) · **Branch:** `pilot/happy-path`
 
 These cases test the whole Smart Fleet pilot as the docs in this folder describe it, Increments 1 to 3: money and expenses, orders and drivers, the one-holder rule, customer confirmation, refills, day-end, setup, quality and migrations, and the rehearsal day.
 
@@ -11,7 +11,7 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
 - [Standard test data](#standard-test-data)
 - [Summary](#summary)
 - Cases by area:
-  - [FND · Platform foundations](#fnd--platform-foundations) (44)
+  - [FND · Platform foundations](#fnd--platform-foundations) (45)
   - [SEC · Security and roles](#sec--security-and-roles) (38)
   - [WAL · Wallet and history](#wal--wallet-and-history) (26)
   - [TOP · Manual bank top-ups](#top--manual-bank-top-ups) (31)
@@ -21,8 +21,8 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [ORD · Order lifecycle](#ord--order-lifecycle) (21)
   - [ASG · Assignment and trips](#asg--assignment-and-trips) (12)
   - [EXP · Expenses](#exp--expenses) (18)
-  - [OFF · Office website](#off--office-website) (19)
-  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (55)
+  - [OFF · Office website](#off--office-website) (23)
+  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (56)
   - [HLD · One-holder rule](#hld--one-holder-rule) (25)
   - [STR · Store receive](#str--store-receive) (13)
   - [CNF · Customer confirmation page](#cnf--customer-confirmation-page) (50)
@@ -32,7 +32,7 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [DAY · Day-end Excel](#day--day-end-excel) (27)
   - [SET · Pilot setup and reset](#set--pilot-setup-and-reset) (13)
   - [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) (34)
-  - [MIG · Migrations and data safety](#mig--migrations-and-data-safety) (19)
+  - [MIG · Migrations and data safety](#mig--migrations-and-data-safety) (20)
   - [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) (20)
 - [Traceability](#traceability)
 - [Spec questions and how they were settled](#spec-questions-and-how-they-were-settled)
@@ -146,7 +146,7 @@ The automated tests live in `apps/api/test`, plus the pure-function tests of the
 
 5. Also part of these runs:
    - The migration suites in `apps/api/test/migrations` run with the other database suites (`npm run test:e2e -- test/migrations` runs only them). Their helpers build old-style and fresh scratch databases and drop them afterwards.
-   - `npm test` in `apps/api` also runs the shared packages' tests (`packages/*/src/__tests__`). The mobile app has no test runner of its own: its rules are checked by API unit tests that load the app's modules (for example UXQ-011 and UXQ-015).
+   - `npm test` in `apps/api` also runs the shared packages' tests (`packages/*/src/__tests__`). The mobile app has no test runner of its own: its rules are checked by API unit tests that load the app's modules (for example UXQ-011 and UXQ-015). The office website's rules are checked the same way (`test/unit/ui/admin-web-*.spec.ts`), and `npm test -w @smartfleet/admin-web` runs the website's own jest suite.
    - The nightly wallet check after all database suites (WAL-020): `test/money/wallet-check.teardown.ts`, the `globalTeardown` of `test/jest-e2e.json`. It fails the run when any wallet's ledger sum differs from its balance.
 
 The "Test file" of an automated case lists the files whose test names start with its ID. A regression case for an Increment 1 review finding (its note names the finding) lists instead the files whose test names start with "REV" and that finding, of its own kind: API cases the database suites, unit cases the others. A case whose note names a describe block ("Its tests are the describe …") lists the files that hold that describe, in the same way. An automated case with no such test yet keeps the path its writer suggested and is marked "Not automated yet." in its note.
@@ -261,7 +261,7 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 
 | Area | Cases | P1 | P2 | P3 | Inc 1 | Inc 2 | Inc 3 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [FND · Platform foundations](#fnd--platform-foundations) | 44 | 15 | 25 | 4 | 40 | 3 | 1 |
+| [FND · Platform foundations](#fnd--platform-foundations) | 45 | 15 | 26 | 4 | 40 | 4 | 1 |
 | [SEC · Security and roles](#sec--security-and-roles) | 38 | 29 | 9 | 0 | 36 | 1 | 1 |
 | [WAL · Wallet and history](#wal--wallet-and-history) | 26 | 13 | 11 | 2 | 26 | 0 | 0 |
 | [TOP · Manual bank top-ups](#top--manual-bank-top-ups) | 31 | 17 | 13 | 1 | 31 | 0 | 0 |
@@ -271,8 +271,8 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [ORD · Order lifecycle](#ord--order-lifecycle) | 21 | 6 | 14 | 1 | 21 | 0 | 0 |
 | [ASG · Assignment and trips](#asg--assignment-and-trips) | 12 | 8 | 4 | 0 | 12 | 0 | 0 |
 | [EXP · Expenses](#exp--expenses) | 18 | 3 | 15 | 0 | 18 | 0 | 0 |
-| [OFF · Office website](#off--office-website) | 19 | 2 | 16 | 1 | 19 | 0 | 0 |
-| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 55 | 28 | 23 | 4 | 8 | 45 | 2 |
+| [OFF · Office website](#off--office-website) | 23 | 4 | 18 | 1 | 19 | 4 | 0 |
+| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 56 | 28 | 24 | 4 | 8 | 45 | 3 |
 | [HLD · One-holder rule](#hld--one-holder-rule) | 25 | 14 | 8 | 3 | 1 | 20 | 4 |
 | [STR · Store receive](#str--store-receive) | 13 | 7 | 5 | 1 | 0 | 13 | 0 |
 | [CNF · Customer confirmation page](#cnf--customer-confirmation-page) | 50 | 13 | 33 | 4 | 0 | 50 | 0 |
@@ -282,35 +282,35 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [DAY · Day-end Excel](#day--day-end-excel) | 27 | 15 | 10 | 2 | 0 | 0 | 27 |
 | [SET · Pilot setup and reset](#set--pilot-setup-and-reset) | 13 | 10 | 2 | 1 | 2 | 0 | 11 |
 | [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 34 | 1 | 26 | 7 | 30 | 3 | 1 |
-| [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 19 | 17 | 2 | 0 | 18 | 1 | 0 |
+| [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 20 | 18 | 2 | 0 | 18 | 1 | 1 |
 | [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) | 20 | 20 | 0 | 0 | 0 | 0 | 20 |
-| **Total** | **597** | **272** | **292** | **33** | **333** | **174** | **90** |
+| **Total** | **604** | **275** | **296** | **33** | **333** | **179** | **92** |
 
 ### Cases by type
 
 | Type | Who runs it | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 70 | 19 | 38 | 13 |
-| AUTO-API | Developers and CI: HTTP against a real test database | 380 | 218 | 154 | 8 |
+| AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 74 | 19 | 42 | 13 |
+| AUTO-API | Developers and CI: HTTP against a real test database | 382 | 220 | 154 | 8 |
 | MAN-SHOP | A tester with the shop app on a phone | 60 | 14 | 42 | 4 |
 | MAN-DRIVER | A tester with the driver app on a phone | 22 | 5 | 14 | 3 |
-| MAN-WEB | An office user on the website | 46 | 6 | 35 | 5 |
+| MAN-WEB | An office user on the website | 47 | 7 | 35 | 5 |
 | MAN-PAGE | A tester playing the customer, in a phone browser | 8 | 1 | 7 | 0 |
 | MAN-OPS | Engineering or operations: bank app, command line, server or database | 11 | 9 | 2 | 0 |
-| **Total** |  | **597** | **272** | **292** | **33** |
+| **Total** |  | **604** | **275** | **296** | **33** |
 
 ### Cases by increment
 
 | Increment | What it covers | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
 | Inc 1 | Foundations, money and expenses | 333 | 155 | 160 | 18 |
-| Inc 2 | Driver flow on scans, store receive and customer confirmation | 174 | 64 | 99 | 11 |
-| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 90 | 53 | 33 | 4 |
-| **Total** |  | **597** | **272** | **292** | **33** |
+| Inc 2 | Driver flow on scans, store receive and customer confirmation | 179 | 66 | 102 | 11 |
+| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 92 | 54 | 34 | 4 |
+| **Total** |  | **604** | **275** | **296** | **33** |
 
 ## FND · Platform foundations
 
-The public app config, the settings registry, the error envelope and catalogue, the app-version gate, the audit log, files, idempotency, health checks, daily-job time zones and the shared-utils helpers. 44 cases: P1 15 · P2 25 · P3 4.
+The public app config, the settings registry, the error envelope and catalogue, the app-version gate, the audit log, files, idempotency, health checks, daily-job time zones and the shared-utils helpers. 45 cases: P1 15 · P2 26 · P3 4.
 
 ### FND-001 · GET /app/config works without a token and returns the default public settings
 
@@ -1333,6 +1333,32 @@ Expect:
 Spec: API_CONTRACT §6 (426 gate), §7.11, §8.5 step 10, Appendix A · Test file: `apps/api/test/review23/contract-compat/old-apps-inc23.e2e-spec.ts`
 
 Note: Regression case for review23 finding contract-compat-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 contract-compat-01 …". Before the fix the 0.1.0 screens dead-ended silently: a Finish the 0.1.0 apps can never complete got a 409 they can't act on, and a refill only the Inc 3 apps can run was made. The gate's unit tests are apps/api/test/unit/app-version.spec.ts. Confirming test: the same file's REV23-CC-02.
+
+### FND-045 · The update gate records which app each shop and driver used, refused or not
+
+**P2** · AUTO-UNIT · Inc 2 · Role: System
+
+Before: AppSeenService with a stubbed database, and the update gate (AppVersionInterceptor) with app.minVersion.driver and .distributor at 0.1.1 (and at 0.0.0 where a step says so).
+
+Steps:
+
+1. Pass signed-in DRIVER calls with X-App-Variant driver and X-App-Version 0.1.1 through the recorder: at 10:00, again at 10:01, with 0.1.2 at 10:02, again just under 10 minutes later, and at 10 minutes.
+2. Let the database refuse one write, then send the next call.
+3. Read the office's view of no call, of 0.1.0 under a 0.1.1 minimum, of 0.1.1, of 0.1.1-beta.2 and of 0.1.0 under the default 0.0.0.
+4. Through the gate: the driver app at 0.1.1; a DISTRIBUTOR call with no X-App-\* header (the 0.1.0 JS); the same on a NewAppOnly route with the minimum at 0.0.0; a driver call with X-App-Version "latest".
+5. Through the gate: an office (SUPER_ADMIN) call, a call without a token, a DISTRIBUTOR token sent with X-App-Variant driver, and a route that skips the gate (GET /app/config).
+
+Expect:
+
+- Step 1: one write of (driver, 0.1.1); none for the repeat within 10 minutes; one at once for 0.1.2; none just under 10 minutes later; one again at 10 minutes. Each user is remembered on their own.
+- Step 2: the call still gets its own answer; the failure is logged once ("Could not record the app of user …") and the next call writes.
+- Step 3: NOT_SEEN with version and seenAt null; NEEDS_UPDATE "0.1.0"; UP_TO_DATE; UP_TO_DATE (the suffix is ignored, as the gate ignores it); UP_TO_DATE (the switch-over raises the minimum first). One settings read per list, by the list's app.
+- Step 4: the driver app is let through and recorded as (driver, 0.1.1); the 0.1.0 JS is answered 426 APP_RESTART_TO_UPDATE and still recorded as (distributor, "0.1.0"), on the NewAppOnly route too; "latest" counts as the missing version, 0.1.0.
+- Step 5: each call gets its usual answer and nothing is recorded.
+
+Spec: API_CONTRACT §1.2 (X-App-Version, recorded per user), §1.4 (AppStatus), §6 (426 gate), §8.5 step 10; DATA_MODEL §5.6 · Test file: `apps/api/test/unit/app-seen.spec.ts`
+
+Note: Follow-up of the Inc 2/3 review fixes (CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). Before it no session recorded an app version, so the switch-over checked Help on every pilot phone. The write is a raw UPDATE of users.app_variant, app_version and app_seen_at, so updated_at keeps meaning a change to the user (OFF-020 proves it on the database).
 
 ## SEC · Security and roles
 
@@ -6266,7 +6292,7 @@ Note: The fuel-log routes and bodies are today's (fuel-refills.controller.ts). T
 
 ## OFF · Office website
 
-The office website: sign-in, Today, distributors and drivers, settings, the activity log and the legacy screens. 19 cases: P1 2 · P2 16 · P3 1.
+The office website: sign-in, Today, distributors and drivers, settings, the activity log and the legacy screens. 23 cases: P1 4 · P2 18 · P3 1.
 
 ### OFF-001 · Website sign-in page: plain form, office staff only, clear errors
 
@@ -6752,9 +6778,106 @@ Spec: UX_ADMIN §1.3 (Today badge; tab title) · Test file: `apps/api/test/unit/
 
 Note: Regression case for review finding web-ux-04 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-04 …". Settled point G07-22 defines the badge. In a browser the Today badge and the tab title read 7 for the seeded day.
 
+### OFF-020 · The Drivers and Distributors lists say which phones still need the app update
+
+**P1** · AUTO-API · Inc 2 · Role: SUPER_ADMIN (SA1), DISTRIBUTOR (DA, DB), DRIVER (DR1, DR2)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Bilal Gas (DB). app.minVersion.driver and .distributor at 0.0.0. Nobody has called since the release.
+
+Steps:
+
+1. As SA1, GET /drivers and GET /distributors.
+2. As DR1, GET /driver/home with the Inc 2/3 driver app's headers (X-App-Variant driver, X-App-Version 0.1.1). As DA, GET /distributor/home with no X-App-\* header, as the installed 0.1.0 JS sends it. Repeat step 1.
+3. As SA1, set app.minVersion.driver and .distributor to 0.1.1, with a reason. Repeat step 1.
+4. As DA, GET /distributor/home again with no header, then with the Inc 2/3 shop app's headers (0.1.1). Repeat step 1 after each.
+5. Read the users rows of DA, DR1 and SA1. As DA, GET /distributors/me; as DR1, GET /drivers/\<DR1>; as SA1, GET /drivers/\<DR1> and GET /distributors/\<DA>.
+6. Set the minimums back to 0.0.0. As DR2 call with X-App-Version 0.1.0 (driver) and as DB with 0.1.0 (distributor); raise only app.minVersion.driver to 0.1.1; repeat step 1.
+
+Expect:
+
+- Step 1: every row's app is { status: "NOT_SEEN", version: null, seenAt: null }.
+- Step 2: Kashif { status: "UP_TO_DATE", version: "0.1.1", seenAt: now }; Ahmed Gas { "UP_TO_DATE", "0.1.0" } (the minimum is still 0.0.0); Imran and Bilal Gas stay NOT_SEEN.
+- Step 3: Ahmed Gas reads NEEDS_UPDATE "0.1.0"; Kashif stays UP_TO_DATE.
+- Step 4: the header-less call is answered 426 APP_RESTART_TO_UPDATE and Ahmed Gas still reads NEEDS_UPDATE; after the call with 0.1.1 it reads UP_TO_DATE "0.1.1" at once.
+- Step 5: app_variant, app_version and app_seen_at are set for DA and DR1, NULL for SA1 (the office records nothing), and updated_at is unchanged by any of these calls. The shop's and the driver's own reads carry no app; the office's single reads carry it.
+- Step 6: Imran reads NEEDS_UPDATE and Bilal Gas UP_TO_DATE: each list compares with its own app's minimum.
+
+Spec: API_CONTRACT §1.2, §1.4 (AppStatus), §7.2 (GET /drivers), §7.3 (DistributorDto, GET /distributors/me), §8.5 step 10; DATA_MODEL §5.6 · Test file: `apps/api/test/finish/app-seen.e2e-spec.ts`
+
+Note: Follow-up of the Inc 2/3 review fixes (CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). One look at these two lists replaces the phone-by-phone Help check of the switch-over; OFF-023 walks it with the pilot phones.
+
+### OFF-021 · The website's app chip: its words, colours and where it shows
+
+**P2** · AUTO-UNIT · Inc 2 · Role: DEVELOPER
+
+Before: The website's kit (ui/appChipStatus.ts, ui/statusTones.ts, i18n/en/status.ts, ui/AppChip.tsx) and the Distributors and Drivers pages, read as syntax trees.
+
+Steps:
+
+1. Map each AppStatus to its chip.
+2. Ask for a chip for an active account, a suspended distributor or an archived driver, and a row without app (a server from before the chip).
+3. Read the Status cell of the Distributors list and of the Drivers list, and the chip component.
+
+Expect:
+
+- Step 1: UP_TO_DATE "App: up to date" (green, the tick); NEEDS_UPDATE "App: needs update" (amber with the warning sign, never the clock: nobody waits for it); NOT_SEEN "App: not opened yet" (grey).
+- Step 2: the server's status for an active account; no chip for the suspended or archived one, nor without app.
+- Step 3: the Distributors list shows it last in the Status cell, after the status chip and "No store yet"; the Drivers list right after the driver's one status chip; the chip shows the server's status through the kit's StatusChip, with the version and the time of the call only on hover.
+
+Spec: UX_ADMIN §2.4 (Status column), §2.11 (Drivers), §3.8; UX_PRINCIPLES §4.1, §4.2 (App); API_CONTRACT §1.4 (AppStatus) · Test file: `apps/api/test/unit/ui/admin-web-finish.spec.ts`
+
+Note: Follow-up of the Inc 2/3 review fixes (CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). "App:" names the thing, as "Customer:" does on the answer chip. No new colour, icon set or component library: the kit's existing tones and lucide icons.
+
+### OFF-022 · The Alerts page reads a van-not-empty alert from its context: the van's count now
+
+**P2** · AUTO-UNIT · Inc 2 · Role: DEVELOPER
+
+Before: The website's alert words (legacy/alertWords.ts) with its English legacy words, and the Alerts page read as a syntax tree.
+
+Steps:
+
+1. Word a VAN_NOT_EMPTY alert whose stored title still says (2) and whose context is { plateNo: "LEA-101", count: 1, leftoverReason: "Store closed" }; then the same with no reason.
+2. Word another alert type, and VAN_NOT_EMPTY alerts whose context is missing, empty, without the plate, or with a count that isn't a whole number.
+3. Read the Alerts page's cards.
+
+Expect:
+
+- Step 1: "LEA-101 still has cylinders on it (1)" with "Reason: Store closed"; without a reason, the title only.
+- Step 2: each keeps the server's title and body.
+- Step 3: each card's title and body come from the alert's words, never straight from the stored title and body.
+
+Spec: UX_ADMIN §3.7 (Alerts), §3.8; API_CONTRACT §9.9, §9.12 (VAN_NOT_EMPTY) · Test file: `apps/api/test/unit/ui/admin-web-finish.spec.ts`
+
+Note: Follow-up of review23 robustness-jobs-06 (DRV-056; CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). The server still rewrites the title and body on every refresh; the website now reads the count and the reason from the context, as the verifier suggested, so what the office reads never depends on that English.
+
+### OFF-023 · The switch-over's phone check is one look at the office website
+
+**P1** · MAN-WEB · Inc 2 · Role: SUPER_ADMIN (the owner), with every pilot phone
+
+Before: The switch-over, API_CONTRACT §8.5 step 10: the Inc 2/3 server deployed, day-end off, confirmation off, no run open, the over-the-air update (JS release 0.1.1) published, and the pilot phones still on the 0.1.0 JS.
+
+Steps:
+
+1. On the website, open Distributors and Drivers.
+2. In Settings, set the shop app's and the driver app's minimum version to 0.1.1, with a reason.
+3. Refresh both lists.
+4. On one shop phone, open the app and tap anything; then close the app fully and open it again, and use it once. Refresh Distributors and hover over that shop's app chip.
+5. Do the same on every other pilot phone, shop phones first, and refresh both lists.
+
+Expect:
+
+- Step 1: each shop and driver whose phone was used since the deploy shows "App: up to date" (the minimum is still 0.0.0); one not used since shows "App: not opened yet" (grey).
+- Step 3: every phone still on the 0.1.0 JS now shows "App: needs update" (amber).
+- Step 4: before the restart the app says "Close the app and open it again to update."; after it, the shop's row reads "App: up to date", and the hover shows 0.1.1 and the time of the call.
+- Step 5: every pilot row reads "App: up to date": the switch-over goes on (support.phone, confirmation, day-end). A row still amber or grey names the phone to restart; Help on it shows "App version 0.1.1 · update \<id>" once it has the update.
+
+Spec: API_CONTRACT §6 (when to raise the minimum), §8.5 step 10; UX_ADMIN §2.4, §2.11
+
+Note: Follow-up of the Inc 2/3 review fixes (CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). It replaces opening Help on every phone. Its server part is automated (OFF-020); it waits for the pilot phones, like the rest of the over-the-air switch-over.
+
 ## DRV · Driver app and runs
 
-The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 55 cases: P1 28 · P2 23 · P3 4.
+The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 56 cases: P1 28 · P2 24 · P3 4.
 
 ### DRV-001 · Legacy scan route accepts only drivers (no super-admin bypass)
 
@@ -7787,7 +7910,7 @@ Expect:
 - Step 4: the banner goes away and the list refreshes.
 - Step 5: the van row reads "LEA-101" and "3 full" (zeros hidden).
 - Step 6: Imran sees "No van yet." in the van row, and My van shows "No van yet." with "Call office".
-- Step 7: Today shows "Refill · 1 × 6 kg · Ahmed Gas" with "Pick up empties" instead of "Nothing to do.", and the menu's Refills row shows 1.
+- Step 7: under the van row, the line "1 refill · 1 cylinder"; then "Refill · 1 × 6 kg · Ahmed Gas" with "Pick up empties" instead of "Nothing to do.", and the menu's Refills row shows 1.
 
 Spec: UX_MOBILE §2.2 (QueryBoundary, OfflineBanner), §3.5, §5 (Today), §7.2 (R2 Today); API_CONTRACT §9.3 (GET /driver/home)
 
@@ -8025,6 +8148,28 @@ Expect:
 Spec: UX_MOBILE §3.6 (the driver menu), §7.2 R2 · Test file: `apps/api/test/unit/ui/mobile-rev23-driver.spec.ts`
 
 Note: Regression case for review23 finding ux-02 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 ux-02 …". Before the fix Today read only trips, so a driver with only a refill saw "Nothing to do.". DRV-045 walks it on a phone.
+
+### DRV-060 · Today sums up the assigned refills in one line under the van
+
+**P2** · AUTO-UNIT · Inc 3 · Role: System (driver app logic)
+
+Before: The driver app's refill rules (refillModel), its English words and Today, read as a syntax tree.
+
+Steps:
+
+1. Give Today no refill; only a done and a cancelled one; one open refill of 1 × 6 kg; then open refills of 2 and 5 cylinders beside a done and a cancelled one.
+2. Read Today: where the line sits, what it shows and what it does.
+3. Count its fixed words and read its style.
+
+Expect:
+
+- Step 1: no line, no line, "1 refill · 1 cylinder", then "2 refills · 7 cylinders" (done and cancelled refills don't count; a refill coming back still does).
+- Step 2: the line sits right under the van row, above the trip and refill rows, and shows only while a refill is open; it has the cylinder icon and no button (each refill's own row still opens it), and the footer stays the trip's one button.
+- Step 3: 2 fixed words ("refills", "cylinders"), so Today stays inside the driver screen's budget (about 19 words); the style uses the spacing tokens only, no colour.
+
+Spec: UX_MOBILE §7.2 (R2 Today); UX_PRINCIPLES §6 (word budgets), §7.2 · Test file: `apps/api/test/unit/ui/mobile-finish-driver.spec.ts`
+
+Note: Follow-up of review23 ux-02 (DRV-059; CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). With trips on Today the refill rows come after them and can fall below the fold of a 360×640 phone; the line under the van tells the driver at once. DRV-045 walks it on a phone.
 
 ## HLD · One-holder rule
 
@@ -12299,11 +12444,11 @@ Steps:
 
 Expect:
 
-- Step 1: each answers 422 DAY_SHEET_UNREADABLE within about a second, the health probe keeps answering, and the heap grows by a few MB only.
+- Step 1: each answers 422 DAY_SHEET_UNREADABLE within moments, GET /health/live never waits a second, and the heap grows by a few MB only. On a busy machine both time bounds grow with a baseline the test takes in the same run (how much slower than on an unloaded machine zlib inflates the sheet's XML, before and after the uploads), so another job keeping the cores busy doesn't fail the case, while a read that stalls the API still does.
 
 Spec: API_CONTRACT §10.5 (the shape check, one file at a time) · Test file: `apps/api/test/review23/robustness-jobs/day-end-parallel-uploads.e2e-spec.ts`
 
-Note: Regression case for review23 finding robustness-jobs-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-01 …". Before the fix three such uploads at once crashed the API with "heap out of memory" (wide700.xlsx, probes in the review scratchpad).
+Note: Regression case for review23 finding robustness-jobs-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-01 …". Before the fix three such uploads at once crashed the API with "heap out of memory" (wide700.xlsx, probes in the review scratchpad). Its time bounds scale with that same-run baseline since the follow-ups (CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"): with the shape check taken out, exceljs kept /health/live waiting 3 s on an unloaded machine and 10 s beside eight busy processes, far past the scaled bound, with the heap up 261–269 MB.
 
 ### DAY-026 · The shop app opens the day-end day that waits for the shop, not only today
 
@@ -13429,7 +13574,7 @@ Note: Regression case for review23 finding ux-11 (CHANGELOG, "Inc 2/3 review fix
 
 ## MIG · Migrations and data safety
 
-The migration baseline, the inc1a and inc1b migrations with their pre-checks and backfills, backups, and test/live separation. 19 cases: P1 17 · P2 2 · P3 0.
+The migration baseline, the inc1a and inc1b migrations with their pre-checks and backfills, backups, and test/live separation. 20 cases: P1 18 · P2 2 · P3 0.
 
 ### MIG-001 · A fresh database migrates from empty to the current schema with no drift
 
@@ -13858,6 +14003,30 @@ Expect:
 Spec: DATA_MODEL §2.5 (Workflows); API_CONTRACT §8.5, §8.6 · Test file: `apps/api/test/unit/rev-deploy-pipeline.spec.ts`
 
 Note: Regression case for review finding robustness-ops-10 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV robustness-ops-10 …".
+
+### MIG-020 · users_app_seen on an Increment 3 database: three nullable columns and two CHECKs, nothing else changed
+
+**P1** · AUTO-API · Inc 3 · Role: DEVELOPER (CI)
+
+Before: A database at the Increment 2 release loaded with Increment 2-shaped rows (inc3/db/fixtures/inc2-today.sql), then taken to the Increment 3 release with migrate.sh; the users_app_seen migration file.
+
+Steps:
+
+1. Read the migration file: its place, bytes and sections, and diff the Inc 3 schema (test/helpers/fixtures/schema.inc3.prisma) against prisma/schema.prisma.
+2. Run migrate.sh with the current release on the Increment 3 database.
+3. Compare every table with before, the users rows on their old columns, and the wallets with the ledger; read the new columns and the CHECKs.
+4. Update one users row with app_variant "admin-web"; with no version; with no time; with versions "latest" and "0.1"; then with (driver, 0.1.1), (distributor, 0.1.0), (driver, 1.2.3-beta.1) and all three NULL.
+
+Expect:
+
+- Step 1: the newest migration, right after inc3_refills_dayend, UTF-8 without a BOM with LF line endings; its generated DDL is exactly that diff (three nullable users columns); no pre-check or backfill statement; the two CHECKs users_app_seen_chk and users_app_version_chk, neither NOT VALID; nothing about money.
+- Step 2: exit 0; \_prisma_migrations lists users_app_seen after inc3_refills_dayend; no drift from prisma/schema.prisma.
+- Step 3: every other table is byte for byte as it was, every users row's old columns too, and the three new columns are NULL everywhere; every wallet still equals its ledger. app_seen_at is a nullable timestamp, app_variant and app_version nullable text; both CHECKs exist, validated.
+- Step 4: the first five are refused (users_app_seen_chk, then users_app_version_chk); the last four are written.
+
+Spec: DATA_MODEL §1 (rule 6), §2.4, §5.6; API_CONTRACT §8.5 step 10 · Test file: `apps/api/test/finish/users-app-seen-contracts.spec.ts, apps/api/test/finish/users-app-seen-migration.e2e-spec.ts`
+
+Note: Follow-up of the Inc 2/3 review fixes (CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). Made with npm run db:new-migration against HEAD; the inc3 test release now uses its own schema snapshot, so the Inc 3 release cases keep proving what shipped (MIG-001 and the fresh-database suites cover an empty database).
 
 ## RHS · Rehearsal day (dry run)
 
@@ -14476,9 +14645,9 @@ Built from each case's "Spec" line.
 | Section | Title | Cases | Case IDs |
 |---|---|---:|---|
 | §1.1 | Money, time, numbers | 19 | FND-001, FND-005, FND-024, FND-025, FND-026, FND-027, FND-028, FND-029, WAL-001, WAL-012, WAL-019, TOP-003, TOP-028, PRC-004, FEE-024, CUS-001, EXP-006, DRV-032, REF-013 |
-| §1.2 | Headers | 13 | FND-001, FND-005, FND-010, FND-035, FND-042, SEC-006, SEC-018, WAL-013, TOP-007, FEE-005, CUS-003, ORD-004, MSG-008 |
+| §1.2 | Headers | 15 | FND-001, FND-005, FND-010, FND-035, FND-042, FND-045, SEC-006, SEC-018, WAL-013, TOP-007, FEE-005, CUS-003, ORD-004, OFF-020, MSG-008 |
 | §1.3 | Lists | 13 | FND-012, FND-036, FND-038, WAL-008, WAL-019, CUS-001, ORD-009, ORD-010, ORD-016, EXP-011, OFF-010, REF-032, REF-033 |
-| §1.4 | Words the server derives | 15 | FND-030, WAL-005, WAL-006, TOP-002, TOP-011, FEE-001, ORD-001, ORD-005, ORD-008, ASG-005, ASG-009, DRV-016, REF-001, DAY-001, MIG-003 |
+| §1.4 | Words the server derives | 18 | FND-030, FND-045, WAL-005, WAL-006, TOP-002, TOP-011, FEE-001, ORD-001, ORD-005, ORD-008, ASG-005, ASG-009, OFF-020, OFF-021, DRV-016, REF-001, DAY-001, MIG-003 |
 | §1.5 | Reason code lists | 13 | WAL-012, TOP-012, TOP-021, TOP-024, FEE-012, FEE-017, FEE-020, FEE-027, ORD-007, ORD-012, DRV-007, DRV-009, DRV-029 |
 | §1.6 | allowedActions | 7 | SEC-031, TOP-013, FEE-016, FEE-029, ORD-007, ORD-011, ASG-012 |
 | §2.1 | Envelope | 16 | FND-005, FND-006, FND-007, FND-008, FND-009, FND-019, FND-023, SEC-002, SEC-004, FEE-002, CUS-002, ORD-016, CNF-023, CNF-028, REF-030, UXQ-013 |
@@ -14505,11 +14674,11 @@ Built from each case's "Spec" line.
 | §5.7 | PaymentProvider and TopupService | 2 | TOP-001, TOP-025 |
 | §5.8 | FilesService | 6 | FND-015, FND-017, FND-018, TOP-004, TOP-008, EXP-007 |
 | §5.9 | Inc 2 interfaces | 7 | DRV-002, HLD-002, STR-007, CNF-037, CNF-038, MSG-001, REF-014 |
-| §6 | Settings registry | 49 | FND-001, FND-002, FND-003, FND-004, FND-010, FND-011, FND-029, FND-042, FND-044, SEC-004, SEC-005, SEC-008, SEC-020, WAL-004, WAL-022, TOP-001, TOP-003, TOP-005, TOP-006, TOP-011, TOP-018, TOP-023, TOP-027, TOP-028, FEE-022, ORD-002, ORD-016, ASG-001, EXP-018, OFF-008, OFF-009, DRV-033, DRV-034, DRV-039, HLD-017, CNF-001, CNF-002, CNF-021, CNF-030, CNF-045, CAS-002, MSG-003, REF-003, REF-004, DAY-017, DAY-018, UXQ-014, MIG-013, RHS-001 |
+| §6 | Settings registry | 51 | FND-001, FND-002, FND-003, FND-004, FND-010, FND-011, FND-029, FND-042, FND-044, FND-045, SEC-004, SEC-005, SEC-008, SEC-020, WAL-004, WAL-022, TOP-001, TOP-003, TOP-005, TOP-006, TOP-011, TOP-018, TOP-023, TOP-027, TOP-028, FEE-022, ORD-002, ORD-016, ASG-001, EXP-018, OFF-008, OFF-009, OFF-023, DRV-033, DRV-034, DRV-039, HLD-017, CNF-001, CNF-002, CNF-021, CNF-030, CNF-045, CAS-002, MSG-003, REF-003, REF-004, DAY-017, DAY-018, UXQ-014, MIG-013, RHS-001 |
 | §7 | Increment 1 endpoints | 1 | ORD-011 |
 | §7.1 | App and auth | 18 | FND-001, FND-031, FND-035, SEC-001, SEC-002, SEC-003, SEC-004, SEC-005, SEC-006, SEC-007, SEC-008, SEC-009, SEC-010, SEC-033, OFF-001, SET-001, UXQ-013, UXQ-015 |
-| §7.2 | Safety table for existing routes | 46 | FND-023, FND-035, SEC-001, SEC-003, SEC-010, SEC-011, SEC-012, SEC-016, SEC-017, SEC-020, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, SEC-028, SEC-029, SEC-033, SEC-034, TOP-025, PRC-017, CUS-004, CUS-005, CUS-011, ASG-001, ASG-003, EXP-018, OFF-006, OFF-007, OFF-015, OFF-016, OFF-017, DRV-040, DRV-048, HLD-002, HLD-015, HLD-016, CAS-009, REF-004, REF-012, REF-031, SET-003, SET-004, SET-006, SET-012, MIG-016 |
-| §7.3 | Distributors and their one store | 13 | FND-031, SEC-003, SEC-011, WAL-001, WAL-002, OFF-004, OFF-005, OFF-006, OFF-007, OFF-013, OFF-014, OFF-017, SET-005 |
+| §7.2 | Safety table for existing routes | 47 | FND-023, FND-035, SEC-001, SEC-003, SEC-010, SEC-011, SEC-012, SEC-016, SEC-017, SEC-020, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, SEC-028, SEC-029, SEC-033, SEC-034, TOP-025, PRC-017, CUS-004, CUS-005, CUS-011, ASG-001, ASG-003, EXP-018, OFF-006, OFF-007, OFF-015, OFF-016, OFF-017, OFF-020, DRV-040, DRV-048, HLD-002, HLD-015, HLD-016, CAS-009, REF-004, REF-012, REF-031, SET-003, SET-004, SET-006, SET-012, MIG-016 |
+| §7.3 | Distributors and their one store | 14 | FND-031, SEC-003, SEC-011, WAL-001, WAL-002, OFF-004, OFF-005, OFF-006, OFF-007, OFF-013, OFF-014, OFF-017, OFF-020, SET-005 |
 | §7.4 | Customers | 22 | FND-031, SEC-011, PRC-005, PRC-009, CUS-001, CUS-002, CUS-003, CUS-005, CUS-006, CUS-007, CUS-008, CUS-009, CUS-010, CUS-012, CUS-014, ORD-016, MSG-011, MSG-013, SET-006, SET-012, MIG-005, RHS-004 |
 | §7.5 | Delivery prices and quotes | 27 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-018, FEE-007, FEE-008, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, RHS-004 |
 | §7.6 | Orders | 91 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, HLD-020, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
@@ -14525,7 +14694,7 @@ Built from each case's "Spec" line.
 | §8.2 | Top-up | 7 | TOP-002, TOP-012, TOP-015, TOP-019, TOP-020, TOP-021, RHS-003 |
 | §8.3 | Trip and stop | 9 | FEE-009, ORD-014, ASG-002, ASG-004, ASG-005, ASG-007, ASG-009, ASG-010, DRV-003 |
 | §8.4 | Refill | 4 | REF-001, REF-007, REF-008, REF-011 |
-| §8.5 | Jobs and switch-over | 26 | FND-004, FND-033, FND-044, SEC-022, SEC-033, SEC-035, SEC-036, WAL-016, WAL-020, WAL-023, WAL-026, ORD-017, ASG-001, DRV-043, REF-029, SET-001, SET-002, MIG-003, MIG-006, MIG-012, MIG-015, MIG-016, MIG-017, MIG-018, MIG-019, RHS-020 |
+| §8.5 | Jobs and switch-over | 30 | FND-004, FND-033, FND-044, FND-045, SEC-022, SEC-033, SEC-035, SEC-036, WAL-016, WAL-020, WAL-023, WAL-026, ORD-017, ASG-001, OFF-020, OFF-023, DRV-043, REF-029, SET-001, SET-002, MIG-003, MIG-006, MIG-012, MIG-015, MIG-016, MIG-017, MIG-018, MIG-019, MIG-020, RHS-020 |
 | §8.6 | Contract tests that gate Inc 1 | 40 | FND-008, FND-021, SEC-004, SEC-008, SEC-010, SEC-012, SEC-015, SEC-016, SEC-017, SEC-032, WAL-016, WAL-018, WAL-020, TOP-017, TOP-018, TOP-019, TOP-020, TOP-025, PRC-003, PRC-009, PRC-011, FEE-002, FEE-005, FEE-006, FEE-010, FEE-013, FEE-014, FEE-015, FEE-019, FEE-020, CUS-010, ORD-014, ASG-008, EXP-014, DRV-001, DRV-005, DRV-015, REF-008, REF-030, MIG-019 |
 | §9.2 | Holder rules | 54 | FEE-027, DRV-010, DRV-011, DRV-012, DRV-013, DRV-014, DRV-018, DRV-019, DRV-020, DRV-024, DRV-026, DRV-027, DRV-028, DRV-029, DRV-032, DRV-033, DRV-036, DRV-037, DRV-039, DRV-044, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-016, HLD-022, HLD-023, STR-001, STR-002, STR-003, STR-004, STR-005, STR-007, STR-009, REF-014, REF-016, REF-018, REF-020, REF-021, REF-022, DAY-015, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015 |
 | §9.3 | Driver endpoints | 37 | FEE-027, ORD-019, ASG-009, DRV-010, DRV-011, DRV-013, DRV-016, DRV-018, DRV-019, DRV-021, DRV-022, DRV-023, DRV-026, DRV-029, DRV-030, DRV-037, DRV-038, DRV-039, DRV-042, DRV-045, DRV-047, DRV-049, DRV-055, HLD-011, HLD-021, HLD-023, STR-007, STR-008, STR-009, CNF-001, CNF-003, CNF-004, CNF-040, MSG-004, RHS-009, RHS-011, RHS-013 |
@@ -14534,10 +14703,10 @@ Built from each case's "Spec" line.
 | §9.6 | Cases | 12 | CAS-001, CAS-003, CAS-005, CAS-006, CAS-007, CAS-008, CAS-009, CAS-010, CAS-011, CAS-012, CAS-013, RHS-012 |
 | §9.7 | Confirmation | 16 | CNF-001, CNF-002, CNF-003, CNF-006, CNF-013, CNF-022, CNF-040, CNF-041, CNF-042, MSG-007, MSG-009, MSG-010, MSG-012, MSG-014, MSG-023, RHS-012 |
 | §9.8 | State machines | 15 | FEE-027, ASG-010, DRV-008, DRV-015, DRV-016, DRV-022, DRV-038, STR-008, CNF-005, CNF-013, CNF-018, CNF-019, CNF-020, CNF-037, RHS-010 |
-| §9.9 | Jobs | 6 | FND-033, DRV-043, DRV-056, HLD-023, HLD-025, CNF-020 |
+| §9.9 | Jobs | 7 | FND-033, OFF-022, DRV-043, DRV-056, HLD-023, HLD-025, CNF-020 |
 | §9.10 | Legacy routes in Inc 2 | 4 | ASG-009, ASG-012, DRV-023, DRV-024 |
 | §9.11 | Contract tests that gate Inc 2 | 18 | FEE-027, DRV-011, DRV-014, DRV-020, DRV-021, DRV-027, DRV-038, HLD-003, HLD-012, CNF-012, CNF-017, CNF-018, CNF-037, CNF-040, CAS-001, CAS-003, CAS-008, MSG-003 |
-| §9.12 | As built | 5 | ORD-014, DRV-056, DRV-058, HLD-021, CNF-049 |
+| §9.12 | As built | 6 | ORD-014, OFF-022, DRV-056, DRV-058, HLD-021, CNF-049 |
 | §9.13 | Read additions for the Inc 2/3 screens | 2 | DRV-058, HLD-021 |
 | §10.1 | Refills on QR scans | 16 | FEE-028, REF-008, REF-013, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-021, REF-022, REF-023, REF-024, RHS-016, RHS-017 |
 | §10.2 | Day-end | 27 | FEE-028, HLD-022, DAY-001, DAY-002, DAY-003, DAY-004, DAY-005, DAY-006, DAY-007, DAY-008, DAY-009, DAY-010, DAY-011, DAY-012, DAY-013, DAY-014, DAY-015, DAY-016, DAY-017, DAY-019, DAY-021, DAY-023, DAY-024, DAY-026, RHS-018, RHS-019, RHS-020 |

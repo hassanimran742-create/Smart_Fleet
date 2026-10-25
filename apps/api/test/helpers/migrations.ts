@@ -10,14 +10,16 @@
  *   inc1b ships together with inc2; this release exercises it on its own;
  * - `inc2`: the first Increment 2 release, inc1a + inc1b + inc2_driver_flow, with the schema it shipped
  *   (fixtures/schema.inc2.prisma, prisma/schema.prisma at the Increment 2 commit);
- * - `inc3`: the Increment 3 release, every migration up to inc3_refills_dayend, with today's schema;
- * - `current`: today's schema with every migration (the release being built now).
+ * - `inc3`: the Increment 3 release, every migration up to inc3_refills_dayend, with the schema it shipped
+ *   (fixtures/schema.inc3.prisma, prisma/schema.prisma at the review23 commit);
+ * - `current`: today's schema with every migration (the release being built now; since the follow-ups of
+ *   2026-10-25 it adds users_app_seen, DATA_MODEL §5.6).
  *
  * Every database made here has a name containing "test" and is dropped by `drop()`. migrate.sh runs
  * under `sh` with an `npx` shim on PATH that calls the installed Prisma CLI, so nothing is downloaded.
  *
- * When a later increment changes prisma/schema.prisma, snapshot the inc3 schema into
- * fixtures/schema.inc3.prisma and point the `inc3` release at it, as inc1a, inc1b and inc2 are.
+ * When a later release changes prisma/schema.prisma, snapshot the schema it changes into fixtures and point
+ * the release before it at the snapshot, as inc1a, inc1b, inc2 and inc3 are.
  */
 import { spawnSync } from 'child_process';
 import { randomBytes } from 'crypto';
@@ -40,11 +42,15 @@ export const INC1A_SCHEMA = path.join(HELPER_FIXTURES_DIR, 'schema.inc1a.prisma'
 export const INC1B_SCHEMA = path.join(HELPER_FIXTURES_DIR, 'schema.inc1b.prisma');
 /** prisma/schema.prisma as the Increment 2 release shipped it (the schema inc3_refills_dayend was diffed from). */
 export const INC2_SCHEMA = path.join(HELPER_FIXTURES_DIR, 'schema.inc2.prisma');
+/** prisma/schema.prisma as the Increment 3 release shipped it (the schema users_app_seen was diffed from). */
+export const INC3_SCHEMA = path.join(HELPER_FIXTURES_DIR, 'schema.inc3.prisma');
 export const BASELINE_MIGRATION = '0_baseline';
 export const INC1A_MIGRATION = '20261021195005_inc1a_foundations';
 export const INC1B_MIGRATION = '20261023112537_inc1b_contract';
 export const INC2_MIGRATION = '20261023112824_inc2_driver_flow';
 export const INC3_MIGRATION = '20261024021613_inc3_refills_dayend';
+/** The follow-ups' migration (2026-10-25): which app each shop and driver last used (DATA_MODEL §5.6). */
+export const APP_SEEN_MIGRATION = '20261025113630_users_app_seen';
 
 const PRISMA_CLI = require.resolve('prisma/build/index.js');
 
@@ -202,7 +208,7 @@ export function releaseContents(kind: ReleaseKind): { schema: string; migrations
     case 'inc2':
       return { schema: INC2_SCHEMA, migrations: upTo(INC2_MIGRATION) };
     case 'inc3':
-      return { schema: path.join(PRISMA_DIR, 'schema.prisma'), migrations: upTo(INC3_MIGRATION) };
+      return { schema: INC3_SCHEMA, migrations: upTo(INC3_MIGRATION) };
     case 'current':
       return { schema: path.join(PRISMA_DIR, 'schema.prisma'), migrations: migrationNames() };
   }

@@ -21,6 +21,7 @@ import {
   useConfirm,
   useToast,
 } from '../ui';
+import { alertWords } from './alertWords';
 import { useLegacyT } from './i18n';
 import './legacy.css';
 
@@ -29,7 +30,8 @@ import './legacy.css';
  * the tabs read Open alerts · Rules, "Check now" checks the rules, Open · All are chips, and an empty
  * list is one line with the bell. The chips read Open (red), Seen (amber) and Sorted (green). The rule
  * table says "Limit" and "Urgency". The retired "credit exceeds" rule kind can't be created any more
- * (balances can't go negative; API_CONTRACT §7.2).
+ * (balances can't go negative; API_CONTRACT §7.2). A VAN_NOT_EMPTY alert reads its context: the van's count
+ * now and the driver's reason (UX_ADMIN §3.7), never the words of its first raise.
  */
 
 type Tab = 'open' | 'rules';
@@ -81,6 +83,8 @@ interface AlertRow {
   status: string;
   title: string;
   body: string | null;
+  /** Codes and values the card's words come from (VAN_NOT_EMPTY: `VanNotEmptyContext`). */
+  context?: unknown;
   createdAt: string;
 }
 
@@ -167,34 +171,37 @@ function OpenAlertsTab() {
       {query.isSuccess && rows.length === 0 ? (
         <EmptyState icon={Bell} title={show === 'OPEN' ? lt('alerts.emptyOpen') : lt('alerts.emptyAll')} />
       ) : null}
-      {rows.map((a) => (
-        <section className="sf-legacy-card" key={a.id}>
-          <div className="sf-legacy-card__row">
-            <div className="sf-legacy-alert">
-              <div className="sf-legacy__chips">
-                <StatusChip kind="alert" value={a.status} />
-                <StatusChip kind="severity" value={a.severity} />
-                <span className="sf-legacy__muted">{actionInWords(a.alertType)}</span>
+      {rows.map((a) => {
+        const words = alertWords(a, lt);
+        return (
+          <section className="sf-legacy-card" key={a.id}>
+            <div className="sf-legacy-card__row">
+              <div className="sf-legacy-alert">
+                <div className="sf-legacy__chips">
+                  <StatusChip kind="alert" value={a.status} />
+                  <StatusChip kind="severity" value={a.severity} />
+                  <span className="sf-legacy__muted">{actionInWords(a.alertType)}</span>
+                </div>
+                <h3 className="sf-legacy-card__title">{words.title}</h3>
+                {words.body ? <p>{words.body}</p> : null}
+                <p className="sf-legacy__muted">{formatDateTime(a.createdAt)}</p>
               </div>
-              <h3 className="sf-legacy-card__title">{a.title}</h3>
-              {a.body ? <p>{a.body}</p> : null}
-              <p className="sf-legacy__muted">{formatDateTime(a.createdAt)}</p>
+              <span className="sf-legacy__actions">
+                {a.status === 'OPEN' ? (
+                  <Button size="sm" onClick={() => ack.mutate(a.id)} disabled={ack.isPending}>
+                    {lt('alerts.seen')}
+                  </Button>
+                ) : null}
+                {a.status !== 'RESOLVED' ? (
+                  <Button size="sm" onClick={() => resolve.mutate(a.id)} disabled={resolve.isPending}>
+                    {lt('alerts.sorted')}
+                  </Button>
+                ) : null}
+              </span>
             </div>
-            <span className="sf-legacy__actions">
-              {a.status === 'OPEN' ? (
-                <Button size="sm" onClick={() => ack.mutate(a.id)} disabled={ack.isPending}>
-                  {lt('alerts.seen')}
-                </Button>
-              ) : null}
-              {a.status !== 'RESOLVED' ? (
-                <Button size="sm" onClick={() => resolve.mutate(a.id)} disabled={resolve.isPending}>
-                  {lt('alerts.sorted')}
-                </Button>
-              ) : null}
-            </span>
-          </div>
-        </section>
-      ))}
+          </section>
+        );
+      })}
     </>
   );
 }

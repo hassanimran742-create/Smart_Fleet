@@ -17,6 +17,7 @@ import { useDriversSocket } from '../hooks/useDriversSocket';
 import { formatDateTime, formatDay, formatPhone } from '../i18n/format';
 import {
   AddMore,
+  AppChip,
   Button,
   DateInput,
   Drawer,
@@ -47,8 +48,9 @@ import './legacy.css';
 /**
  * Legacy Drivers screen, kept inside the new shell for Inc 1 (UX_ADMIN §2.11). Light pass (website spec
  * W43): the list comes first, with a search and the "Show archived" chip; one status chip per driver
- * (account suspended, then on leave, then on duty or offline); "Edit" and "Password" as labelled buttons
- * and the rarer actions under More. "Add driver" and Edit open drawers; the licence, email and CNIC live
+ * (account suspended, then on leave, then on duty or offline), then the app chip ("App: up to date" or "App:
+ * needs update" against app.minVersion.driver, API_CONTRACT §8.5 step 10); "Edit" and "Password" as labelled
+ * buttons and the rarer actions under More. "Add driver" and Edit open drawers; the licence, email and CNIC live
  * there (the CNIC only masked: API_CONTRACT §3.5, G11-12). Archive and reactivate keep the reasons the
  * API requires, and every pop-up is the app's own.
  */
@@ -195,12 +197,27 @@ export function DriversScreen() {
         </span>
       ),
     },
-    { id: 'status', header: lt('drivers.columns.status'), cell: (d) => <DriverChip driver={d} /> },
+    {
+      id: 'status',
+      header: lt('drivers.columns.status'),
+      cell: (d) => (
+        <span className="sf-legacy__chips">
+          <DriverChip driver={d} />
+          <AppChip app={d.app} active={d.user.status === 'ACTIVE'} />
+        </span>
+      ),
+    },
     {
       id: 'van',
       header: lt('drivers.columns.van'),
       priority: 2,
-      cell: (d) => (d.currentVehicle ? d.currentVehicle.plateNo : <span className="sf-legacy__muted">{lt('drivers.noVan')}</span>),
+      // The plate stays on one line beside the wider Status cell (its app chip): "LEA-101", never "LEA-" / "101".
+      cell: (d) =>
+        d.currentVehicle ? (
+          <span className="sf-legacy__nowrap">{d.currentVehicle.plateNo}</span>
+        ) : (
+          <span className="sf-legacy__muted">{lt('drivers.noVan')}</span>
+        ),
     },
     {
       id: 'actions',
