@@ -47,6 +47,8 @@ export function useSheetDownload(date: string): { download: () => void; busy: bo
         running.current = false;
         setBusy(false);
         void queryClient.invalidateQueries({ queryKey: qk.dayEnd(date) });
+        // A first sheet makes the day's row: Home's "Day-end sheet" line follows it.
+        void queryClient.invalidateQueries({ queryKey: qk.dayEndList });
       }
     })();
   }, [date, queryClient, t, toast]);
@@ -117,6 +119,7 @@ export function useSheetUpload(date: string, onDone: (upload: DayUpload) => void
         busy.current = false;
         setUploading(false);
         void queryClient.invalidateQueries({ queryKey: qk.dayEnd(date) });
+        void queryClient.invalidateQueries({ queryKey: qk.dayEndList });
       }
     },
     [date, onDone, queryClient],

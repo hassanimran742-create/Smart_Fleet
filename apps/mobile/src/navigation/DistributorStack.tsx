@@ -86,8 +86,12 @@ export type DistributorStackParams = {
    * that needs a new link makes the order ask "Make a new link?".
    */
   EditCustomer: { clientId: string; orderId?: string };
-  /** [Inc 3] S19 today's day-end; reached from Home only while `features.dayEnd` is on. */
-  DayEnd: undefined;
+  /**
+   * [Inc 3] S19 one day's day-end; reached from Home only while `features.dayEnd` is on. `date` is the
+   * business date the flow started with (Home passes the day that waits for the shop, Check and send its
+   * own date); without it S19 opens on that day itself (`useDayEndDue`), else today.
+   */
+  DayEnd: { date?: string } | undefined;
   /** [Inc 3] S20 the differences of the upload just made, and "Send for approval". */
   DayEndPreview: { date: string };
 };

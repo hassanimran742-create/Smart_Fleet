@@ -31,8 +31,8 @@ export interface RaiseAlertInput {
   dedupeKey?: { resourceType?: string; resourceId?: string; alertType: AlertType };
   /**
    * The statuses the dedupe looks at; OPEN when left out. VAN_NOT_EMPTY passes OPEN and ACKNOWLEDGED (one
-   * unresolved alert per van, API_CONTRACT §9.9): a new raise only refreshes that alert's context and
-   * keeps its status.
+   * unresolved alert per van, API_CONTRACT §9.9): a new raise refreshes that alert's title, body and
+   * context and keeps its status.
    */
   dedupeStatuses?: readonly AlertStatus[];
 }
@@ -60,9 +60,11 @@ export class AlertsService {
   }
 
   /**
-   * Raises an alert, or with `dedupeKey` refreshes the OPEN one for the same resource and type. Pass
-   * the caller's transaction to raise it with the change that caused it (it then commits or rolls back
-   * with it); without one, the find-or-update and the create run in their own transaction.
+   * Raises an alert, or with `dedupeKey` refreshes the OPEN one for the same resource and type: the new
+   * title, body and context replace the old ones (the website shows the title and body, so a refreshed
+   * VAN_NOT_EMPTY reads the van's count now), and its status, severity and creation time stay. Pass the
+   * caller's transaction to raise it with the change that caused it (it then commits or rolls back with
+   * it); without one, the find-or-update and the create run in their own transaction.
    */
   async raise(input: RaiseAlertInput, tx?: Prisma.TransactionClient): Promise<Alert> {
     if (tx) return this.raiseOn(tx, input);
@@ -107,7 +109,10 @@ export class AlertsService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
       if (existing) {
-        return db.alert.update({ where: { id: existing.id }, data: { updatedAt: new Date(), context: input.context } });
+        return db.alert.update({
+          where: { id: existing.id },
+          data: { updatedAt: new Date(), title: input.title, body: input.body, context: input.context },
+        });
       }
     }
     return db.alert.create({

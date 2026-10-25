@@ -73,6 +73,8 @@ export const qk = {
   },
   /** `/day-end/:date` (Inc 3). */
   dayEnd: (date: string) => ['dayEnd', date] as const,
+  /** `GET /day-end` (Inc 3): the shop's days, read by Home's row and S19 to find a day that waits. */
+  dayEndList: ['dayEnd', 'list'] as const,
 } as const;
 
 /** Freshness, in ms (Appendix C notes). Everything else uses the 30-second default. */

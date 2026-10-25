@@ -8,9 +8,10 @@ export const VAN_ALERT_RESOURCE_TYPE = 'Vehicle';
 
 /**
  * Raises VAN_NOT_EMPTY (WARNING) for a van still holding cylinders, or refreshes the one already
- * unresolved (API_CONTRACT §9.9): one OPEN or ACKNOWLEDGED alert per van, whose context a new raise
- * only updates. It stays until the office resolves it. Runs in the caller's transaction (a finish with
- * leftovers, or the 03:00 job). No money.
+ * unresolved (API_CONTRACT §9.9): one OPEN or ACKNOWLEDGED alert per van, whose title, body and context a
+ * new raise replaces (so the office reads the count the van has now), keeping its status. It stays until
+ * the office resolves it. Runs in the caller's transaction (a finish with leftovers, or the 03:00 job). No
+ * money.
  */
 export async function raiseVanNotEmpty(alerts: AlertsService, tx: Tx, context: VanNotEmptyContext): Promise<void> {
   // Two raises for one van at once (the job and a late finish) must still leave one alert.
@@ -27,7 +28,7 @@ export async function raiseVanNotEmpty(alerts: AlertsService, tx: Tx, context: V
       resourceId: context.vehicleId,
       context: json,
       dedupeKey: { alertType: AlertType.VAN_NOT_EMPTY, resourceType: VAN_ALERT_RESOURCE_TYPE, resourceId: context.vehicleId },
-      // One OPEN or ACKNOWLEDGED alert per van: an acknowledged one keeps its status and gets the new count and reason.
+      // One OPEN or ACKNOWLEDGED alert per van: an acknowledged one keeps its status and gets the new count, words and reason.
       dedupeStatuses: [AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED],
     },
     tx,

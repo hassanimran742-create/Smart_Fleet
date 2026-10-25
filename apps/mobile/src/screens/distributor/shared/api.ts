@@ -8,6 +8,7 @@ import type {
   ConfirmationShareVia,
   ConfirmationView,
   DayEndDayDto,
+  DayEndListItem,
   DayEndUploadResult,
   DistributorDto,
   DistributorHomeDto,
@@ -354,6 +355,16 @@ export async function updateClient(id: string, body: ClientUpdateBody): Promise<
 
 /** The day-end sheet's file type (an Excel workbook). */
 export const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/**
+ * `GET /day-end`: the shop's days that have a row (a sheet was made), newest first, one page (30). Home
+ * and S19 read it to find a day the office sent back or reopened, or an earlier day never sent
+ * (dayEndModel.dayEndTarget).
+ */
+export async function fetchDayEndList(): Promise<Page<DayEndListItem>> {
+  const { data } = await api.get<Page<DayEndListItem>>('/day-end');
+  return { items: Array.isArray(data?.items) ? data.items : [], nextCursor: data?.nextCursor ?? null };
+}
 
 /** `GET /day-end/:date` (S19). A date with no row reads NOT_STARTED; a later date is 404 DAY_NOT_FOUND. */
 export async function fetchDayEnd(date: string): Promise<DayEndDayDto> {

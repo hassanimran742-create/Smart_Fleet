@@ -121,6 +121,31 @@ describeDb('inc2 scan: driver reads', () => {
     expect(ready.body.van.cylinders).toEqual([]);
   });
 
+  it("REV23 security-03 a visit whose order went to another driver is 404 to the old driver; his other stops still read", async () => {
+    const { std, scans } = w;
+    const x1 = await w.placeOrder(X1);
+    const t1 = await w.assign(x1, std.DR1);
+    const y1 = await w.placeOrder(Y1, 'C2');
+    expect((await w.assign(y1, std.DR1)).id).toBe(t1.id); // appended: T1 has no load yet
+    const sanaStop = await t1.stopFor(x1.id);
+    const usmanStop = await t1.stopFor(y1.id);
+    // The office gives Sana's order to Imran before anything is loaded; Usman's stays on Kashif's run.
+    const t2 = await w.assign(x1, std.DR2, 'Kashif is stuck in traffic');
+
+    const old = await scans.stop(std.DR1, t1.id, sanaStop);
+    expect({ status: old.status, code: old.body.code, order: old.body.order ?? null }).toEqual({ status: 404, code: 'NOT_FOUND', order: null });
+    expect((await w.as(std.DR1).get(`/orders/${x1.id}`)).status).toBe(404);
+    // His own stops still read: the store stop (no order) and Usman's visit with its order.
+    expect((await scans.stop(std.DR1, t1.id, t1.pickupStopId).expect(200)).body.order).toBeNull();
+    expect((await scans.stop(std.DR1, t1.id, usmanStop).expect(200)).body.order).toMatchObject({ id: y1.id });
+    // The trip still lists the old visit (cancelled), with its own words.
+    const trip = await scans.trip(std.DR1, t1.id).expect(200);
+    expect(trip.body.stops.find((stop: { id: string }) => stop.id === sanaStop)).toMatchObject({ status: 'CANCELLED', title: 'Sana' });
+    // Imran reads the order on his own trip.
+    const now = await scans.stop(std.DR2, t2.id, await t2.stopFor(x1.id)).expect(200);
+    expect(now.body.order).toMatchObject({ id: x1.id });
+  });
+
   it('Appendix A GET /inventory/my-vehicle counts the cylinders on the driver\'s van', async () => {
     const { std } = w;
     const x1 = await w.placeOrder(X1);

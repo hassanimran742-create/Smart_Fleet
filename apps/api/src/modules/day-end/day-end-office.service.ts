@@ -176,6 +176,12 @@ export class DayEndOfficeService {
       if (!plan) continue;
 
       if (plan.fix === 'REGISTER') {
+        // An extra number an earlier approval of this day already registered (the day was reopened and the
+        // sheet sent again: the line kept its link, day-end-lines.ts) is one physical cylinder, added once.
+        if (line.appliedEventId) {
+          fixes.unchanged += 1;
+          continue;
+        }
         const made = await this.registerExtra(tx, actor, distributor, line);
         await tx.dayCloseLine.update({ where: { id: line.id }, data: { appliedEventId: made.eventId } });
         registered.push(made.cylinder);
@@ -185,9 +191,12 @@ export class DayEndOfficeService {
 
       const cylinder = await lockCylinderForMove(tx, line.cylinderId as string);
       const last = cylinder.last_event_id
-        ? await tx.cylinderEvent.findUnique({ where: { id: cylinder.last_event_id }, select: { createdAt: true } })
+        ? await tx.cylinderEvent.findUnique({ where: { id: cylinder.last_event_id }, select: { id: true, createdAt: true } })
         : null;
-      if (last && day.sheetSnapshotAt && last.createdAt.getTime() > day.sheetSnapshotAt.getTime()) {
+      // The fix an earlier approval of this day wrote for this line isn't a move since the sheet (the review's
+      // `movedSinceSheet` reads it the same way, day-end-core `movedSince`).
+      const ownFix = !!last && last.id === line.appliedEventId;
+      if (last && !ownFix && day.sheetSnapshotAt && last.createdAt.getTime() > day.sheetSnapshotAt.getTime()) {
         await tx.dayCloseLine.update({ where: { id: line.id }, data: { skippedMovedAt: last.createdAt } });
         fixes.skipped += 1;
         continue;
@@ -437,6 +446,15 @@ export class DayEndOfficeService {
       this.userNames([day.uploadedByUserId, day.approvedByUserId]),
     ]);
     const summary = await this.core.summary(db, { day, distributorId: day.distributorId, homeStoreId: distributor.homeStoreId, date, options });
+    // After a reopen, an extra number this day already registered is listed again but won't be added again.
+    const registeredAlready =
+      day.status === DayCloseStatus.APPROVED
+        ? new Set<string>()
+        : new Set(
+            (await db.dayCloseLine.findMany({ where: { dayCloseId: day.id, cylinderId: null, appliedEventId: { not: null } }, select: { id: true } })).map(
+              (line) => line.id,
+            ),
+          );
     return {
       id: day.id,
       businessDate: date,
@@ -448,7 +466,7 @@ export class DayEndOfficeService {
       uploadedAt: day.uploadedAt?.toISOString() ?? null,
       uploadedBy: day.uploadedByUserId ? users.get(day.uploadedByUserId) ?? null : null,
       summary,
-      fixesToApply: differences.filter((line) => line.fix !== 'NOTE_ONLY' && !line.movedSinceSheet),
+      fixesToApply: differences.filter((line) => line.fix !== 'NOTE_ONLY' && !line.movedSinceSheet && !registeredAlready.has(line.id)),
       lines: differences,
       files: { sheetFileId: day.sheetFileId, uploadFileId: day.uploadFileId },
       submittedAt: day.status !== DayCloseStatus.OPEN && day.submittedAt ? day.submittedAt.toISOString() : null,

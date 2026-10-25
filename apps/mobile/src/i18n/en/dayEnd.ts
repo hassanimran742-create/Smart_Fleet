@@ -23,10 +23,14 @@ export const dayEnd = {
   btn: {
     download: 'Download sheet',
     downloadAgain: 'Download again',
+    /** The one line under "Download again" (rule 2): a new sheet makes the filled copy unusable (ux-07). */
+    downloadAgainHelp: "Your filled sheet can't be sent after this.",
     downloading: 'Downloading…',
     upload: 'Upload filled sheet',
     uploadAgain: 'Upload again',
     checking: 'Checking your sheet…',
+    /** On an earlier day that waits for the shop: today's sheet, so it is never out of reach (ux-01). */
+    today: "Today's sheet",
   },
   /** Under "Upload the sheet" after an upload (the count and time are data). */
   lastUpload: '{{count}} difference · {{time}}',

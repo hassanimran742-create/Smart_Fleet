@@ -28,6 +28,12 @@
   white-space: nowrap;
 }
 
+/* "Load more" under a tab's rows, as on the Orders board. */
+.sf-refills__more {
+  display: flex;
+  justify-content: center;
+}
+
 .sf-refill__section {
   display: grid;
   gap: var(--sp-3);

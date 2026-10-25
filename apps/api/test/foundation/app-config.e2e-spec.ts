@@ -98,8 +98,10 @@ describeDb('foundation: public app config and the update gate', () => {
     expect(refused.body).toMatchObject({ code: 'APP_UPDATE_REQUIRED', message: 'Please update the app to continue.' });
     await asShop('0.2.0').expect(200);
     await asShop('0.10.0').expect(200);
-    // Step 4: the installed 0.1.0 app sends no headers; its token's role decides, and no version is 0.1.0.
-    await asShop().expect(426);
+    // Step 4: the installed 0.1.0 app sends no headers; its token's role decides, and no version is 0.1.0. Its
+    // screens show the answer's message, and a restart fetches the over-the-air update (review23 contract-compat-02).
+    const oldJs = await asShop().expect(426);
+    expect(oldJs.body).toMatchObject({ code: 'APP_RESTART_TO_UPDATE', message: 'Close the app and open it again to update.' });
     // Step 5: the driver minimum is still 0.0.0.
     await http()
       .get('/api/v1/trips/mine')
@@ -113,7 +115,9 @@ describeDb('foundation: public app config and the update gate', () => {
     await setMinVersion('distributor', '0.1.0');
     await asShop().expect(200);
     await setMinVersion('distributor', '0.1.1');
-    await asShop().expect(426);
+    expect((await asShop().expect(426)).body.code).toBe('APP_RESTART_TO_UPDATE');
+    // The over-the-air JS sends its own release (0.1.1): that minimum lets it through.
+    await asShop('0.1.1').expect(200);
     // Step 8.
     await setMinVersion('distributor', '0.0.0');
     await asShop('0.1.0').expect(200);

@@ -25,10 +25,11 @@ import { DriverScreen, usePullToRefresh } from './components';
 import {
   REFILLS_POLL_MS,
   REFILLS_QUERY_KEY,
+  driverStageOf,
   fetchDriverRefills,
-  isRefillOpen,
+  openRefillsOf,
   refillWords,
-  stageOf,
+  useBroughtBackUnfilledIds,
   type DriverRefill,
 } from './refillModel';
 import { businessDayOf } from './tripModel';
@@ -49,14 +50,49 @@ export function StageChip({ stage }: { stage: RefillStage }) {
 }
 
 /**
+ * One open refill as a row (the Refills list and Today): "2 × 11.8 kg · Ahmed Gas" (on Today "Refill ·
+ * 2 × 11.8 kg · Ahmed Gas", among the trips), the driver's next job as the chip under it (never beside
+ * it, so the line keeps the row's width), and a chevron; a tap opens the refill. The chip is the run's
+ * own step: a refill brought back unfilled reads "Bring them back" (review23 ux-04).
+ */
+export function RefillRow({
+  refill,
+  broughtBackUnfilled,
+  onToday = false,
+  onPress,
+}: {
+  refill: DriverRefill;
+  broughtBackUnfilled: boolean;
+  /** Today names it a refill, beside the trips. */
+  onToday?: boolean;
+  onPress: () => void;
+}) {
+  const { t } = useTranslation();
+  const line = refillWords(refill, t).title;
+  return (
+    <ListRow
+      title={onToday ? t('driver.home.refillRow', { line }) : line}
+      leadingIcon="cylinder"
+      below={<StageChip stage={driverStageOf(refill, broughtBackUnfilled)} />}
+      chevron
+      onPress={onPress}
+      style={styles.row}
+      testID={onToday ? `home.refill.${refill.id}` : `refills.row.${refill.id}`}
+    />
+  );
+}
+
+/**
  * Refills (driver spec D13): the open refills, oldest first, one row each ("2 × 11.8 kg · Ahmed
- * Gas" and the next job); a tap opens that refill, which has the one button. Then "Done today: 2".
- * Drivers don't create refills, so there is no footer. No money anywhere.
+ * Gas" and the next job, the same step the refill's own screen shows); a tap opens that refill, which
+ * has the one button. Then "Done today: 2". Drivers don't create refills, so there is no footer. No
+ * money anywhere.
  */
 export function RefillsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
   const { config } = useAppConfig();
+  const unfilled = useBroughtBackUnfilledIds();
   const refills = useQuery<DriverRefill[], ApiError>({
     queryKey: REFILLS_QUERY_KEY,
     queryFn: fetchDriverRefills,
@@ -68,7 +104,7 @@ export function RefillsScreen() {
     <DriverScreen refreshing={pull.refreshing} onRefresh={pull.onRefresh}>
       <QueryBoundary query={refills} skeleton={<SkeletonList rows={2} />}>
         {(list) => {
-          const open = list.filter(isRefillOpen).sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
+          const open = openRefillsOf(list);
           const today = businessDayOf(Date.now(), config.day);
           const doneToday = list.filter(
             (refill) =>
@@ -87,15 +123,11 @@ export function RefillsScreen() {
               ) : (
                 <View style={styles.list}>
                   {open.map((refill) => (
-                    <ListRow
+                    <RefillRow
                       key={refill.id}
-                      title={refillWords(refill, t).title}
-                      leadingIcon="cylinder"
-                      below={<StageChip stage={stageOf(refill)} />}
-                      chevron
+                      refill={refill}
+                      broughtBackUnfilled={unfilled[refill.id] === true}
                       onPress={() => navigation.navigate('RefillRun', { refillId: refill.id })}
-                      style={styles.row}
-                      testID={`refills.row.${refill.id}`}
                     />
                   ))}
                 </View>

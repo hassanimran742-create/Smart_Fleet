@@ -33,9 +33,10 @@ import { LOCKING_TX, type Db, type Tx } from '../orders/support/tx';
 import { compareSizes, sizeLabelOf, toCylinderSize } from '../pricing/size-label';
 import { DAY_RESOURCE_TYPE, DayEndCore, dbDate, isoDateOf, shopActionsOf, shopOfficeNote, stageOf, type DayRow } from './day-end-core';
 import { DayEndFiles } from './day-end-files';
+import { replaceDayLines } from './day-end-lines';
 import { appSideOf, applyRowRules, type DistributorCylinder, type SizeOption } from './day-end-rows';
-import { buildDaySheetWorkbook, loadDayWorkbook, readAbout, readUploadedRows, type DaySheetRowOut } from './day-end-workbook';
-import { inspectZip } from './day-end-zip';
+import { readDayUpload } from './day-end-upload-read';
+import { buildDaySheetWorkbook, type DaySheetRowOut } from './day-end-workbook';
 
 /** Sheet downloads and uploads build or read a workbook inside their transaction: give them room. */
 const SHEET_TX = { maxWait: 10_000, timeout: 60_000 } as const;
@@ -210,12 +211,9 @@ export class DayEndService {
     const before = await this.core.findDay(this.prisma, distributorId, date);
     assertUploadAllowed(before);
 
-    // 3. A real workbook: the ZIP signature, at most 20 MB unzipped and 20,000 rows a sheet, and "About" with the format.
-    const zip = inspectZip(file.buffer, { maxUnzippedBytes: DAY_SHEET_LIMITS.maxUnzippedBytes });
-    if (!zip.ok) throw new AppError('DAY_SHEET_UNREADABLE');
-    const workbook = await loadDayWorkbook(file.buffer, { maxRows: DAY_SHEET_LIMITS.maxRowsPerSheet });
-    if (!workbook) throw new AppError('DAY_SHEET_UNREADABLE');
-    const about = readAbout(workbook);
+    // 3. A real workbook: the ZIP signature, at most 20 MB unzipped, the sheet's shape (20,000 rows a sheet,
+    // 200,000 cells…) checked before exceljs reads it, one file at a time, and "About" with the format.
+    const { about, rows: uploaded } = await readDayUpload(file.buffer);
     if (!about || about.format !== DAY_SHEET_FORMAT) throw new AppError('DAY_SHEET_UNREADABLE');
 
     // 4. The shop. The answer holds nothing of another shop.
@@ -231,7 +229,6 @@ export class DayEndService {
     if (!before?.sheetFileId || sheetFileId !== before.sheetFileId.toLowerCase()) throw new AppError('DAY_SHEET_OUTDATED');
 
     // 7. The two sheets with their headers unchanged.
-    const uploaded = readUploadedRows(workbook);
     if (!uploaded) throw new AppError('DAY_SHEET_UNREADABLE');
 
     const distributor = await this.core.distributorOf(this.prisma, distributorId);
@@ -293,8 +290,8 @@ export class DayEndService {
             diff: 'UNKNOWN_CYLINDER',
           });
         }
-        await tx.dayCloseLine.deleteMany({ where: { dayCloseId: day.id } });
-        if (lines.length > 0) await tx.dayCloseLine.createMany({ data: lines });
+        // The lines are replaced, keeping the links of fixes an earlier approval of this day applied.
+        await replaceDayLines(tx, day.id, lines);
         const updated = await tx.dayClose.update({
           where: { id: day.id },
           data: { uploadFileId: fileId, uploadVersion: { increment: 1 }, uploadedAt: new Date(), uploadedByUserId: actor.userId },

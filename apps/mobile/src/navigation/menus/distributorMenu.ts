@@ -4,6 +4,7 @@ import { formatPkPhone } from '@smartfleet/shared-utils';
 import { qk } from '../../api/keys';
 import { fetchMe } from '../../api/me';
 import { fetchHome } from '../../screens/distributor/shared/api';
+import { keepTogether } from '../../ui';
 import type { MenuActions, MenuItem, MenuModel } from './types';
 
 /**
@@ -20,7 +21,7 @@ export function useDistributorMenu({ visible, go, signOut }: MenuActions): MenuM
   const home = useQuery({ queryKey: qk.home, queryFn: fetchHome, enabled: visible });
 
   const businessName = home.data?.distributor.businessName || me.data?.distributorProfile?.businessName || '';
-  const phone = me.data?.phone ? formatPkPhone(me.data.phone) : '';
+  const phone = me.data?.phone ? keepTogether(formatPkPhone(me.data.phone)) : '';
 
   const items: MenuItem[] = [
     { key: 'profile', icon: 'profile', label: t('home.menu.profile'), onPress: () => go('Profile') },

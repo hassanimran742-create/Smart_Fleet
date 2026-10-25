@@ -7,7 +7,7 @@ import type { ApiError } from '../../api/errors';
 import { qk } from '../../api/keys';
 import { fetchMe, type MeDto } from '../../api/me';
 import { useOfficeContact } from '../../hooks/useAppConfig';
-import { Button, Card, SkeletonLines, Text, ltr, space, useNoConnection } from '../../ui';
+import { Button, Card, SkeletonLines, Text, keepTogether, ltr, space, useNoConnection } from '../../ui';
 import { DriverScreen, InfoRow, usePullToRefresh } from './components';
 
 /**
@@ -41,7 +41,7 @@ export function DriverHelpScreen() {
         <Card>
           <View style={styles.card}>
             {office.phone ? (
-              <Text variant="title">{ltr(formatPkPhone(office.phone))}</Text>
+              <Text variant="title">{ltr(keepTogether(formatPkPhone(office.phone)))}</Text>
             ) : (
               <Text tone="secondary">{t('driver.help.noPhone')}</Text>
             )}
@@ -61,7 +61,7 @@ export function DriverHelpScreen() {
         {profile ? (
           <Card testID="help.you">
             <InfoRow label={t('driver.help.name')} value={profile.name} />
-            <InfoRow label={t('driver.help.phone')} value={ltr(formatPkPhone(profile.phone))} />
+            <InfoRow label={t('driver.help.phone')} value={ltr(keepTogether(formatPkPhone(profile.phone)))} />
             <InfoRow label={t('driver.help.van')} value={plate ? ltr(plate) : t('common.menu.vanNone')} />
           </Card>
         ) : me.isPending && !noConnection ? (

@@ -10,7 +10,9 @@
 # The link page sends its own security headers (Referrer-Policy no-referrer, X-Content-Type-Options,
 # X-Robots-Tag and a CSP with frame-ancestors 'none'), so the site-wide headers below skip /c/* rather
 # than override or duplicate them; HSTS applies everywhere. The access log replaces a link's token with
-# [token] and drops the Referer header, so tokens never reach the logs (CUSTOMER_PAGE §5, §12).
+# [token] and drops the Referer header, so tokens never reach the logs (CUSTOMER_PAGE §5, §12). The
+# pattern takes /c/ and /C/ and every form of the token the page accepts (capitals, separators): Express
+# routes ignore letter case, so each opens the page. RE2 and JavaScript read it the same way.
 api.smartfleetpk.com {
 	reverse_proxy api-prod:3001 {
 		header_up X-Real-IP {remote_host}
@@ -25,7 +27,7 @@ api.smartfleetpk.com {
 		format filter {
 			wrap json
 			fields {
-				request>uri regexp "^/c/[0-9a-z]+" "/c/[token]"
+				request>uri regexp "^/[cC]/+[^/?]+" "/c/[token]"
 				request>headers>Referer delete
 			}
 		}
@@ -54,7 +56,7 @@ staging.smartfleetpk.com {
 		format filter {
 			wrap json
 			fields {
-				request>uri regexp "^/c/[0-9a-z]+" "/c/[token]"
+				request>uri regexp "^/[cC]/+[^/?]+" "/c/[token]"
 				request>headers>Referer delete
 			}
 		}
@@ -95,7 +97,7 @@ staging.smartfleetpk.com {
 # 		format filter {
 # 			wrap json
 # 			fields {
-# 				request>uri regexp "^/c/[0-9a-z]+" "/c/[token]"
+# 				request>uri regexp "^/[cC]/+[^/?]+" "/c/[token]"
 # 				request>headers>Referer delete
 # 			}
 # 		}

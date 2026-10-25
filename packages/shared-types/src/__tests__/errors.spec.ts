@@ -39,7 +39,7 @@ describe('error catalogue (API_CONTRACT §2.3)', () => {
   it('has unique UPPER_SNAKE codes', () => {
     expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
     for (const code of ERROR_CODES) expect(code).toMatch(/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/);
-    expect(ERROR_CODES.length).toBe(142);
+    expect(ERROR_CODES.length).toBe(144);
   });
 
   it('gives every code an HTTP status and English text', () => {

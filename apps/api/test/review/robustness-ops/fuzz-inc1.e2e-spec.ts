@@ -7,6 +7,7 @@
  * it confirm each class of failure on its own.
  */
 import type { INestApplication } from '@nestjs/common';
+import { NEW_SHOP_APP } from '../../helpers/app-headers';
 import { createTestApp } from '../../helpers/app';
 import {
   authHeader,
@@ -33,6 +34,8 @@ interface Spec {
   body?: Record<string, unknown>;
   query?: Record<string, string>;
   idempotent?: boolean;
+  /** Extra headers (the Inc 3 shop app's on a route the 0.1.0 JS can't use, so the body is still fuzzed). */
+  headers?: Record<string, string>;
 }
 
 interface Failure {
@@ -128,6 +131,7 @@ describeDb('review robustness: fuzzing Inc 1 inputs never gives a 5xx', () => {
     let req = api[spec.method](`/api/v1${path ?? spec.path}`);
     if (spec.actor) req = req.set(authHeader(spec.actor));
     if (spec.idempotent) req = req.set('Idempotency-Key', freshKey());
+    if (spec.headers) req = req.set(spec.headers);
     if (query ?? spec.query) req = req.query(query ?? spec.query ?? {});
     if (body !== undefined) req = req.send(body);
     const res = await req;
@@ -190,7 +194,7 @@ describeDb('review robustness: fuzzing Inc 1 inputs never gives a 5xx', () => {
       { name: 'POST /payments/topup-requests', method: 'post', path: '/payments/topup-requests', actor: DA, idempotent: true, body: { amountPaisa: 100000, payerName: 'Ahmed', payerChannel: 'BANK_APP', transactionId: 'TX-1', proofFileId: '00000000-0000-4000-8000-000000000000' } },
       { name: 'POST /payments/topup', method: 'post', path: '/payments/topup', actor: DA, body: { amountPaisa: 100000, provider: 'BANK_MANUAL' } },
       { name: 'POST /payments/:id/bank-proof', method: 'post', path: `/payments/${paymentId}/bank-proof`, actor: DA, body: { proofUrl: 'uploads/2026-10-22/x.jpg' } },
-      { name: 'POST /filling-orders', method: 'post', path: '/filling-orders', actor: DA, body: { fillingStationId: '00000000-0000-4000-8000-000000000000', cylinderTypeId: std.sizes.kg11_8, requestedCount: 2 } },
+      { name: 'POST /filling-orders', method: 'post', path: '/filling-orders', actor: DA, headers: NEW_SHOP_APP, body: { fillingStationId: '00000000-0000-4000-8000-000000000000', cylinderTypeId: std.sizes.kg11_8, requestedCount: 2 } },
       { name: 'PATCH /users/me', method: 'patch', path: '/users/me', actor: DA, body: { name: 'Ahmed', email: 'a@b.pk' } },
       // Driver
       { name: 'PATCH /orders/:id/status (driver)', method: 'patch', path: `/orders/${orderId}/status`, actor: DR, body: { status: 'DELIVERED', reason: 'r', reasonCode: 'OTHER' } },

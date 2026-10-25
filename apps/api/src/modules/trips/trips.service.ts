@@ -47,7 +47,8 @@ export type StopAction = 'ARRIVE' | 'DEPART';
 
 /**
  * A cylinder on the van as the trip names it (`TRIP_VAN_NOT_EMPTY`, and from Inc 2 `GET /trips/:id`
- * `van.cylinders`). From a run's point of view `vanCylinders` leaves refill cylinders out already.
+ * `van.cylinders`). From a run's point of view `vanCylinders` already leaves out refill cylinders, another
+ * open run's loads that are out for delivery, and a cylinder a day-end fix marked lost on the van.
  */
 function leftoverOf(cylinder: VanCylinder): VanLeftoverCylinder {
   return {
@@ -193,17 +194,27 @@ export class TripsService {
       stops,
       van,
       driver: { id: driver.id, name: driver.user.name, phone: driver.user.phone },
-      allowedActions: await this.tripActions(caller, rest, counts.total),
+      // COMPLETE follows the list the finish refuses on (the run's own cylinders), not the van's physical
+      // count: a refill cylinder or another open run's load on the same van never hides it (holder-scans-04).
+      allowedActions: await this.tripActions(caller, rest, onVan.length),
     };
   }
 
-  /** `GET /trips/:tripId/stops/:stopId` (the trip's driver): the stop, its order (null at the store) and its progress. */
+  /**
+   * `GET /trips/:tripId/stops/:stopId` (the trip's driver): the stop, its order (null at the store) and its
+   * progress. A visit whose order went to another trip (reassigned) is 404 like any stop that isn't the
+   * caller's: the order is no longer his to read (`canSeeOrder`, §3.2; review23 security-03).
+   */
   async stopDetail(actor: UserActor, tripId: string, stopId: string): Promise<StopDetailDto> {
     const driverId = ownDriverId(actor);
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId }, include: TRIP_INCLUDE });
     if (!trip || trip.driverId !== driverId) throw new AppError('NOT_FOUND');
     const row = trip.stops.find((stop) => stop.id === stopId);
     if (!row) throw new AppError('NOT_FOUND');
+    // `trip.orders` are the orders on this trip now; a reassigned order has left it.
+    if (row.stopType === TripStopType.DELIVERY && row.orderId && !trip.orders.some((order) => order.id === row.orderId)) {
+      throw new AppError('NOT_FOUND');
+    }
     const [decorated] = await this.decorateStops([row], (s) => this.stopActions(actor, trip.status, s));
     const [stop] = await this.detailStops(this.prisma, trip, [decorated]);
     const order = row.orderId && row.stopType === TripStopType.DELIVERY ? await this.orderView(actor, row.orderId) : null;
@@ -445,7 +456,8 @@ export class TripsService {
    * transaction after the orders module locked the order and checked its status: behaves like the visit
    * finish, so the hand-overs must match the order (409 DELIVERY_SCANS_INCOMPLETE). The old app scans the
    * empties after this tap, so a short take-back delivers the order and keeps the visit open; its "Done"
-   * (depart) then closes it.
+   * (depart) then closes it, and only that close issues the customer's confirmation, with the take-back
+   * list done (CUSTOMER_PAGE §1; review23 contract-compat-04).
    */
   async legacyDeliveredTap(tx: Tx, actor: UserActor, order: { id: string; tripId: string }): Promise<FinishOutcome> {
     const stop = await tx.tripStop.findFirst({
@@ -649,7 +661,14 @@ export class TripsService {
       const deliveredAt = await markOrderDeliveredByScans(tx, orderId, actor.userId);
       if (!deliveredAt) throw new AppError('CONFLICT_STALE_STATE');
       changedOrder = true;
-      issued = await this.confirmations.issueForDeliveredOrder(tx, { orderId, stopId: stop.id, deliveredAt });
+      // [review23 contract-compat-04] A 0.1.0 tap that keeps the visit open (returns still to scan) issues
+      // the confirmation at the visit's close instead, once the take-back list is done (CUSTOMER_PAGE §1).
+      if (!keepOpen) issued = await this.confirmations.issueForDeliveredOrder(tx, { orderId, stopId: stop.id, deliveredAt });
+    } else if (!keepOpen && order.deliveredAt) {
+      // The close of a visit that tap left open: the snapshot now carries the take-back list, and the link
+      // still expires `linkTtlHours` after the tap's deliveredAt. An order that already has its
+      // confirmation gets the existing row back unchanged (nothing sent again).
+      issued = await this.confirmations.issueForDeliveredOrder(tx, { orderId, stopId: stop.id, deliveredAt: order.deliveredAt });
     }
     if (!keepOpen) await this.closeStop(tx, stop.id, shortNote);
     await autoStartTrip(tx, trip.id);
@@ -802,7 +821,8 @@ export class TripsService {
 
   /**
    * The trip's buttons (§1.6). The office: ABORT while nothing happened on it. The driver: START while
-   * PLANNED; COMPLETE once every stop is closed and the van is empty (or leftovers are allowed).
+   * PLANNED; COMPLETE once every stop is closed and the van is empty from the run's point of view (`onVan`:
+   * the cylinders "Finish trip" would refuse on, §9.3), or leftovers are allowed.
    */
   private async tripActions(caller: PolicyCaller, trip: TripRow, onVan: number): Promise<TripAction[]> {
     if (caller.role === UserRole.SUPER_ADMIN) {

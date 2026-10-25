@@ -65,6 +65,39 @@ docker compose --env-file images.env -f docker-compose.aws.yml restart api-stagi
 docker compose --env-file images.env -f docker-compose.aws.yml down
 ```
 
+## Pilot setup and reset on the server (API_CONTRACT §10.3)
+
+The image has only the compiled API (`dist`), so the `npm run pilot:*` scripts (ts-node, `scripts/`) and
+the repository's `pilot/` folder aren't in it. Run the compiled CLIs instead, with the setup file on the
+host. The run prints each new login's password once: keep that output in your terminal only (`docker
+exec` output and a container with `--log-driver none` never reach CloudWatch; the service's own logs do).
+
+```bash
+cd /srv/smartfleet
+mkdir -p pilot && cp ~/test.json pilot/          # the setup file (docs/pilot/pilot-setup.sample.json format)
+
+# Either: a one-off container of the deployed image, with the folder mounted (labels land on the host).
+source images.env                                # IMAGE_STAGING=smartfleet-api:<sha>
+docker run --rm -it --log-driver none --env-file .env.staging -e NODE_ENV=staging \
+  -v /srv/smartfleet/pilot:/pilot "$IMAGE_STAGING" \
+  node dist/modules/pilot-setup/cli/pilot-setup.js --file /pilot/test.json --test --dry-run
+# … then the same without --dry-run, and with --labels /pilot/labels-staging.csv
+
+# Or: inside the running container (copy the file in, and the labels out).
+docker cp pilot/test.json smartfleet-api-staging:/tmp/test.json
+docker exec -it smartfleet-api-staging node dist/modules/pilot-setup/cli/pilot-setup.js \
+  --file /tmp/test.json --test --labels /tmp/labels-staging.csv
+docker cp smartfleet-api-staging:/tmp/labels-staging.csv pilot/
+
+# The reset (test rows only; --dry-run first)
+docker exec -it smartfleet-api-staging node dist/modules/pilot-setup/cli/pilot-reset.js --dry-run
+```
+
+Without `--labels` the CSV goes to the container's working directory (`/app`), which a `--rm` container
+throws away: always pass `--labels` under `/pilot` (or copy it out). Exit codes: 0 done, 1 refused or failed
+(nothing written), 2 bad arguments, 3 done but the labels file could not be saved (the labels are printed,
+and `GET /cylinders` lists the QR values).
+
 ## Security model
 
 - `Caddy` is the only container exposed to the internet (ports 80, 443).

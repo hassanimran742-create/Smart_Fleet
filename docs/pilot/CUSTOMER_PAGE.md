@@ -36,7 +36,7 @@ Customer opens https://<link host>/c/<token> → page only (opening records noth
 Every 15 minutes: PENDING past expiresAt → EXPIRED (no money)
 ```
 `ConfirmationsService.issueForDeliveredOrder(tx, {orderId, deliveredAt})`:
-- runs in the transaction of every write that sets an order DELIVERED from Inc 2: the DELIVERY stop finish (and the legacy `PATCH /orders/:id/status DELIVERED`) and the office manual delivery v2;
+- runs in the transaction of every write that sets an order DELIVERED from Inc 2 (the DELIVERY stop finish, the office manual delivery v2 and the legacy `PATCH /orders/:id/status DELIVERED`), except that a 0.1.0 tap which leaves the visit open (returns still to scan) issues at the visit's close, the legacy depart, so `takenBack` is the finished list; `expiresAt` stays the tap's deliveredAt + linkTtlHours (review23 contract-compat-04);
 - does nothing when the setting is off;
 - is idempotent: an existing row is returned unchanged;
 - with an invalid customer phone, stores `phoneE164 = NULL` and writes no SMS row, so the shop card asks for a fix.
@@ -90,7 +90,7 @@ The second-step pages (`/partly`, `/not-received`, `/other`) follow the same sta
 
 **POST validation** (zod by hand; the body typed `unknown`, as payments.controller.ts:39-41 does):
 - After the state order: `answer` must be exactly `YES`, `PARTLY`, `NO` or `OTHER`; a missing or other value gets the main page with **400** and "Please tap one answer below." (`role="alert"`), nothing recorded. `v` is ignored.
-- `comment`: each line break (CRLF, CR, LF) and tab becomes a space; other control characters (U+0000–U+001F, U+007F–U+009F) are removed; space runs become one; trimmed; cut to 300 code points. Empty is stored as NULL.
+- `comment`: each line break (CRLF, CR, LF) and tab becomes a space; other control characters (U+0000–U+001F, U+007F–U+009F) are removed; a lone surrogate (half an emoji) becomes U+FFFD (review23 robustness-jobs-02); space runs become one; trimmed; cut to 300 code points. Empty is stored as NULL.
 - `OTHER` needs a cleaned comment of at least 3 characters. Otherwise the Other page is shown again with **400** and the error (`CONFIRM_NOTE_REQUIRED`).
 - The same answer posted again gets 303 to "Thank you"; its comment is ignored. A different answer gets **409** "You already answered".
 
@@ -121,10 +121,11 @@ Order: the per-IP GET/POST limit (every request); an IP with 30 misses in its 10
 - **The controller:** `PublicConfirmController` with `@Controller('c')`, `@Public()` (public.decorator.ts:4) and `@UseFilters(PublicPageExceptionFilter)`.
   - The filter turns every error, throttling included, into an HTML page with the code's status, never JSON, never echoing the URL: `CONFIRM_LINK_INVALID` 404 not found; `CONFIRM_LINK_INACTIVE` 410 closed; `CONFIRM_LINK_EXPIRED` 410 expired; `CONFIRM_ALREADY_ANSWERED` 409 already answered; `CONFIRM_NOTE_REQUIRED` 400 Other page with its error; `VALIDATION_FAILED` 400 main page with "Please tap one answer below."; `RATE_LIMITED` 429 too many tries; anything else 500. GET of an ANSWERED or PENDING link renders its 200 page directly.
   - Pages are sent with `res.status(code).type('html').send(html)`.
+  - As built (review23 robustness-jobs-09): the body parser's and URI decoder's refusals run before this filter, so the global filter hands any error on a `/c` or `/c/…` path to the page: throttling draws the too-many page, any other client error the not-found page, a server fault the error page, each with the §4 headers and nothing echoed. The page's bodies have their own limit (8 KB, 20 fields), read before Nest's parsers.
 - **Redaction:** `/c/<token>` becomes `/c/[token]` in:
   - the global filter's `path` (http-exception.filter.ts:33);
   - Sentry `beforeSend` for `event.request.url` and breadcrumbs (sentry.ts:15-20);
-  - the Caddy access log, with `format filter { wrap json; fields { request>uri regexp "^/c/[0-9a-z]+" "/c/[token]"; request>headers>Referer delete } }` (Caddyfile:5-25). As built, both API hosts log this way, and their site-wide `header` block skips `/c` and `/c/*` (only HSTS applies there), so it neither overrides nor duplicates the page's own Referrer-Policy, X-Content-Type-Options and CSP. The short-link-domain block is in the Caddyfile, commented out, until a domain is chosen.
+  - the Caddy access log, with `format filter { wrap json; fields { request>uri regexp "^/[cC]/+[^/?]+" "/c/[token]"; request>headers>Referer delete } }` (Caddyfile:5-25). It takes `/c/` and `/C/` and every form of the token the page accepts (capitals, separators, doubled slashes): Express routes ignore letter case, so each opens the page. `redactPath` matches the same way (case-insensitive; review23 security-04). As built, both API hosts log this way, and their site-wide `header` block skips `/c` and `/c/*` (only HSTS applies there), so it neither overrides nor duplicates the page's own Referrer-Policy, X-Content-Type-Options and CSP. The short-link-domain block is in the Caddyfile, commented out, until a domain is chosen.
 - **The link host** is the API host until a short domain is chosen. When it is, a Caddy site block serves only `/c/*`, `/robots.txt` (`Disallow: /`) and 404 for everything else.
 - **Test banner:** when `APP_ENV` is not `production`, a yellow strip (`.strip`, first on the page) reads "Test only · not a real delivery".
 
@@ -201,7 +202,7 @@ Pure TypeScript template functions return escaped HTML, in `modules/confirmation
   - **[Not received]**: a red border, a link to `/c/{token}/not-received`, with the circle-x icon.
   - "Other problem": a full-width 48 px text link to `/c/{token}/other`, with the message-square-warning icon.
 - **Footer**
-  - The call row "Call {shop} · {0321 1234567}" (`tel:` plus the E.164 number).
+  - The call row "Call {shop} · {0321 1234567}" (`tel:` plus the E.164 number). The number stays on one line (a no-wrap span); only the label before it may wrap (review23 ux-11).
   - "Answer by {expiresAt}."
   - Safety: "Smell gas? Turn off the cylinder valve, open doors and windows, don't touch switches or flames, and call 1122." (never counted, never cut).
   - "Sent by Smart Fleet for {shop}."

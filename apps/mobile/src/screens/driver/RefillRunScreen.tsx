@@ -17,7 +17,9 @@ import {
   REFILLS_QUERY_KEY,
   REFILL_UNLOAD_POLL_MS,
   advanceRefill,
+  backToFilling,
   bringBackUnfilled,
+  canGoBackToFilling,
   countsOf,
   fetchDriverRefill,
   postRefillScan,
@@ -43,6 +45,9 @@ type Nav = NativeStackNavigationProp<DriverStackParams, 'RefillRun'>;
  * | 1 Pick up (ASSIGNED) | Pick up empties at {{store}} | {{picked}} of {{requested}} picked up | Done picking up, off at 0 with "Scan a cylinder first." |
  * | 2 Fill (EMPTIES_PICKED, AT_STATION) | Fill at {{station}} | {{filled}} of {{picked}} filled | Done filling, off at 0; "Bring back unfilled" while none is filled |
  * | 3 Unload (FILLED) | Unload at {{store}} | {{received}} of {{picked}} unloaded (polls 5 s) | none while the shop scans |
+ *
+ * "Bring back unfilled" sits under the title, away from "Type number" at the camera's end, and is
+ * undone by "Back to filling" on step 3 while nothing has come back (review23 ux-04; no confirm, rule 7).
  *
  * When the shop's last receive scan completes the refill: "Refill done" and "Back to refills". Every
  * refill step is a scan (ADR-16): a full cylinder is refused with the catalogue's words. No money.
@@ -215,6 +220,21 @@ export function RefillRunScreen() {
                     icon="cylinder"
                     title={t('driver.refills.step.fill', { station: words.station })}
                     subtitle={words.title}
+                    // Under the title, the camera's height away from "Type number" (ux-04): a thumb
+                    // reaching for one never lands on the other.
+                    control={
+                      now.filled === 0 ? (
+                        <Button
+                          label={t('driver.refills.run.noneFilled')}
+                          icon="store"
+                          variant="ghost"
+                          fullWidth={false}
+                          onPress={() => bringBackUnfilled(view.id)}
+                          style={styles.ghost}
+                          testID="refill.noneFilled"
+                        />
+                      ) : null
+                    }
                     count={<CountBar count={now.filled} total={now.picked} verb={t('scan.verb.REFILL_FILL')} testID="refill.count" />}
                     scan={
                       <ScanPanel
@@ -226,17 +246,6 @@ export function RefillRunScreen() {
                         allowTyped={config.features.typedCylinderNumber}
                         testID="refill.scan"
                       />
-                    }
-                    rare={
-                      now.filled === 0 ? (
-                        <Button
-                          label={t('driver.refills.run.noneFilled')}
-                          icon="store"
-                          variant="ghost"
-                          onPress={() => bringBackUnfilled(view.id)}
-                          testID="refill.noneFilled"
-                        />
-                      ) : null
                     }
                     testID="refill.fill"
                   />
@@ -259,6 +268,19 @@ export function RefillRunScreen() {
                       ) : (
                         <CountBar count={now.received} total={now.picked} verb={t('scan.verb.UNLOAD')} testID="refill.count" />
                       )
+                    }
+                    // "Bring back unfilled" can be undone while the station step is still open and the
+                    // shop has received nothing (ux-04): no server call, the run is back on Fill.
+                    rare={
+                      canGoBackToFilling(view, unfilled) ? (
+                        <Button
+                          label={t('driver.refills.run.backToFill')}
+                          icon="cylinder"
+                          variant="ghost"
+                          onPress={() => backToFilling(view.id)}
+                          testID="refill.backToFill"
+                        />
+                      ) : null
                     }
                     testID="refill.unload"
                   />
@@ -283,4 +305,6 @@ export function RefillRunScreen() {
 
 const styles = StyleSheet.create({
   stack: { gap: space.xl },
+  // A ghost lines its words up with the title above it.
+  ghost: { paddingHorizontal: space.sm, marginStart: -space.sm },
 });

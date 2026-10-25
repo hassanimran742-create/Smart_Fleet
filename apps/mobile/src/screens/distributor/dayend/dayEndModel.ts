@@ -4,6 +4,8 @@ import type {
   DayClosePlace,
   DayCloseState,
   DayEndDayDto,
+  DayEndListItem,
+  DayEndStage,
   DayEndUploadResult,
   DaySheetRowError,
 } from '@smartfleet/shared-types';
@@ -21,7 +23,11 @@ export type DayFooter = 'download' | 'upload' | 'send' | null;
 export interface DayEndView {
   steps: { download: StepState; fill: StepState; upload: StepState };
   footer: DayFooter;
-  /** "Download again" under the first step, once a sheet exists. */
+  /**
+   * "Download again" under the first step, once a sheet exists. It always comes with the line "Your
+   * filled sheet can't be sent after this.": only the newest sheet can be uploaded, so a new one makes
+   * the filled copy (and an upload made from it) unusable (review23 ux-07).
+   */
   downloadAgain: boolean;
   /** "Upload again" under the third step, while the upload waits to be sent. */
   uploadAgain: boolean;
@@ -53,6 +59,59 @@ export function dayEndView(day: DayEndDayDto): DayEndView {
     waiting: day.stage === 'WAITING_FOR_APPROVAL',
     note: day.stage === 'SENT_BACK' ? day.officeNote : null,
   };
+}
+
+/**
+ * Why a day waits for the shop: the office sent it back or reopened it (stage SENT_BACK, with the
+ * office's note), or an earlier day was started and never sent: uploaded and waiting to be sent (READY),
+ * or a sheet was downloaded and nothing sent (NOT_SENT; a day has a row only once its sheet is made).
+ */
+export type DayEndDue = 'SENT_BACK' | 'READY' | 'NOT_SENT';
+
+/** The day Home's "Day-end sheet" row names and S19 opens on. */
+export interface DayEndTarget {
+  date: string;
+  /** Set when that day waits for the shop; null for today with nothing due. */
+  due: DayEndDue | null;
+  /** The day's stage; a date with no row reads NOT_STARTED. */
+  stage: DayEndStage;
+}
+
+/**
+ * Which day the shop's Day-end opens on (review23 ux-01, robustness-jobs-04): a send-back or reopen
+ * after the 3 am cut-off, or a sheet downloaded just before it, would otherwise never be reachable,
+ * since `today` has moved on. In order:
+ * 1. the oldest day the office sent back or reopened (stage SENT_BACK, today included);
+ * 2. the oldest earlier day still OPEN: uploaded and not sent (READY), or a sheet made and nothing sent;
+ * 3. today.
+ * `days` is the first page of `GET /day-end` (newest first, the shop's days that have a row); `today` is
+ * the current business date. A day with the office (SUBMITTED) or approved never waits for the shop.
+ */
+export function dayEndTarget(days: readonly DayEndListItem[], today: string): DayEndTarget {
+  const open = days.filter((day) => day.status === 'OPEN' && day.businessDate <= today);
+  const oldest = (list: DayEndListItem[]): DayEndListItem =>
+    list.reduce((found, day) => (day.businessDate < found.businessDate ? day : found));
+  const sentBack = open.filter((day) => day.stage === 'SENT_BACK');
+  if (sentBack.length > 0) {
+    const day = oldest(sentBack);
+    return { date: day.businessDate, due: 'SENT_BACK', stage: day.stage };
+  }
+  const unsent = open.filter((day) => day.businessDate < today);
+  if (unsent.length > 0) {
+    const day = oldest(unsent);
+    return { date: day.businessDate, due: day.stage === 'READY' ? 'READY' : 'NOT_SENT', stage: day.stage };
+  }
+  return { date: today, due: null, stage: days.find((day) => day.businessDate === today)?.stage ?? 'NOT_STARTED' };
+}
+
+/**
+ * True for the server's "The service is busy. Please try again in a minute." (503 SERVICE_UNAVAILABLE):
+ * it reads one day-end sheet at a time and turns a sheet away while two wait (API_CONTRACT §10.5), so the
+ * same file can simply be sent again: the error offers "Try again" (review23 security-02). A 429 says how
+ * many minutes to wait instead, so it offers none.
+ */
+export function isBusyRefusal(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'SERVICE_UNAVAILABLE';
 }
 
 /** What the last upload answered: its differences, or its row errors (nothing was saved then). */

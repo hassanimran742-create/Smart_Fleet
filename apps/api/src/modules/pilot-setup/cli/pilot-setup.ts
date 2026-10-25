@@ -14,7 +14,8 @@ import { defaultLabelsFileName, labelsCsv, loginLines } from '../setup/setup-out
 const USAGE = `Load the pilot set-up from a file, all or nothing (API_CONTRACT §10.3).
 
   npm run pilot:setup -- --file pilot/<name>.json [--test] [--dry-run] [--labels <file.csv>]
-  node dist/modules/pilot-setup/cli/pilot-setup.js --file ... (inside the image)
+  node dist/modules/pilot-setup/cli/pilot-setup.js --file /pilot/<name>.json --labels /pilot/<labels>.csv
+              (inside the image, with the host's setup folder mounted at /pilot: infrastructure/aws/README.md)
 
   --file      the setup file (format: docs/pilot/pilot-setup.sample.json), read from the current
               directory or the repository root
@@ -25,7 +26,13 @@ const USAGE = `Load the pilot set-up from a file, all or nothing (API_CONTRACT �
               (default: ./pilot-labels-<UTC time>.csv; never overwrites a file)
 
 Re-runs are safe: every entry is matched by its natural key and nothing is duplicated. Each login the
-run creates gets a password, printed once at the end and nowhere else.`;
+run creates gets a password, printed once at the end and nowhere else.
+
+Exit codes: 0 done (or a dry run that passed), 1 refused or failed (nothing written), 2 bad arguments,
+3 done but the labels file could not be saved (the labels are printed instead).`;
+
+/** The exit code of a run that committed but couldn't save its labels file (API_CONTRACT §10.5). */
+export const EXIT_LABELS_NOT_SAVED = 3;
 
 export interface PilotSetupArgs {
   file: string;
@@ -138,7 +145,8 @@ function summaryLines(outcome: SetupOutcome, dryRun: boolean): string[] {
 
 /**
  * `npm run pilot:setup -- --file pilot/<name>.json [--test] [--dry-run]` (API_CONTRACT §10.3). Resolves to
- * the exit code: 0 done (or a dry run that passed), 1 refused or failed (nothing written), 2 bad arguments.
+ * the exit code: 0 done (or a dry run that passed), 1 refused or failed (nothing written), 2 bad arguments,
+ * 3 done but the labels file could not be saved (review23 robustness-jobs-08).
  */
 export async function runPilotSetupCli(argv: readonly string[], io: PilotCliIo = {}): Promise<number> {
   const out = io.out ?? ((line: string) => console.log(line));
@@ -159,7 +167,10 @@ export async function runPilotSetupCli(argv: readonly string[], io: PilotCliIo =
 
   const filePath = resolveSetupFilePath(args.file, cwd);
   if (!filePath) {
-    out(`Refused: can't find ${args.file} (looked in ${cwd} and the repository root). Nothing was written.`);
+    out(
+      `Refused: can't find ${args.file} (looked in ${cwd} and the repository root). Nothing was written.` +
+        (path.isAbsolute(args.file) ? '' : ' Inside the image, mount the folder that holds it and give its full path (--file /pilot/<name>.json).'),
+    );
     return 1;
   }
   const read = readSetupJson(filePath);
@@ -214,7 +225,8 @@ export async function runPilotSetupCli(argv: readonly string[], io: PilotCliIo =
         writeFileSync(labelsPath, labelsCsv(outcome.labels), { encoding: 'utf8', flag: 'wx' });
         out(`Labels: ${outcome.labels.length} cylinders written to ${labelsPath}.`);
       } catch (error) {
-        code = 1;
+        // Committed: not 1 ("nothing written"). The labels are printed, and GET /cylinders lists them too.
+        code = EXIT_LABELS_NOT_SAVED;
         out(`The cylinders are registered, but the labels file could not be written (${(error as Error).message}). The labels:`);
         for (const line of labelsCsv(outcome.labels).trimEnd().split('\r\n')) out(line);
       }

@@ -163,7 +163,8 @@ describe('CNF-010 Every value on the page is HTML-escaped', () => {
     }
     const main = renderMain(link({ shop: nasty }), TOKEN, TEST);
     expect(main).toContain(`<p class="s">${escaped}</p>`);
-    expect(main).toContain(`Call ${escaped} · 0321 1234567`);
+    // The number stays on one line (review23 ux-11); the escaping is the same.
+    expect(main).toContain(`Call ${escaped} · <span class="nw">0321 1234567</span>`);
     expect(renderStep('partly', link({ shop: nasty }), TOKEN, TEST)).toContain(`<p class="s">${escaped} · Order AG-0001</p>`);
   });
 

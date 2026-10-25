@@ -21,6 +21,7 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole, UserStatus, type User } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
+import { NEW_SHOP_APP } from '../../helpers/app-headers';
 import { createTestApp } from '../../helpers/app';
 import { authHeader, signAccessToken } from '../../helpers/auth';
 import { getTestPrisma, resetDb } from '../../helpers/db';
@@ -107,6 +108,7 @@ describeDb('review security: a role token without its profile', () => {
     await http(app)
       .post('/api/v1/filling-orders')
       .set(authHeader(std.DA.actor))
+      .set(NEW_SHOP_APP)
       .send({ fillingStationId: station.body.id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 3 })
       .expect(201);
     expect(x1.body.id).toBeTruthy();

@@ -11,6 +11,7 @@ import type { INestApplication } from '@nestjs/common';
 import { systemActor } from '../../../src/common/auth/actor';
 import { FilesService } from '../../../src/modules/files/files.service';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
+import { NEW_SHOP_APP } from '../../helpers/app-headers';
 import { createTestApp } from '../../helpers/app';
 import { authHeader } from '../../helpers/auth';
 import { getTestPrisma, resetDb } from '../../helpers/db';
@@ -74,7 +75,7 @@ describeDb('review security: IDOR and mass-assignment sweep', () => {
       .set('Idempotency-Key', KEY(3))
       .expect(201);
     const station = await send(office, ['post', '/filling-stations', { name: 'Sweep Station', address: 'GT Road', lat: 31.53, lng: 74.26 }]).expect(201);
-    const refill = await send(bilal, ['post', '/filling-orders', { fillingStationId: station.body.id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 2 }]).expect(201);
+    const refill = await send(bilal, ['post', '/filling-orders', { fillingStationId: station.body.id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 2 }]).set(NEW_SHOP_APP).expect(201);
     const cylinder = await db().cylinder.create({
       data: { serial: 'BG-C0001', qrCode: 'BG-C0001-QR', distributorId: std.DB.id, cylinderTypeId: std.sizes.kg11_8, state: 'FULL', custodyType: 'STORE', custodyId: std.DB.homeStoreId },
     });
@@ -137,7 +138,7 @@ describeDb('review security: IDOR and mass-assignment sweep', () => {
     await send(office, ['post', `/orders/${x1.body.id}/assign-driver`, { driverId: std.DR1.id }]).expect(200);
     const trip = await db().trip.findFirstOrThrow({ where: { driverId: std.DR1.id }, include: { stops: true } });
     const station = await send(office, ['post', '/filling-stations', { name: 'Sweep Station 2', address: 'GT Road', lat: 31.53, lng: 74.26 }]).expect(201);
-    const refill = await send(shop, ['post', '/filling-orders', { fillingStationId: station.body.id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 2 }]).expect(201);
+    const refill = await send(shop, ['post', '/filling-orders', { fillingStationId: station.body.id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 2 }]).set(NEW_SHOP_APP).expect(201);
     await send(office, ['patch', `/filling-orders/${refill.body.id}/assign`, { driverId: std.DR1.id }]).expect(200);
     const cylinder = await db().cylinder.findFirstOrThrow({ where: { distributorId: std.DA.id } });
 
@@ -202,7 +203,9 @@ describeDb('review security: IDOR and mass-assignment sweep', () => {
       'post',
       '/filling-orders',
       { fillingStationId: station.body.id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 2, pickupStoreId: std.DB.homeStoreId, distributorId: std.DB.id, pricePerCylinderPaisa: 99900, status: 'COMPLETED' },
-    ]).expect(201);
+    ])
+      .set(NEW_SHOP_APP)
+      .expect(201);
     expect(await db().fillingOrder.findUniqueOrThrow({ where: { id: refill.body.id } })).toMatchObject({
       distributorId: std.DA.id,
       pickupStoreId: std.DA.homeStoreId,

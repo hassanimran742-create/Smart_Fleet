@@ -24,6 +24,7 @@ import type {
   RefillScanInput,
 } from '@smartfleet/shared-validation';
 import { authHeader } from './auth';
+import { NEW_SHOP_APP } from './app-headers';
 import { binaryParser, http, type TestRequest } from './http';
 import { API, type Caller } from './scan-calls';
 
@@ -47,7 +48,8 @@ export function refillCalls(app: INestApplication) {
   return {
     /** `POST /filling-orders` (the shop): 201 with the refill, or 200 `Idempotent-Replay` for a retry with the same key. */
     create(shop: Caller, body: CreateFillingOrderInput & Record<string, unknown>, idempotencyKey?: string): TestRequest {
-      return send(api.post(`${API}/filling-orders`), shop, body, idempotencyKey);
+      // The Inc 3 shop app's call: the 0.1.0 JS (no X-App-* header) is answered 426 here (Appendix A).
+      return send(api.post(`${API}/filling-orders`).set(NEW_SHOP_APP), shop, body, idempotencyKey);
     },
     /** `GET /filling-orders/:id` (`canSeeRefill`: the office, the owner, the assigned driver). */
     get(caller: Caller, id: string): TestRequest {

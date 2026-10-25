@@ -28,6 +28,14 @@ import {
   space,
 } from '../../ui';
 import { DriverScreen, openStepFromToday, useCallOfficeAction, usePullToRefresh } from './components';
+import {
+  REFILLS_QUERY_KEY,
+  fetchDriverRefills,
+  openRefillsOf,
+  useBroughtBackUnfilledIds,
+  type DriverRefill,
+} from './refillModel';
+import { RefillRow } from './RefillsScreen';
 import { fetchDriverHome, fetchTrip, useStartTrip } from './tripApi';
 import { customerNames, nextStep, storeNameOf, tripChip, tripCylinderCount, type TripDetail } from './tripModel';
 import { VanRow } from './VanRow';
@@ -42,11 +50,17 @@ function tripsOf(home: DriverHomeDto): { current: TripSummary | null; others: Tr
 
 /**
  * Today (driver spec D4 and R2; `GET /driver/home`): the duty row, the van, the open trips with the
- * current one first, how many were done today, and one footer button that does the next thing: "Start
- * trip" (it starts the trip and opens its Load step) or "Continue trip" (the next open step). Each trip
- * row reads its names and cylinders from `GET /driver/home` (TripSummary `customerNames`, `cylinders`);
- * only the current trip is also read (`GET /trips/:id`, the cache the Trip screen and "Continue trip"
- * use), so opening it is instant. Everything polls every 30 seconds while on screen, and pulls to refresh.
+ * current one first, the open refills, how many trips were done today, and one footer button that does
+ * the next thing: "Start trip" (it starts the trip and opens its Load step) or "Continue trip" (the next
+ * open step). Each trip row reads its names and cylinders from `GET /driver/home` (TripSummary
+ * `customerNames`, `cylinders`); only the current trip is also read (`GET /trips/:id`, the cache the Trip
+ * screen and "Continue trip" use), so opening it is instant.
+ *
+ * Refills the office assigns show here too (review23 ux-02), from the query the Refills list uses
+ * (`GET /filling-orders/driver/mine`): "Refill · 1 × 6 kg · Ahmed Gas" with the driver's next job
+ * ("Pick up empties"); a row opens the refill, and the footer stays the trip's (rule 1). "Nothing to do."
+ * shows only with no trip and no refill. Everything polls every 30 seconds while on screen, and pulls to
+ * refresh.
  */
 export function TodayScreen() {
   const { t } = useTranslation();
@@ -79,7 +93,17 @@ export function TodayScreen() {
     })),
   });
   const detailOf = (id: string): TripDetail | undefined => (tripIds.includes(id) ? details[tripIds.indexOf(id)]?.data : undefined);
-  const pull = usePullToRefresh(home.refetch, ...details.map((detail) => detail.refetch));
+  // The driver's refills (the Refills list's query), on Today's 30-second poll.
+  const refills = useQuery<DriverRefill[], ApiError>({
+    queryKey: REFILLS_QUERY_KEY,
+    queryFn: fetchDriverRefills,
+    refetchInterval: interval,
+  });
+  const unfilled = useBroughtBackUnfilledIds();
+  const openRefills = refills.data ? openRefillsOf(refills.data) : [];
+  // Known once answered (or failed): "Nothing to do." never shows before the refills are known.
+  const refillsKnown = refills.data !== undefined || refills.isError;
+  const pull = usePullToRefresh(home.refetch, refills.refetch, ...details.map((detail) => detail.refetch));
 
   const start = useStartTrip((trip) => openStepFromToday(navigation, trip, nextStep(trip)));
   // "Continue trip": the trip's next step, read fresh when the cache doesn't have the trip yet.
@@ -131,19 +155,30 @@ export function TodayScreen() {
           {(data) => (
             <View style={styles.stack}>
               <VanRow home={data} onPress={() => navigation.navigate('Van')} />
-              {current ? (
+              {current || openRefills.length > 0 ? (
                 <View style={styles.list}>
-                  {[current, ...others].map((trip) => (
-                    <TripRow
-                      key={trip.id}
-                      trip={trip}
-                      detail={detailOf(trip.id)}
-                      currentId={current.id}
-                      onOpen={() => navigation.navigate('Trip', { tripId: trip.id })}
+                  {current
+                    ? [current, ...others].map((trip) => (
+                        <TripRow
+                          key={trip.id}
+                          trip={trip}
+                          detail={detailOf(trip.id)}
+                          currentId={current.id}
+                          onOpen={() => navigation.navigate('Trip', { tripId: trip.id })}
+                        />
+                      ))
+                    : null}
+                  {openRefills.map((refill) => (
+                    <RefillRow
+                      key={refill.id}
+                      refill={refill}
+                      broughtBackUnfilled={unfilled[refill.id] === true}
+                      onToday
+                      onPress={() => navigation.navigate('RefillRun', { refillId: refill.id })}
                     />
                   ))}
                 </View>
-              ) : (
+              ) : refillsKnown ? (
                 <EmptyState
                   icon="truck"
                   title={t('driver.home.empty.title')}
@@ -154,6 +189,8 @@ export function TodayScreen() {
                       : undefined
                   }
                 />
+              ) : (
+                <SkeletonList rows={1} />
               )}
               {data.doneToday > 0 ? (
                 <Text variant="bodyStrong" tabular testID="home.doneToday">

@@ -95,12 +95,13 @@ export function phoneDisplay(phone: string): string {
 
 /**
  * A full-width 48 px tap-to-call row with the phone icon: "{label} · {phone}". The phone shows in
- * local style; the href is E.164 (else the stored digits). Nothing when there is no number.
+ * local style and never breaks across two lines ("0321" / "1234567" is easy to misread or mistype,
+ * review23 ux-11); the href is E.164 (else the stored digits). Nothing when there is no number.
  */
 export function callRow(label: string, phone: string | null | undefined): string {
   const href = telHref(phone);
   if (!href || !phone) return '';
-  return `<a class="call" href="${escapeHtml(href)}">${icon('phone')}${escapeHtml(`${label} · ${phoneDisplay(phone)}`)}</a>`;
+  return `<a class="call" href="${escapeHtml(href)}">${icon('phone')}${escapeHtml(`${label} · `)}<span class="nw">${escapeHtml(phoneDisplay(phone))}</span></a>`;
 }
 
 /** A form POST to the link with one answer button (the main page's All received, the 500 page's Try again). */

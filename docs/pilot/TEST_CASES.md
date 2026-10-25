@@ -1,6 +1,6 @@
 # Smart Fleet pilot test cases
 
-**Date:** 2026-10-25 · **Cases:** 566 (P1 266 · P2 275 · P3 25) · **Branch:** `pilot/happy-path`
+**Date:** 2026-10-25 · **Cases:** 597 (P1 272 · P2 292 · P3 33) · **Branch:** `pilot/happy-path`
 
 These cases test the whole Smart Fleet pilot as the docs in this folder describe it, Increments 1 to 3: money and expenses, orders and drivers, the one-holder rule, customer confirmation, refills, day-end, setup, quality and migrations, and the rehearsal day.
 
@@ -11,9 +11,9 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
 - [Standard test data](#standard-test-data)
 - [Summary](#summary)
 - Cases by area:
-  - [FND · Platform foundations](#fnd--platform-foundations) (41)
-  - [SEC · Security and roles](#sec--security-and-roles) (36)
-  - [WAL · Wallet and history](#wal--wallet-and-history) (25)
+  - [FND · Platform foundations](#fnd--platform-foundations) (44)
+  - [SEC · Security and roles](#sec--security-and-roles) (38)
+  - [WAL · Wallet and history](#wal--wallet-and-history) (26)
   - [TOP · Manual bank top-ups](#top--manual-bank-top-ups) (31)
   - [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) (19)
   - [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) (29)
@@ -22,16 +22,16 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [ASG · Assignment and trips](#asg--assignment-and-trips) (12)
   - [EXP · Expenses](#exp--expenses) (18)
   - [OFF · Office website](#off--office-website) (19)
-  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (50)
-  - [HLD · One-holder rule](#hld--one-holder-rule) (19)
+  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (55)
+  - [HLD · One-holder rule](#hld--one-holder-rule) (25)
   - [STR · Store receive](#str--store-receive) (13)
-  - [CNF · Customer confirmation page](#cnf--customer-confirmation-page) (47)
+  - [CNF · Customer confirmation page](#cnf--customer-confirmation-page) (50)
   - [CAS · Cases](#cas--cases) (13)
-  - [MSG · Messaging](#msg--messaging) (22)
-  - [REF · Refills](#ref--refills) (31)
-  - [DAY · Day-end Excel](#day--day-end-excel) (22)
-  - [SET · Pilot setup and reset](#set--pilot-setup-and-reset) (12)
-  - [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) (33)
+  - [MSG · Messaging](#msg--messaging) (23)
+  - [REF · Refills](#ref--refills) (34)
+  - [DAY · Day-end Excel](#day--day-end-excel) (27)
+  - [SET · Pilot setup and reset](#set--pilot-setup-and-reset) (13)
+  - [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) (34)
   - [MIG · Migrations and data safety](#mig--migrations-and-data-safety) (19)
   - [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) (20)
 - [Traceability](#traceability)
@@ -261,9 +261,9 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 
 | Area | Cases | P1 | P2 | P3 | Inc 1 | Inc 2 | Inc 3 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| [FND · Platform foundations](#fnd--platform-foundations) | 41 | 13 | 25 | 3 | 40 | 1 | 0 |
-| [SEC · Security and roles](#sec--security-and-roles) | 36 | 28 | 8 | 0 | 36 | 0 | 0 |
-| [WAL · Wallet and history](#wal--wallet-and-history) | 25 | 13 | 11 | 1 | 25 | 0 | 0 |
+| [FND · Platform foundations](#fnd--platform-foundations) | 44 | 15 | 25 | 4 | 40 | 3 | 1 |
+| [SEC · Security and roles](#sec--security-and-roles) | 38 | 29 | 9 | 0 | 36 | 1 | 1 |
+| [WAL · Wallet and history](#wal--wallet-and-history) | 26 | 13 | 11 | 2 | 26 | 0 | 0 |
 | [TOP · Manual bank top-ups](#top--manual-bank-top-ups) | 31 | 17 | 13 | 1 | 31 | 0 | 0 |
 | [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) | 19 | 12 | 6 | 1 | 19 | 0 | 0 |
 | [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) | 29 | 19 | 9 | 1 | 27 | 1 | 1 |
@@ -272,45 +272,45 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [ASG · Assignment and trips](#asg--assignment-and-trips) | 12 | 8 | 4 | 0 | 12 | 0 | 0 |
 | [EXP · Expenses](#exp--expenses) | 18 | 3 | 15 | 0 | 18 | 0 | 0 |
 | [OFF · Office website](#off--office-website) | 19 | 2 | 16 | 1 | 19 | 0 | 0 |
-| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 50 | 28 | 18 | 4 | 8 | 42 | 0 |
-| [HLD · One-holder rule](#hld--one-holder-rule) | 19 | 13 | 4 | 2 | 1 | 18 | 0 |
+| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 55 | 28 | 23 | 4 | 8 | 45 | 2 |
+| [HLD · One-holder rule](#hld--one-holder-rule) | 25 | 14 | 8 | 3 | 1 | 20 | 4 |
 | [STR · Store receive](#str--store-receive) | 13 | 7 | 5 | 1 | 0 | 13 | 0 |
-| [CNF · Customer confirmation page](#cnf--customer-confirmation-page) | 47 | 13 | 32 | 2 | 0 | 47 | 0 |
+| [CNF · Customer confirmation page](#cnf--customer-confirmation-page) | 50 | 13 | 33 | 4 | 0 | 50 | 0 |
 | [CAS · Cases](#cas--cases) | 13 | 2 | 11 | 0 | 0 | 13 | 0 |
-| [MSG · Messaging](#msg--messaging) | 22 | 2 | 20 | 0 | 0 | 22 | 0 |
-| [REF · Refills](#ref--refills) | 31 | 15 | 16 | 0 | 12 | 0 | 19 |
-| [DAY · Day-end Excel](#day--day-end-excel) | 22 | 13 | 8 | 1 | 0 | 0 | 22 |
-| [SET · Pilot setup and reset](#set--pilot-setup-and-reset) | 12 | 10 | 2 | 0 | 2 | 0 | 10 |
-| [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 33 | 1 | 26 | 6 | 30 | 2 | 1 |
+| [MSG · Messaging](#msg--messaging) | 23 | 2 | 21 | 0 | 0 | 23 | 0 |
+| [REF · Refills](#ref--refills) | 34 | 15 | 19 | 0 | 12 | 0 | 22 |
+| [DAY · Day-end Excel](#day--day-end-excel) | 27 | 15 | 10 | 2 | 0 | 0 | 27 |
+| [SET · Pilot setup and reset](#set--pilot-setup-and-reset) | 13 | 10 | 2 | 1 | 2 | 0 | 11 |
+| [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 34 | 1 | 26 | 7 | 30 | 3 | 1 |
 | [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 19 | 17 | 2 | 0 | 18 | 1 | 0 |
 | [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) | 20 | 20 | 0 | 0 | 0 | 0 | 20 |
-| **Total** | **566** | **266** | **275** | **25** | **332** | **161** | **73** |
+| **Total** | **597** | **272** | **292** | **33** | **333** | **174** | **90** |
 
 ### Cases by type
 
 | Type | Who runs it | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 60 | 17 | 35 | 8 |
-| AUTO-API | Developers and CI: HTTP against a real test database | 359 | 214 | 140 | 5 |
+| AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 70 | 19 | 38 | 13 |
+| AUTO-API | Developers and CI: HTTP against a real test database | 380 | 218 | 154 | 8 |
 | MAN-SHOP | A tester with the shop app on a phone | 60 | 14 | 42 | 4 |
 | MAN-DRIVER | A tester with the driver app on a phone | 22 | 5 | 14 | 3 |
 | MAN-WEB | An office user on the website | 46 | 6 | 35 | 5 |
 | MAN-PAGE | A tester playing the customer, in a phone browser | 8 | 1 | 7 | 0 |
 | MAN-OPS | Engineering or operations: bank app, command line, server or database | 11 | 9 | 2 | 0 |
-| **Total** |  | **566** | **266** | **275** | **25** |
+| **Total** |  | **597** | **272** | **292** | **33** |
 
 ### Cases by increment
 
 | Increment | What it covers | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| Inc 1 | Foundations, money and expenses | 332 | 155 | 160 | 17 |
-| Inc 2 | Driver flow on scans, store receive and customer confirmation | 161 | 61 | 93 | 7 |
-| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 73 | 50 | 22 | 1 |
-| **Total** |  | **566** | **266** | **275** | **25** |
+| Inc 1 | Foundations, money and expenses | 333 | 155 | 160 | 18 |
+| Inc 2 | Driver flow on scans, store receive and customer confirmation | 174 | 64 | 99 | 11 |
+| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 90 | 53 | 33 | 4 |
+| **Total** |  | **597** | **272** | **292** | **33** |
 
 ## FND · Platform foundations
 
-The public app config, the settings registry, the error envelope and catalogue, the app-version gate, the audit log, files, idempotency, health checks, daily-job time zones and the shared-utils helpers. 41 cases: P1 13 · P2 25 · P3 3.
+The public app config, the settings registry, the error envelope and catalogue, the app-version gate, the audit log, files, idempotency, health checks, daily-job time zones and the shared-utils helpers. 44 cases: P1 15 · P2 25 · P3 4.
 
 ### FND-001 · GET /app/config works without a token and returns the default public settings
 
@@ -560,17 +560,17 @@ Steps:
 4. Repeat step 1 with no X-App-Variant and no X-App-Version header, as the installed 0.1.0 app sends it.
 5. As DR1, GET /api/v1/trips/mine with X-App-Variant: driver and X-App-Version: 0.1.0.
 6. With no token and with X-App-Variant: distributor, X-App-Version: 0.1.0, GET /api/v1/app/config and GET /api/v1/health.
-7. Set the minimum to "0.1.0" and repeat step 4. Then set "0.1.1" and repeat step 4.
+7. Set the minimum to "0.1.0" and repeat step 4. Then set "0.1.1" and repeat step 4, and step 1 with X-App-Version 0.1.1 (the over-the-air JS).
 8. Set the minimum back to "0.0.0" with a reason.
 
 Expect:
 
 - Step 1: 200.
 - Step 3: 0.1.0 → 426 APP_UPDATE_REQUIRED "Please update the app to continue."; 0.2.0 → 200; 0.10.0 → 200 (compared as numbers, not as text).
-- Step 4: 426, because a missing version counts as 0.1.0.
+- Step 4: 426 APP_RESTART_TO_UPDATE "Close the app and open it again to update.": a call with no X-App-\* header is the installed 0.1.0 JS (its screens show the message, and a restart fetches the update), and a missing version counts as 0.1.0.
 - Step 5: 200, because the driver minimum is still 0.0.0.
 - Step 6: 200 for both, so an old app can still read the gate and the support details.
-- Step 7: with minimum 0.1.0 → 200; with 0.1.1 → 426.
+- Step 7: with minimum 0.1.0 → 200; with 0.1.1 → 426 APP_RESTART_TO_UPDATE for the header-less call, and 200 with X-App-Version 0.1.1.
 - Step 8: all the calls above answer 200 again.
 
 Spec: API_CONTRACT §1.2, §6 (app.minVersion.\*, 426 gate), Appendix A; UX_MOBILE §3.6 · Test file: `apps/api/test/foundation/app-config.e2e-spec.ts`
@@ -585,8 +585,8 @@ Before: DA is signed in on the shop app. The office phone (support.phone) is set
 
 Steps:
 
-1. On the phone, open the menu, then Help. Write down the app version shown (for example 0.1.0).
-2. On the website, open Settings > Tech team. Set "Lowest distributor app version" one step above the phone's version (for example 0.1.1), with the reason "Update screen test".
+1. On the phone, open the menu, then Help. Write down the app version shown (for example 0.1.1).
+2. On the website, open Settings > Tech team. Set "Lowest distributor app version" one step above the phone's version (for example 0.1.2), with the reason "Update screen test".
 3. On the phone, close the app fully and open it again.
 4. Tap "Call office".
 5. On the website, set "Lowest distributor app version" back to 0.0.0 with a reason. Close the app and open it again.
@@ -1268,9 +1268,75 @@ Spec: API_CONTRACT §2.2 (Logs), §5.3; UX_ADMIN §1.7 (ErrorState Reference) ·
 
 Note: Regression case for review finding robustness-ops-15 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV robustness-ops-15 …". Lines are JSON through pino, with LOG_LEVEL and redaction (apps/api/test/unit/rev-logging.spec.ts).
 
+### FND-042 · The over-the-air JS sends its own release, so app.minVersion can retire the 0.1.0 JS alone
+
+**P1** · AUTO-UNIT · Inc 2 · Role: System
+
+Before: The phone's API client with its native modules stubbed, on the 0.1.0 APK; the server's update gate (AppVersionInterceptor) with app.minVersion.driver and .distributor at the JS release (0.1.1).
+
+Steps:
+
+1. Read the headers the client puts on a real request, for the driver and the shop build.
+2. Pass a call with no X-App-\* header, one with the native 0.1.0, and one with the client's headers through the gate.
+3. Read the phone's own update gate and Help.
+
+Expect:
+
+- Step 1: X-App-Variant driver or distributor and X-App-Version 0.1.1 (apps/mobile/src/api/release.ts), never the APK's 0.1.0.
+- Step 2: the first two answer 426 (the header-less one APP_RESTART_TO_UPDATE "Close the app and open it again to update."); the client's call goes through.
+- Step 3: RootNavigator and Help read the same APP_VERSION, so this minimum never shows "Update the app" to the new JS; a 426 APP_RESTART_TO_UPDATE that reaches it opens the update gate like APP_UPDATE_REQUIRED.
+
+Spec: API_CONTRACT §1.2, §6; UX_MOBILE §3.1, §3.6, §7.0 · Test file: `apps/api/test/unit/app-version.spec.ts, apps/api/test/unit/ui/mobile-rev23-app-version.spec.ts`
+
+Note: Regression case for review23 finding contract-compat-02 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 contract-compat-02 …". Before the fix the over-the-air JS reported the APK's 0.1.0, the same version the gate assumes for the header-less 0.1.0 JS, so no minimum told them apart. Confirming test: apps/api/test/review23/contract-compat/old-apps-inc23.e2e-spec.ts (REV23-CC-03).
+
+### FND-043 · Text with half an emoji is refused or cleaned, never a 500
+
+**P3** · AUTO-UNIT · Inc 2 · Role: System
+
+Before: A lone UTF-16 surrogate ("\\uD83D", half an emoji) in a body field.
+
+Steps:
+
+1. Check it with the shared text schemas (scan codes, notes, reasons).
+2. Clean it as the customer's comment and the day-end "Why different" are cleaned.
+3. Map Prisma's refusal of such text through the error mapping.
+
+Expect:
+
+- Step 1: INVALID_VALUE; whole emoji, Urdu and plain text pass.
+- Step 2: the text keeps U+FFFD in its place.
+- Step 3: 400 VALIDATION_FAILED, logged as a warning, never sent to Sentry.
+
+Spec: API_CONTRACT §2.2 (a value the database can't store); CUSTOMER_PAGE §4 · Test file: `apps/api/test/unit/rev23-lone-surrogate.spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-02 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-02 …". Before the fix the scan, receive, manual delivery, client, case and confirmation routes answered 500. Confirming test: apps/api/test/review23/robustness-jobs/lone-surrogate-500.e2e-spec.ts.
+
+### FND-044 · The installed 0.1.0 JS is told to restart where only the Inc 2/3 apps can go on
+
+**P1** · AUTO-API · Inc 3 · Role: DRIVER (DR1), DISTRIBUTOR (DA)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Calls are sent as the 0.1.0 JS sends them: the token and JSON only, no X-App-\* header. A delivery whose visit took AG-C0011 back is on Kashif's van; a filling station exists.
+
+Steps:
+
+1. As DR1 (0.1.0), PATCH /trips/\<trip>/status { status: "COMPLETED" }; then with trip.allowFinishWithLeftovers on, again.
+2. As DA (0.1.0), POST /filling-orders for 2 × 11.8 kg (OUR_SERVICE).
+3. The same phones on the over-the-air JS (X-App-Variant and X-App-Version 0.1.1): POST /trips/\<trip>/finish, then again with a leftover reason; POST /filling-orders again.
+
+Expect:
+
+- Step 1: both 426 APP_RESTART_TO_UPDATE "Close the app and open it again to update."; the trip stays IN_PROGRESS.
+- Step 2: 426 APP_RESTART_TO_UPDATE and no refill is made.
+- Step 3: the finish answers 409 TRIP_VAN_NOT_EMPTY with leftoversAllowed true, then 200 with a reason (the cylinder stays on the van); the refill answers 201 AG-R001, and the 0.1.0 list still reads it.
+
+Spec: API_CONTRACT §6 (426 gate), §7.11, §8.5 step 10, Appendix A · Test file: `apps/api/test/review23/contract-compat/old-apps-inc23.e2e-spec.ts`
+
+Note: Regression case for review23 finding contract-compat-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 contract-compat-01 …". Before the fix the 0.1.0 screens dead-ended silently: a Finish the 0.1.0 apps can never complete got a 409 they can't act on, and a refill only the Inc 3 apps can run was made. The gate's unit tests are apps/api/test/unit/app-version.spec.ts. Confirming test: the same file's REV23-CC-02.
+
 ## SEC · Security and roles
 
-Sign-in, tokens and sessions, locked roles, exact roles, ownership (another shop's data gives 404), the driver socket, secrets that never leave, CORS, boot guards, switched-off modules and user accounts. 36 cases: P1 28 · P2 8 · P3 0.
+Sign-in, tokens and sessions, locked roles, exact roles, ownership (another shop's data gives 404), the driver socket, secrets that never leave, CORS, boot guards, switched-off modules and user accounts. 38 cases: P1 29 · P2 9 · P3 0.
 
 ### SEC-001 · A distributor signs in with the phone typed in any normal form
 
@@ -2125,9 +2191,53 @@ Spec: API_CONTRACT §3.7 (CORS_ORIGINS, template placeholders), §8.5 step 4 · 
 
 Note: Regression case for review finding robustness-ops-04 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV robustness-ops-04 …". At boot the API logs the origins it allows ("CORS origins: …"). The staging smoke suite checks a CORS preflight from the website origin.
 
+### SEC-037 · A van change can't leave a driver's run on another driver's van
+
+**P1** · AUTO-API · Inc 2 · Role: SUPER_ADMIN (SA1), DRIVER (DR1, DR2)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Kashif has a PLANNED trip T1 on LEA-101 (X1), nothing loaded; LEB-202 is Imran's. An empty spare van LEC-303.
+
+Steps:
+
+1. As SA1, give Kashif LEC-303, and give LEA-101 to Imran.
+2. As DR1, LOAD X1's cylinders on T1.
+3. As DR2, run his own order on LEB-202 to the end.
+
+Expect:
+
+- Step 1: both answer 409 DRIVER_HAS_OPEN_RUN { driver: "Kashif", plateNo: "LEA-101", run: "TRIP" }; nothing changes.
+- Step 2: the cylinders land on LEA-101, the van Kashif still drives.
+- Step 3: Imran's run finishes: no other driver's cylinder is on his van.
+
+Spec: ADR-13; API_CONTRACT §9.5 (PATCH /drivers/:id/vehicle) · Test file: `apps/api/test/review23/holder-scans/rev23-runs-fixes.e2e-spec.ts, apps/api/test/review23/verify-holder-money/fix-premises-scans.e2e-spec.ts`
+
+Note: Regression case for review23 finding security-01, the same problem as holder-scans-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-01 …". Lead decision 1: the van change is refused, never moved. Confirming test: apps/api/test/review23/security/driver-van-and-reassign.e2e-spec.ts (REV23-SEC-VAN-SWAP, now asserting the refusal).
+
+### SEC-038 · Day-end uploads are read one at a time, a full queue is told to try again, and a shop login may send 20 in 10 minutes
+
+**P2** · AUTO-API · Inc 3 · Role: DISTRIBUTOR (DA)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Day-end is on.
+
+Steps:
+
+1. As DA, send three day-end uploads at once of a sheet inside every limit.
+2. While one file is being read and two wait, send another upload.
+3. Send 21 uploads within 10 minutes.
+
+Expect:
+
+- Step 1: the three are read one at a time (never two at once), each answered as a normal upload.
+- Step 2: 503 SERVICE_UNAVAILABLE "The service is busy. Please try again in a minute." with Retry-After: 10; the shop app offers "Try again".
+- Step 3: the 21st answers 429 RATE_LIMITED.
+
+Spec: API_CONTRACT §3.6, §10.5 (one file at a time per API instance); UX_MOBILE §8.3 (S19) · Test file: `apps/api/test/review23/security/day-end-heavy-upload.e2e-spec.ts`
+
+Note: Regression case for review23 finding security-02 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 security-02 …". Before the fix any number of heavy sheets were parsed at once, with no rate limit, and held hundreds of MB of heap. The read gate's unit tests are apps/api/test/review23/security/day-end-read-gate.spec.ts; the shop app's "Try again" is apps/api/test/unit/ui/mobile-rev23-day-end.spec.ts. Confirming test: the same file's REV23-SEC-DAYEND-DOS tests.
+
 ## WAL · Wallet and history
 
-The wallet card and low-balance warning, the history, the office correction tool, the nightly wallet check, races for the last rupee, and money on the wire. 25 cases: P1 13 · P2 11 · P3 1.
+The wallet card and low-balance warning, the history, the office correction tool, the nightly wallet check, races for the last rupee, and money on the wire. 26 cases: P1 13 · P2 11 · P3 2.
 
 ### WAL-001 · Wallet summary shows the balance and the money being checked
 
@@ -2734,6 +2844,24 @@ Expect:
 Spec: UX_MOBILE S7 (filter chips), S2 (Being checked opens the Top-ups filter), §2.2 #26 (ChoiceChips), §6 · Test file: `apps/api/test/unit/ui/mobile-layout.spec.ts`
 
 Note: Regression case for review finding mobile-ux-04 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-04 …". On a phone: WAL-002 step 4 opens History on Top-ups, which shows selected.
+
+### WAL-026 · Two wallet checks at once raise one alert for one broken wallet
+
+**P3** · AUTO-UNIT · Inc 1 · Role: System
+
+Before: Two broken wallets (Ahmed Gas and Bilal Gas); a second run at the same moment has just raised Ahmed Gas's alert.
+
+Steps:
+
+1. Run WalletCheckJob.run().
+
+Expect:
+
+- Step 1: each raise runs in its own transaction under pg_advisory_xact_lock(hashtext('wallet-check:' || distributorId)) and reads the distributor's unresolved alert again first: Ahmed Gas gets no second alert, Bilal Gas gets one, and the audit row still counts both.
+
+Spec: API_CONTRACT §8.5 (wallet-nightly-check); DATA_MODEL §3.6 · Test file: `apps/api/test/money/wallet-service.spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-07 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-07 …". Before the fix two runs at once (a deploy overlapping 03:30, or a manual run during the cron) raised two CRITICAL alerts for one wallet. Confirming test: apps/api/test/review23/robustness-jobs/night-jobs.e2e-spec.ts (test 2).
 
 ## TOP · Manual bank top-ups
 
@@ -5293,7 +5421,7 @@ Expect:
 
 Spec: API_CONTRACT Appendix A, §1.3, §2.1 (error repeats code), §6 (426 gate: a missing header counts as 0.1.0), §7.4, §7.6 · Test file: `apps/api/test/orders/orders.e2e-spec.ts`
 
-Note: Raising app.minVersion.distributor above 0.1.0 would give these requests 426 APP_UPDATE_REQUIRED; never do that before the new APK is on every phone.
+Note: Raising app.minVersion.distributor above 0.1.0 gives these requests 426 APP_RESTART_TO_UPDATE ("Close the app and open it again to update."); raise it only as API_CONTRACT §8.5 step 10 says, once every pilot phone shows the over-the-air release (0.1.1) on Help.
 
 ### ORD-017 · Before Inc 1 goes live, no order is left open
 
@@ -6626,7 +6754,7 @@ Note: Regression case for review finding web-ux-04 (CHANGELOG, "Review fixes, 20
 
 ## DRV · Driver app and runs
 
-The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 50 cases: P1 28 · P2 18 · P3 4.
+The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 55 cases: P1 28 · P2 23 · P3 4.
 
 ### DRV-001 · Legacy scan route accepts only drivers (no super-admin bypass)
 
@@ -7318,8 +7446,8 @@ Steps:
 Expect:
 
 - Step 1: "This cylinder is: Empty | Part-filled | Full" shows Empty selected. The count reads "0 taken back · 3 expected".
-- Step 2: AG-C0011 lands in the Empty list; the strip reads "AG-C0011 · Empty".
-- Step 3: AG-C0012 lands in Part-filled with the strip "AG-C0012 · Part-filled"; AG-C0032 also lands in Part-filled (the choice stays until changed). The lists read "Empty · 1" and "Part-filled · 2" (an empty list is hidden). The count reads "3 taken back · 3 expected".
+- Step 2: AG-C0011 lands in the Empty list; the strip reads "AG-C0011 · Empty". The strip shows right under "This cylinder is:", without scrolling on a 360×640 phone.
+- Step 3: AG-C0012 lands in Part-filled with the strip "AG-C0012 · Part-filled" right under the tap; AG-C0032 also lands in Part-filled (the choice stays until changed). The lists read "Empty · 1" and "Part-filled · 2" (an empty list is hidden). The count reads "3 taken back · 3 expected".
 - Step 4: the sheet "No label or other brand" asks for the size, the state and how many. Closing it saves nothing.
 - Step 5: "Visit done", then "Gave 3 · Took back 3" and, on the next line, "1 empty · 2 part-filled · 0 full". There is no share button and no link. The footer offers the next step.
 
@@ -7639,7 +7767,7 @@ Spec: ADR-01; ADR-12; ADR-13; API_CONTRACT §9.2 (LOAD), §9.5 (assign-driver v2
 
 **P2** · MAN-DRIVER · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 driver app (0.2.0) on a pilot phone. Kashif has van LEA-101 and no trip. Imran exists; the office can take his van away for one step.
+Before: Inc 2 driver app (0.2.0) on a pilot phone. Kashif has van LEA-101 and no trip. Imran exists; the office can take his van away for one step. Ahmed Gas's refill AG-R003 (1 × 6 kg) waits for a driver.
 
 Steps:
 
@@ -7649,15 +7777,17 @@ Steps:
 4. Turn airplane mode off and tap "Try again" (or pull down).
 5. After loading X1's 3 cylinders, open Today again and read the van card.
 6. Sign in as Imran after the office removes his van.
+7. The office gives Imran his van back and assigns him refill AG-R003. On Imran's phone, wait up to 30 seconds on Today, then open the menu.
 
 Expect:
 
 - Step 1: grey placeholder blocks show while loading; the header reads "Today · \<date>" with "Call office".
-- Step 2: before the trip: "Nothing to do." and "New trips appear by themselves." with a "Call office" button. The new trip then appears by itself as "Deliver to Sana" and "3 cylinders · load at Ahmed Gas Store" with the chip "Next" and the footer "Start trip".
+- Step 2: before the trip: "Nothing to do." and "New trips and refills appear by themselves." with a "Call office" button. The new trip then appears by itself as "Deliver to Sana" and "3 cylinders · load at Ahmed Gas Store" with the chip "Next" and the footer "Start trip".
 - Step 3: the saved list stays, stamped "Saved \<time>", under one banner "No connection" with "Try again".
 - Step 4: the banner goes away and the list refreshes.
 - Step 5: the van row reads "LEA-101" and "3 full" (zeros hidden).
 - Step 6: Imran sees "No van yet." in the van row, and My van shows "No van yet." with "Call office".
+- Step 7: Today shows "Refill · 1 × 6 kg · Ahmed Gas" with "Pick up empties" instead of "Nothing to do.", and the menu's Refills row shows 1.
 
 Spec: UX_MOBILE §2.2 (QueryBoundary, OfflineBanner), §3.5, §5 (Today), §7.2 (R2 Today); API_CONTRACT §9.3 (GET /driver/home)
 
@@ -7782,7 +7912,7 @@ Steps:
 Expect:
 
 - Step 1: the header shows Kashif's name and "LEA-101"; the rows are My van · Refills · Help · Sign out, with no second lines and no Profile row.
-- Step 2: the office number with "Office hours \<hours>" and a secondary "WhatsApp office"; a card with Name "Kashif", Mobile and Van "LEA-101" (no licence number); "App version 0.1.0" (with the update id when there is one); the footer "Call office".
+- Step 2: the office number with "Office hours \<hours>" and a secondary "WhatsApp office"; a card with Name "Kashif", Mobile and Van "LEA-101" (no licence number); "App version 0.1.1" (the JS release, with the update id when there is one); the footer "Call office".
 - Step 3: the dialler opens with the office number.
 - Step 4: Help still shows the office number, and "Call office" opens the dialler: the number is saved on the phone (support.contact).
 - No pop-up box appears.
@@ -7791,9 +7921,114 @@ Spec: UX_MOBILE §5 (Help, with the profile merged in), §3.6 (the side menu, su
 
 Note: The Profile route is retired (DECIDED, 2026-10-23). "The office number isn't loaded yet." shows only when the number has never loaded.
 
+### DRV-055 · A visit reassigned to another driver is 404 to the old driver
+
+**P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1, DR2), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). X1 for Sana and Usman's order on Kashif's trip T1, nothing loaded.
+
+Steps:
+
+1. As SA1, give X1 to Imran.
+2. As DR1, GET /trips/\<T1>/stops/\<Sana's visit> and GET /orders/\<X1>.
+3. As DR1, GET T1's store stop and Usman's visit; GET /trips/\<T1>.
+4. As DR2, GET his new trip's visit for X1.
+
+Expect:
+
+- Step 2: both 404 NOT_FOUND, with no order: Kashif no longer reads X1, Imran's phone or his van.
+- Step 3: both stops read (200), and T1 lists Sana's stop as CANCELLED with its own title "Sana".
+- Step 4: 200 with X1.
+
+Spec: API_CONTRACT §3.2 (canSeeOrder), §9.3 (GET /trips/:tripId/stops/:stopId) · Test file: `apps/api/test/inc2/scan/driver-views.e2e-spec.ts`
+
+Note: Regression case for review23 finding security-03 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 security-03 …". Before the fix the stop route still returned the reassigned order with the new driver's name, phone and van. Confirming test: apps/api/test/review23/security/driver-van-and-reassign.e2e-spec.ts (REV23-SEC-STOP-LEAK).
+
+### DRV-056 · A refreshed VAN_NOT_EMPTY shows the van's count now and keeps the driver's reason
+
+**P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1), DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). trip.allowFinishWithLeftovers on. Kashif loaded 2 × 11.8 kg for X1, the order failed, and he finished with the reason "Store closed".
+
+Steps:
+
+1. Read the VAN_NOT_EMPTY alert for LEA-101.
+2. As DA, receive one cylinder. Assign Kashif a new order (a new run on LEA-101). Run the 03:00 van check.
+3. Read the alert, and the website's list GET /alerts?status=OPEN.
+
+Expect:
+
+- Step 1: "LEA-101 still has cylinders on it (2)" / "LEA-101 still has 2 cylinder(s) on it. The shop must scan them in. Reason: Store closed".
+- Step 3: the same alert now reads "(1)" and "1 cylinder(s) … Reason: Store closed", with context { count 1, tripId: the finished trip, leftoverReason "Store closed" }; the list shows the same words.
+
+Spec: API_CONTRACT §9.9, §9.12 (Cases and confirmation: VAN_NOT_EMPTY) · Test file: `apps/api/test/review23/holder-scans/rev23-runs-fixes.e2e-spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-06 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-06 …". Before the fix a refresh rewrote only the context, so the office read the first count, and a newly planned run wiped the driver's reason. Confirming test: apps/api/test/review23/robustness-jobs/night-jobs.e2e-spec.ts (test 1).
+
+### DRV-057 · The take-back strip shows right under the state tap on a 360×640 phone
+
+**P2** · AUTO-UNIT · Inc 2 · Role: System (driver app layout)
+
+Before: The driver app's ScanPanel and visit screen (take back), read as syntax trees; the camera height rule.
+
+Steps:
+
+1. Read the take-back order of the panel and the camera height for a 640 dp window.
+
+Expect:
+
+- Step 1: state tap, then the strip and "Not saved", then the count, then a camera of clamp(0.18 × height, 112, 220) dp; other steps keep clamp(0.28 × height, 160, 300).
+
+Spec: UX_MOBILE §2.2 #24, §7.1 (Order inside a step screen, Camera), §7.2 R5 · Test file: `apps/api/test/unit/ui/mobile-rev23-driver.spec.ts`
+
+Note: Regression case for review23 finding ux-03 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 ux-03 …". Before the fix the strip that catches a wrong state tap fell under the footer on a 360×640 phone. The layout was measured in the preview (strip 283–339 dp, footer 572 dp; DRV-031 walks it).
+
+### DRV-058 · A refill cylinder on the van never hides "Finish trip"
+
+**P2** · AUTO-API · Inc 3 · Role: DRIVER (DR1), DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Refill AG-R001 (1 × 11.8 kg) assigned to Kashif, with AG-C0006 picked up on LEA-101. Y1 for Sana on Kashif's trip T1, AG-C0001 loaded and "Done loading".
+
+Steps:
+
+1. As DR1, GET /trips/\<T1> while Sana's visit is open.
+2. Hand AG-C0001 to Sana and finish the visit. GET /trips/\<T1>.
+3. POST /trips/\<T1>/finish.
+
+Expect:
+
+- Step 1: allowedActions is [].
+- Step 2: van.total 1 (the refill cylinder), van.cylinders [] and allowedActions ["COMPLETE"]: COMPLETE follows the list "Finish trip" refuses on.
+- Step 3: 200; the refill cylinder stays on the van for its refill.
+- The driver app reads van.cylinders: its next step is "Finish trip", not "Unload at store", and Unload's "Finish trip" is the filled button (UX_MOBILE §5, §7.2).
+
+Spec: API_CONTRACT §9.12 (COMPLETE), §9.13; UX_MOBILE §5 (Trip footer), §7.2 R7 · Test file: `apps/api/test/review23/holder-scans/rev23-runs-fixes.e2e-spec.ts`
+
+Note: Regression case for review23 finding holder-scans-04 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-04 …". Before the fix COMPLETE and the app's next step read the van's physical count, so the refill cylinder kept the trip on Unload. The app part: apps/api/test/unit/ui/mobile-rev23-trip.spec.ts. Confirming test: apps/api/test/review23/holder-scans/refill-and-delivery-one-van.e2e-spec.ts.
+
+### DRV-059 · A refill the office assigns shows on the driver's Today
+
+**P2** · AUTO-UNIT · Inc 3 · Role: System (driver app logic)
+
+Before: The driver app's refill rules (refillModel) and Today and menu screens, read as syntax trees.
+
+Steps:
+
+1. Give Today an open refill and no trip, then a trip and a refill.
+2. Read the menu.
+
+Expect:
+
+- Step 1: Today lists "Refill · 1 × 6 kg · Ahmed Gas" with "Pick up empties" (oldest first); "Nothing to do." shows only with no trip and no refill, never before the refills are known; the footer stays the trip's.
+- Step 2: the Refills row shows the open count ("Refills, 1 open" to screen readers).
+
+Spec: UX_MOBILE §3.6 (the driver menu), §7.2 R2 · Test file: `apps/api/test/unit/ui/mobile-rev23-driver.spec.ts`
+
+Note: Regression case for review23 finding ux-02 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 ux-02 …". Before the fix Today read only trips, so a driver with only a refill saw "Nothing to do.". DRV-045 walks it on a phone.
+
 ## HLD · One-holder rule
 
-Every cylinder has exactly one holder, and only a scan or a logged office manual delivery changes it. 19 cases: P1 13 · P2 4 · P3 2.
+Every cylinder has exactly one holder, and only a scan or a logged office manual delivery changes it. 25 cases: P1 14 · P2 8 · P3 3.
 
 ### HLD-001 · Every cylinder has exactly one holder at every step of a full day
 
@@ -8178,15 +8413,17 @@ Steps:
 
 1. Open Vans, then LEA-101. Try to change its driver, or take Kashif off it.
 2. After the store has scanned all three back in, try again.
+3. On the driver app, Kashif marks X1 "Could not deliver", so his trip has no stop left to do. Try again.
 
 Expect:
 
 - Step 1: "LEA-101 still has 3 cylinders on it. Unload at the store before changing the driver." Nothing changes.
-- Step 2: the change is saved.
+- Step 2: "Finish or reassign Kashif's trip on LEA-101 first." in one toast. Nothing changes.
+- Step 3: the change is saved.
 
 Spec: ADR-13; UX_ADMIN §3.7 (Vans); API_CONTRACT §2.3 (VEHICLE_HAS_CYLINDERS), §9.5 (PATCH /drivers/:id/vehicle)
 
-Note: The server side is DRV-040.
+Note: The server side is DRV-040 and HLD-020 (DRIVER_HAS_OPEN_RUN). For an assigned refill the toast reads "Kashif's refill on LEA-101 isn't finished. The shop can cancel it before pickup."
 
 ### HLD-019 · Four load scans at one store at the same moment each take one cylinder off its inventory lot
 
@@ -8207,6 +8444,143 @@ Expect:
 Spec: ADR-13; API_CONTRACT §4 (rows that drive a decision are locked first), §7.7 (POST /custody/scan) · Test file: `apps/api/test/orders/review-fixes.e2e-spec.ts`
 
 Note: Regression case for review finding money-data-06 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-06 …". GET /inventory/me, /inventory/by-store and the office legacy screens read these lots. Before the fix a read-then-write left the lot at 19. Confirming test: apps/api/test/review/money-data/inventory-lot-race.e2e-spec.ts.
+
+### HLD-020 · The office can't change a driver's van, or give that van away, while a run waits on it
+
+**P1** · AUTO-API · Inc 2 · Role: SUPER_ADMIN (SA1), DRIVER (DR1, DR2), DISTRIBUTOR (DA)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). An empty spare van LEC-303. Ahmed Gas placed X1 for Sana; the office assigned it to Kashif (trip T1 PLANNED on LEA-101, nothing loaded).
+
+Steps:
+
+1. As SA1, PATCH /drivers/\<DR1>/vehicle { vehicleId: \<LEC-303> }.
+2. As SA1, PATCH /drivers/\<DR2>/vehicle { vehicleId: \<LEA-101> }, then PATCH /drivers/\<DR1>/vehicle { vehicleId: null }.
+3. Read both drivers' vans, T1's van and the driver.update audit rows.
+4. As SA1, give X1 to Imran (POST /orders/\<X1>/assign-driver, allowed before loading), then repeat step 1.
+5. Assign Kashif a new order and load one cylinder on its run.
+
+Expect:
+
+- Steps 1 and 2: each call answers 409 DRIVER_HAS_OPEN_RUN with details { driver: "Kashif", plateNo: "LEA-101", run: "TRIP" } and the message "Finish or reassign Kashif's trip on LEA-101 first."
+- Step 3: Kashif still drives LEA-101 and Imran LEB-202; T1 still names LEA-101; no driver.update row was written. Nothing is ever moved to another van.
+- Step 4: T1 is ABORTED and the van change answers 200: Kashif now drives LEC-303.
+- Step 5: the new run is made on LEC-303 and the loaded cylinder's holder is LEC-303.
+- An assigned refill blocks the same way (run "REFILL") until the shop cancels it, and a trip whose stops are all closed no longer blocks.
+
+Spec: ADR-13; API_CONTRACT §2.3 (DRIVER_HAS_OPEN_RUN), §7.6 rule 2, §7.11, §9.5 (PATCH /drivers/:id/vehicle) · Test file: `apps/api/test/review23/holder-scans/rev23-runs-fixes.e2e-spec.ts, apps/api/test/review23/verify-holder-money/fix-premises-scans.e2e-spec.ts`
+
+Note: Regression case for review23 finding holder-scans-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-01 …". Before the fix the change went through: the trip kept the old van, so the run's loads landed on a van another driver now drove and neither run could finish. The van change and the assignments lock the driver rows, so no run appears in between. Confirming test: apps/api/test/review23/holder-scans/van-change-open-run.e2e-spec.ts.
+
+### HLD-021 · Two open runs on one van see only their own cylinders
+
+**P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1), DISTRIBUTOR (DA)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Ahmed Gas placed Y1 for Sana; the office assigned it to Kashif (T1). While Kashif is still loading, the office assigns Usman's order (a second run T2 on LEA-101). AG-C0001 loaded on T1, AG-C0002 on T2, both "Done loading".
+
+Steps:
+
+1. As DR1, hand AG-C0001 to Sana and finish T1's visit. GET /trips/\<T1> and GET /trips/\<T2>.
+2. As DA, GET /store/incoming.
+3. As DA, cancel Usman's order. As DR1, POST /trips/\<T1>/finish.
+4. As DA, receive AG-C0002. As DR1, finish T1 and T2.
+
+Expect:
+
+- Step 1: T1's van.cylinders is [] with van.total 1 and allowedActions ["COMPLETE"]; T2's van.cylinders lists AG-C0002 as NOT_DELIVERED.
+- Step 2: nothing is coming back: AG-C0002 is out for delivery.
+- Step 3: 409 TRIP_VAN_NOT_EMPTY naming AG-C0002 as SPARE: with its order cancelled it is no one's delivery.
+- Step 4: both runs finish (200). No money moves.
+
+Spec: API_CONTRACT §9.3 (POST /trips/:tripId/finish, SPARE), §9.12, §9.13 (GET /trips/:tripId van) · Test file: `apps/api/test/review23/holder-scans/rev23-runs-fixes.e2e-spec.ts`
+
+Note: Regression case for review23 finding holder-scans-02 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-02 …". Before the fix the first run listed the second run's cylinder as its own SPARE, refused "Finish trip" and sent the driver to Unload. The driver app's next step follows van.cylinders (apps/api/test/unit/ui/mobile-rev23-trip.spec.ts). Confirming test: apps/api/test/review23/holder-scans/two-open-runs-one-van.e2e-spec.ts.
+
+### HLD-022 · A day-end fix that keeps the holder never changes the responsible driver
+
+**P2** · AUTO-API · Inc 3 · Role: DRIVER (DR1), DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Kashif loaded AG-C0010 on a trip (LEA-101).
+
+Steps:
+
+1. Ahmed Gas sends the day-end with AG-C0010 "On driver's van", state Damaged; SA1 approves it (a SET_STATE fix).
+2. As SA1, GET /cylinders/AG-C0010/history.
+3. As DA, receive AG-C0010 into the store, then read the history again.
+
+Expect:
+
+- Step 2: the last two moves are SCAN_OUT then ADJUSTED, and holder.responsible is still Kashif (DRIVER).
+- Step 3: the holder is Ahmed Gas Store with responsible null.
+- A refill FILL and a MARK_LOST fix keep the holder too: they are passed over, whoever made them.
+
+Spec: API_CONTRACT §9.2 ("The responsible driver"), §9.4 (GET /cylinders/:code/history), §10.2 · Test file: `apps/api/test/review23/holder-scans/rev23-runs-dayend.e2e-spec.ts`
+
+Note: Regression case for review23 finding holder-scans-03 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-03 …". Before the fix the approval's own move (by the office, on no run) ended the responsibility, so the history named no driver for a cylinder still on his van. Confirming test: apps/api/test/review23/holder-scans/responsible-after-dayend-fix.e2e-spec.ts.
+
+### HLD-023 · A cylinder marked lost on a van stays on its record but doesn't keep the van loaded
+
+**P2** · AUTO-API · Inc 3 · Role: DRIVER (DR1), DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Kashif took AG-C0003 back from Sana on his trip and finished the visit; it is on LEA-101.
+
+Steps:
+
+1. As DR1, POST /trips/\<trip>/finish.
+2. Ahmed Gas sends the day-end with AG-C0003 "Missing" (why: "Driver lost it on the way back"); SA1 approves it (MARK_LOST).
+3. Read GET /driver/home, GET /inventory/my-vehicle, GET /trips/\<trip> and, as DA, GET /store/incoming.
+4. As DR1, finish the trip. Run the 03:00 van check. As SA1, take Kashif off LEA-101.
+5. As DA, receive AG-C0003 typed by its number.
+
+Expect:
+
+- Step 1: 409 TRIP_VAN_NOT_EMPTY: before the day-end it is really on the van.
+- Step 3: van.total 1 and My van lists AG-C0003 as Lost; the trip's van.cylinders is [] with COMPLETE offered; nothing is coming back to the shop.
+- Step 4: the finish answers 200, the van check raises nothing (vans 0), and the van change answers 200.
+- Step 5: 201; AG-C0003 is in the store and keeps its LOST state until a day-end fixes it.
+- A LOST cylinder found at a customer and taken back still blocks "Finish trip" (TAKEN_BACK) and is listed as coming back.
+
+Spec: API_CONTRACT §9.2 step 9, §9.3, §9.4, §9.9, §10.5 ("Refills on scans": a cylinder marked lost on a van) · Test file: `apps/api/test/review23/holder-scans/rev23-runs-dayend.e2e-spec.ts, apps/api/test/review23/verify-holder-money/fix-premises-scans.e2e-spec.ts`
+
+Note: Regression case for review23 finding holder-scans-05 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-05 …". Before the fix a cylinder the office marked lost kept its van "not empty" for good: the run could not finish and the van could not change driver. Confirming test: apps/api/test/review23/holder-scans/lost-on-van.e2e-spec.ts.
+
+### HLD-024 · The history's "since" is the time of the last move that changed the holder
+
+**P3** · AUTO-API · Inc 3 · Role: DRIVER (DR1), DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Kashif loaded AG-C0010 on LEA-101 (the LOAD's scan.at is noted).
+
+Steps:
+
+1. Ahmed Gas sends the day-end with AG-C0010 "On driver's van", state Damaged; SA1 approves it.
+2. As SA1, GET /cylinders/AG-C0010/history.
+3. As DA, receive AG-C0010; read the history again.
+
+Expect:
+
+- Step 2: holder { type VEHICLE, label LEA-101, since: the LOAD's scan.at }: the fix kept the holder, so it doesn't move "since".
+- Step 3: holder { type STORE, label Ahmed Gas Store, since: the receive's scan.at, responsible: null }.
+
+Spec: API_CONTRACT §9.4 (GET /cylinders/:code/history holder.since) · Test file: `apps/api/test/review23/holder-scans/rev23-runs-dayend.e2e-spec.ts`
+
+Note: Regression case for review23 finding holder-scans-08 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-08 …". Before the fix "since" was the newest move of any kind, so a fill or a day-end state fix made a cylinder look newly arrived. Confirming test: apps/api/test/review23/holder-scans/holder-since.e2e-spec.ts.
+
+### HLD-025 · A cylinder marked lost on a van no longer blocks the run or the 03:00 check
+
+**P2** · AUTO-API · Inc 3 · Role: DRIVER (DR1), DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). A cylinder on LEA-101 that an approved day-end MARK_LOST fix marked lost, with no move since.
+
+Steps:
+
+1. As DR1, POST /trips/\<trip>/finish. Run the 03:00 van check.
+
+Expect:
+
+- Step 1: the finish answers 200 and the check raises nothing for LEA-101; the cylinder stays on the van's record as Lost.
+
+Spec: API_CONTRACT §9.9 (day-cutoff-van-check), §10.5 · Test file: `apps/api/test/review23/holder-scans/rev23-runs-dayend.e2e-spec.ts, apps/api/test/review23/verify-holder-money/fix-premises-scans.e2e-spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-03, the same problem as holder-scans-05 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-05 …". Before the fix the 03:00 check raised VAN_NOT_EMPTY every night for a cylinder nobody can bring back. Confirming test: apps/api/test/review23/robustness-jobs/lost-on-van.e2e-spec.ts.
 
 ## STR · Store receive
 
@@ -8503,7 +8877,7 @@ Spec: ADR-07; ADR-13; UX_MOBILE §7.3 (S14 Order detail additions)
 
 ## CNF · Customer confirmation page
 
-The one-time customer link: issuing it, the page and its states, answers, security, and proof that no answer moves money (Inc 2, behind confirmation.enabled). 47 cases: P1 13 · P2 32 · P3 2.
+The one-time customer link: issuing it, the page and its states, answers, security, and proof that no answer moves money (Inc 2, behind confirmation.enabled). 50 cases: P1 13 · P2 33 · P3 4.
 
 ### CNF-001 · Setting off: finishing a visit makes no link and no message
 
@@ -9189,12 +9563,13 @@ Before: Staging server with Caddy in front of the API. A delivered order with a 
 Steps:
 
 1. On a phone, open the order's link, tap "Partly received", then "Back".
-2. On the server, open the Caddy access log (journalctl or the log file) and find these three requests.
-3. Open the API's own log for the same minute.
+2. Open the same link in capitals, with a dash every 4 characters, and as /C/\<TOKEN>.
+3. On the server, open the Caddy access log (journalctl or the log file) and find these three requests.
+4. Open the API's own log for the same minute.
 
 Expect:
 
-- Each Caddy entry shows the uri as /c/[token] (or /c/[token]/partly); the 26-character token never appears.
+- Each Caddy entry shows the uri as /c/[token] (or /c/[token]/partly) for every form of the link; no 26-character run of the token appears, in any letter case.
 - No Referer value is logged for these requests.
 - The API log also shows /c/[token] only.
 
@@ -9613,6 +9988,70 @@ Expect:
 
 Spec: API_CONTRACT §2.3 (Customer confirmation and cases); CUSTOMER_PAGE §4 (state order), §5 (PublicPageExceptionFilter), §6 (result pages), §13 · Test file: `apps/api/test/inc2/confirm/confirm-units.spec.ts`
 
+### CNF-048 · A link token never reaches a log, in any form the page accepts
+
+**P3** · AUTO-UNIT · Inc 2 · Role: System
+
+Before: A customer link token in each form the page opens: lower case, capitals, with a dash every 4 characters, with ?done=1, and as /C/\<TOKEN> or /c//\<token>.
+
+Steps:
+
+1. Pass each path through redactPath (the error envelope, the request log and Sentry URLs).
+2. Apply the Caddyfile's access-log uri filter of every host to each path.
+
+Expect:
+
+- Step 1: each becomes /c/[token] (or /c/[token]/partly); no 26-character run of the token is left, in any letter case.
+- Step 2: the same on every host (the filter matches ^/[cC]/+[^/?]+).
+
+Spec: CUSTOMER_PAGE §5 (Redaction); API_CONTRACT §2.2 (Logs) · Test file: `apps/api/test/unit/redact.spec.ts`
+
+Note: Regression case for review23 finding security-04 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 security-04 …". Before the fix a link opened in capitals or with separators left its token in the Caddy log and in redactPath. Confirming test: apps/api/test/review23/security/link-log-redaction.e2e-spec.ts. CNF-029 walks it on staging.
+
+### CNF-049 · The 0.1.0 "All delivered" that keeps the visit open issues the link only at the visit's close, with the take-back list
+
+**P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1, 0.1.0 JS), DISTRIBUTOR (DA)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). support.phone set and confirmation.enabled on. Sana has AG-C0011 from an earlier delivery; her order expects 1 back. Calls as the 0.1.0 JS sends them.
+
+Steps:
+
+1. As DR1, load, depart, arrive and scan AG-C0001 DELIVERED; tap "All delivered" (PATCH /orders/\<order>/status DELIVERED).
+2. Read the order, the visit and the confirmation rows.
+3. Scan AG-C0011 PICKED_UP_EMPTY and tap "Done" (PATCH /trips/stops/\<visit>/depart); read the confirmation.
+4. Tap "Done" again.
+
+Expect:
+
+- Step 2: the order is DELIVERED, the visit is still open, and no confirmation exists yet.
+- Step 3: one confirmation whose snapshot's takenBack is [1 × 11.8 kg Empty]; it expires linkTtlHours after the tap's deliveredAt.
+- Step 4: 200 X-Already-Applied; still one confirmation and one text.
+
+Spec: CUSTOMER_PAGE §1 (issueForDeliveredOrder), §3; API_CONTRACT §9.12 (the 0.1.0 driver app) · Test file: `apps/api/test/review23/contract-compat/old-apps-inc23.e2e-spec.ts`
+
+Note: Regression case for review23 finding contract-compat-04 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 contract-compat-04 …". Before the fix the link was issued at the tap, before the empties were scanned, so the page said nothing was taken back. Confirming test: the same file's REV23-CC-01.
+
+### CNF-050 · Broken bodies and unreadable paths on the customer link get the page, never JSON
+
+**P3** · AUTO-API · Inc 2 · Role: Customer (no sign-in)
+
+Before: The API running with the customer page.
+
+Steps:
+
+1. POST /c/\<token> with broken JSON, an unknown charset, a 200 KB form, a 20 KB JSON body and 10,000 fields.
+2. GET /c/%E0%A4%A, /c and /C/%E0%A4%A.
+3. GET an unknown API path, and sign in with a JSON body.
+
+Expect:
+
+- Steps 1 and 2: each answers an HTML page (not found, too many or error) with Cache-Control: no-store, X-Robots-Tag and the CSP, no JSON and nothing echoed.
+- Step 3: the API 404 stays JSON, and the sign-in body is still read (401 AUTH_INVALID_CREDENTIALS for a wrong password).
+
+Spec: CUSTOMER_PAGE §4, §5 (Wiring: the filter) · Test file: `apps/api/test/review23/robustness-jobs/page-parser-errors.e2e-spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-09 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-09 …". Before the fix the body parser and URI decoder refusals ran before the page filter, so the customer got the API's JSON. The filter's unit test is apps/api/test/unit/error-filter.spec.ts.
+
 ## CAS · Cases
 
 Customer problems opened by answers, and how the office closes them. 13 cases: P1 2 · P2 11 · P3 0.
@@ -9914,7 +10353,7 @@ Note: A case is only ever OPEN or RESOLVED (G07-02, G07-21).
 
 ## MSG · Messaging
 
-The messaging provider (mock for now), test mode, the SMS text, and sharing the link from the shop app or the office. 22 cases: P1 2 · P2 20 · P3 0.
+The messaging provider (mock for now), test mode, the SMS text, and sharing the link from the shop app or the office. 23 cases: P1 2 · P2 21 · P3 0.
 
 ### MSG-001 · The mock provider records the outgoing SMS in the message log
 
@@ -10396,9 +10835,31 @@ Expect:
 
 Spec: ADR-15; CUSTOMER_PAGE §1, §10; UX_MOBILE §7.2 (R5)
 
+### MSG-023 · New-link texts are capped: 3 per order and 20 per shop an hour
+
+**P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DA, DB)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). confirmation.enabled is on; seven of Ahmed Gas's orders are delivered with pending links.
+
+Steps:
+
+1. As DA, POST /orders/\<order>/confirmation/new-link { send: "SMS" } three times with new keys, then repeat the last one with its key, then a fourth with a new key.
+2. POST a new link without a text for the same order.
+3. Send texts across the seven orders until the 21st; then one for a Bilal Gas order.
+
+Expect:
+
+- Step 1: three texts go out; the repeat answers 200 with Idempotent-Replay; the fourth answers 429 RATE_LIMITED { minutes } with Retry-After = minutes × 60 and the link version doesn't move.
+- Step 2: 200: a new link without a text is never limited.
+- Step 3: 20 texts go out and the 21st answers 429; Bilal Gas is counted on its own.
+
+Spec: API_CONTRACT §3.6, §9.7 (POST /orders/:id/confirmation/new-link) · Test file: `apps/api/test/review23/security/new-link-sms-limit.e2e-spec.ts`
+
+Note: Regression case for review23 finding security-05 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 security-05 …". Before the fix 30 new links with a text were all sent, to numbers the shop picks. Confirming test: the same file's REV23-SEC-SMS-FLOOD test.
+
 ## REF · Refills
 
-Refills with no money in Inc 1, then refills on QR scans in Inc 3. 31 cases: P1 15 · P2 16 · P3 0.
+Refills with no money in Inc 1, then refills on QR scans in Inc 3. 34 cases: P1 15 · P2 19 · P3 0.
 
 ### REF-001 · A refill request takes no money and needs no balance
 
@@ -11007,8 +11468,9 @@ Steps:
 3. Scan AG-C0001. Turn on airplane mode, then scan AG-C0002.
 4. Turn airplane mode off and tap "Retry".
 5. Tap "Done picking up".
-6. At the station, scan AG-C0001 and AG-C0002 after the station fills each one.
-7. Tap "Done filling". Back at the store, look at the "Unload at Ahmed Gas Store" step and give both cylinders to the shop.
+6. At the station, before any scan, tap "Bring back unfilled". Open the Refills list, come back, then tap "Back to filling".
+7. At the station, scan AG-C0001 and AG-C0002 after the station fills each one.
+8. Tap "Done filling". Back at the store, look at the "Unload at Ahmed Gas Store" step and give both cylinders to the shop.
 
 Expect:
 
@@ -11017,8 +11479,9 @@ Expect:
 - Step 3: a green strip "AG-C0001 · 11.8 kg picked up" and "1 of 2 picked up". AG-C0002 shows as one amber row "Not saved: 1" with "Retry", and the count doesn't move.
 - Step 4: the tick appears once, the count reads "All 2 picked up" in green and "Not saved" disappears.
 - Step 5: the next step is "Fill at Lahore Filling Station", with the hint "Scan each filled cylinder."
-- Step 6: "All 2 filled".
-- Step 7: "Unload at Ahmed Gas Store" with "Give each cylinder to the shop to scan." and "0 of 2 unloaded", which updates as the shop scans. There is no button while the shop scans; when the shop finishes, "Refill done" and the footer "Back to refills".
+- Step 6: "Bring back unfilled" sits under the title, away from "Type number"; it opens Unload with "Back to filling"; the Refills list reads "Bring them back"; "Back to filling" returns to the fill step with the camera, with no server call and no confirm.
+- Step 7: "All 2 filled".
+- Step 8: "Unload at Ahmed Gas Store" with "Give each cylinder to the shop to scan." and "0 of 2 unloaded", which updates as the shop scans. There is no button while the shop scans; when the shop finishes, "Refill done" and the footer "Back to refills".
 - No money, raw status word or pop-up box appears on any refill screen.
 
 Spec: ADR-16; UX_MOBILE §8.2 (R10), §7.1 (ScanPanel), §7.2 (R7), §8.4
@@ -11080,7 +11543,7 @@ Note: The server part (the refill's assignedAt, the time on "Driver assigned") a
 
 **P2** · MAN-WEB · Inc 3 · Role: Super admin (Owner)
 
-Before: Inc 3 website, signed in as Owner. AG-R001 (2 × 11.8 kg) is waiting for a driver.
+Before: Inc 3 website, signed in as Owner. AG-R001 (2 × 11.8 kg) is waiting for a driver. Bilal Gas's BG-R001 has waited for a driver since four months ago, and 200 refills have finished since.
 
 Steps:
 
@@ -11093,7 +11556,7 @@ Steps:
 
 Expect:
 
-- Step 2: tabs Needs a driver · In progress · Done · Cancelled. Columns: Refill ("AG-R001" with "2 × 11.8 kg" muted under it) · Status · Distributor · Driver (the "Assign driver" button) · Requested; the Station column shows only with more than one station.
+- Step 2: tabs Needs a driver · In progress · Done · Cancelled. Columns: Refill ("AG-R001" with "2 × 11.8 kg" muted under it) · Status · Distributor · Driver (the "Assign driver" button) · Requested; the Station column shows only with more than one station. Needs a driver lists BG-R001 first (oldest first) and its count equals Today's "refill(s) need(s) a driver"; Done shows 30 rows and "Load more".
 - Step 3: the same assign dialog as for orders. AG-R001 moves to In progress with "Driver assigned".
 - Step 4: the status reads in turn "Picking up empties · 1 of 2", "Empties picked up · 2 of 2", "At the station", "Coming back · 2 of 2 filled", "Back at store · 1 of 2 in", then "Done" in the Done tab.
 - Step 5: a timeline with counts and a ghost "Show cylinders" that opens the scan list. No cancel or "Could not deliver", and the line "Only Ahmed Gas can cancel, before pickup." No fee lines.
@@ -11165,9 +11628,67 @@ Spec: API_CONTRACT §2.3 (RECONCILIATION_RETIRED), §7.2 (POST /reconciliations:
 
 Note: Inc 1 and Inc 2 keep the route as it is today (DRIVER only).
 
+### REF-032 · The office Refills tabs are server lists: the oldest refill waiting for a driver is always in Needs a driver
+
+**P2** · AUTO-API · Inc 3 · Role: SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Bilal Gas (DB) too. An Ahmed Gas refill waiting for a driver since 40 days ago, one cancelled 50 days ago, two in progress, Bilal Gas's BG-R001 waiting, and 201 done refills.
+
+Steps:
+
+1. As SA1, GET /filling-orders?tab=needs-driver, then tab=in-progress and tab=cancelled; GET /admin/summary.
+2. Page through tab=done&limit=100 with nextCursor; send a done cursor with tab=in-progress.
+3. Search: q=bilal, q=ag-r002, q=R002; filter by distributorId and driverId.
+
+Expect:
+
+- Step 1: each answers { counts: { needsDriver, inProgress, done, cancelled }, items, nextCursor }; needs-driver lists the 40-day-old refill first (oldest first) and counts.needsDriver equals /admin/summary refills.needsDriver.
+- Step 2: 201 done refills in 3 pages, newest first, with no overlap; the other tab's cursor is 400 VALIDATION_FAILED on cursor.
+- Step 3: the name matches in any letter case and the number exactly; the filters narrow the counts, and q never does.
+
+Spec: API_CONTRACT §1.3, §7.11 (GET /filling-orders?tab), §10.5 (GET /admin/summary refills); UX_ADMIN §4.1, §4.5 · Test file: `apps/api/test/inc3/refills/refill-lists.e2e-spec.ts`
+
+Note: Regression case for review23 finding contract-compat-06 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 contract-compat-06 …". Before the fix the page sorted the 200 newest refills in the browser, so an older refill waiting for a driver dropped out while Today still counted it. The website's own tests: apps/admin-web/src/features/refills/\_\_tests\_\_/board.spec.ts. Confirming test: apps/api/test/review23/contract-compat/refill-reads.e2e-spec.ts (REV23-CC-06).
+
+### REF-033 · The bare refill lists keep every open refill, however old
+
+**P2** · AUTO-API · Inc 3 · Role: DISTRIBUTOR (DA), DRIVER (DR1), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Open refills from 30 to 50 days ago (waiting, assigned, filled) and 202 newer done or cancelled ones.
+
+Steps:
+
+1. GET /filling-orders (office, no tab), /filling-orders/mine (DA) and /filling-orders/driver/mine (DR1).
+
+Expect:
+
+- Step 1: bare arrays, newest first, with every open refill however old plus the newest 200 done or cancelled ones (the two oldest closed ones drop off).
+
+Spec: API_CONTRACT §1.3 (bare-array lists), §7.11 · Test file: `apps/api/test/inc3/refills/refill-lists.e2e-spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-05 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-05 …". Before the fix every bare list was the 200 newest refills, so an old open refill vanished from the shop, the driver and the office. Confirming test: apps/api/test/review23/robustness-jobs/refill-list-cap.e2e-spec.ts.
+
+### REF-034 · "Bring back unfilled" sits away from "Type number" and can be undone
+
+**P2** · AUTO-UNIT · Inc 3 · Role: System (driver app logic)
+
+Before: The driver app's refill run (RefillRunScreen) and refill rules (refillModel).
+
+Steps:
+
+1. Read where "Bring back unfilled" sits, and the run after a tap on it, for a refill at the station step with nothing received.
+
+Expect:
+
+- Step 1: the ghost sits under the title; after it, Unload offers "Back to filling" (no server call, no confirm) while the refill is EMPTIES_PICKED or AT_STATION and nothing is received; the Refills list and Today read "Bring them back".
+
+Spec: UX_MOBILE §8.2 (R10 step 2 and As built) · Test file: `apps/api/test/unit/ui/mobile-rev23-driver.spec.ts`
+
+Note: Regression case for review23 finding ux-04 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 ux-04 …". Before the fix "Bring back unfilled" sat just under "Type number" and had no way back. REF-025 walks it on a phone.
+
 ## DAY · Day-end Excel
 
-The system-made day-end sheet: download, upload and preview, approval or send-back, the day lock and the 03:00 cut-off (Inc 3). 22 cases: P1 13 · P2 8 · P3 1.
+The system-made day-end sheet: download, upload and preview, approval or send-back, the day lock and the 03:00 cut-off (Inc 3). 27 cases: P1 15 · P2 10 · P3 2.
 
 ### DAY-001 · The day-end sheet has one row per cylinder, for this shop only
 
@@ -11633,7 +12154,7 @@ Steps:
 Expect:
 
 - Step 2: today's date with the chip "Not sent", and three step rows: "Download sheet"; "Fill in only what's different" with "Where it is, its state, and why."; "Upload the sheet".
-- Step 3: the toast "Sheet saved in Documents" and a tick on "Download sheet" with "Download again"; the sheet has 35 rows, one per cylinder.
+- Step 3: the toast "Sheet saved in Documents" and a tick on "Download sheet" with "Download again" and the line "Your filled sheet can't be sent after this."; the sheet has 35 rows, one per cylinder.
 - Step 5: "Pick your sheet" lists the sheets in that folder, today's first, then "Other folder"; after the pick, "Checking your sheet…", then "Check and send".
 - Step 6: "1 difference" and "35 cylinders checked". The card reads "AG-C0020 · 11.8 kg", "App: In my store · Full" and "You: In my store · Damaged" (the changed part in bold), with "Valve damaged" in quotes and the fix chip "Set to Damaged". No raw words or long IDs.
 - Step 7: the sheet "Send day-end for \<today's date>?" with "Once the office approves, this day is closed." After confirming, the toast "Sent to the office" and the chip "Waiting for office".
@@ -11655,8 +12176,9 @@ Steps:
 3. Turn airplane mode off and tap "Try again".
 4. Put a photo and a PDF into the sheet's folder, then tap "Upload filled sheet".
 5. Upload a sheet where AG-C0007's "Your count: where" says "Shop".
-6. After the office sends the day back, open Day-end.
+6. After 3 am the office sends yesterday's day back. Open Home, then tap the row.
 7. After the office approves, open Day-end and try to upload again.
+8. Download today's sheet at 2:50 am and upload the filled sheet after 3 am from Home's row.
 
 Expect:
 
@@ -11665,8 +12187,9 @@ Expect:
 - Step 3: it works, and "Check and send" shows the new version.
 - Step 4: "Pick your sheet" lists only the .xlsx sheets: the photo and the PDF aren't offered, so they can't be sent.
 - Step 5: a red card "Some rows couldn't be read. Fix them and upload again." with "Row 8 · Cylinders: Where: use In my store, On driver's van, With customer or Missing." and the footer "Upload fixed sheet". Nothing was saved, so there is nothing to send.
-- Step 6: the chip "Sent back", with the red card "Office note: “\<note>”" and "Fix it and upload again."
+- Step 6: Home's row reads "\<date> sent back · fix it" in red. Day-end opens on that day with the chip "Sent back", the red card "Office note: “\<note>”" and "Fix it and upload again.", the footer "Upload filled sheet" and "Today's sheet" at the end.
 - Step 7: the chip "Approved · day closed". Uploading shows "This day is closed. Ask the office to reopen it."
+- Step 8: the row reads "\<date> not sent yet" and opens that day; the upload is accepted (no DAY_SHEET_WRONG_DATE).
 
 Spec: ADR-17; UX_MOBILE §8.3, §8.4, §3.1, §3.2; API_CONTRACT §2.3 (Day-end, Client-only)
 
@@ -11720,9 +12243,109 @@ Expect:
 
 Spec: ADR-18; UX_ADMIN §1.6 (pseudo-locale), §2.12 (no system words), §4.1, §4.3
 
+### DAY-023 · A sheet sent again after a reopen keeps the applied links and adds a found cylinder once
+
+**P2** · AUTO-API · Inc 3 · Role: DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Ahmed Gas's day-end for 2026-10-21 with AG-C0005 Damaged and an extra number AG-C0099 (11.8 kg, Empty); SA1 approved it (AG-C0036 registered).
+
+Steps:
+
+1. As SA1, reopen the day. As DA, upload the same filled file again.
+2. Read the day's lines and the histories of AG-C0036 and AG-C0005.
+3. As DA, send it; as SA1, read the review and approve it.
+4. Reopen again, download a fresh sheet, put AG-C0099 on Extra once more, upload, send and approve.
+
+Expect:
+
+- Step 2: AG-C0099's line keeps the first approval's applied event, AG-C0005's line (now MATCH) keeps its fix's event, and both histories keep dayEnd { businessDate: 2026-10-21 }.
+- Step 3: the review lists AG-C0099 with fixesToApply []; the approval registers nothing; day.approve counts it unchanged (applied 0, registered 0, unchanged 1).
+- Step 4: still nothing registered: the shop has one more cylinder than before, not two.
+
+Spec: API_CONTRACT §10.2 (POST /admin/day-end/:id/reopen), §10.5; DATA_MODEL §5.5 (day_close_lines) · Test file: `apps/api/test/review23/holder-scans/rev23-runs-dayend.e2e-spec.ts, apps/api/test/review23/verify-holder-money/fix-premises-dayend.e2e-spec.ts`
+
+Note: Regression case for review23 finding holder-scans-07 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 holder-scans-07 …". Before the fix the upload deleted the applied lines, so the history lost its day-end link and a second approval registered the found cylinder again. Confirming test: apps/api/test/review23/holder-scans/register-fix-twice.e2e-spec.ts.
+
+### DAY-024 · A day-end sheet with a dropdown dragged down whole columns is refused at once and the API keeps answering
+
+**P1** · AUTO-API · Inc 3 · Role: DISTRIBUTOR (DA)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Day-end is on. Ahmed Gas downloaded today's sheet and filled it normally.
+
+Steps:
+
+1. As DA, upload the filled sheet while another process asks GET /health/live.
+2. Change only the two "Your count" dropdowns to cover E2:E1048576 and F2:F1048576 (as Excel saves a validation pasted down a whole column), and upload that file the same way.
+
+Expect:
+
+- Step 1: 200, and the health probe answers in under 500 ms.
+- Step 2: 422 DAY_SHEET_UNREADABLE in under 1 second, before the workbook is read; the health probe answers 200 in under 500 ms; nothing is saved.
+- Ordinary Excel touches and a sheet of the documented maximum (19,999 rows) still read.
+
+Spec: API_CONTRACT §10.2 (upload check 3), §10.5 (upload refusals: the shape check) · Test file: `apps/api/test/review23/verify-holder-money/dayend-upload-block-http.e2e-spec.ts`
+
+Note: Regression case for review23 finding money-data-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 money-data-01 …". Before the fix exceljs expanded the ranges and the API answered no one for seconds. The pre-check's unit tests are apps/api/test/review23/money-data/dayend-exceljs-ranges.spec.ts. Confirming test: the same file's first tests (the exceljs hazard).
+
+### DAY-025 · Three uploads at once of a huge workbook are refused at once and the API stays up
+
+**P2** · AUTO-API · Inc 3 · Role: DISTRIBUTOR (DA)
+
+Before: Standard test data (TEST_CASES "Standard test data"): Ahmed Gas (DA) with its store, Kashif (DR1, van LEA-101), Imran (DR2, van LEB-202), the office user Owner (SA1), customers Sana (C1) and Usman (C2). Day-end is on. A 1,001 × 700-cell workbook inside every byte limit of the upload.
+
+Steps:
+
+1. As DA, upload it three times at once while GET /health/live is asked.
+
+Expect:
+
+- Step 1: each answers 422 DAY_SHEET_UNREADABLE within about a second, the health probe keeps answering, and the heap grows by a few MB only.
+
+Spec: API_CONTRACT §10.5 (the shape check, one file at a time) · Test file: `apps/api/test/review23/robustness-jobs/day-end-parallel-uploads.e2e-spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-01 …". Before the fix three such uploads at once crashed the API with "heap out of memory" (wide700.xlsx, probes in the review scratchpad).
+
+### DAY-026 · The shop app opens the day-end day that waits for the shop, not only today
+
+**P1** · AUTO-UNIT · Inc 3 · Role: System (shop app logic)
+
+Before: The shop app's day-end rule (dayEndModel.dayEndTarget) and its Home and Day-end screens, read as syntax trees.
+
+Steps:
+
+1. Give GET /day-end lists: yesterday SENT_BACK after the 3 am cut-off; a reopened day; an earlier day READY or with a sheet and nothing sent; only submitted and approved days.
+2. Read the Home row and Day-end routes.
+
+Expect:
+
+- Step 1: the oldest day sent back or reopened comes first ("Sat 24 Oct sent back · fix it" in red), then the oldest earlier open day ("… ready to send" / "… not sent yet"); otherwise today with its own stage.
+- Step 2: Home opens Day-end on that date; the screen keeps the date across the cut-off, Check and send returns to it, and an earlier day offers "Today's sheet".
+
+Spec: UX_MOBILE §8.3 (the Home row, S19); API_CONTRACT §10.2 · Test file: `apps/api/test/unit/ui/mobile-rev23-day-end.spec.ts`
+
+Note: Regression case for review23 finding ux-01 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 ux-01 …". Also covers robustness-jobs-04 (merged into ux-01). Before the fix Day-end only ever opened "today", so a day sent back after the cut-off, or a sheet downloaded before 3 am, could never be finished and stayed Open on the website.
+
+### DAY-027 · "Download again" says the filled sheet can't be sent after it
+
+**P3** · AUTO-UNIT · Inc 3 · Role: System (shop app)
+
+Before: The shop app's Day-end screen and its English strings.
+
+Steps:
+
+1. Read the Day-end view of a sent-back day and the "Download again" branch.
+
+Expect:
+
+- Step 1: the link stays on a sent-back day, with the one line "Your filled sheet can't be sent after this." right under it (8 words at most), and no confirm.
+
+Spec: UX_MOBILE §8.3 (S19 three step rows) · Test file: `apps/api/test/unit/ui/mobile-rev23-day-end.spec.ts`
+
+Note: Regression case for review23 finding ux-07 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 ux-07 …". Before the fix a new sheet silently made the filled copy unusable (only the newest sheet can be uploaded). DAY-019 walks it on a phone.
+
 ## SET · Pilot setup and reset
 
-The pilot setup and reset command line, the office-user command, opening balances and the two-shop leak test. 12 cases: P1 10 · P2 2 · P3 0.
+The pilot setup and reset command line, the office-user command, opening balances and the two-shop leak test. 13 cases: P1 10 · P2 2 · P3 1.
 
 ### SET-001 · The office-user command creates the two named super admins
 
@@ -12019,9 +12642,29 @@ Spec: ADR-02; API_CONTRACT §3.2, §7.2, §7.4, §7.6, §9.4, §10.4 (two-distri
 
 Note: Step 3 names a place (a pin in South, where Bilal Gas has a price) because an order needs an addressId or a deliveryLocation: the customer is the only thing wrong with it.
 
+### SET-013 · The pilot setup tells you when the labels file couldn't be saved, and how to mount a file in the image
+
+**P3** · AUTO-API · Inc 3 · Role: Engineering (command line)
+
+Before: A test database; the setup sample file.
+
+Steps:
+
+1. Run the pilot setup with --test so that writing the labels file fails after the run commits.
+2. Run it with --file naming a file the image doesn't have.
+
+Expect:
+
+- Step 1: exit code 3; the labels are printed; the cylinders are kept.
+- Step 2: refused with the hint to mount the setup folder (-v /srv/smartfleet/pilot:/pilot --file /pilot/\<name>.json).
+
+Spec: API_CONTRACT §10.3, §10.5 (Pilot setup and reset: exit codes); infrastructure/aws/README.md · Test file: `apps/api/test/review23/robustness-jobs/pilot-labels-exit.e2e-spec.ts`
+
+Note: Regression case for review23 finding robustness-jobs-08 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-08 …". Before the fix a run that committed but could not save its labels ended like a failure, and the image had no documented way to read a setup file.
+
 ## UXQ · UI and UX quality
 
-Loading, empty, error and no-signal states, plain words, touch sizes, large text, layouts and keyboard use in all three apps. 33 cases: P1 1 · P2 26 · P3 6.
+Loading, empty, error and no-signal states, plain words, touch sizes, large text, layouts and keyboard use in all three apps. 34 cases: P1 1 · P2 26 · P3 7.
 
 ### UXQ-001 · Shop app main screens show loading, empty, error-with-retry and success states
 
@@ -12067,7 +12710,7 @@ Steps:
 
 Expect:
 
-- Step 1: "Nothing to do." and "New trips appear by themselves." with "Call office".
+- Step 1: "Nothing to do." and "New trips and refills appear by themselves." with "Call office".
 - Step 2: the trip shows with a status chip in words (for example "Next" or "To do"). No codes like PLANNED or SCAN_OUT.
 - Step 3: the button shows "Sending…" and ignores a second tap. Then the line just above it says "Not sent. Tap again.", with no extra Try again button. No pop-up box.
 - Step 4: one banner, "No connection" with "Try again"; Today's duty row says "Location paused", with no second strip.
@@ -12766,6 +13409,24 @@ Spec: UX_PRINCIPLES §10; UX_MOBILE §8.1, §8.2, §8.3, §8.4; UX_ADMIN §4.1, 
 
 Note: REF-025, REF-026, REF-027, REF-028, DAY-019, DAY-021 and DAY-022 check parts of this in detail.
 
+### UXQ-034 · A phone number never splits across two lines, in the apps or on the customer page
+
+**P3** · AUTO-UNIT · Inc 2 · Role: System
+
+Before: The apps' phone display (ui/keepTogether, formatPkPhone) and the customer page's call row.
+
+Steps:
+
+1. Format "0302 3334455" for the apps; render the customer page's call row.
+
+Expect:
+
+- Step 1: the apps join the halves with a no-break space and read the number back unchanged (search, paste and tel: are unaffected); the call row puts the number in \<span class="nw">…\</span> with .nw{white-space:nowrap}.
+
+Spec: UX_PRINCIPLES §5.1; CUSTOMER_PAGE §6 (call rows) · Test file: `apps/api/test/unit/rev23-call-row.spec.ts, apps/api/test/unit/ui/mobile-rev23-phone.spec.ts`
+
+Note: Regression case for review23 finding ux-11 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 ux-11 …". Before the fix "Bilal Khan · 0302 3334455" could wrap as "0302" / "3334455" at font 1.3, easy to misread or mistype.
+
 ## MIG · Migrations and data safety
 
 The migration baseline, the inc1a and inc1b migrations with their pre-checks and backfills, backups, and test/live separation. 19 cases: P1 17 · P2 2 · P3 0.
@@ -13227,7 +13888,7 @@ Expect:
 - Step 5: Ahmed Gas Rs 5,000 and Bilal Gas Rs 0 (with the red chip "Low"), and each wallet page shows the chip "History adds up".
 - Step 5: prices North "Set" (base Rs 250; per cylinder 6 kg Rs 30 · 11.8 kg Rs 40 · 15 kg Rs 80 · 45.4 kg Rs 150), South "Set" (Rs 400) and East "Not set".
 - Step 6: each app opens on its own home, with no "Wrong app" or "Update the app" screen. Shop: "Salam, Ahmed Gas", Balance Rs 5,000 and no "Being checked" row.
-- Step 6: drivers see "Nothing to do." and "New trips appear by themselves.", and the van rows read "LEA-101" / "No cylinders" and "LEB-202" / "No cylinders".
+- Step 6: drivers see "Nothing to do." and "New trips and refills appear by themselves.", and the van rows read "LEA-101" / "No cylinders" and "LEB-202" / "No cylinders".
 - Step 7: both cylinders are in Ahmed Gas Store, and the stock is 35 full: 20 × 11.8 kg, 10 × 15 kg and 5 × 45.4 kg.
 
 **GO / NO-GO:** GO only if every item matches. Otherwise stop and fix it before step 2.
@@ -13798,7 +14459,7 @@ Built from each case's "Spec" line.
 | ADR-10 | Wallet correction for genuine mistakes only | 9 | WAL-005, WAL-007, WAL-010, WAL-011, WAL-012, WAL-014, WAL-015, WAL-017, SET-002 |
 | ADR-11 | Opening balances | 3 | WAL-005, SET-002, MIG-003 |
 | ADR-12 | Manual assignment from the distributor's store | 18 | FND-001, FEE-001, FEE-019, ORD-011, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-011, ASG-012, OFF-009, DRV-041, DRV-044, SET-006, RHS-007 |
-| ADR-13 | Cylinder holder rules | 76 | SEC-020, FEE-027, ORD-015, ASG-006, DRV-002, DRV-003, DRV-004, DRV-010, DRV-011, DRV-012, DRV-013, DRV-015, DRV-018, DRV-019, DRV-020, DRV-021, DRV-024, DRV-025, DRV-026, DRV-027, DRV-028, DRV-029, DRV-030, DRV-031, DRV-032, DRV-033, DRV-034, DRV-036, DRV-038, DRV-040, DRV-042, DRV-044, DRV-047, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-006, HLD-007, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-014, HLD-016, HLD-017, HLD-018, HLD-019, STR-001, STR-002, STR-003, STR-004, STR-006, STR-007, STR-008, STR-009, STR-010, STR-012, STR-013, REF-014, REF-015, REF-016, REF-019, DAY-012, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015, RHS-017, RHS-018, RHS-020 |
+| ADR-13 | Cylinder holder rules | 78 | SEC-020, SEC-037, FEE-027, ORD-015, ASG-006, DRV-002, DRV-003, DRV-004, DRV-010, DRV-011, DRV-012, DRV-013, DRV-015, DRV-018, DRV-019, DRV-020, DRV-021, DRV-024, DRV-025, DRV-026, DRV-027, DRV-028, DRV-029, DRV-030, DRV-031, DRV-032, DRV-033, DRV-034, DRV-036, DRV-038, DRV-040, DRV-042, DRV-044, DRV-047, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-006, HLD-007, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-014, HLD-016, HLD-017, HLD-018, HLD-019, HLD-020, STR-001, STR-002, STR-003, STR-004, STR-006, STR-007, STR-008, STR-009, STR-010, STR-012, STR-013, REF-014, REF-015, REF-016, REF-019, DAY-012, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015, RHS-017, RHS-018, RHS-020 |
 | ADR-14 | Expenses | 17 | EXP-001, EXP-002, EXP-003, EXP-004, EXP-005, EXP-006, EXP-008, EXP-009, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015, EXP-016, EXP-017, EXP-018, MIG-004 |
 | ADR-15 | Customer confirmation is a record only, and optional | 31 | DRV-022, CNF-001, CNF-002, CNF-003, CNF-005, CNF-007, CNF-011, CNF-012, CNF-013, CNF-018, CNF-020, CNF-034, CNF-037, CNF-038, CNF-040, CNF-043, CNF-044, CNF-045, CAS-001, CAS-002, CAS-005, CAS-008, CAS-010, CAS-011, CAS-012, MSG-007, MSG-014, MSG-015, MSG-022, RHS-012, RHS-014 |
 | ADR-16 | Refills | 30 | FND-003, TOP-027, FEE-028, REF-001, REF-002, REF-003, REF-004, REF-005, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-022, REF-023, REF-024, REF-025, REF-026, REF-027, REF-028, RHS-016, RHS-017 |
@@ -13815,20 +14476,20 @@ Built from each case's "Spec" line.
 | Section | Title | Cases | Case IDs |
 |---|---|---:|---|
 | §1.1 | Money, time, numbers | 19 | FND-001, FND-005, FND-024, FND-025, FND-026, FND-027, FND-028, FND-029, WAL-001, WAL-012, WAL-019, TOP-003, TOP-028, PRC-004, FEE-024, CUS-001, EXP-006, DRV-032, REF-013 |
-| §1.2 | Headers | 12 | FND-001, FND-005, FND-010, FND-035, SEC-006, SEC-018, WAL-013, TOP-007, FEE-005, CUS-003, ORD-004, MSG-008 |
-| §1.3 | Lists | 11 | FND-012, FND-036, FND-038, WAL-008, WAL-019, CUS-001, ORD-009, ORD-010, ORD-016, EXP-011, OFF-010 |
+| §1.2 | Headers | 13 | FND-001, FND-005, FND-010, FND-035, FND-042, SEC-006, SEC-018, WAL-013, TOP-007, FEE-005, CUS-003, ORD-004, MSG-008 |
+| §1.3 | Lists | 13 | FND-012, FND-036, FND-038, WAL-008, WAL-019, CUS-001, ORD-009, ORD-010, ORD-016, EXP-011, OFF-010, REF-032, REF-033 |
 | §1.4 | Words the server derives | 15 | FND-030, WAL-005, WAL-006, TOP-002, TOP-011, FEE-001, ORD-001, ORD-005, ORD-008, ASG-005, ASG-009, DRV-016, REF-001, DAY-001, MIG-003 |
 | §1.5 | Reason code lists | 13 | WAL-012, TOP-012, TOP-021, TOP-024, FEE-012, FEE-017, FEE-020, FEE-027, ORD-007, ORD-012, DRV-007, DRV-009, DRV-029 |
 | §1.6 | allowedActions | 7 | SEC-031, TOP-013, FEE-016, FEE-029, ORD-007, ORD-011, ASG-012 |
 | §2.1 | Envelope | 16 | FND-005, FND-006, FND-007, FND-008, FND-009, FND-019, FND-023, SEC-002, SEC-004, FEE-002, CUS-002, ORD-016, CNF-023, CNF-028, REF-030, UXQ-013 |
-| §2.2 | Mapping | 14 | FND-005, FND-006, FND-007, FND-038, FND-039, FND-041, WAL-012, PRC-004, ORD-012, ORD-020, EXP-006, DRV-002, CAS-006, MIG-014 |
-| §2.3 | Catalogue | 91 | FND-002, FND-003, FND-004, FND-007, FND-008, FND-016, FND-020, SEC-002, SEC-003, SEC-006, SEC-007, SEC-009, SEC-023, SEC-024, SEC-025, WAL-007, WAL-011, WAL-012, TOP-001, TOP-003, TOP-004, TOP-005, TOP-006, TOP-016, TOP-017, TOP-018, TOP-025, PRC-004, PRC-009, PRC-011, PRC-014, FEE-002, FEE-004, FEE-014, FEE-016, CUS-002, CUS-008, CUS-011, ORD-002, ASG-003, EXP-002, EXP-004, EXP-006, EXP-007, OFF-001, OFF-005, OFF-013, OFF-014, OFF-015, DRV-004, DRV-011, DRV-012, DRV-016, DRV-019, DRV-029, DRV-033, DRV-038, DRV-040, DRV-041, DRV-042, HLD-009, HLD-018, STR-004, STR-011, CNF-002, CNF-006, CNF-014, CNF-017, CNF-047, CAS-007, MSG-009, MSG-012, REF-002, REF-005, REF-012, REF-015, REF-024, REF-030, REF-031, DAY-004, DAY-005, DAY-006, DAY-008, DAY-010, DAY-013, DAY-014, DAY-020, SET-004, UXQ-013, UXQ-015, UXQ-026 |
+| §2.2 | Mapping | 16 | FND-005, FND-006, FND-007, FND-038, FND-039, FND-041, FND-043, WAL-012, PRC-004, ORD-012, ORD-020, EXP-006, DRV-002, CNF-048, CAS-006, MIG-014 |
+| §2.3 | Catalogue | 92 | FND-002, FND-003, FND-004, FND-007, FND-008, FND-016, FND-020, SEC-002, SEC-003, SEC-006, SEC-007, SEC-009, SEC-023, SEC-024, SEC-025, WAL-007, WAL-011, WAL-012, TOP-001, TOP-003, TOP-004, TOP-005, TOP-006, TOP-016, TOP-017, TOP-018, TOP-025, PRC-004, PRC-009, PRC-011, PRC-014, FEE-002, FEE-004, FEE-014, FEE-016, CUS-002, CUS-008, CUS-011, ORD-002, ASG-003, EXP-002, EXP-004, EXP-006, EXP-007, OFF-001, OFF-005, OFF-013, OFF-014, OFF-015, DRV-004, DRV-011, DRV-012, DRV-016, DRV-019, DRV-029, DRV-033, DRV-038, DRV-040, DRV-041, DRV-042, HLD-009, HLD-018, HLD-020, STR-004, STR-011, CNF-002, CNF-006, CNF-014, CNF-017, CNF-047, CAS-007, MSG-009, MSG-012, REF-002, REF-005, REF-012, REF-015, REF-024, REF-030, REF-031, DAY-004, DAY-005, DAY-006, DAY-008, DAY-010, DAY-013, DAY-014, DAY-020, SET-004, UXQ-013, UXQ-015, UXQ-026 |
 | §3.1 | Roles | 28 | FND-014, SEC-004, SEC-005, SEC-008, SEC-011, SEC-012, SEC-022, SEC-023, WAL-007, TOP-008, PRC-007, FEE-011, FEE-012, CUS-010, ORD-010, ASG-003, EXP-013, DRV-001, DRV-005, DRV-047, HLD-006, STR-006, CAS-009, REF-005, REF-018, REF-023, DAY-016, SET-001 |
-| §3.2 | Ownership policies | 33 | FND-017, FND-022, SEC-013, SEC-014, SEC-031, SEC-033, WAL-007, TOP-008, PRC-007, FEE-012, CUS-002, CUS-009, CUS-010, CUS-013, ORD-006, ORD-009, ASG-004, ASG-008, DRV-005, DRV-047, HLD-015, STR-005, CNF-040, CNF-041, CAS-009, REF-006, REF-011, REF-018, DAY-005, DAY-007, DAY-016, SET-012, RHS-006 |
+| §3.2 | Ownership policies | 34 | FND-017, FND-022, SEC-013, SEC-014, SEC-031, SEC-033, WAL-007, TOP-008, PRC-007, FEE-012, CUS-002, CUS-009, CUS-010, CUS-013, ORD-006, ORD-009, ASG-004, ASG-008, DRV-005, DRV-047, DRV-055, HLD-015, STR-005, CNF-040, CNF-041, CAS-009, REF-006, REF-011, REF-018, DAY-005, DAY-007, DAY-016, SET-012, RHS-006 |
 | §3.3 | Sessions | 16 | SEC-001, SEC-003, SEC-005, SEC-009, SEC-010, SEC-015, SEC-023, SEC-024, SEC-026, SEC-032, SEC-033, SEC-034, OFF-006, OFF-014, OFF-016, OFF-018 |
 | §3.4 | Feature switches | 8 | FND-012, SEC-020, SEC-035, EXP-018, OFF-012, HLD-002, CNF-002, DAY-018 |
 | §3.5 | Secrets never leave | 13 | SEC-001, SEC-017, SEC-025, SEC-026, SEC-027, ORD-009, OFF-004, OFF-013, OFF-015, HLD-014, CNF-042, REF-006, SET-006 |
-| §3.6 | Rate limits | 4 | FND-040, SEC-007, EXP-007, CNF-026 |
+| §3.6 | Rate limits | 6 | FND-040, SEC-007, SEC-038, EXP-007, CNF-026, MSG-023 |
 | §3.7 | Boot guards | 9 | SEC-018, SEC-019, SEC-036, TOP-025, CNF-030, SET-011, MIG-011, MIG-013, MIG-017 |
 | §4 | Atomic and idempotent patterns | 42 | FND-012, FND-014, FND-019, FND-020, FND-021, FND-022, FND-037, SEC-024, WAL-018, TOP-030, PRC-018, FEE-026, CUS-003, CUS-012, ORD-004, ORD-014, ORD-015, ORD-019, ASG-006, ASG-007, EXP-009, EXP-010, OFF-004, DRV-007, DRV-015, DRV-020, DRV-022, HLD-004, HLD-010, HLD-019, STR-003, CNF-004, CNF-018, CAS-004, CAS-007, MSG-004, MSG-008, REF-007, REF-008, REF-011, REF-021, UXQ-010 |
 | §4.1 | Atomic and idempotent patterns: State guard | 10 | WAL-014, WAL-017, TOP-020, PRC-006, FEE-006, FEE-010, FEE-015, REF-016, REF-023, DAY-011 |
@@ -13844,19 +14505,19 @@ Built from each case's "Spec" line.
 | §5.7 | PaymentProvider and TopupService | 2 | TOP-001, TOP-025 |
 | §5.8 | FilesService | 6 | FND-015, FND-017, FND-018, TOP-004, TOP-008, EXP-007 |
 | §5.9 | Inc 2 interfaces | 7 | DRV-002, HLD-002, STR-007, CNF-037, CNF-038, MSG-001, REF-014 |
-| §6 | Settings registry | 47 | FND-001, FND-002, FND-003, FND-004, FND-010, FND-011, FND-029, SEC-004, SEC-005, SEC-008, SEC-020, WAL-004, WAL-022, TOP-001, TOP-003, TOP-005, TOP-006, TOP-011, TOP-018, TOP-023, TOP-027, TOP-028, FEE-022, ORD-002, ORD-016, ASG-001, EXP-018, OFF-008, OFF-009, DRV-033, DRV-034, DRV-039, HLD-017, CNF-001, CNF-002, CNF-021, CNF-030, CNF-045, CAS-002, MSG-003, REF-003, REF-004, DAY-017, DAY-018, UXQ-014, MIG-013, RHS-001 |
+| §6 | Settings registry | 49 | FND-001, FND-002, FND-003, FND-004, FND-010, FND-011, FND-029, FND-042, FND-044, SEC-004, SEC-005, SEC-008, SEC-020, WAL-004, WAL-022, TOP-001, TOP-003, TOP-005, TOP-006, TOP-011, TOP-018, TOP-023, TOP-027, TOP-028, FEE-022, ORD-002, ORD-016, ASG-001, EXP-018, OFF-008, OFF-009, DRV-033, DRV-034, DRV-039, HLD-017, CNF-001, CNF-002, CNF-021, CNF-030, CNF-045, CAS-002, MSG-003, REF-003, REF-004, DAY-017, DAY-018, UXQ-014, MIG-013, RHS-001 |
 | §7 | Increment 1 endpoints | 1 | ORD-011 |
 | §7.1 | App and auth | 18 | FND-001, FND-031, FND-035, SEC-001, SEC-002, SEC-003, SEC-004, SEC-005, SEC-006, SEC-007, SEC-008, SEC-009, SEC-010, SEC-033, OFF-001, SET-001, UXQ-013, UXQ-015 |
 | §7.2 | Safety table for existing routes | 46 | FND-023, FND-035, SEC-001, SEC-003, SEC-010, SEC-011, SEC-012, SEC-016, SEC-017, SEC-020, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, SEC-028, SEC-029, SEC-033, SEC-034, TOP-025, PRC-017, CUS-004, CUS-005, CUS-011, ASG-001, ASG-003, EXP-018, OFF-006, OFF-007, OFF-015, OFF-016, OFF-017, DRV-040, DRV-048, HLD-002, HLD-015, HLD-016, CAS-009, REF-004, REF-012, REF-031, SET-003, SET-004, SET-006, SET-012, MIG-016 |
 | §7.3 | Distributors and their one store | 13 | FND-031, SEC-003, SEC-011, WAL-001, WAL-002, OFF-004, OFF-005, OFF-006, OFF-007, OFF-013, OFF-014, OFF-017, SET-005 |
 | §7.4 | Customers | 22 | FND-031, SEC-011, PRC-005, PRC-009, CUS-001, CUS-002, CUS-003, CUS-005, CUS-006, CUS-007, CUS-008, CUS-009, CUS-010, CUS-012, CUS-014, ORD-016, MSG-011, MSG-013, SET-006, SET-012, MIG-005, RHS-004 |
 | §7.5 | Delivery prices and quotes | 27 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-018, FEE-007, FEE-008, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, RHS-004 |
-| §7.6 | Orders | 90 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
+| §7.6 | Orders | 91 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, HLD-020, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
 | §7.7 | Trips and the legacy scan route | 17 | SEC-011, SEC-035, FEE-013, FEE-015, FEE-021, ASG-005, ASG-006, ASG-008, ASG-009, ASG-012, DRV-001, DRV-002, DRV-003, DRV-004, HLD-002, HLD-008, HLD-019 |
 | §7.8 | Wallet | 23 | FND-012, FND-014, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, WAL-004, WAL-005, WAL-006, WAL-007, WAL-008, WAL-009, WAL-010, WAL-011, WAL-012, WAL-013, WAL-017, WAL-019, WAL-022, WAL-023, WAL-024, SET-002 |
 | §7.9 | Top-ups | 39 | FND-003, FND-004, FND-018, FND-020, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, TOP-001, TOP-002, TOP-003, TOP-004, TOP-005, TOP-006, TOP-007, TOP-008, TOP-009, TOP-011, TOP-013, TOP-014, TOP-015, TOP-016, TOP-017, TOP-018, TOP-019, TOP-020, TOP-021, TOP-022, TOP-023, TOP-024, TOP-026, TOP-028, TOP-029, TOP-030, FEE-024, SET-005, RHS-002, RHS-003 |
 | §7.10 | Files | 9 | FND-015, FND-016, FND-017, FND-018, FND-035, TOP-008, TOP-009, EXP-005, EXP-007 |
-| §7.11 | Refills | 13 | SEC-011, REF-001, REF-002, REF-003, REF-005, REF-006, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, RHS-016 |
+| §7.11 | Refills | 17 | FND-044, SEC-011, HLD-020, REF-001, REF-002, REF-003, REF-005, REF-006, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, REF-032, REF-033, RHS-016 |
 | §7.12 | Expenses | 22 | FND-020, SEC-012, WAL-024, EXP-001, EXP-002, EXP-003, EXP-004, EXP-005, EXP-006, EXP-007, EXP-008, EXP-009, EXP-010, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015, EXP-016, EXP-017, EXP-018, MIG-004 |
 | §7.13 | Settings, audit, admin summary, reports | 23 | FND-002, FND-003, FND-013, FND-029, SEC-012, TOP-003, TOP-027, TOP-028, FEE-022, FEE-024, OFF-002, OFF-003, OFF-008, OFF-009, OFF-010, OFF-011, CNF-021, CNF-045, CAS-002, REF-003, REF-004, DAY-017, RHS-019 |
 | §7.14 | Socket /drivers | 5 | SEC-015, SEC-016, SEC-032, SEC-034, OFF-018 |
@@ -13864,24 +14525,26 @@ Built from each case's "Spec" line.
 | §8.2 | Top-up | 7 | TOP-002, TOP-012, TOP-015, TOP-019, TOP-020, TOP-021, RHS-003 |
 | §8.3 | Trip and stop | 9 | FEE-009, ORD-014, ASG-002, ASG-004, ASG-005, ASG-007, ASG-009, ASG-010, DRV-003 |
 | §8.4 | Refill | 4 | REF-001, REF-007, REF-008, REF-011 |
-| §8.5 | Jobs and switch-over | 24 | FND-004, FND-033, SEC-022, SEC-033, SEC-035, SEC-036, WAL-016, WAL-020, WAL-023, ORD-017, ASG-001, DRV-043, REF-029, SET-001, SET-002, MIG-003, MIG-006, MIG-012, MIG-015, MIG-016, MIG-017, MIG-018, MIG-019, RHS-020 |
+| §8.5 | Jobs and switch-over | 26 | FND-004, FND-033, FND-044, SEC-022, SEC-033, SEC-035, SEC-036, WAL-016, WAL-020, WAL-023, WAL-026, ORD-017, ASG-001, DRV-043, REF-029, SET-001, SET-002, MIG-003, MIG-006, MIG-012, MIG-015, MIG-016, MIG-017, MIG-018, MIG-019, RHS-020 |
 | §8.6 | Contract tests that gate Inc 1 | 40 | FND-008, FND-021, SEC-004, SEC-008, SEC-010, SEC-012, SEC-015, SEC-016, SEC-017, SEC-032, WAL-016, WAL-018, WAL-020, TOP-017, TOP-018, TOP-019, TOP-020, TOP-025, PRC-003, PRC-009, PRC-011, FEE-002, FEE-005, FEE-006, FEE-010, FEE-013, FEE-014, FEE-015, FEE-019, FEE-020, CUS-010, ORD-014, ASG-008, EXP-014, DRV-001, DRV-005, DRV-015, REF-008, REF-030, MIG-019 |
-| §9.2 | Holder rules | 52 | FEE-027, DRV-010, DRV-011, DRV-012, DRV-013, DRV-014, DRV-018, DRV-019, DRV-020, DRV-024, DRV-026, DRV-027, DRV-028, DRV-029, DRV-032, DRV-033, DRV-036, DRV-037, DRV-039, DRV-044, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-016, STR-001, STR-002, STR-003, STR-004, STR-005, STR-007, STR-009, REF-014, REF-016, REF-018, REF-020, REF-021, REF-022, DAY-015, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015 |
-| §9.3 | Driver endpoints | 34 | FEE-027, ORD-019, ASG-009, DRV-010, DRV-011, DRV-013, DRV-016, DRV-018, DRV-019, DRV-021, DRV-022, DRV-023, DRV-026, DRV-029, DRV-030, DRV-037, DRV-038, DRV-039, DRV-042, DRV-045, DRV-047, DRV-049, HLD-011, STR-007, STR-008, STR-009, CNF-001, CNF-003, CNF-004, CNF-040, MSG-004, RHS-009, RHS-011, RHS-013 |
-| §9.4 | Store endpoints | 21 | CUS-013, ASG-012, DRV-032, HLD-001, HLD-013, HLD-014, HLD-015, STR-001, STR-002, STR-005, STR-006, STR-008, STR-012, CAS-009, CAS-012, MSG-011, REF-018, REF-021, SET-012, RHS-013, RHS-015 |
-| §9.5 | Office endpoints | 15 | ORD-015, ORD-019, ASG-009, ASG-010, DRV-040, DRV-041, DRV-044, HLD-004, HLD-005, HLD-006, HLD-016, HLD-018, CNF-005, SET-007, RHS-007 |
+| §9.2 | Holder rules | 54 | FEE-027, DRV-010, DRV-011, DRV-012, DRV-013, DRV-014, DRV-018, DRV-019, DRV-020, DRV-024, DRV-026, DRV-027, DRV-028, DRV-029, DRV-032, DRV-033, DRV-036, DRV-037, DRV-039, DRV-044, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-016, HLD-022, HLD-023, STR-001, STR-002, STR-003, STR-004, STR-005, STR-007, STR-009, REF-014, REF-016, REF-018, REF-020, REF-021, REF-022, DAY-015, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015 |
+| §9.3 | Driver endpoints | 37 | FEE-027, ORD-019, ASG-009, DRV-010, DRV-011, DRV-013, DRV-016, DRV-018, DRV-019, DRV-021, DRV-022, DRV-023, DRV-026, DRV-029, DRV-030, DRV-037, DRV-038, DRV-039, DRV-042, DRV-045, DRV-047, DRV-049, DRV-055, HLD-011, HLD-021, HLD-023, STR-007, STR-008, STR-009, CNF-001, CNF-003, CNF-004, CNF-040, MSG-004, RHS-009, RHS-011, RHS-013 |
+| §9.4 | Store endpoints | 24 | CUS-013, ASG-012, DRV-032, HLD-001, HLD-013, HLD-014, HLD-015, HLD-022, HLD-023, HLD-024, STR-001, STR-002, STR-005, STR-006, STR-008, STR-012, CAS-009, CAS-012, MSG-011, REF-018, REF-021, SET-012, RHS-013, RHS-015 |
+| §9.5 | Office endpoints | 17 | SEC-037, ORD-015, ORD-019, ASG-009, ASG-010, DRV-040, DRV-041, DRV-044, HLD-004, HLD-005, HLD-006, HLD-016, HLD-018, HLD-020, CNF-005, SET-007, RHS-007 |
 | §9.6 | Cases | 12 | CAS-001, CAS-003, CAS-005, CAS-006, CAS-007, CAS-008, CAS-009, CAS-010, CAS-011, CAS-012, CAS-013, RHS-012 |
-| §9.7 | Confirmation | 15 | CNF-001, CNF-002, CNF-003, CNF-006, CNF-013, CNF-022, CNF-040, CNF-041, CNF-042, MSG-007, MSG-009, MSG-010, MSG-012, MSG-014, RHS-012 |
+| §9.7 | Confirmation | 16 | CNF-001, CNF-002, CNF-003, CNF-006, CNF-013, CNF-022, CNF-040, CNF-041, CNF-042, MSG-007, MSG-009, MSG-010, MSG-012, MSG-014, MSG-023, RHS-012 |
 | §9.8 | State machines | 15 | FEE-027, ASG-010, DRV-008, DRV-015, DRV-016, DRV-022, DRV-038, STR-008, CNF-005, CNF-013, CNF-018, CNF-019, CNF-020, CNF-037, RHS-010 |
-| §9.9 | Jobs | 3 | FND-033, DRV-043, CNF-020 |
+| §9.9 | Jobs | 6 | FND-033, DRV-043, DRV-056, HLD-023, HLD-025, CNF-020 |
 | §9.10 | Legacy routes in Inc 2 | 4 | ASG-009, ASG-012, DRV-023, DRV-024 |
 | §9.11 | Contract tests that gate Inc 2 | 18 | FEE-027, DRV-011, DRV-014, DRV-020, DRV-021, DRV-027, DRV-038, HLD-003, HLD-012, CNF-012, CNF-017, CNF-018, CNF-037, CNF-040, CAS-001, CAS-003, CAS-008, MSG-003 |
-| §9.12 | As built | 1 | ORD-014 |
+| §9.12 | As built | 5 | ORD-014, DRV-056, DRV-058, HLD-021, CNF-049 |
+| §9.13 | Read additions for the Inc 2/3 screens | 2 | DRV-058, HLD-021 |
 | §10.1 | Refills on QR scans | 16 | FEE-028, REF-008, REF-013, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-021, REF-022, REF-023, REF-024, RHS-016, RHS-017 |
-| §10.2 | Day-end | 23 | FEE-028, DAY-001, DAY-002, DAY-003, DAY-004, DAY-005, DAY-006, DAY-007, DAY-008, DAY-009, DAY-010, DAY-011, DAY-012, DAY-013, DAY-014, DAY-015, DAY-016, DAY-017, DAY-019, DAY-021, RHS-018, RHS-019, RHS-020 |
-| §10.3 | Pilot setup and reset CLI | 11 | SET-003, SET-004, SET-005, SET-006, SET-007, SET-008, SET-009, SET-010, SET-011, MIG-011, RHS-001 |
+| §10.2 | Day-end | 27 | FEE-028, HLD-022, DAY-001, DAY-002, DAY-003, DAY-004, DAY-005, DAY-006, DAY-007, DAY-008, DAY-009, DAY-010, DAY-011, DAY-012, DAY-013, DAY-014, DAY-015, DAY-016, DAY-017, DAY-019, DAY-021, DAY-023, DAY-024, DAY-026, RHS-018, RHS-019, RHS-020 |
+| §10.3 | Pilot setup and reset CLI | 12 | SET-003, SET-004, SET-005, SET-006, SET-007, SET-008, SET-009, SET-010, SET-011, SET-013, MIG-011, RHS-001 |
 | §10.4 | Retirements and tests | 7 | FEE-028, REF-016, REF-019, REF-020, REF-031, DAY-012, SET-012 |
-| Appendix A | Compatibility for the installed APKs | 25 | FND-008, FND-010, FND-012, SEC-001, SEC-002, SEC-004, SEC-006, SEC-008, SEC-015, SEC-020, SEC-025, SEC-031, SEC-035, WAL-019, TOP-026, PRC-014, ORD-009, ORD-014, ORD-016, ASG-008, DRV-023, DRV-024, DRV-049, REF-002, REF-024 |
+| §10.5 | As built | 8 | SEC-038, HLD-023, HLD-025, REF-032, DAY-023, DAY-024, DAY-025, SET-013 |
+| Appendix A | Compatibility for the installed APKs | 26 | FND-008, FND-010, FND-012, FND-044, SEC-001, SEC-002, SEC-004, SEC-006, SEC-008, SEC-015, SEC-020, SEC-025, SEC-031, SEC-035, WAL-019, TOP-026, PRC-014, ORD-009, ORD-014, ORD-016, ASG-008, DRV-023, DRV-024, DRV-049, REF-002, REF-024 |
 | Appendix B | Audit actions | 66 | FND-002, FND-004, FND-014, SEC-003, SEC-005, SEC-010, SEC-022, SEC-023, SEC-026, SEC-027, WAL-004, WAL-010, TOP-002, TOP-015, TOP-021, PRC-002, PRC-005, FEE-001, FEE-009, FEE-011, FEE-022, CUS-013, ORD-001, ORD-012, ORD-013, ORD-015, EXP-002, EXP-003, EXP-005, EXP-008, EXP-009, OFF-006, OFF-008, OFF-011, OFF-014, OFF-015, OFF-016, OFF-017, DRV-007, DRV-032, DRV-039, DRV-040, HLD-004, HLD-016, CNF-021, CNF-022, CNF-039, CAS-002, CAS-005, CAS-007, MSG-010, MSG-011, REF-003, REF-007, REF-020, REF-023, DAY-008, DAY-009, DAY-013, DAY-014, SET-001, SET-005, SET-007, SET-009, MIG-003, MIG-005 |
 
 ## Spec questions and how they were settled

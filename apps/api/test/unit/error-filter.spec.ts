@@ -20,10 +20,15 @@ interface FakeResponse {
   headersSent: boolean;
   statusCode?: number;
   body?: Record<string, any>;
+  /** What `send` got: the customer page's HTML. */
+  html?: string;
+  contentType?: string;
   headers: Record<string, string>;
   setHeader: jest.Mock;
   status: jest.Mock;
   json: jest.Mock;
+  type: jest.Mock;
+  send: jest.Mock;
   end: jest.Mock;
 }
 
@@ -38,6 +43,14 @@ function fakeResponse(): FakeResponse {
   });
   res.json = jest.fn((body: Record<string, any>) => {
     res.body = body;
+    return res;
+  });
+  res.type = jest.fn((type: string) => {
+    res.contentType = type;
+    return res;
+  });
+  res.send = jest.fn((html: string) => {
+    res.html = html;
     return res;
   });
   res.end = jest.fn();
@@ -143,15 +156,46 @@ describe('GlobalExceptionFilter (API_CONTRACT §2.1)', () => {
   });
 
   it('redacts confirmation tokens and drops the query string from path', () => {
-    const res = render(new AppError('CONFIRM_LINK_INVALID'), {
-      url: '/c/k3jx9q2mz8?l=en',
-      originalUrl: '/c/k3jx9q2mz8?l=en',
+    // A link token under the API prefix is an unknown API path: JSON, its token redacted (CNF-028).
+    const res = render(new AppError('NOT_FOUND'), {
+      url: '/api/v1/c/k3jx9q2mz8?l=en',
+      originalUrl: '/api/v1/c/k3jx9q2mz8?l=en',
       headers: {},
     });
-    expect(res.body?.path).toBe('/c/[token]');
+    expect(res.body?.path).toBe('/api/v1/c/[token]');
+    expect(buildErrorEnvelope({ code: 'NOT_FOUND', details: {} }, 'rid-00000001', '/C/K3JX9Q2MZ8?l=en').path).toBe('/c/[token]');
     expect(
       buildErrorEnvelope({ code: 'NOT_FOUND', details: {} }, 'rid-00000001', '/api/v1/orders?token=abc').path,
     ).toBe('/api/v1/orders');
+  });
+
+  it("REV23 robustness-jobs-09 an error on the link page's own paths is drawn as the page, never JSON, echoing nothing", () => {
+    // http-errors is what body-parser and Express's router build their refusals with; Nest turns broken JSON
+    // (a SyntaxError) into a BadRequestException before the filter.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const createError = require('http-errors') as (status: number, message: string, props?: Record<string, unknown>) => Error;
+    for (const [exception, status] of [
+      [new BadRequestException('Unexpected end of JSON input'), 404],
+      [createError(413, 'request entity too large', { type: 'entity.too.large' }), 404],
+      [createError(415, 'unsupported charset "FOO"', { type: 'charset.unsupported' }), 404],
+      [createError(400, "Failed to decode param '%E0%A4%A'"), 404],
+      [new Error('database is down'), 500],
+    ] as const) {
+      for (const url of ['/c/k3jx9q2mz8?l=en', '/C/K3JX9Q2MZ8', '/c']) {
+        const res = render(exception, { url, originalUrl: url, method: 'POST', headers: {} });
+        expect({ url, status: res.statusCode, json: res.json.mock.calls.length, type: res.contentType, noStore: res.headers['Cache-Control'] }).toEqual({
+          url,
+          status,
+          json: 0,
+          type: 'html',
+          noStore: 'no-store',
+        });
+        expect(res.html).toMatch(/^<!doctype html>/);
+        expect(res.html).not.toMatch(/k3jx9q2mz8/i);
+      }
+    }
+    // The API's own paths keep the JSON envelope.
+    expect(render(new AppError('NOT_FOUND'), { url: '/api/v1/clients', originalUrl: '/api/v1/clients', headers: {} }).body?.code).toBe('NOT_FOUND');
   });
 
   it("uses the client's X-Request-Id outside a request context, or makes one", () => {

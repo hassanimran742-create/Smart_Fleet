@@ -27,8 +27,8 @@ import {
   isTripOpen,
   stepPosition,
   storeNameOf,
+  tripVanLeftOf,
   unloadGroupCounts,
-  vanTotalOf,
   type TripDetail,
   type UnloadGroup,
 } from './tripModel';
@@ -79,7 +79,7 @@ interface UnloadRow extends VanLeftoverCylinder {
  */
 function useUnloadProgress(trip: TripDetail | undefined): { done: number; total: number; rows: UnloadRow[] | null } {
   const tripId = trip?.id ?? '';
-  const onVan = trip ? vanTotalOf(trip) : 0;
+  const onVan = trip ? tripVanLeftOf(trip) : 0;
   const cylinders = trip?.van?.cylinders;
   const unloading = Boolean(trip && isTripOpen(trip) && !hasOpenStop(trip));
   useEffect(() => {
@@ -132,7 +132,9 @@ export function UnloadScreen() {
 
   const backToTrip = () => navigation.navigate('Trip', { tripId });
   const notFound = data === undefined && trip.isError && toApiError(trip.error).code === 'NOT_FOUND';
-  const left = data ? vanTotalOf(data) : 0;
+  // What the trip still has to unload (its van list, the one "Finish trip" refuses on): a refill cylinder
+  // or another run's delivery on the same van never keeps "Finish trip" outlined (holder-scans-04).
+  const left = data ? tripVanLeftOf(data) : 0;
   // "The store must scan in 5 more…" is old once the shop has scanned one in.
   const clearFinishError = finish.clearError;
   useEffect(() => {

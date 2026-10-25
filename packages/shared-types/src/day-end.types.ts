@@ -125,8 +125,13 @@ export const DAY_SHEET_LIMITS = {
   maxMb: 2,
   /** The workbook unzipped: at most 20 MB, else 422 DAY_SHEET_UNREADABLE. */
   maxUnzippedBytes: 20 * 1024 * 1024,
-  /** Rows on any one sheet, else 422 DAY_SHEET_UNREADABLE. */
+  /** Rows on any one sheet (no row numbered past it), else 422 DAY_SHEET_UNREADABLE. */
   maxRowsPerSheet: 20_000,
+  /**
+   * Cells in the whole workbook, else 422 DAY_SHEET_UNREADABLE, checked before the workbook is read (with
+   * the sheet's other shape limits, API_CONTRACT §10.5). 20,000 rows of the sheet's 7 and 3 columns.
+   */
+  maxCells: 200_000,
   /** DAY_SHEET_ROW_ERRORS lists at most this many rows (`total` counts them all). */
   maxListedRowErrors: 100,
   /** "Why different" on a differing row: at least 3 characters after cleaning, cut to 200. */

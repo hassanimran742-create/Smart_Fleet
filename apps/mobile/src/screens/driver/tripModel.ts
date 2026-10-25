@@ -77,9 +77,16 @@ export function deliveryOf(stop: TripStop | null): DeliveryProgress | null {
   return stop?.progress?.type === 'DELIVERY' ? stop.progress : null;
 }
 
-/** What is on the van now (the server's count); 0 with no van. */
-export function vanTotalOf(trip: Pick<TripDetail, 'van'>): number {
-  return trip.van?.total ?? 0;
+/**
+ * What this trip still has to unload: the van's cylinders from the trip's point of view (`van.cylinders`,
+ * the list "Finish trip" refuses on, API_CONTRACT §9.13). A refill's cylinder, another open run's delivery
+ * on the same van, or a cylinder marked lost on the van isn't the trip's, so it never keeps the trip on
+ * Unload (review23 holder-scans-02, holder-scans-04). An older server without the list: the van's total.
+ * Today's van row and My van keep showing everything on the van (`van.total`, `GET /inventory/my-vehicle`).
+ */
+export function tripVanLeftOf(trip: Pick<TripDetail, 'van'>): number {
+  if (!trip.van) return 0;
+  return Array.isArray(trip.van.cylinders) ? trip.van.cylinders.length : trip.van.total;
 }
 
 /** True while a stop of the trip (the load or a visit) is still open. */
@@ -124,7 +131,7 @@ export const STEP_ICON: Record<StepKind, IconName> = { LOAD: 'van', DELIVER: 'cu
  * - planned: start the trip;
  * - the load is open: load (a trip is finished only once every stop is closed);
  * - a customer still waits: deliver to the first one, in trip order;
- * - nothing left to visit: unload while the van holds cylinders, else finish the trip;
+ * - nothing left to visit: unload while the trip's van list holds cylinders, else finish the trip;
  * - closed: nothing to do.
  */
 export type NextStep =
@@ -142,7 +149,7 @@ export function nextStep(trip: TripDetail): NextStep {
   if (load && isStopOpen(load)) return { kind: 'LOAD', stop: load };
   const delivery = deliveryStops(trip).find((stop) => isStopOpen(stop));
   if (delivery) return { kind: 'DELIVER', stop: delivery };
-  return vanTotalOf(trip) > 0 ? { kind: 'UNLOAD' } : { kind: 'FINISH' };
+  return tripVanLeftOf(trip) > 0 ? { kind: 'UNLOAD' } : { kind: 'FINISH' };
 }
 
 /** The stop the "Next" chip points at: the first step of a planned trip, else the next step's stop. */
@@ -169,12 +176,12 @@ export function stopStepState(trip: TripDetail, stop: TripStop): DriverStepState
   return nextStopId(trip) === stop.id ? 'NEXT' : 'TO_DO';
 }
 
-/** The Unload step's chip: To do while a stop is open, Next while the van holds cylinders, then Done. */
+/** The Unload step's chip: To do while a stop is open, Next while the trip's van list has cylinders, then Done. */
 export function unloadStepState(trip: TripDetail): DriverStepState {
   if (trip.status === 'COMPLETED') return 'DONE';
   if (!isTripOpen(trip)) return 'CANCELLED';
   if (trip.status === 'PLANNED' || hasOpenStop(trip)) return 'TO_DO';
-  return vanTotalOf(trip) > 0 ? 'NEXT' : 'DONE';
+  return tripVanLeftOf(trip) > 0 ? 'NEXT' : 'DONE';
 }
 
 /** A trip's chip on Today: In progress, Next (the trip to do now) or To do. */

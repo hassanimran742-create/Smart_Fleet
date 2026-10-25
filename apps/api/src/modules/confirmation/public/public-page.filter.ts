@@ -52,6 +52,35 @@ export function pageForError(code: ErrorCode | 'INTERNAL_ERROR', context: PageCo
   };
 }
 
+/** True for a path the public link page serves: `/c` and `/c/…` (Express matches it in any letter case). */
+export function isPublicPagePath(url: string | undefined): boolean {
+  return /^\/c(?:\/|$)/i.test((url ?? '').split(/[?#]/)[0]);
+}
+
+/**
+ * [review23 robustness-jobs-09] The page for an error that came before the page's own controller ran: the
+ * body parser's refusals (broken JSON, an unknown charset, a body over the page's limit, too many fields)
+ * and a path the URI decoder can't read. The global filter hands them here, so they too are a page with
+ * the §4 headers, never JSON (CUSTOMER_PAGE §5). Nothing about the link is known yet, and nothing of the
+ * request is echoed: throttling draws the too-many page, any other client error the not-found page, and a
+ * server fault the error page.
+ */
+export function sendPublicPageError(res: Response, error: { code: ErrorCode; status: number }, retryAfterSeconds?: number): void {
+  const context: PageContext = {
+    ip: '',
+    token: null,
+    step: null,
+    link: null,
+    form: null,
+    supportPhone: null,
+    frame: { environment: appEnvironment() },
+    retryAfterSeconds,
+  };
+  const drawn: ErrorCode = error.code === 'RATE_LIMITED' ? 'RATE_LIMITED' : error.status < 500 ? 'CONFIRM_LINK_INVALID' : 'INTERNAL_ERROR';
+  const page = pageForError(drawn, context);
+  sendPage(res, page.status, page.html, page.headers);
+}
+
 /**
  * The public link page's error filter (CUSTOMER_PAGE §5): every error, throttling included, becomes an
  * HTML page with the code's status, never JSON and never echoing the URL or the token:

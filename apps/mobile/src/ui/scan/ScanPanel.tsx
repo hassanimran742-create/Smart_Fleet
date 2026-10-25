@@ -23,6 +23,9 @@ import {
   type ScanReturnState,
 } from './scanReducer';
 import { useCompleteBuzz, useScanFeedback } from './useScanFeedback';
+import { cameraHeightFor } from './cameraHeight';
+
+export { cameraHeightFor };
 
 /**
  * The scanning steps (UX_MOBILE §7.1): the driver's Load, Deliver and Take back, the shop's Receive, and
@@ -93,6 +96,15 @@ export interface ScanPanelProps {
   returnState?: ScanReturnState;
   /** "Type number" (`features.typedCylinderNumber`). */
   allowTyped?: boolean;
+  /**
+   * Take back (review23 ux-03): the result strip and "Not saved" come first, right under the state tap
+   * above the panel, then `beforeCamera` (the step's count), then a shorter camera. The strip names the
+   * state tapped ("AG-C0031 · Full"), so a wrong tap is caught at once; under the camera it fell below
+   * the footer on a 360×640 phone.
+   */
+  resultFirst?: boolean;
+  /** What sits between the result strip and the camera while `resultFirst`: take back's CountBar. */
+  beforeCamera?: ReactNode;
   /** The details under the strip and "Not saved", above "Type number": SizeLines, the take-back lists. */
   children?: ReactNode;
   testID?: string;
@@ -100,11 +112,6 @@ export interface ScanPanelProps {
 
 /** A position older than this isn't attached to a scan. */
 const FIX_MAX_AGE_MS = 5 * 60_000;
-
-/** The camera's height: 28% of the window, between 160 and 300 dp (driver spec §1.2). */
-export function cameraHeightFor(windowHeight: number): number {
-  return Math.round(Math.min(Math.max(windowHeight * 0.28, 160), 300));
-}
 
 type StripKind = 'idle' | 'checking' | 'recorded' | 'already' | 'refused';
 
@@ -197,7 +204,8 @@ function useScanLoop(onScan: (read: ScanRead) => Promise<ScanReply>): [ScanLoop<
 /**
  * The camera of a step screen (driver spec §1.2–§1.3, R-SP; UX_MOBILE §7.1). The screen gives it one
  * fixed step and owns the title, the count, the state tap and the footer; the panel is the camera, its
- * result strip, "Not saved", the screen's details and "Type number", in that order.
+ * result strip, "Not saved", the screen's details and "Type number", in that order. Take back
+ * (`resultFirst`) puts the strip and "Not saved" first, then the count, then a shorter camera.
  *
  * - QR labels only, in a continuous loop (scanReducer.ts): the same label is ignored for 2.5 seconds,
  *   one request is in flight at a time, every read has its own scan id, and the camera re-arms 600 ms
@@ -218,6 +226,8 @@ export function ScanPanel({
   complete,
   returnState,
   allowTyped = false,
+  resultFirst = false,
+  beforeCamera,
   children,
   testID,
 }: ScanPanelProps) {
@@ -371,7 +381,7 @@ export function ScanPanel({
   const allowed = permission?.granted === true;
   const blocked = permission !== null && !allowed && !permission.canAskAgain;
   const cameraOn = allowed && active && appActive && !cameraFailed && !asking && complete !== true;
-  const cameraHeight = cameraHeightFor(height);
+  const cameraHeight = cameraHeightFor(height, resultFirst);
   const look = STRIP_LOOKS[kind];
   const problem = kind === 'refused';
   const frameColour = kind === 'recorded' ? colors.scanOk : kind === 'refused' ? colors.scanError : null;
@@ -380,146 +390,164 @@ export function ScanPanel({
   const showStrip = kind !== 'idle' || (allowed && !cameraFailed) || typedOpen;
   const retrying = state.retrying.length > 0 || state.unsaved.some((scan) => scan.scanId === state.inFlight?.scanId);
 
+  const camera =
+    complete === true ? null : permission && !allowed ? (
+      <View style={[styles.permission, { minHeight: cameraHeight }]}>
+        <Icon name="scan" size={48} tone="brand" />
+        <Text align="center">{permission.canAskAgain ? t('scan.camera.why') : t('scan.camera.blocked')}</Text>
+        {permission.canAskAgain ? (
+          <Button
+            label={t('scan.camera.allow')}
+            icon="scan"
+            onPress={() => void requestPermission()}
+            fullWidth={false}
+            style={styles.centred}
+          />
+        ) : (
+          <Button
+            label={t('scan.camera.openSettings')}
+            variant="secondary"
+            onPress={() => void Linking.openSettings().catch(() => undefined)}
+            fullWidth={false}
+            style={styles.centred}
+          />
+        )}
+        {blocked && allowTyped && !typedOpen ? (
+          <Button
+            label={t('scan.typed.instead')}
+            icon="keyboard"
+            variant="ghost"
+            onPress={() => setTypedOpen(true)}
+            fullWidth={false}
+            style={styles.centred}
+            testID={testID ? `${testID}.typeInstead` : undefined}
+          />
+        ) : null}
+      </View>
+    ) : (
+      <View
+        style={[styles.camera, { height: cameraHeight }]}
+        accessible={cameraOn}
+        accessibilityLabel={cameraOn ? t('scan.camera.label') : undefined}
+      >
+        {cameraOn ? (
+          <>
+            <CameraView
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              enableTorch={torch}
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={onRead}
+              onMountError={() => setCameraFailed(true)}
+            />
+            <KeepScreenOn />
+            {frameColour ? <View pointerEvents="none" style={[styles.frame, { borderColor: frameColour }]} /> : null}
+            <Pressable
+              onPress={() => setTorch((on) => !on)}
+              accessibilityRole="button"
+              accessibilityLabel={torch ? t('scan.torch.turnOff') : t('scan.torch.turnOn')}
+              accessibilityState={{ checked: torch }}
+              hitSlop={sizes.hitSlop}
+              style={[styles.torch, torch ? styles.torchOn : null]}
+            >
+              <Icon name="torch" size={24} tone={torch ? 'brand' : 'onBrand'} />
+            </Pressable>
+          </>
+        ) : (
+          <View style={styles.cameraIdle}>
+            {cameraFailed ? (
+              <>
+                <Icon name="error" size={32} tone="onBrand" />
+                <Text tone="onBrand" align="center">
+                  {t('scan.camera.failed')}
+                </Text>
+              </>
+            ) : allowed ? null : (
+              // Paused (a sheet is open, the screen is hidden) it is a plain dark block; it says
+              // "Starting camera…" only while the permission's answer is awaited.
+              <>
+                <ActivityIndicator color={colors.onBrand} />
+                <Text tone="onBrand" align="center">
+                  {t('scan.camera.starting')}
+                </Text>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+    );
+
+  const strip = showStrip ? (
+    <View
+      testID={testID ? `${testID}.strip` : undefined}
+      accessibilityRole={problem ? 'alert' : undefined}
+      accessibilityLiveRegion={problem ? 'assertive' : 'polite'}
+      style={[styles.strip, { backgroundColor: look.background }, kind === 'idle' || kind === 'checking' ? styles.stripIdle : null]}
+    >
+      <View style={styles.stripWords}>
+        {kind === 'checking' ? (
+          <ActivityIndicator color={colors.brand} style={styles.stripSpinner} />
+        ) : (
+          <Icon name={look.icon} size={32} tone={look.iconTone} />
+        )}
+        <Text variant="bodyStrong" tone={look.text} numberOfLines={2} style={styles.stripText}>
+          {stripText}
+        </Text>
+      </View>
+      {kind === 'refused' && callOffice && office.phone ? (
+        <Button
+          label={t('common.actions.callOffice')}
+          onPress={office.call}
+          icon="call"
+          variant="inverse"
+          fullWidth={false}
+        />
+      ) : null}
+    </View>
+  ) : null;
+
+  const unsaved =
+    state.unsaved.length > 0 ? (
+      <View
+        testID={testID ? `${testID}.unsaved` : undefined}
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+        style={[styles.strip, styles.unsaved]}
+      >
+        <View style={styles.stripWords}>
+          <Icon name="offline" size={32} tone={toneSurfaces.warning.icon} />
+          <Text variant="bodyStrong" tone="warning" style={styles.stripText}>
+            {t('scan.notSaved', { count: state.unsaved.length })}
+          </Text>
+        </View>
+        <Button
+          label={t('scan.retry')}
+          loading={retrying}
+          onPress={() => loop.retry()}
+          variant="secondary"
+          fullWidth={false}
+          testID={testID ? `${testID}.retry` : undefined}
+        />
+      </View>
+    ) : null;
+
   return (
     <View testID={testID} style={styles.panel}>
-      {complete === true ? null : permission && !allowed ? (
-        <View style={[styles.permission, { minHeight: cameraHeight }]}>
-          <Icon name="scan" size={48} tone="brand" />
-          <Text align="center">{permission.canAskAgain ? t('scan.camera.why') : t('scan.camera.blocked')}</Text>
-          {permission.canAskAgain ? (
-            <Button
-              label={t('scan.camera.allow')}
-              icon="scan"
-              onPress={() => void requestPermission()}
-              fullWidth={false}
-              style={styles.centred}
-            />
-          ) : (
-            <Button
-              label={t('scan.camera.openSettings')}
-              variant="secondary"
-              onPress={() => void Linking.openSettings().catch(() => undefined)}
-              fullWidth={false}
-              style={styles.centred}
-            />
-          )}
-          {blocked && allowTyped && !typedOpen ? (
-            <Button
-              label={t('scan.typed.instead')}
-              icon="keyboard"
-              variant="ghost"
-              onPress={() => setTypedOpen(true)}
-              fullWidth={false}
-              style={styles.centred}
-              testID={testID ? `${testID}.typeInstead` : undefined}
-            />
-          ) : null}
-        </View>
+      {resultFirst ? (
+        // Take back: the answer right under the state tap, then the count, then the (shorter) camera.
+        <>
+          {strip}
+          {unsaved}
+          {beforeCamera}
+          {camera}
+        </>
       ) : (
-        <View
-          style={[styles.camera, { height: cameraHeight }]}
-          accessible={cameraOn}
-          accessibilityLabel={cameraOn ? t('scan.camera.label') : undefined}
-        >
-          {cameraOn ? (
-            <>
-              <CameraView
-                style={StyleSheet.absoluteFill}
-                facing="back"
-                enableTorch={torch}
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={onRead}
-                onMountError={() => setCameraFailed(true)}
-              />
-              <KeepScreenOn />
-              {frameColour ? <View pointerEvents="none" style={[styles.frame, { borderColor: frameColour }]} /> : null}
-              <Pressable
-                onPress={() => setTorch((on) => !on)}
-                accessibilityRole="button"
-                accessibilityLabel={torch ? t('scan.torch.turnOff') : t('scan.torch.turnOn')}
-                accessibilityState={{ checked: torch }}
-                hitSlop={sizes.hitSlop}
-                style={[styles.torch, torch ? styles.torchOn : null]}
-              >
-                <Icon name="torch" size={24} tone={torch ? 'brand' : 'onBrand'} />
-              </Pressable>
-            </>
-          ) : (
-            <View style={styles.cameraIdle}>
-              {cameraFailed ? (
-                <>
-                  <Icon name="error" size={32} tone="onBrand" />
-                  <Text tone="onBrand" align="center">
-                    {t('scan.camera.failed')}
-                  </Text>
-                </>
-              ) : allowed ? null : (
-                // Paused (a sheet is open, the screen is hidden) it is a plain dark block; it says
-                // "Starting camera…" only while the permission's answer is awaited.
-                <>
-                  <ActivityIndicator color={colors.onBrand} />
-                  <Text tone="onBrand" align="center">
-                    {t('scan.camera.starting')}
-                  </Text>
-                </>
-              )}
-            </View>
-          )}
-        </View>
+        <>
+          {camera}
+          {strip}
+          {unsaved}
+        </>
       )}
-
-      {showStrip ? (
-        <View
-          testID={testID ? `${testID}.strip` : undefined}
-          accessibilityRole={problem ? 'alert' : undefined}
-          accessibilityLiveRegion={problem ? 'assertive' : 'polite'}
-          style={[styles.strip, { backgroundColor: look.background }, kind === 'idle' || kind === 'checking' ? styles.stripIdle : null]}
-        >
-          <View style={styles.stripWords}>
-            {kind === 'checking' ? (
-              <ActivityIndicator color={colors.brand} style={styles.stripSpinner} />
-            ) : (
-              <Icon name={look.icon} size={32} tone={look.iconTone} />
-            )}
-            <Text variant="bodyStrong" tone={look.text} numberOfLines={2} style={styles.stripText}>
-              {stripText}
-            </Text>
-          </View>
-          {kind === 'refused' && callOffice && office.phone ? (
-            <Button
-              label={t('common.actions.callOffice')}
-              onPress={office.call}
-              icon="call"
-              variant="inverse"
-              fullWidth={false}
-            />
-          ) : null}
-        </View>
-      ) : null}
-
-      {state.unsaved.length > 0 ? (
-        <View
-          testID={testID ? `${testID}.unsaved` : undefined}
-          accessibilityRole="alert"
-          accessibilityLiveRegion="polite"
-          style={[styles.strip, styles.unsaved]}
-        >
-          <View style={styles.stripWords}>
-            <Icon name="offline" size={32} tone={toneSurfaces.warning.icon} />
-            <Text variant="bodyStrong" tone="warning" style={styles.stripText}>
-              {t('scan.notSaved', { count: state.unsaved.length })}
-            </Text>
-          </View>
-          <Button
-            label={t('scan.retry')}
-            loading={retrying}
-            onPress={() => loop.retry()}
-            variant="secondary"
-            fullWidth={false}
-            testID={testID ? `${testID}.retry` : undefined}
-          />
-        </View>
-      ) : null}
 
       {children}
 

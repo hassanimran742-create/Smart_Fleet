@@ -24,6 +24,7 @@ import {
   radius,
   sizes,
   space,
+  StatusChip,
   Text,
   useReduceMotion,
 } from '../ui';
@@ -168,7 +169,7 @@ function MenuBody({ useMenu, visible, onClose }: { useMenu: UseMenu; visible: bo
             key={item.key}
             onPress={item.onPress}
             accessibilityRole="button"
-            accessibilityLabel={item.label}
+            accessibilityLabel={item.accessibilityLabel ?? item.label}
             android_ripple={{ color: colors.ripple }}
             style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
           >
@@ -180,6 +181,11 @@ function MenuBody({ useMenu, visible, onClose }: { useMenu: UseMenu; visible: bo
                 {item.label}
               </Text>
             </View>
+            {item.badge ? (
+              <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+                <StatusChip tone="brand" label={item.badge} />
+              </View>
+            ) : null}
             {!danger ? <Icon name="chevron" size={24} tone="secondary" /> : null}
           </Pressable>
         );

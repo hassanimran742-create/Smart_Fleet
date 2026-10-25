@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import type { AppEnvironment } from '@smartfleet/shared-types';
+import { JS_RELEASE_VERSION } from './release';
 
 /** The two builds of this codebase (apps/mobile/app.config.ts `APP_VARIANT`). */
 export type MobileVariant = 'distributor' | 'driver';
@@ -11,8 +12,16 @@ export const APP_VARIANT: MobileVariant =
 
 export const IS_DRIVER_APP = APP_VARIANT === 'driver';
 
-/** The native app version ("0.1.0"). Over-the-air updates keep it. Sent as `X-App-Version`. */
-export const APP_VERSION: string = Constants.expoConfig?.version ?? '0.0.0';
+/** The installed APK's own version ("0.1.0"). Over-the-air updates keep it; `runtimeVersion` follows it. */
+export const NATIVE_VERSION: string = Constants.expoConfig?.version ?? '0.0.0';
+
+/**
+ * This app's version: the JS release (release.ts), or the native version when a newer APK carries older
+ * JS. One value everywhere: sent as `X-App-Version`, checked against `app.minVersion.<variant>` by the
+ * update gate (RootNavigator), and shown on Help. Over the air on the 0.1.0 APK it is the JS release, so
+ * `app.minVersion` can stop the JS this release replaces (review23 contract-compat-02).
+ */
+export const APP_VERSION: string = laterVersion(JS_RELEASE_VERSION, NATIVE_VERSION);
 
 export const API_BASE_URL: string =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ?? 'http://localhost:3000/api/v1';
@@ -45,6 +54,11 @@ export function compareVersions(a: string, b: string): number {
     if (pa[i] !== pb[i]) return pa[i] - pb[i];
   }
   return 0;
+}
+
+/** The later of two "x.y.z" versions (the first when they are equal). */
+export function laterVersion(a: string, b: string): string {
+  return compareVersions(a, b) >= 0 ? a : b;
 }
 
 /** True when `version` is below `minimum`. A malformed minimum never blocks the app. */

@@ -8,7 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { currentBusinessDays } from '../orders/support/business-day';
 import { SettingsService } from '../settings/settings.service';
 import { sizeLabels } from './holders';
-import { vanCylinders, type VanCylinder } from './van';
+import { outForDeliveryNeed, vanCylinders, type VanCylinder } from './van';
 
 const ALL_STATES: CylinderStateValue[] = ['FULL', 'EMPTY', 'PART_FILLED', 'FAULTY', 'LOST'];
 
@@ -50,7 +50,8 @@ export class StoreService {
    * that van in the current business day since the first of the listed cylinders went onto it (this
    * return, not an earlier run or refill); `total` is that plus what is still coming back on the van, so
    * "{{done}} of {{total}} received" reads right. Vans with nothing left to come back aren't listed, and
-   * unlabelled returns never appear.
+   * unlabelled returns never appear; nor does a cylinder an approved day-end fix marked lost on the van
+   * with no move since (`vanCylinders`: nobody can bring it back).
    */
   async incoming(actor: UserActor): Promise<StoreIncomingDto> {
     const distributorId = ownDistributorId(actor);
@@ -67,7 +68,7 @@ export class StoreService {
     });
     const rows: StoreIncomingDto['vans'] = [];
     for (const vehicle of vehicles) {
-      const cylinders = comingBack(await vanCylinders(this.prisma, vehicle.id, { distributorId }), await this.outForDelivery(vehicle.id));
+      const cylinders = comingBack(await vanCylinders(this.prisma, vehicle.id, { distributorId }), await outForDeliveryNeed(this.prisma, vehicle.id));
       if (cylinders.length === 0) continue;
       // "Received" counts this return only: the receives since the first of these cylinders went onto the
       // van (within the business day), so a van's earlier run or refill today never inflates "1 of 3".
@@ -149,25 +150,6 @@ export class StoreService {
       (a, b) => (sizes.get(a.cylinderTypeId)?.weightKg ?? 0) - (sizes.get(b.cylinderTypeId)?.weightKg ?? 0),
     );
     return { total: out.reduce((sum, row) => sum + row.total, 0), sizes: out };
-  }
-
-  /**
-   * Per run and size, the cylinders a van carries to customers: Σ fullCount − given over the orders of
-   * its open runs still to be delivered (ASSIGNED or IN_TRANSIT). Key `${tripId}:${cylinderTypeId}`.
-   */
-  private async outForDelivery(vehicleId: string): Promise<Map<string, number>> {
-    const rows = await this.prisma.$queryRaw<Array<{ trip_id: string; type_id: string; owed: number }>>`
-      SELECT o.trip_id, ol.cylinder_type_id AS type_id,
-             SUM(GREATEST(ol.full_count - COALESCE((
-               SELECT count(*) FROM stop_cylinders sc
-               WHERE sc.order_id = o.id AND sc.cylinder_type_id = ol.cylinder_type_id AND sc.direction = 'GIVEN'), 0), 0))::int AS owed
-      FROM orders o
-      JOIN order_lines ol ON ol.order_id = o.id
-      JOIN trips t ON t.id = o.trip_id
-      WHERE t.vehicle_id = ${vehicleId}::uuid AND t.status IN ('PLANNED', 'IN_PROGRESS')
-        AND o.status IN ('ASSIGNED', 'IN_TRANSIT')
-      GROUP BY o.trip_id, ol.cylinder_type_id`;
-    return new Map(rows.map((row) => [`${row.trip_id}:${row.type_id}`, Number(row.owed)]));
   }
 
   private async homeStore(distributorId: string): Promise<{ id: string }> {

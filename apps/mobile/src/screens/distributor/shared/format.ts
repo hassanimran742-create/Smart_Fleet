@@ -15,13 +15,14 @@ import {
   type TimeInput,
   type WhenTranslate,
 } from '@smartfleet/shared-utils';
+import { keepTogether } from '../../../ui/keepTogether';
 
 /**
  * Small formatting rules shared by the shop screens. Money stays integer paisa: amounts are compared
  * and subtracted with `toPaisa` (which asserts a safe integer) and printed only by `formatRs`.
  *
- * This module imports only the shared packages (no React Native, no i18n), so the API's unit tests
- * can load it on its own (apps/api/test/unit/ui/mobile-logic.spec.ts).
+ * This module imports only the shared packages and `ui/keepTogether` (no React Native, no i18n), so the
+ * API's unit tests can load it on its own (apps/api/test/unit/ui/mobile-logic.spec.ts).
  */
 
 /** The amount in paisa, or 0 when it is missing or malformed. */
@@ -123,9 +124,12 @@ export function itemsText(lines: OrderDto['lines'], t: TFunction): string {
     .join(t('orders.list.itemsJoin'));
 }
 
-/** "0300 1234567": every phone on screen is written this way (UX_MOBILE S1). */
+/**
+ * "0300 1234567": every phone on screen is written this way (UX_MOBILE S1), with a no-break space, so
+ * the number never splits across two lines ("Bilal Khan · 0302" / "3334455", review23 ux-11).
+ */
 export function phoneText(phone: string | null | undefined): string {
-  return formatPkPhone(phone);
+  return keepTogether(formatPkPhone(phone));
 }
 
 function minutesOfDay(hhmm: string): number | null {

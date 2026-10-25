@@ -40,6 +40,7 @@ export const PAGE_CSS = [
   '.b svg,.blk svg,.call svg,h1 svg{vertical-align:middle;margin:0 10px 0 0}',
   '.blk{display:block;text-align:center;min-height:48px;padding:12px 0;color:#0A55C4;font-weight:700}',
   '.call{display:block;min-height:48px;padding:12px 0;color:#0A55C4;font-weight:700;text-decoration:none}',
+  '.nw{white-space:nowrap}',
   'a:focus,button:focus,textarea:focus{outline:3px solid #0F6CF0;outline-offset:2px}',
   'label{display:block;font-weight:700;margin:12px 0 6px}',
   'textarea{display:block;width:100%;min-height:120px;padding:12px;border:2px solid #6B6F76;border-radius:12px;font:inherit;color:#1F2025;background:#FFF}',

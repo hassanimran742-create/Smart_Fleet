@@ -5,6 +5,7 @@
  */
 export * from './tokens';
 export { ltr } from './bidi';
+export { keepTogether } from './keepTogether';
 export { useReduceMotion } from './useReduceMotion';
 
 export { Text, type TextProps } from './Text';

@@ -45,6 +45,7 @@ import {
   type DayEndSendBackInput,
   type DayEndSubmitInput,
 } from '@smartfleet/shared-validation';
+import type { Response } from 'express';
 import { catchError, throwError, type Observable } from 'rxjs';
 import type { UserActor } from '../../common/auth/actor';
 import { CurrentActor } from '../../common/decorators/current-user.decorator';
@@ -52,21 +53,31 @@ import { ExactRoles } from '../../common/decorators/roles.decorator';
 import { AppError } from '../../common/errors/app-error';
 import { validationMessage } from '../../common/errors/messages';
 import { SettingSwitch } from '../../common/features/feature';
+import { RESPONSE_HEADER } from '../../common/http/headers';
 import type { IdempotentResponse } from '../../common/idempotency/idempotency';
 import { ZodBody, ZodQuery } from '../../common/pipes/zod-body.pipe';
+import { RateLimit } from '../../common/rate-limit/rate-limit';
 import { DayEndOfficeService } from './day-end-office.service';
 import { XLSX_MIME_TYPE } from './day-end-workbook';
 import { DayEndService } from './day-end.service';
 
+/** Seconds a busy answer asks the phone to wait before sending the file again. */
+export const DAY_END_BUSY_RETRY_AFTER_SECONDS = 10;
+
 /**
  * Multer's refusals in the contract's words: a file over 2 MiB is 413 FILE_TOO_LARGE `{ maxMb: 2 }`
- * (check 1, before the day is read), a wrong field is 400 VALIDATION_FAILED on `file`.
+ * (check 1, before the day is read), a wrong field is 400 VALIDATION_FAILED on `file`. The busy answer
+ * (503 SERVICE_UNAVAILABLE, another file is being read) carries `Retry-After`.
  */
 @Injectable()
 export class DayEndUploadErrors implements NestInterceptor {
-  intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
       catchError((error: unknown) => {
+        if (AppError.is(error, 'SERVICE_UNAVAILABLE')) {
+          context.switchToHttp().getResponse<Response>().setHeader(RESPONSE_HEADER.retryAfter, String(DAY_END_BUSY_RETRY_AFTER_SECONDS));
+          return throwError(() => error);
+        }
         if (error instanceof PayloadTooLargeException) {
           return throwError(() => new AppError('FILE_TOO_LARGE', { maxMb: DAY_SHEET_LIMITS.maxMb }, { cause: error }));
         }
@@ -128,9 +139,13 @@ export class DayEndController {
     });
   }
 
-  /** Multipart field `file`. Busboy flags a file once it reaches `fileSize`, so exactly 2 MiB is accepted. */
+  /**
+   * Multipart field `file`. Busboy flags a file once it reaches `fileSize`, so exactly 2 MiB is accepted.
+   * At most 20 uploads per 10 minutes per shop login (§3.6), counted before the body is read.
+   */
   @Post(':date/upload')
   @HttpCode(200)
+  @RateLimit('dayEnd.upload', 20, 600, 'user')
   @UseInterceptors(DayEndUploadErrors, FileInterceptor('file', { limits: { fileSize: DAY_SHEET_LIMITS.maxBytes + 1, files: 1, fields: 5 } }))
   upload(
     @CurrentActor() actor: UserActor,

@@ -167,11 +167,20 @@ describe('WalletCheckJob', () => {
     { distributorId: '66666666-6666-4666-8666-666666666666', balancePaisa: 0n, ledgerSumPaisa: 0n, ok: true },
   ];
 
-  function job(unresolvedFor: string[]) {
+  function job(unresolvedFor: string[], raisedMeanwhileFor: string[] = []) {
     const order: string[] = [];
+    // [review23 robustness-jobs-07] Each raise runs in its own transaction, under the distributor's lock,
+    // after reading that distributor's unresolved alerts again.
+    const tx = {
+      $executeRaw: jest.fn(async (..._args: unknown[]) => 1),
+      alert: {
+        count: jest.fn(async (args: { where: { resourceId: string } }) => (raisedMeanwhileFor.includes(args.where.resourceId) ? 1 : 0)),
+      },
+    };
     const prisma = {
       alert: { findMany: jest.fn(async () => unresolvedFor.map((resourceId) => ({ resourceId }))) },
       distributor: { findMany: jest.fn(async () => [{ id: DISTRIBUTOR, businessName: 'Ahmed Gas' }, { id: OTHER, businessName: 'Bilal Gas' }]) },
+      $transaction: jest.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
     };
     const alerts = { raise: jest.fn(async () => order.push('alert')) };
     const audit = { record: jest.fn(async () => order.push('audit')) };
@@ -182,11 +191,11 @@ describe('WalletCheckJob', () => {
       alerts as unknown as AlertsService,
       audit as unknown as AuditLogService,
     );
-    return { instance, prisma, alerts, audit, order };
+    return { instance, prisma, alerts, audit, order, tx };
   }
 
   it('G01-05 raises one CRITICAL alert per broken wallet with the signed difference, skipping wallets already alerted', async () => {
-    const { instance, alerts, prisma } = job([OTHER]);
+    const { instance, alerts, prisma, tx } = job([OTHER]);
     const run = await instance.run();
     expect(run).toEqual({ checked: 3, mismatches: 2, distributorIds: [DISTRIBUTOR, OTHER], raised: 1 });
     expect(prisma.alert.findMany).toHaveBeenCalledWith(
@@ -201,9 +210,25 @@ describe('WalletCheckJob', () => {
         resourceId: DISTRIBUTOR,
         context: { balancePaisa: '512000', ledgerSumPaisa: '500000', differencePaisa: '12000' },
       }),
+      tx,
     );
     const raised = (alerts.raise.mock.calls[0] as unknown[])[0] as Record<string, unknown>;
     expect(raised).not.toHaveProperty('dedupeKey');
+  });
+
+  it("REV23 robustness-jobs-07 each raise re-reads the unresolved alert under the distributor's advisory lock, so a second run raises nothing", async () => {
+    // A run at the same moment raised Ahmed Gas's alert after this run's first read.
+    const { instance, alerts, tx, prisma } = job([], [DISTRIBUTOR]);
+    const run = await instance.run();
+    expect(run).toEqual({ checked: 3, mismatches: 2, distributorIds: [DISTRIBUTOR, OTHER], raised: 1 });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    const locks = tx.$executeRaw.mock.calls.map((call) => (call as unknown[]).slice(1));
+    expect(locks).toEqual([[`wallet-check:${DISTRIBUTOR}`], [`wallet-check:${OTHER}`]]);
+    expect(tx.alert.count).toHaveBeenCalledWith({
+      where: { alertType: 'WALLET_CHECK_MISMATCH', resourceType: 'Distributor', resourceId: DISTRIBUTOR, status: { in: ['OPEN', 'ACKNOWLEDGED'] } },
+    });
+    expect(alerts.raise).toHaveBeenCalledTimes(1);
+    expect(alerts.raise).toHaveBeenCalledWith(expect.objectContaining({ resourceId: OTHER }), tx);
   });
 
   it('G12-05 every run writes one wallet.check audit row, after raising its alerts', async () => {

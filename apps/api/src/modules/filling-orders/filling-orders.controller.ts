@@ -17,10 +17,12 @@ import { ownDistributorId, ownDriverId } from '../../common/auth/own-driver-id';
 import { CurrentActor } from '../../common/decorators/current-user.decorator';
 import { ExactRoles } from '../../common/decorators/roles.decorator';
 import { IdempotencyKey } from '../../common/idempotency/idempotency';
-import { ZodBody } from '../../common/pipes/zod-body.pipe';
+import { NewAppOnly } from '../../common/interceptors/app-version.interceptor';
+import { ZodBody, ZodQuery } from '../../common/pipes/zod-body.pipe';
 import { scanResponse } from '../custody/scan.service';
 import { UuidParam } from '../orders/support/uuid-param.pipe';
 import { FillingOrdersService } from './filling-orders.service';
+import { refillListQuerySchema, type RefillBoardDto, type RefillListQuery } from './refill-board';
 import { RefillScanService } from './refill-scans.service';
 import type { RefillView } from './refill.mapper';
 
@@ -39,8 +41,14 @@ export class FillingOrdersController {
     private readonly scans: RefillScanService,
   ) {}
 
-  /** 201 with the new refill (AG-R007); a retry with the same Idempotency-Key 200 `Idempotent-Replay`. */
+  /**
+   * 201 with the new refill (AG-R007); a retry with the same Idempotency-Key 200 `Idempotent-Replay`. The
+   * installed 0.1.0 shop JS (no `X-App-*` header) gets 426 APP_RESTART_TO_UPDATE instead: a refill it
+   * requests could only be run and received on the Inc 3 apps (API_CONTRACT Appendix A; review23
+   * contract-compat-01).
+   */
   @ExactRoles(UserRole.DISTRIBUTOR)
+  @NewAppOnly()
   @Post()
   create(
     @CurrentActor() actor: UserActor,
@@ -50,13 +58,30 @@ export class FillingOrdersController {
     return this.refills.create(actor, body, key);
   }
 
-  /** The office list, optionally by status or driver. */
+  /**
+   * The office list. With `?tab=needs-driver|in-progress|done|cancelled` (and `q`, `distributorId`,
+   * `driverId`, `limit`, `cursor`): one tab's page with every tab's size, `{ counts, items, nextCursor }`.
+   * Without `tab`: the legacy bare array (every open refill and the newest 200 closed ones), optionally by
+   * one `status` or a `driverId`.
+   */
   @ExactRoles(UserRole.SUPER_ADMIN)
   @Get()
-  listAll(@CurrentActor() actor: UserActor, @Query('status') status?: string, @Query('driverId') driverId?: string): Promise<RefillView[]> {
+  listAll(@CurrentActor() actor: UserActor, @Query(new ZodQuery(refillListQuerySchema)) query: RefillListQuery): Promise<RefillView[] | RefillBoardDto> {
+    if (query.tab) {
+      return this.refills.board(actor, {
+        tab: query.tab,
+        q: query.q,
+        distributorId: query.distributorId,
+        driverId: query.driverId,
+        limit: query.limit,
+        cursor: query.cursor,
+      });
+    }
     const where: Prisma.FillingOrderWhereInput = {};
+    const { status, driverId, distributorId } = query;
     if (status && (Object.values(FillingOrderStatus) as string[]).includes(status)) where.status = status as FillingOrderStatus;
-    if (driverId && UUID.test(driverId)) where.assignedDriverId = driverId;
+    if (driverId && UUID.test(driverId)) where.assignedDriverId = driverId.toLowerCase();
+    if (distributorId) where.distributorId = distributorId.toLowerCase();
     return this.refills.list(actor, where);
   }
 

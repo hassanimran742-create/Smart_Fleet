@@ -247,7 +247,7 @@ Items 25–31 are the rulebook's new components (UX_PRINCIPLES §3), built from 
 23. **OfflineBanner**: "No connection" (`common.offline`) with a 48 dp (driver 56 dp) "Try again" that refetches the active queries. While it shows, screens add no network error of their own, except a button's own failure line.
     - In Inc 1, shown after a network error in the last 30 seconds.
     - From the 0.2.0 APK, driven by NetInfo.
-24. **ScanPanel** (`ui/scan/`, owned by the driver lane): the Inc 1 version (§5), full in Inc 2 (§7.1).
+24. **ScanPanel** (`ui/scan/`, owned by the driver lane): the Inc 1 version (§5), full in Inc 2 (§7.1). Take back's camera is clamp(0.18 × window height, 112, 220) dp, so the tap, the strip, the count and the camera fit above the footer on a 360×640 phone (review23 ux-03).
     - Props `step` (LOAD | HANDOVER | TAKE_BACK | UNLOAD), `onScan`, `active` and `complete` (a 200 ms buzz when it turns true).
     - No title, hint or count inside the panel: the CountBar sits above it, and the idle strip is the hint.
     - The result strip is 56 dp with a 32 dp icon; "Checking…" and "Not sent" + Retry show inside the strip. The camera has a 4 dp frame in the result colour.
@@ -287,7 +287,7 @@ Also in `ui/` and `hooks/`: `useNoConnection()` (true while the OfflineBanner sh
 
 ### 3.1 API client v2 (rewrite of `api/client.ts`)
 - **Timeouts:** 15 seconds by default, 60 for uploads.
-- **Headers:** `X-App-Variant`, `X-App-Version`, `X-Request-Id`, `Accept-Language: en`.
+- **Headers:** `X-App-Variant`, `X-App-Version`, `X-Request-Id`, `Accept-Language: en`. `X-App-Version` is the JS release (`api/release.ts` `JS_RELEASE_VERSION`; `APP_VERSION` is the later of it and the native version), not the APK's version, which over-the-air updates keep (review23 contract-compat-02).
 - **Error normalisation** into `ApiError {status, code, message, details, requestId, retryable}`:
 
   | What happened | `code` |
@@ -420,7 +420,7 @@ It is shown as a separate chip, never as the order stage.
 
 ### 3.6 Shell
 - **RootNavigator gates**, in order:
-  1. `UpdateRequired`, on `APP_UPDATE_REQUIRED` or when `appConfig.minVersion` is above this app's version;
+  1. `UpdateRequired`, on `APP_UPDATE_REQUIRED` (or `APP_RESTART_TO_UPDATE`, which only the 0.1.0 JS should ever get) or when `appConfig.minVersion` is above this app's version (`APP_VERSION`, the value sent as `X-App-Version`);
   2. `SignIn`, with no session;
   3. `WrongApp`, unless the variant is distributor with role DISTRIBUTOR, or driver with role DRIVER. This is a fallback for a saved session (for example one from before the update); a new sign-in on the wrong app is refused by the server with `AUTH_WRONG_APP` (S1);
   4. otherwise the stack.
@@ -432,7 +432,7 @@ It is shown as a separate chip, never as the order stage.
   - `auth.lastPhone`: the number of the last good sign-in. Sign in prefills it, in both apps; Sign out keeps it.
 - **The side menu** renders items from `navigation/menus/distributorMenu.ts` and `driverMenu.ts`. Each lane owns its own file. Rows have one word or two and no subtitles; neither header shows a balance.
   - Shop: the header is the business name and phone; rows Profile · Help · Sign out.
-  - Driver: the header is the name and the van plate; rows My van · Refills · Help · Sign out.
+  - Driver: the header is the name and the van plate; rows My van · Refills · Help · Sign out. Refills shows the count of open refills ("Refills, 2 open" to screen readers; review23 ux-02).
   - Sign out asks first (rule 7): "Sign out?" / "You'll need your password." / [Sign out] (danger) / [Stay signed in] (secondary).
 - **Typed routes:** `DistributorStackParams` and `DriverStackParams` replace the 18 `useNavigation<any>()` calls.
 
@@ -748,7 +748,7 @@ The live socket is removed.
 
 ### S12 Profile and Help (`distributor/ProfileScreen.tsx`, `HelpScreen.tsx`)
 - **Profile** is read-only: one card of icon rows with no visible labels (the labels stay as screen-reader prefixes, `home.profile.rowA11y` "{{label}}, {{value}}", for example "Business name, Ahmed Gas"): the business name (the contact name as the grey line only when it differs), the mobile, and the store with its address (or "Not set up yet"). The caption "Only the office can change these." and the footer "Call office". The shop code, CNIC, role and IDs are not shown. `PATCH /users/me` is used only for name and email.
-- **Help:** a card "Delivery cost" with the one refund line (`orders.new.refundRule.*`, following the setting); a card "Top-ups" with "Being checked until the office adds it."; "Office hours {{hours}}" when set; "App version {{version}} · update {{id}}". Footer: the secondary "WhatsApp office" (only when set) above the primary "Call office". The number comes from the config or `support.contact` (§3.6); with neither, the line "The office number isn't loaded yet.". **No Sign out on Help:** it is in the menu only.
+- **Help:** a card "Delivery cost" with the one refund line (`orders.new.refundRule.*`, following the setting); a card "Top-ups" with "Being checked until the office adds it."; "Office hours {{hours}}" when set; "App version {{version}} · update {{id}}" (the JS release, `APP_VERSION`: "App version 0.1.1" on the Inc 2/3 screens). Footer: the secondary "WhatsApp office" (only when set) above the primary "Call office". The number comes from the config or `support.contact` (§3.6); with neither, the line "The office number isn't loaded yet.". **No Sign out on Help:** it is in the menu only.
 - The retired customer stack's About (`HelpContent shop={false}`) shows only the office buttons, the hours and the version.
 
 ### S12b Refills and New refill (`RefillListScreen.tsx`, route `Refills`; `NewRefillScreen.tsx`, route `NewRefill`)
@@ -786,9 +786,10 @@ The driver spec's D1–D16, with the lead's DECIDED answers. Every scan is still
 - Header "Trip". Step rows in trip order (chip below the text, chevron):
   - "Load at {{store}}" (`van`), "{{count}} cylinders";
   - one "Deliver to {{name}}" per customer (`customer`), the address, then "{{count}} cylinders · take back {{back}}";
-  - "Unload at {{store}}" (`store`), "{{count}} on the van" while the van has any.
-- Step chips (§3.4): the Load row counts every order except one cancelled before its first load scan; the Unload row is To do while a customer waits, Next while the van holds cylinders, and Done at 0 or once the trip is completed.
-- **The footer names the next step:** "Start trip" → "Load at store" → "Deliver to {{name}}" → "Unload at store" (cylinders on the van, no open delivery) → "Finish trip" (van empty), then "Back to home" once closed. Never "Next:" or "Hand back".
+  - "Unload at {{store}}" (`store`), "{{count}} on the van" while the trip's van list (`van.cylinders`) has any.
+- Step chips (§3.4): the Load row counts every order except one cancelled before its first load scan; the Unload row is To do while a customer waits, Next while the trip's van list (`van.cylinders`) has any, and Done at 0 or once the trip is completed.
+- **The footer names the next step:** "Start trip" → "Load at store" → "Deliver to {{name}}" → "Unload at store" (the trip's `van.cylinders` not empty, no open delivery) → "Finish trip" (empty), then "Back to home" once closed. Never "Next:" or "Hand back".
+- A refill cylinder, another run's delivery or a cylinder marked lost on the van isn't the trip's (API_CONTRACT §9.13), so it never keeps the trip on Unload, and Unload's "Finish trip" is the filled button once the trip's list is empty (review23 holder-scans-02, holder-scans-04). Against a server without `van.cylinders` the app falls back to `van.total`, and Today's van row keeps the van's total.
 - **Finish trip** (rule 7): "Finish this trip?" / "Unload at {{store}} first. You can't scan for this trip after." / [Finish trip] / [Not yet] (secondary). Success: back to Today with the toast "Trip done".
 - **Leftovers** (only when the server answers `TRIP_VAN_NOT_EMPTY` with `leftoversAllowed: true`, which the Inc 1 server never does): the sheet "Finish with {{count}} on the van?" / "The office will see this. Unload them on your next trip." with "Why?" over the tap rows Store closed · No one to scan · Other ("What happened?", 5–300 characters, for Other only). The picked row's English words are sent as `reason` on `PATCH /trips/:id/status COMPLETED` (API_CONTRACT §9.3 maps it to `leftoverReason`). Without `leftoversAllowed`, the footer line shows the catalogue text "The store must scan in {{count}} more from your van.".
 - A closed trip shows the card "Trip done" or "The office stopped this trip.".
@@ -829,7 +830,7 @@ The driver spec's D1–D16, with the lead's DECIDED answers. Every scan is still
 
 **My van** (`driver/VehicleInfoScreen.tsx`): the plate (`van` icon), the big total "3" + "cylinders", and one row per size with the counts at the end and zeros hidden ("1 full · 2 empty"). "Nothing on the van." when empty; with no van, "No van yet." + [Call office]. No table header and no coloured digits; it polls every 10 s.
 
-**Help, with the profile merged in** (`driver/HelpScreen.tsx`; `ProfileScreen.tsx` retires): the office number, "Office hours {{hours}}" and a secondary "WhatsApp office" (when set); a "you" card with Name · Mobile · Van (no licence number); "App version 0.1.0" (· update id); footer "Call office". Offline everything comes from `support.contact` and the cached profile; "The office number isn't loaded yet." (the shop app's words) shows only when it has never loaded.
+**Help, with the profile merged in** (`driver/HelpScreen.tsx`; `ProfileScreen.tsx` retires): the office number, "Office hours {{hours}}" and a secondary "WhatsApp office" (when set); a "you" card with Name · Mobile · Van (no licence number); "App version 0.1.1" (the JS release, · update id); footer "Call office". Offline everything comes from `support.contact` and the cached profile; "The office number isn't loaded yet." (the shop app's words) shows only when it has never loaded.
 
 **Live location** (`hooks/useLiveLocation.ts`)
 - Drop `driverId` from the emits.
@@ -865,6 +866,7 @@ Designed to the rulebook on 2026-10-23 (the driver spec's R-SP and R2–R10, and
 - **Rollout:** an install day for every pilot phone. Then the office raises `app.minVersion.*`.
 - **Fallback:** JS detects the sound module and falls back to vibration only.
 - **Until it ships** (the Inc 2/3 screens, 2026-10-25, update over the air onto 0.1.0): vibration only, no push token (registration fails quietly, R8), and the day-end sheet goes through the folder fallback of §8.3. No new native module was added.
+- **Their rollout is over the air, with no new APK** (review23 contract-compat-01, contract-compat-02): publish the JS release (`api/release.ts` `JS_RELEASE_VERSION`, 0.1.1 for the Inc 2/3 screens; each over-the-air release bumps it); every pilot phone is closed and reopened (shop phones first) and shows it on Help; then the office raises `app.minVersion.*` to that release (API_CONTRACT §8.5 step 10). A phone still on the 0.1.0 JS is then told "Close the app and open it again to update.". When the 0.2.0 APK ships, the office raises the minimum again.
 
 ### 7.1 ScanPanel, full version (`ui/scan/ScanPanel.tsx`, `scanReducer.ts`, `useScanFeedback.ts`)
 ```ts
@@ -886,14 +888,15 @@ interface ScanPanelProps {
 // answerFromResult(result, text?) turns a ScanResult into the strip's answer; the leave sheet is inside.
 ```
 - **Order inside a step screen** (both apps, so the shop's Receive scan reads like the driver's steps):
-  1. (TAKE_BACK only) the state tap;
-  2. the CountBar (§2.2 #29);
-  3. the camera;
-  4. the result strip, whose idle text is the hint;
-  5. "Not saved";
-  6. the details: SizeLines ("11.8 kg · 2 of 3" with a tick once complete), or the three take-back lists;
-  7. "Type number".
-- **Camera:** `CameraView` with `barcodeTypes:['qr']`, a 56 dp torch toggle, keep-awake. Height clamp(0.28 × window height, 160, 300) dp, with a 4 dp frame in the result colour. It unmounts when the step is complete, the app is backgrounded or a sheet opens.
+  1. the CountBar (§2.2 #29);
+  2. the camera;
+  3. the result strip, whose idle text is the hint;
+  4. "Not saved";
+  5. the details: SizeLines ("11.8 kg · 2 of 3" with a tick once complete);
+  6. "Type number".
+
+  TAKE_BACK (review23 ux-03): 1. the state tap; 2. the result strip, right under it, so a wrong tap is caught at once; 3. "Not saved"; 4. the CountBar; 5. the camera; 6. the details (the three take-back lists); 7. "Type number".
+- **Camera:** `CameraView` with `barcodeTypes:['qr']`, a 56 dp torch toggle, keep-awake. Height clamp(0.28 × window height, 160, 300) dp; take back's clamp(0.18 × window height, 112, 220) dp, so the tap, the strip, the count and the camera fit above the footer on a 360×640 phone (review23 ux-03); with a 4 dp frame in the result colour. It unmounts when the step is complete, the app is backgrounded or a sheet opens.
 - **Read loop:**
   - trim the value;
   - ignore the same QR for 2.5 seconds;
@@ -951,7 +954,7 @@ interface ScanPanelProps {
 - **Strips name the cylinder:** "AG-C0042 · 11.8 kg loaded"; take back "AG-C0012 · Part-filled"; the shop's receive from another van "AG-C0011 · 11.8 kg received · Imran's van".
 
 ### 7.2 Driver screens (Inc 2)
-- **R2 Today** (`driver/TodayScreen.tsx`; `GET /driver/home`): §5's Today with the server's data. The header "Today · {{businessDate}}"; the van row "3 full · 1 empty · 1 part-filled" (zeros hidden, "No cylinders" at 0); `activeTrip` is the current-trip card, `nextTrips` the rows; the current trip's action is the footer "Start trip" / "Continue trip", not a button per row; "Done today: {{count}}" from `doneToday`. Empty: "Nothing to do." / "New trips appear by themselves." with [Call office]; it polls every 30 seconds. No van: "No van yet." in the van row, and My van offers [Call office].
+- **R2 Today** (`driver/TodayScreen.tsx`; `GET /driver/home`): §5's Today with the server's data. The header "Today · {{businessDate}}"; the van row "3 full · 1 empty · 1 part-filled" (zeros hidden, "No cylinders" at 0); `activeTrip` is the current-trip card, `nextTrips` the rows; the current trip's action is the footer "Start trip" / "Continue trip", not a button per row; "Done today: {{count}}" from `doneToday`. The driver's open refills follow the trips, oldest first: "Refill · 1 × 6 kg · Ahmed Gas" with the driver's chip (`driver.refills.stage.*`, "Pick up empties"), from `GET /filling-orders/driver/mine` (the Refills list's query, on Today's 30 s poll). A row opens the refill; the footer stays the trip's (review23 ux-02). Empty, only with no trip and no open refill: "Nothing to do." / "New trips and refills appear by themselves." with [Call office]; it polls every 30 seconds. No van: "No van yet." in the van row, and My van offers [Call office].
 - **R3 Trip** (`TripScreen.tsx`; `GET /trips/:id`, every 15 seconds): §5's Trip.
   - Step lines from `progress`: Load "{{done}} of {{total}} loaded" once loading has begun; Deliver "{{done}} of {{total}} delivered"; Unload "{{count}} on the van".
   - The footer's one main button by progress: "Start trip", "Load at store", "Deliver to {{name}}", "Unload at store", "Finish trip". There is no "Hand back at store".
@@ -962,7 +965,7 @@ interface ScanPanelProps {
 - **R5 Visit** (`VisitScreen.tsx`; replaces `DeliverySteps`): four phases on one screen, the header "Step {{step}} of {{total}}" throughout.
   - **Phase 0 · On the way** (stop PENDING): §5's on-the-way screen: Maps, **Call {{name}}**, what to deliver with "Take back {{count}}", "Could not deliver", and the footer "I've arrived" (`PATCH /trips/stops/:id/arrive`). The camera doesn't run while driving.
   - **Phase 1 · Deliver:** the CountBar "0 of 3" + "delivered"; the camera (HANDOVER), the strip and SizeLines; "Type number"; "Could not deliver" last, disabled once a cylinder is given with the line "You already gave some. Call office."; the footer "Finish visit", disabled, with "{{count}} more to deliver". **When the server says the give is complete, the screen moves to phase 2 by itself**, after the long buzz and chime.
-  - **Phase 2 · Take back:** the strip "All {{count}} delivered"; the title "Take back from {{name}}"; the state tap "This cylinder is:" with a 56 dp SegmentedControl Empty | Part-filled | Full (default Empty, sticky); the soft CountBar "0 taken back · 3 expected"; the camera (TAKE_BACK) and the strip "AG-C0012 · Part-filled"; three lists headed "Part-filled · 2" and so on (empty lists hidden), rows "AG-C0012 · 11.8 kg" and, with no label, "No label · 2 × 11.8 kg" (tap to edit); a ghost "No label" opening the sheet below; "Type number"; the footer "Finish visit".
+  - **Phase 2 · Take back:** the strip "All {{count}} delivered"; the title "Take back from {{name}}"; the state tap "This cylinder is:" with a 56 dp SegmentedControl Empty | Part-filled | Full (default Empty, sticky); right under it the strip "AG-C0012 · Part-filled"; the soft CountBar "0 taken back · 3 expected"; the shorter camera (TAKE_BACK, §7.1); three lists headed "Part-filled · 2" and so on (empty lists hidden), rows "AG-C0012 · 11.8 kg" and, with no label, "No label · 2 × 11.8 kg" (tap to edit); a ghost "No label" opening the sheet below; "Type number"; the footer "Finish visit".
     - **No label sheet:** "No label or other brand"; Size (ChoiceChips, 2 columns), State (SegmentedControl), How many (Stepper 0–30, where 0 removes the row); pinned [Save] / [Go back]. It sends `PUT …/unlabelled-returns` with the stop's whole list; these count as taken back.
     - **Short take-back sheet** (rule 7): "Took back {{taken}} of {{expected}}", "Why?" over Customer kept them · Customer had none · Other (a note); [Finish visit] stays enabled ("Pick a reason." when pressed with none); [Go back]. It sends `takeBackShort`.
   - **Phase 3 · Done:** the success card "Visit done", then "Gave 3 · Took back 3" and "1 empty · 2 part-filled · 0 full" on two lines, with no brackets. The footer is the next step ("Deliver to Usman", "Unload at store", "Back to trip").
@@ -1000,7 +1003,7 @@ interface ScanPanelProps {
 - **No cylinder-history screen** in the pilot: plain-word history is on the office website (UX_ADMIN §3.5). `GET /cylinders/:code/history` stays open to the owning distributor for later.
 
 **As built (Inc 2/3 screens, 2026-10-25)**
-- **Home rows:** the problems row is red ("2 customer problems" / "The office will look into it"); "Receive from driver" with "{{count}} coming back" polls every 15 s, and with one van it opens that van's scan; "Day-end sheet" / "Send today's count". Each shows only while its feature is on. "Coming back" counts only what will come back: `GET /store/incoming` leaves out cylinders out for delivery (API_CONTRACT §9.13), so a van loading or out on its run isn't listed until something on it is coming back.
+- **Home rows:** the problems row is red ("2 customer problems" / "The office will look into it"); "Receive from driver" with "{{count}} coming back" polls every 15 s, and with one van it opens that van's scan; "Day-end sheet" naming the day that waits (§8.3). Each shows only while its feature is on. "Coming back" counts only what will come back: `GET /store/incoming` leaves out cylinders out for delivery (API_CONTRACT §9.13), so a van loading or out on its run isn't listed until something on it is coming back.
 - **S13** is `screens/distributor/receive/ReceiveListScreen.tsx` and `ReceiveScanScreen.tsx` (routes ReceiveList and ReceiveScan). The list's words are `receive.*`; the scan's are the shared `scan.*` (step RECEIVE): "AG-C0011 · 11.8 kg received", the grey "Already in your store", "All 2 received", "All 3 back · Refill done". The list never jumps to a scan by itself, so Back from a scan doesn't bounce.
 - **S14** (`OrderDetailScreen.tsx`, `shared/visit.ts`): Delivered per size and Taken back by number come from `OrderDto.visit` (API_CONTRACT §9.13): "Empty · AG-C0021", "Empty · No label · 1 × 15 kg", and "{{count}} expected" when the total differs. The cost line reads "Delivery cost Rs 480 · paid when the order was placed". The answer card is `screens/distributor/confirm/CustomerAnswer.tsx` (`useCustomerAnswer`: the card, the footer button and the sheets); see CUSTOMER_PAGE §10. The answer chip shows in the card on the detail, and under the stage chip on the order rows.
 - **S15** (`CasesScreen.tsx`): the customer's name first, then "AG-0001 · “Only 2 came”", the time on the right, the answer chip below.
@@ -1054,16 +1057,16 @@ The header "Refill" with Call office; the title is the step, with "{{count}} × 
 | Step | Title | CountBar and hint | Footer |
 |---|---|---|---|
 | 1 Pick up | Pick up empties at {{store}} | ScanPanel(REFILL_PICKUP): "0 of 2" + "picked up"; "Scan each cylinder you pick up." (a full one is refused with the catalogue's words) | "Done picking up" (`advance → EMPTIES_PICKED`), off at 0 with "Scan a cylinder first." above it; "Type number" when on |
-| 2 Fill | Fill at {{station}} | ScanPanel(REFILL_FILL): "0 of 2" + "filled"; "Scan each filled cylinder." | "Done filling" (`advance → FILLED`), off at 0 with the same line. While 0 are filled, a ghost **"Bring back unfilled"** moves to step 3 without a server call: the shop's receive scans still finish the refill |
+| 2 Fill | Fill at {{station}} | ScanPanel(REFILL_FILL): "0 of 2" + "filled"; "Scan each filled cylinder." | "Done filling" (`advance → FILLED`), off at 0 with the same line. While 0 are filled, a ghost **"Bring back unfilled"** (under the title, above the count, away from "Type number") moves to step 3 without a server call: the shop's receive scans still finish the refill. Step 3 then shows a ghost "Back to filling" while the server still has the refill at the station step (EMPTIES_PICKED or AT_STATION) and nothing is received. It returns to step 2, also without a server call and without a confirm (review23 ux-04) |
 | 3 Unload | Unload at {{store}} | passive, as R7: "0 of 2" + "unloaded" (polls 5 s); "Give each cylinder to the shop to scan." | **none while the shop scans**; when the refill is DONE, the success card "Refill done" and the footer "Back to refills" |
 
 - Complete: "All 2 picked up", "All 2 filled", "All 2 unloaded", with the long buzz.
 - Refusals in the strip: `REFILL_CYLINDER_NOT_EMPTY`, `REFILL_CYLINDER_WRONG_SIZE`, `REFILL_CYLINDER_ON_OTHER_REFILL`, `SCAN_NOT_AT_STORE`, `REFILL_COUNT_REACHED` ("All picked up: {{requested}} of {{requested}}."), `REFILL_CYLINDER_NOT_ON_THIS_REFILL`. `REFILL_WRONG_STEP` refetches and moves to the right step. No answer: "Not saved: {{count}}" with one Retry.
 - The driver's Refills list stays §5's (it opens this screen); Inc 3 deletes the Inc 1 stepper keys and the steps "Go to …", "Bring them back …" and "Back at …".
-- **As built (Inc 2/3 screens, 2026-10-25):** ASSIGNED is step 1; EMPTIES_PICKED or AT_STATION step 2 (step 3 after "Bring back unfilled", which the phone remembers in memory per refill); FILLED step 3; COMPLETED the card "Refill done" with "Back to refills". Step 3 polls every 5 s; `REFILL_WRONG_STEP` reloads the refill. A wrong size is refused in the strip ("This refill is for 6 kg only.").
+- **As built (Inc 2/3 screens, 2026-10-25):** ASSIGNED is step 1; EMPTIES_PICKED or AT_STATION step 2 (step 3 after "Bring back unfilled", which the phone remembers in memory per refill); FILLED step 3; COMPLETED the card "Refill done" with "Back to refills". Step 3 polls every 5 s; `REFILL_WRONG_STEP` reloads the refill. A wrong size is refused in the strip ("This refill is for 6 kg only."). The Refills list and Today show the run's step: a refill brought back unfilled reads "Bring them back".
 
 ### 8.3 Shop app: day-end (setting `dayEnd.enabled`, read as `appConfig.features.dayEnd`; needs the 0.2.0 APK)
-- **The Home row** "Day-end sheet" (`sheet` icon) with "Send today's count", opening S19.
+- **The Home row** "Day-end sheet" (`sheet` icon) names the day that waits for the shop (`GET /day-end`, one page; `dayEndModel.dayEndTarget`; review23 ux-01): (1) the oldest day sent back or reopened, as a red row "Sat 24 Oct sent back · fix it"; (2) else the oldest earlier day still open, "Sat 24 Oct ready to send" (READY) or "Sat 24 Oct not sent yet" (a sheet made, nothing sent), in bold brand text; (3) else today's chip words ("Ready to send", "Waiting for office", "Approved · day closed"), or "Send today's count" before anything is sent. It opens S19 on that day.
 - **S19 Day-end** (`dayend/DayEndScreen.tsx`)
   - Header "Day-end". A row: the business date and the status chip:
 
@@ -1075,10 +1078,11 @@ The header "Refill" with Call office; the title is the step, with "{{count}} × 
     | APPROVED | Approved · day closed | success / ok |
     | SENT_BACK | Sent back | danger / error |
 
+  - S19 shows the day it was opened on (route param `date`; without one, the day that waits, else today) and keeps it when the 3 am cut-off passes. Check and send returns to the same day. An earlier day ends with a ghost "Today's sheet" (`sheet` icon) that opens today's day-end (review23 ux-01, robustness-jobs-04).
   - Sent back or reopened only: a danger card "Office note: “{{note}}”" (or "Office reopened this day: “{{note}}”"), then "Fix it and upload again.".
-  - **Three step rows** (not tappable; the icon shows the state: a tick when done, the step's icon in brand when current, grey when to do): "Download sheet" (then a tick and a ghost "Download again"); "Fill in only what's different" with the helper "Where it is, its state, and why."; "Upload the sheet" (after an upload "{{count}} difference · {{time}}" and a ghost "Upload again").
+  - **Three step rows** (not tappable; the icon shows the state: a tick when done, the step's icon in brand when current, grey when to do): "Download sheet" (then a tick and a ghost "Download again" with the one line "Your filled sheet can't be sent after this." under it: only the newest sheet can be uploaded, so a new sheet makes the filled copy, and an upload made from it, unusable; review23 ux-07; no confirm, rule 7); "Fill in only what's different" with the helper "Where it is, its state, and why."; "Upload the sheet" (after an upload "{{count}} difference · {{time}}" and a ghost "Upload again").
   - **The footer follows `allowedActions` and the stage:** DOWNLOAD only: "Download sheet" (`FileSystem.downloadAsync` with the auth header, then `Sharing.shareAsync` titled "Open in your sheet app"); UPLOAD with nothing uploaded since the newest sheet: "Upload filled sheet" (DocumentPicker, xlsx; "Checking your sheet…"; then S20); READY: "Send for approval · {{count}} difference(s)" (the S20 confirm); WAITING_FOR_APPROVAL: no footer, with the line "The office is checking it."; APPROVED: no footer.
-  - An upload refused for the whole file (`DAY_SHEET_UNREADABLE`, `DAY_SHEET_WRONG_DISTRIBUTOR`, `DAY_SHEET_WRONG_DATE`, `DAY_SHEET_OUTDATED` "This is an old copy. Download a new sheet and use that.", `FILE_TOO_LARGE`, `DAY_LOCKED`, `DAY_ALREADY_SUBMITTED`) shows an ErrorBanner above the footer; nothing was saved. Only the newest downloaded sheet can be uploaded. `DAY_NOT_FOUND`: "We couldn't find this day.".
+  - An upload refused for the whole file (`DAY_SHEET_UNREADABLE`, `DAY_SHEET_WRONG_DISTRIBUTOR`, `DAY_SHEET_WRONG_DATE`, `DAY_SHEET_OUTDATED` "This is an old copy. Download a new sheet and use that.", `FILE_TOO_LARGE`, `DAY_LOCKED`, `DAY_ALREADY_SUBMITTED`) shows an ErrorBanner above the footer; nothing was saved. Only the newest downloaded sheet can be uploaded. `DAY_NOT_FOUND`: "We couldn't find this day.". A busy server's 503 `SERVICE_UNAVAILABLE` ("The service is busy. Please try again in a minute.": it reads one sheet at a time) adds "Try again", which sends the same file again; a 429 `RATE_LIMITED` says how many minutes to wait and offers no button (review23 security-02).
 - **S20 Check and send** (`dayend/DayEndPreviewScreen.tsx`)
   - Header "Check and send". The summary: the big "{{count}}" with "difference(s)", and the caption "{{count}} cylinders checked". ChoiceChips by kind (All · Place · State · New) when there are 2 or more kinds.
   - One card per difference: "{{shortCode}} · {{size}}"; "App: {{where}} · {{state}}"; "You: {{where}} · {{state}}" with the part that differs in bold; the note in quotes; the fix chip (`dayEnd.fix.*`: "Move to your store", "Set to {{state}}", "Mark as lost", "Add as new cylinder", "Office will check"); a grey "Will be skipped" when it moved since the sheet.
@@ -1089,7 +1093,7 @@ The header "Refill" with Call office; the title is the step, with "{{count}} × 
   - **Download:** the shop picks a folder once (Android's folder screen opens at Documents, because Android 11 and later refuse the Download folder itself; the choice is kept in secure storage). The sheet is saved there under its server file name, replacing an older copy, with the toast "Sheet saved in Documents"; the shop opens it from the sheet app.
   - **Upload:** "Upload filled sheet" opens "Pick your sheet": the .xlsx files in that folder (today's first), then "Other folder" for a sheet saved elsewhere, such as WhatsApp's folder; "No sheets in this folder." when there are none. The picked file goes through the existing multipart upload.
   - Off Android, or without the module, the buttons answer `FEATURE_DISABLED` ("This isn't available yet.").
-- **S19/S20 as built:** `dayend/DayEndScreen.tsx` and `DayEndPreviewScreen.tsx`. The business date is worked out on the phone (`businessDate(now, appConfig.day)`) each time the screen shows. Check and send's caption "41 cylinders checked" is `DayEndUploadResult.checked` (API_CONTRACT §10.5); row errors list the first 20 rows, then "and N more rows" (the server sends up to 100). A cylinder marked Missing reads "You: Missing" with no state and counts as a Place difference only.
+- **S19/S20 as built:** `dayend/DayEndScreen.tsx` and `DayEndPreviewScreen.tsx`. Today is worked out on the phone (`businessDate(now, appConfig.day)`) each time the screen shows; the day shown is the route's. Check and send's caption "41 cylinders checked" is `DayEndUploadResult.checked` (API_CONTRACT §10.5); row errors list the first 20 rows, then "and N more rows" (the server sends up to 100). A cylinder marked Missing reads "You: Missing" with no state and counts as a Place difference only.
 
 ### 8.4 Inc 3 acceptance
 - Every refill step is a scan with "X of Y".
@@ -1118,7 +1122,7 @@ The header "Refill" with Call office; the title is the step, with "{{count}} × 
 | (none) | receive/ReceiveListScreen, receive/ReceiveScanScreen (+ `receiveModel.ts`) | 2 |
 | (none) | confirm/CustomerAnswer.tsx (`useCustomerAnswer`, + `confirmModel.ts`, `newLinkStore.ts`), EditCustomerScreen (route EditCustomer), `shared/visit.ts` | 2 |
 | (none) | RefillDetailScreen (route RefillDetail, + `refill/refillModel.ts`) | 3 |
-| (none) | dayend/DayEndScreen, dayend/DayEndPreviewScreen (+ `SendDaySheet.tsx`, `dayEndModel.ts`, `sheetFiles.ts`, `useSheetFiles.tsx`) | 3 |
+| (none) | dayend/DayEndScreen, dayend/DayEndPreviewScreen (+ `SendDaySheet.tsx`, `dayEndModel.ts`, `sheetFiles.ts`, `useSheetFiles.tsx`, `useDayEndDue.ts`) | 3 |
 | driver/HomeScreen.tsx | Today (1) [mobile-driver], then TodayScreen (+ VanRow.tsx) (2) | 1 / 2 |
 | driver/ActiveTripScreen.tsx | Trip, with FinishTripSheet (1), then TripScreen (2) | 1 / 2 |
 | driver/DeliveryStepsScreen.tsx | the Load and Deliver step screens, each with its camera (`StepFrame`, `scanTally.ts`) (1), then LoadScreen, VisitScreen and NoLabelSheet (2); `scanTally.ts` is removed | 1 / 2 |
@@ -1155,7 +1159,7 @@ The header "Refill" with Call office; the title is the step, with "{{count}} × 
 **Inc 2**
 | Screen | Calls |
 |---|---|
-| R2 | `GET /driver/home` |
+| R2 | `GET /driver/home`, `GET /filling-orders/driver/mine` (the open refills, review23 ux-02) |
 | R3–R7 | `GET /trips/:id`, `POST /trips/:id/scans`, `PUT …/unlabelled-returns`, `POST …/stops/:stopId/finish`, `POST /trips/:id/finish`, `POST /orders/:id/fail` |
 | R8 | `POST /push-tokens`, `DELETE /push-tokens` (on Sign out) |
 | S13 | `GET /store/incoming`, `POST /store/scans` |
@@ -1168,7 +1172,7 @@ The header "Refill" with Call office; the title is the step, with "{{count}} × 
 |---|---|
 | S16–S18 | `/filling-orders/*` |
 | R10 | `POST /filling-orders/:id/scans`, `POST /filling-orders/:id/advance` |
-| S19, S20 | `/day-end/*` |
+| S19, S20 | `GET /day-end` (Home and S19: the day that waits), `/day-end/*` |
 
 ## Appendix C. Query keys (`api/keys.ts`, foundation) and invalidation
 **Keys and polling**
@@ -1197,6 +1201,7 @@ The header "Refill" with Call office; the title is the step, with "{{count}} × 
 | `qk.store.incoming` | polls 15 s |
 | `qk.cases.mine` | |
 | `qk.dayEnd(date)` | |
+| `qk.dayEndList` | `GET /day-end`, read by Home and S19 (the day that waits); refreshed after a download, an upload or a send (review23 ux-01) |
 
 Polling runs only while the screen is focused and the app is active. `support.contact` and `auth.lastPhone` are secure-storage items, not query keys.
 

@@ -29,6 +29,7 @@ import {
   checkedCount,
   differingParts,
   fixState,
+  isBusyRefusal,
   lineKinds,
   kindsPresent,
   ROW_ERRORS_SHOWN,
@@ -67,7 +68,8 @@ export function DayEndPreviewScreen() {
   const [filter, setFilter] = useState<Filter>('ALL');
   const [sendOpen, setSendOpen] = useState(false);
   const [sendError, setSendError] = useState<ApiError | null>(null);
-  const backToDay = () => navigation.navigate('DayEnd');
+  // Back to this day's S19, never to whatever "today" is by then (review23 robustness-jobs-04).
+  const backToDay = () => navigation.navigate('DayEnd', { date });
 
   const data = upload.data ?? null;
   const differences = useMemo(() => (data?.kind === 'result' ? data.result.differences : []), [data]);
@@ -94,6 +96,7 @@ export function DayEndPreviewScreen() {
     !isNetworkError(failure) ? (
       <ErrorBanner
         error={failure}
+        onRetry={again.error && isBusyRefusal(again.error) && again.retry ? again.retry : undefined}
         extraAction={sendError?.code === 'DAY_VERSION_CHANGED' ? { label: t('dayEnd.btn.uploadAgain'), onPress: again.start } : undefined}
       />
     ) : (

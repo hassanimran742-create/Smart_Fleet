@@ -234,7 +234,7 @@ Buttons keep their verbs: the driver's "Could not deliver" and the office's "Cou
 - Digits for numbers: "3 cylinders", "2 of 3". Never "three", "3/5" or "60%".
 - Money only through `formatRs` and `MoneyText`: "Rs 3,450", "+Rs 5,000", "−Rs 330". Never "Rs.", "PKR", ".00" or "/-".
 - Times through `formatWhen` (phone) and `format.ts` (website): "Today, 4:12 pm", "Mon 19 Oct". Numbers through `formatNo`: "AG-0142", "AG-T031".
-- Phone numbers through `formatPkPhone`: "0300 1234567" as text in the apps and on the customer page, "+92 300 1234567" on the website; a phone field shows "+92" fixed, then "300 1234567".
+- Phone numbers through `formatPkPhone`: "0300 1234567" as text in the apps and on the customer page, "+92 300 1234567" on the website; a phone field shows "+92" fixed, then "300 1234567". In the apps the two halves are joined by a no-break space (`ui/keepTogether`), and on the customer page the number is a no-wrap span, so a number never splits across two lines (review23 ux-11).
 - A button is a verb and its thing, with the amount after "·": "Place order · pay Rs 330", "Send for checking".
 - Talk to the person: "you" and "your wallet" on the phone. On the website, name the distributor: "Add Rs 5,000 to Ali Gas wallet".
 - Say what to do, not what broke: "Enter a number like 300 1234567", not "Invalid format".
@@ -319,7 +319,7 @@ The third column says where each word was found before the 2026-10-23 pass. Ever
 | Skipped (a stop) | Not delivered, or Cancelled | `stages.step.SKIPPED` |
 
 **Allowed, because the person's own bank or Easypaisa shows them:** IBAN, Transaction ID, Raast and, on the website, bank reference.
-**Shown only for support:** the small "Reference: 7f3a2c" under the message in the website's `ErrorState`, and "App version 0.1.0 · update 1a2b3c4d" on Help. Never on any other screen.
+**Shown only for support:** the small "Reference: 7f3a2c" under the message in the website's `ErrorState`, and "App version 0.1.1 · update 1a2b3c4d" on Help. Never on any other screen.
 
 ---
 

@@ -37,8 +37,8 @@ import {
   stopStepState,
   storeNameOf,
   tripSteps,
+  tripVanLeftOf,
   unloadStepState,
-  vanTotalOf,
   type TripDetail,
   type TripStop,
 } from './tripModel';
@@ -146,7 +146,8 @@ function TripSteps({
 }) {
   const { t } = useTranslation();
   const store = storeNameOf(trip, t);
-  const onVan = vanTotalOf(trip);
+  // The Unload row counts what this trip has to unload, like its chip (holder-scans-02).
+  const onVan = tripVanLeftOf(trip);
 
   return (
     <View style={styles.stack}>

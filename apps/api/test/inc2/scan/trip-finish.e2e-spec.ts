@@ -13,6 +13,13 @@ import { buildWorld, messageOf, X1, X2, type World } from './support/world';
 
 jest.setTimeout(180_000);
 
+/**
+ * The Inc 2/3 driver app's headers (the over-the-air JS names its release, apps/mobile/src/api/release.ts).
+ * A driver call without them is the installed 0.1.0 JS, which is told to restart for the update instead of
+ * TRIP_VAN_NOT_EMPTY (review23 contract-compat-01, app-version.interceptor.ts): these cases are the new app's.
+ */
+const NEW_DRIVER_APP = { 'X-App-Variant': 'driver', 'X-App-Version': '0.1.1' };
+
 describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
   let app: INestApplication;
   let w: World;
@@ -57,7 +64,7 @@ describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
 
     await w.hand(std.DR1, t1, x2, [21, 22, 23]);
     expect((await w.finishVisit(std.DR1, t1, x2)).status).toBe(200);
-    const loaded = await scans.finishTrip(std.DR1, t1.id, {});
+    const loaded = await scans.finishTrip(std.DR1, t1.id, {}).set(NEW_DRIVER_APP);
     expect(loaded.status).toBe(409);
     expect(loaded.body).toMatchObject({ code: 'TRIP_VAN_NOT_EMPTY', message: messageOf('TRIP_VAN_NOT_EMPTY', { count: 1 }) });
     expect(loaded.body.details).toEqual({
@@ -87,7 +94,7 @@ describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
     await scans.failOrder(std.DR1, x1.id, { reasonCode: 'CUSTOMER_NOT_HOME' }).expect(200);
     const reason = 'Store closed when I got back';
 
-    const off = await scans.finishTrip(std.DR1, t1.id, { leftoverReason: reason });
+    const off = await scans.finishTrip(std.DR1, t1.id, { leftoverReason: reason }).set(NEW_DRIVER_APP);
     expect(off.status).toBe(409);
     expect(off.body.code).toBe('TRIP_VAN_NOT_EMPTY');
     expect(off.body.details).toMatchObject({ count: 3, leftoversAllowed: false });
@@ -98,7 +105,7 @@ describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
     expect(setting.diff).toMatchObject({ key: 'trip.allowFinishWithLeftovers', from: false, to: true });
     expect(setting.reason).toBe('Late runs');
 
-    const noReason = await scans.finishTrip(std.DR1, t1.id, {});
+    const noReason = await scans.finishTrip(std.DR1, t1.id, {}).set(NEW_DRIVER_APP);
     expect(noReason.status).toBe(409);
     expect(noReason.body.details).toMatchObject({ count: 3, leftoversAllowed: true });
     const tooShort = await scans.finishTrip(std.DR1, t1.id, { leftoverReason: 'Late' });

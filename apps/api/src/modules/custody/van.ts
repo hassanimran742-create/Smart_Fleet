@@ -1,4 +1,4 @@
-import { CylinderEventType, CylinderState } from '@prisma/client';
+import { CustodyType, CylinderEventType, CylinderState } from '@prisma/client';
 import type { CylinderStateValue, VanCounts, VanCylinderCame } from '@smartfleet/shared-types';
 import { AppError } from '../../common/errors/app-error';
 import { formatNo } from '@smartfleet/shared-utils';
@@ -48,14 +48,39 @@ interface VanRow {
   trip_id: string | null;
   order_id: string | null;
   event_at: Date | null;
+  /** The last move's from-holder and state after it: an approved "Missing" fix is ADJUSTED from this van to LOST. */
+  event_from_type: CustodyType | null;
+  event_from_id: string | null;
+  event_to_state: CylinderState | null;
+}
+
+/**
+ * [review23 holder-scans-05] A cylinder an approved day-end fix marked LOST while it was on this van, with
+ * no move since: its last move is that fix (ADJUSTED from this van, to LOST). MARK_LOST keeps the holder
+ * (§10.2), so it stays on the van's record (`VanCounts.total`, My van: "Lost"), but nobody can scan it in:
+ * it is in no place of the day-end summary, and it doesn't keep the van "not empty" (`TRIP_VAN_NOT_EMPTY`,
+ * the 03:00 check, `VEHICLE_HAS_CYLINDERS`, `GET /store/incoming`). Any later move (a take-back keeps LOST,
+ * §9.2 step 9; a receive) is a real move, and the cylinder counts again.
+ */
+function lostThere(row: Pick<VanRow, 'state' | 'event_type' | 'event_from_type' | 'event_from_id' | 'event_to_state'>, vehicleId: string): boolean {
+  return (
+    row.state === CylinderState.LOST &&
+    row.event_type === CylinderEventType.ADJUSTED &&
+    row.event_to_state === CylinderState.LOST &&
+    row.event_from_type === CustodyType.VEHICLE &&
+    row.event_from_id === vehicleId
+  );
 }
 
 /**
  * Every cylinder on a van, with its `came` (API_CONTRACT §9.3). `perspectiveTripId` is the run being
- * finished: a cylinder loaded on another run is a SPARE from its point of view, and a cylinder on an open
- * refill line isn't the run's at all, so it is left out (Inc 3, §10.1: it doesn't block "Finish trip").
- * Without it (the store's incoming list) a loaded cylinder is judged against its own run, and a refill
- * cylinder is listed as REFILL with its refill. `distributorId` keeps one owner's.
+ * finished: a cylinder loaded on another run is a SPARE from its point of view, except one another open
+ * run of this van is taking to its customers (out for delivery, as `GET /store/incoming` leaves it out,
+ * §9.13), which isn't this run's at all; a cylinder on an open refill line isn't the run's either (Inc 3,
+ * §10.1: it doesn't block "Finish trip"). Both are left out. Without it (the store's incoming list) a loaded
+ * cylinder is judged against its own run, and a refill cylinder is listed as REFILL with its refill. A
+ * cylinder marked lost on the van ({@link lostThere}) is left out either way. `distributorId` keeps one
+ * owner's.
  */
 export async function vanCylinders(
   db: Db,
@@ -64,15 +89,32 @@ export async function vanCylinders(
 ): Promise<VanCylinder[]> {
   const rows = await db.$queryRaw<VanRow[]>`
     SELECT c.id, c.qr_code, c.short_no, c.distributor_id, d.code AS distributor_code, c.cylinder_type_id, c.state,
-           e.event_type, e.trip_id, e.order_id, e.created_at AS event_at
+           e.event_type, e.trip_id, e.order_id, e.created_at AS event_at,
+           e.from_custody_type AS event_from_type, e.from_custody_id AS event_from_id, e.to_state AS event_to_state
     FROM cylinders c
     JOIN distributors d ON d.id = c.distributor_id
     LEFT JOIN cylinder_events e ON e.id = c.last_event_id
     WHERE c.custody_type = 'VEHICLE' AND c.custody_id = ${vehicleId}::uuid
     ORDER BY e.created_at ASC NULLS FIRST, c.id`;
-  const owned = opts.distributorId ? rows.filter((row) => row.distributor_id === opts.distributorId) : rows;
+  const owned = (opts.distributorId ? rows.filter((row) => row.distributor_id === opts.distributorId) : rows).filter(
+    (row) => !lostThere(row, vehicleId),
+  );
   const refills = await openRefillLineCylinderIds(db, { cylinderIds: owned.map((row) => row.id) });
-  const mine = opts.perspectiveTripId ? owned.filter((row) => !refills.has(row.id)) : owned;
+  let mine = opts.perspectiveTripId ? owned.filter((row) => !refills.has(row.id)) : owned;
+  if (opts.perspectiveTripId && mine.some((row) => isLoadOfAnotherRun(row, opts.perspectiveTripId as string))) {
+    // [review23 holder-scans-02] Another open run's loads its customers still need are that run's, not
+    // this run's: they are out for delivery, as the shop's incoming list says. Beyond what that run still
+    // needs (its order cancelled or failed), they are spares from here too.
+    const out = await outForDeliveryNeed(db, vehicleId);
+    mine = mine.filter((row) => {
+      if (!isLoadOfAnotherRun(row, opts.perspectiveTripId as string)) return true;
+      const key = `${row.trip_id}:${row.cylinder_type_id}`;
+      const owed = out.get(key) ?? 0;
+      if (owed <= 0) return true;
+      out.set(key, owed - 1);
+      return false;
+    });
+  }
   if (mine.length === 0) return [];
   const sizes = await sizeLabels(db, mine.map((row) => row.cylinder_type_id));
 
@@ -135,6 +177,11 @@ export async function vanCylinders(
   });
 }
 
+/** A trip LOAD (SCAN_OUT with a trip) of a run other than `tripId`; a refill pickup has no trip. */
+function isLoadOfAnotherRun(row: Pick<VanRow, 'event_type' | 'trip_id'>, tripId: string): boolean {
+  return row.event_type === CylinderEventType.SCAN_OUT && !!row.trip_id && row.trip_id !== tripId;
+}
+
 /**
  * Per run and size, how many loaded cylinders its orders still owe: Σ fullCount − given over the
  * orders that aren't DELIVERED or CANCELLED (an order that failed or is still open).
@@ -148,6 +195,27 @@ async function undeliveredNeed(db: Db, tripIds: readonly string[]): Promise<Map<
              WHERE sc.order_id = o.id AND sc.cylinder_type_id = ol.cylinder_type_id AND sc.direction = 'GIVEN'), 0), 0))::int AS owed
     FROM orders o JOIN order_lines ol ON ol.order_id = o.id
     WHERE o.trip_id = ANY(${[...tripIds]}::uuid[]) AND o.status IN ('ASSIGNED', 'IN_TRANSIT', 'FAILED')
+    GROUP BY o.trip_id, ol.cylinder_type_id`;
+  return new Map(rows.map((row) => [`${row.trip_id}:${row.type_id}`, Number(row.owed)]));
+}
+
+/**
+ * Per run and size, the cylinders a van carries to customers (out for delivery, §9.13): Σ fullCount −
+ * given over the orders of its open runs (PLANNED or IN_PROGRESS) still to be delivered (ASSIGNED or
+ * IN_TRANSIT). Key `${tripId}:${cylinderTypeId}`. The shop's incoming list and a run's own view of its van
+ * both leave these out.
+ */
+export async function outForDeliveryNeed(db: Db, vehicleId: string): Promise<Map<string, number>> {
+  const rows = await db.$queryRaw<Array<{ trip_id: string; type_id: string; owed: number }>>`
+    SELECT o.trip_id, ol.cylinder_type_id AS type_id,
+           SUM(GREATEST(ol.full_count - COALESCE((
+             SELECT count(*) FROM stop_cylinders sc
+             WHERE sc.order_id = o.id AND sc.cylinder_type_id = ol.cylinder_type_id AND sc.direction = 'GIVEN'), 0), 0))::int AS owed
+    FROM orders o
+    JOIN order_lines ol ON ol.order_id = o.id
+    JOIN trips t ON t.id = o.trip_id
+    WHERE t.vehicle_id = ${vehicleId}::uuid AND t.status IN ('PLANNED', 'IN_PROGRESS')
+      AND o.status IN ('ASSIGNED', 'IN_TRANSIT')
     GROUP BY o.trip_id, ol.cylinder_type_id`;
   return new Map(rows.map((row) => [`${row.trip_id}:${row.type_id}`, Number(row.owed)]));
 }
@@ -177,16 +245,34 @@ export async function countCylindersOnVehicle(db: Db, vehicleId: string): Promis
 }
 
 /**
+ * The cylinders that keep a van "not empty": every cylinder it holds, any owner and any state, except one
+ * an approved day-end fix marked lost there with no move since ({@link lostThere}); with
+ * `leaveOutRefillLines`, also except those on an open refill line (the 03:00 van check, §9.9). The
+ * driver-change guard counts refill cylinders (§10.5).
+ */
+export async function cylindersKeepingVanLoaded(db: Db, vehicleId: string, opts: { leaveOutRefillLines: boolean }): Promise<number> {
+  const rows = await db.$queryRaw<Array<Pick<VanRow, 'id' | 'state' | 'event_type' | 'event_from_type' | 'event_from_id' | 'event_to_state'>>>`
+    SELECT c.id, c.state, e.event_type, e.from_custody_type AS event_from_type, e.from_custody_id AS event_from_id, e.to_state AS event_to_state
+    FROM cylinders c
+    LEFT JOIN cylinder_events e ON e.id = c.last_event_id
+    WHERE c.custody_type = 'VEHICLE' AND c.custody_id = ${vehicleId}::uuid`;
+  const counted = rows.filter((row) => !lostThere(row, vehicleId));
+  if (!opts.leaveOutRefillLines || counted.length === 0) return counted.length;
+  const refills = await openRefillLineCylinderIds(db, { cylinderIds: counted.map((row) => row.id) });
+  return counted.filter((row) => !refills.has(row.id)).length;
+}
+
+/**
  * `PATCH /drivers/:id/vehicle` (API_CONTRACT §9.5): a van's driver can't change while the van holds any
- * cylinder (refill cylinders included), so the store scans everything in first. Pass every van whose
- * driver the change would move (the driver's current van, and the van taken from another driver); the
- * first loaded one answers 409 VEHICLE_HAS_CYLINDERS `{count}`. For the drivers module, inside its
- * transaction after it locks the driver row.
+ * cylinder (refill cylinders included; one marked lost there doesn't count, {@link lostThere}), so the store
+ * scans everything in first. Pass every van whose driver the change would move (the driver's current van,
+ * and the van taken from another driver); the first loaded one answers 409 VEHICLE_HAS_CYLINDERS `{count}`.
+ * For the drivers module, inside its transaction after it locks the driver rows.
  */
 export async function assertVansEmptyForDriverChange(db: Db, vehicleIds: readonly (string | null | undefined)[]): Promise<void> {
   for (const vehicleId of vehicleIds) {
     if (!vehicleId) continue;
-    const count = await countCylindersOnVehicle(db, vehicleId);
+    const count = await cylindersKeepingVanLoaded(db, vehicleId, { leaveOutRefillLines: false });
     if (count > 0) throw new AppError('VEHICLE_HAS_CYLINDERS', { count });
   }
 }

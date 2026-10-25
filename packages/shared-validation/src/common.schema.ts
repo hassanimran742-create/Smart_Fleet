@@ -31,14 +31,54 @@ export function hasNoNul(value: string): boolean {
   return !value.includes('\u0000');
 }
 
-/** Trimmed text of `min` to `max` characters, without a NUL character. */
-export function textSchema(min: number, max: number) {
-  return z.string().trim().min(min).max(max).refine(hasNoNul, 'INVALID_VALUE');
+/**
+ * True for well-formed UTF-16: no lone surrogate (half of an emoji, as a text cut at a code-unit limit
+ * leaves it). Prisma's query engine refuses a whole query holding one ("lone leading surrogate in hex
+ * escape"), so text fields refuse it as INVALID_VALUE instead of reaching the database as a 500. A plain
+ * loop, not `String.prototype.isWellFormed`: the shop app runs these schemas on Hermes. [review23
+ * robustness-jobs-02]
+ */
+export function isWellFormedText(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const unit = value.charCodeAt(i);
+    if (unit < 0xd800 || unit > 0xdfff) continue;
+    const next = value.charCodeAt(i + 1);
+    if (unit > 0xdbff || !(next >= 0xdc00 && next <= 0xdfff)) return false;
+    i++;
+  }
+  return true;
 }
 
-/** Optional trimmed text, without a NUL character; blank or null counts as not sent. */
+/** The text with every lone surrogate replaced by U+FFFD: for free text that is cleaned, not refused. */
+export function toWellFormedText(value: string): string {
+  if (isWellFormedText(value)) return value;
+  let out = '';
+  for (let i = 0; i < value.length; i++) {
+    const unit = value.charCodeAt(i);
+    const next = value.charCodeAt(i + 1);
+    if (unit >= 0xd800 && unit <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
+      out += value[i] + value[i + 1];
+      i++;
+    } else {
+      out += unit >= 0xd800 && unit <= 0xdfff ? '�' : value[i];
+    }
+  }
+  return out;
+}
+
+/** Text the database can store and compare: no NUL character and no lone surrogate. */
+export function isStorableText(value: string): boolean {
+  return hasNoNul(value) && isWellFormedText(value);
+}
+
+/** Trimmed text of `min` to `max` characters, without a NUL character or a lone surrogate. */
+export function textSchema(min: number, max: number) {
+  return z.string().trim().min(min).max(max).refine(isStorableText, 'INVALID_VALUE');
+}
+
+/** Optional trimmed text, without a NUL character or a lone surrogate; blank or null counts as not sent. */
 export function optionalTextSchema(max: number, min = 1) {
-  return z.preprocess(blankToUndefined, z.string().trim().min(min).max(max).refine(hasNoNul, 'INVALID_VALUE').optional());
+  return z.preprocess(blankToUndefined, z.string().trim().min(min).max(max).refine(isStorableText, 'INVALID_VALUE').optional());
 }
 
 /** A reason the office or a distributor must give (audit rows marked `*`), 5–300 characters. */

@@ -11,6 +11,7 @@ import { CustodyType, CylinderState } from '@prisma/client';
 import { FilesService } from '../../../src/modules/files/files.service';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
 import { createTestApp } from '../../helpers/app';
+import { NEW_SHOP_APP } from '../../helpers/app-headers';
 import { authHeader } from '../../helpers/auth';
 import { getTestPrisma, walletMismatches } from '../../helpers/db';
 import { describeDb } from '../../helpers/describe-db';
@@ -202,11 +203,19 @@ describeDb('REVIEW contract-compat: the installed 0.1.0 apps replayed against th
     expect(stations.body.length).toBeGreaterThan(0);
     for (const s of stations.body) expect(Number.isFinite(Number(s.price_per_cylinder_paisa))).toBe(true);
 
-    // RequestFillingScreen.tsx:75 — OUR_SERVICE, one request per cart line.
-    const refill = await http(app)
-      .post(`${API}/filling-orders`)
-      .set(h)
-      .send({ fillingStationId: stations.body[0].id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 2, serviceType: 'OUR_SERVICE' });
+    // RequestFillingScreen.tsx:75 — OUR_SERVICE, one request per cart line. From Inc 3 only the Inc 3 apps
+    // can run and receive a refill, so the 0.1.0 JS is told how to update (its screen shows `message`) and
+    // nothing is made (Appendix A, review23 contract-compat-01).
+    const refillBody = { fillingStationId: stations.body[0].id, cylinderTypeId: std.sizes.kg11_8, requestedCount: 2, serviceType: 'OUR_SERVICE' };
+    const oldRefill = await http(app).post(`${API}/filling-orders`).set(h).send(refillBody);
+    expect({ status: oldRefill.status, code: oldRefill.body.code, message: oldRefill.body.message }).toEqual({
+      status: 426,
+      code: 'APP_RESTART_TO_UPDATE',
+      message: 'Close the app and open it again to update.',
+    });
+    expect(await db().fillingOrder.count()).toBe(0);
+    // The same request once the phone runs the over-the-air JS; the old list below still reads it.
+    const refill = await http(app).post(`${API}/filling-orders`).set(h).set(NEW_SHOP_APP).send(refillBody);
     expect(refill.status).toBe(201);
     // RequestFillingScreen.tsx:244-250 — requestedCount, cylinderType.code, fillingStation.name, totalCostPaisa, createdAt, status.
     const refills = await http(app).get(`${API}/filling-orders/mine`).set(h).expect(200);

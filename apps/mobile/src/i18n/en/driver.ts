@@ -20,6 +20,9 @@ export const driver = {
   /** The side menu (navigation/menus/driverMenu.ts), beside the shared `common.menu.*` labels. */
   menu: {
     refills: 'Refills',
+    /** What screen readers hear for Refills with its count badge. */
+    refillsA11y: 'Refills, {{count}} open',
+    refillsA11y_plural: 'Refills, {{count}} open',
   },
 
   /** A cylinder size from its weight, e.g. "11.8 kg". */
@@ -40,10 +43,13 @@ export const driver = {
 
   /** Today (D4, R2): the duty row, the van, the open trips and the one next action. */
   home: {
+    /** Only with no trip and no refill (review23 ux-02). */
     empty: {
       title: 'Nothing to do.',
-      body: 'New trips appear by themselves.',
+      body: 'New trips and refills appear by themselves.',
     },
+    /** A refill on Today, under the trips: "Refill · 1 × 6 kg · Ahmed Gas" (the line is data). */
+    refillRow: 'Refill · {{line}}',
     tripTo: 'Deliver to {{name}}',
     tripCustomers: 'Deliver to {{count}} customer',
     tripCustomers_plural: 'Deliver to {{count}} customers',
@@ -272,6 +278,8 @@ export const driver = {
       needOne: 'Scan a cylinder first.',
       /** Step 2 while none is filled: go to the unload without a fill (UX_MOBILE §8.2). */
       noneFilled: 'Bring back unfilled',
+      /** Step 3 after "Bring back unfilled", while nothing is received: the undo (no server call). */
+      backToFill: 'Back to filling',
       refillDone: 'Refill done',
     },
     back: 'Back to refills',

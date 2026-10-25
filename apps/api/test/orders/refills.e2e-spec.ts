@@ -5,6 +5,7 @@
  */
 import type { INestApplication } from '@nestjs/common';
 import { RELEASE_INCREMENT } from '../../src/modules/settings/registry';
+import { NEW_SHOP_APP } from '../helpers/app-headers';
 import { getTestPrisma, resetDb } from '../helpers/db';
 import { describeDb } from '../helpers/describe-db';
 import { http } from '../helpers/http';
@@ -45,7 +46,8 @@ describeDb('api-orders: refills', () => {
     await app?.close();
   });
 
-  const request = (who: Parameters<OrdersFixture['as']>[0], body: Record<string, unknown>) => f.as(who).post('/filling-orders').send(body);
+  // The shop's request comes from the Inc 3 shop app (the 0.1.0 JS gets 426 APP_RESTART_TO_UPDATE, Appendix A).
+  const request = (who: Parameters<OrdersFixture['as']>[0], body: Record<string, unknown>) => f.as(who).post('/filling-orders').set(NEW_SHOP_APP).send(body);
   const refillOf = (count: number, cylinderTypeId = f.std.sizes.kg11_8) => ({ fillingStationId: station, cylinderTypeId, requestedCount: count });
   const newRefill = async (count = 2) => (await request(f.std.DA, refillOf(count)).expect(201)).body as { id: string; status: string };
   const assign = (id: string, driverId = f.std.DR1.id) => f.as(f.std.SA1).patch(`/filling-orders/${id}/assign`).send({ driverId });
@@ -57,6 +59,7 @@ describeDb('api-orders: refills', () => {
     const first = await f
       .as(std.DA)
       .post('/filling-orders')
+      .set(NEW_SHOP_APP)
       .set('Idempotency-Key', newKey())
       .send({ ...refillOf(5), pickupStoreId: std.DB.homeStoreId })
       .expect(201);
@@ -333,10 +336,10 @@ describeDb('api-orders: refills', () => {
     const { std } = f;
     const closed = await createStation('Closed Station', { active: false });
     // Step 1.
-    const refused = await f.as(std.DA).post('/filling-orders').set('Idempotency-Key', newKey()).send({ ...refillOf(2), fillingStationId: closed }).expect(409);
+    const refused = await f.as(std.DA).post('/filling-orders').set(NEW_SHOP_APP).set('Idempotency-Key', newKey()).send({ ...refillOf(2), fillingStationId: closed }).expect(409);
     expect(refused.body).toMatchObject({ code: 'REFILL_STATION_INACTIVE', message: "This station isn't taking refills." });
     // Step 2.
-    const ok = await f.as(std.DA).post('/filling-orders').set('Idempotency-Key', newKey()).send(refillOf(2)).expect(201);
+    const ok = await f.as(std.DA).post('/filling-orders').set(NEW_SHOP_APP).set('Idempotency-Key', newKey()).send(refillOf(2)).expect(201);
     // Step 3.
     expect(((await f.as(std.DA).get('/filling-orders/mine').expect(200)).body as Array<{ id: string }>).map((r) => r.id)).toEqual([ok.body.id]);
   });

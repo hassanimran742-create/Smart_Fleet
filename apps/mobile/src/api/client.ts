@@ -3,7 +3,7 @@ import type { LoginResponse } from '@smartfleet/shared-types';
 import { useAppStatusStore } from '../store/appStatus';
 import { getRefreshToken, useAuthStore } from '../store/auth';
 import { API_BASE_URL, APP_VARIANT, APP_VERSION } from './appInfo';
-import { ApiError, apiErrorFromHttp, networkError, toApiError } from './errors';
+import { ApiError, apiErrorFromHttp, isUpdateRefusal, networkError, toApiError } from './errors';
 import { newRequestId } from './ids';
 import { expireSession } from './session';
 
@@ -25,7 +25,11 @@ declare module 'axios' {
   }
 }
 
-/** Headers every request from a new build sends (API_CONTRACT §1.2). */
+/**
+ * Headers every request from a new build sends (API_CONTRACT §1.2). `X-App-Version` is this JS
+ * release's own version (api/release.ts through `APP_VERSION`), not the APK's, so the update gate can
+ * tell this JS from the 0.1.0 JS it replaces over the air.
+ */
 export function appHeaders(): Record<string, string> {
   return {
     'X-App-Variant': APP_VARIANT,
@@ -67,7 +71,7 @@ function noteFailure(error: ApiError): void {
   const status = useAppStatusStore.getState();
   if (error.code === 'NETWORK_OFFLINE' || error.code === 'NETWORK_TIMEOUT') status.markNetworkError();
   else status.markNetworkOk();
-  if (error.code === 'APP_UPDATE_REQUIRED') status.markUpdateRequired();
+  if (isUpdateRefusal(error)) status.markUpdateRequired();
 }
 
 type Renewal = { ok: true } | { ok: false; error: ApiError };
@@ -96,7 +100,7 @@ async function runRefresh(): Promise<Renewal> {
     const error = toApiError(thrown);
     // No response or a server fault: keep the session and let the person try again later. An old
     // build keeps it too: the update gate takes over, and the session works again after updating.
-    if (error.retryable || error.code === 'APP_UPDATE_REQUIRED') return { ok: false, error };
+    if (error.retryable || isUpdateRefusal(error)) return { ok: false, error };
     await expireSession();
     return { ok: false, error };
   }

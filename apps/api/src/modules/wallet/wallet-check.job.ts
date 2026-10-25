@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { AlertSeverity, AlertStatus, AlertType } from '@prisma/client';
+import { AlertSeverity, AlertStatus, AlertType, type Prisma } from '@prisma/client';
 import { formatRs } from '@smartfleet/shared-utils';
 import { systemActor } from '../../common/auth/actor';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -33,7 +33,10 @@ export interface WalletCheckRun {
  *
  * - At most one unresolved alert per distributor: while one is OPEN or ACKNOWLEDGED the job raises
  *   nothing new and leaves it as it is. (AlertsService's own dedupe looks at OPEN only and rewrites the
- *   alert's context, so the job checks for itself and raises without it.)
+ *   alert's context, so the job checks for itself and raises without it.) The check and the raise run in
+ *   one transaction under a per-distributor advisory lock, so two runs at once (two instances while a
+ *   deploy overlaps 03:30, or an engineer's run during the cron) still leave one alert (review23
+ *   robustness-jobs-07).
  * - It never changes a balance or a ledger row, and never resolves an alert.
  * - Every run, clean or not, then writes one `wallet.check` audit row (G12-05), so a clean night shows
  *   in Activity.
@@ -83,8 +86,7 @@ export class WalletCheckJob {
       for (const check of broken) {
         if (covered.has(check.distributorId)) continue;
         try {
-          await this.raise(check, names.get(check.distributorId) ?? null);
-          raised += 1;
+          if (await this.raiseOnce(check, names.get(check.distributorId) ?? null)) raised += 1;
         } catch (error) {
           // The audit row below still records the mismatch; the next night tries the alert again.
           this.logger.error(`Wallet check: could not raise the alert for ${check.distributorId}: ${(error as Error).message}`);
@@ -101,7 +103,33 @@ export class WalletCheckJob {
     return { checked: checks.length, mismatches: broken.length, distributorIds, raised };
   }
 
-  private async raise(check: WalletCheck, businessName: string | null): Promise<void> {
+  /**
+   * Raises the alert for one broken wallet unless it already has an unresolved one, read again under a
+   * per-distributor advisory lock in the raise's own transaction (as `raiseVanNotEmpty` does for vans): a
+   * second run at the same moment waits for the first one's raise, then finds it. True when it raised.
+   */
+  private async raiseOnce(check: WalletCheck, businessName: string | null): Promise<boolean> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`wallet-check:${check.distributorId}`}))`;
+        const unresolved = await tx.alert.count({
+          where: {
+            alertType: AlertType.WALLET_CHECK_MISMATCH,
+            resourceType: ALERT_RESOURCE_TYPE,
+            resourceId: check.distributorId,
+            status: { in: [AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED] },
+          },
+        });
+        if (unresolved > 0) return false;
+        await this.raise(check, businessName, tx);
+        return true;
+      },
+      // A second run waits on the lock for the first one's commit: give it time, the job is never in a hurry.
+      { maxWait: 10_000, timeout: 30_000 },
+    );
+  }
+
+  private async raise(check: WalletCheck, businessName: string | null, tx: Prisma.TransactionClient): Promise<void> {
     const difference = check.balancePaisa - check.ledgerSumPaisa;
     const who = businessName ?? 'A distributor';
     const body =
@@ -121,7 +149,7 @@ export class WalletCheckJob {
         ledgerSumPaisa: check.ledgerSumPaisa.toString(),
         differencePaisa: difference.toString(),
       },
-    });
+    }, tx);
   }
 
   private async businessNames(ids: string[]): Promise<Map<string, string>> {

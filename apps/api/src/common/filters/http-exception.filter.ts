@@ -7,6 +7,7 @@ import { toApiError, type MappedError } from '../errors/error-mapping';
 import { errorMessage } from '../errors/messages';
 import { headerValue, REQUEST_HEADER, RESPONSE_HEADER } from '../http/headers';
 import { envelopePath } from '../http/redact';
+import { isPublicPagePath, sendPublicPageError } from '../../modules/confirmation/public/public-page.filter';
 import { toJsonSafeObject } from '../security/json-safe';
 import { captureException } from '../sentry/sentry';
 
@@ -74,6 +75,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return;
     }
     res.setHeader(RESPONSE_HEADER.requestId, requestId);
+    // The customer's link page answers every error as a page, never JSON (CUSTOMER_PAGE §5), even one the
+    // body parser or the URI decoder raised before the page's own filter could run. [review23 robustness-jobs-09]
+    if (isPublicPagePath(req.originalUrl ?? req.url)) {
+      sendPublicPageError(res, { code: mapped.code, status: envelope.statusCode });
+      return;
+    }
     res.status(envelope.statusCode).json(envelope);
   }
 

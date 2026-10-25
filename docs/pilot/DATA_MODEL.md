@@ -533,7 +533,7 @@ SELECT d.id, d.advance_balance_paisa, COALESCE(sum(l.amount_paisa),0) AS ledger
 FROM distributors d LEFT JOIN ledger_entries l ON l.distributor_id = d.id GROUP BY d.id
 HAVING d.advance_balance_paisa <> COALESCE(sum(l.amount_paisa),0) OR d.advance_balance_paisa < 0
 ```
-Any row raises alert `WALLET_CHECK_MISMATCH` (CRITICAL, deduplicated per distributor). Its context has `differencePaisa = advance_balance_paisa − ledger sum` (signed). "Deduplicated" means no new alert while that distributor already has an OPEN or ACKNOWLEDGED one. The job never resolves alerts and never changes data. Every run then writes one `audit_logs` row `wallet.check` (SYSTEM, `job:wallet-check`, resource_type `job`) with `{checked, mismatches, distributorIds}`.
+Any row raises alert `WALLET_CHECK_MISMATCH` (CRITICAL, deduplicated per distributor). Its context has `differencePaisa = advance_balance_paisa − ledger sum` (signed). "Deduplicated" means no new alert while that distributor already has an OPEN or ACKNOWLEDGED one. The check and the raise run in one transaction under a per-distributor advisory lock, so two runs at once (two instances during a deploy) still leave one (review23 robustness-jobs-07). The job never resolves alerts and never changes data. Every run then writes one `audit_logs` row `wallet.check` (SYSTEM, `job:wallet-check`, resource_type `job`) with `{checked, mismatches, distributorIds}`.
 
 ### 3.7 Code that must change with this schema (owner lane in brackets)
 - **orders.service.ts** [api-orders]
@@ -779,7 +779,7 @@ model DayClose {                        // one business day per distributor (Asi
   @@index([status, businessDate])
   @@map("day_closes")
 }
-model DayCloseLine {                    // one row per cylinder on the uploaded sheet
+model DayCloseLine {                    // one row per cylinder on the uploaded sheet; an upload replaces them, keeping applied fixes' links
   id                String         @id @default(uuid()) @db.Uuid
   dayCloseId        String         @map("day_close_id") @db.Uuid
   cylinderId        String?        @map("cylinder_id") @db.Uuid   // NULL = a number the app doesn't know
@@ -830,7 +830,7 @@ The migration is `20261024021613_inc3_refills_dayend`. Its generated DDL is `pri
 - **Backfill:** refill numbers per shop by `(created_at, id)`, continuing after `GREATEST(max refill_no, next_refill_no − 1)` as inc2's `short_no` does, then the counter moves on; `cancelled_at = updated_at` for CANCELLED refills. Re-running it changes nothing.
 - **CHECKs:** the five of §5.4, of which only `filling_orders_count_chk` is NOT VALID. `foc_steps_chk`: PICKED_UP has neither time, FILLED has `filled_at`, RETURNED has `returned_at`, filled or not.
 - **`day_closes`:** the first sheet download creates the row (`INSERT … ON CONFLICT` on `day_closes_distributor_id_business_date_key`, then `FOR UPDATE`); `totals` is the `DayCloseTotals` of API_CONTRACT §10.5, counted after the approval's fixes.
-- **`day_close_lines`:** `system_*` are read inside the upload's transaction; `reported_place` and `reported_state` keep the sheet's raw values (null for a blank cell); an Extra cylinders line has `cylinder_id` NULL, `reported_place` STORE and `sheet_key` the sheet's number, and `applied_event_id` points at the new cylinder's REGISTERED event; `skipped_moved_at` is the time of the move that caused the skip.
+- **`day_close_lines`:** `system_*` are read inside the upload's transaction; `reported_place` and `reported_state` keep the sheet's raw values (null for a blank cell); an Extra cylinders line has `cylinder_id` NULL, `reported_place` STORE and `sheet_key` the sheet's number, and `applied_event_id` points at the new cylinder's REGISTERED event; `skipped_moved_at` is the time of the move that caused the skip. A new upload replaces the lines but keeps each applied fix's `applied_event_id` on the new line of the same cylinder or extra number, and a registered number left off the sheet passes it to the new cylinder's own line (API_CONTRACT §10.2). An approval counts a REGISTER line that already has an applied event as unchanged (review23 holder-scans-07).
 
 ---
 

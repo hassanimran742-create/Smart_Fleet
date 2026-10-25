@@ -24,6 +24,8 @@ const CATALOGUE = {
   FEATURE_DISABLED: [403, "This isn't available yet."],
   RATE_LIMITED: [429, 'Too many tries. Please wait {{minutes}} min and try again.'],
   APP_UPDATE_REQUIRED: [426, 'Please update the app to continue.'],
+  // The 0.1.0 JS (no X-App-* headers) gets its update over the air at the next start (API_CONTRACT §6).
+  APP_RESTART_TO_UPDATE: [426, 'Close the app and open it again to update.'],
   CONFLICT_STALE_STATE: [409, 'This changed while you were looking. Refresh and try again.'],
   CONFLICT_DUPLICATE: [409, 'This already exists.'],
   IDEMPOTENCY_CONFLICT: [409, 'This was already sent with different details. Start again.'],
@@ -87,6 +89,7 @@ const CATALOGUE = {
   TRIP_VAN_NOT_EMPTY: [409, 'The store must scan in {{count}} more from your van.'], // Inc 2
   LOAD_INCOMPLETE: [409, 'Load every cylinder first: {{done}} of {{total}} loaded so far.'], // Inc 2
   VEHICLE_HAS_CYLINDERS: [409, 'This van still has cylinders on it ({{count}}). Unload at the store first.'], // Inc 2
+  DRIVER_HAS_OPEN_RUN: [409, "Finish or reassign {{driver}}'s trip on {{plateNo}} first."], // Inc 2 (review23 holder-scans-01)
   // Scans
   SCAN_CYLINDER_UNKNOWN: [404, "We don't know this cylinder. Check the label."],
   SCAN_EVENT_NOT_ALLOWED: [403, "This scan isn't allowed."],
@@ -310,6 +313,11 @@ export interface ErrorDetailsMap {
     lines: { cylinderTypeId: UUID; sizeLabel: string; needed: number; done: number }[];
   };
   VEHICLE_HAS_CYLINDERS: { count: number };
+  /**
+   * A van change refused while a run can still put cylinders on either van (API_CONTRACT §9.5): `driver` is
+   * the run's driver's name, `plateNo` the van the run uses, `run` whether it is a delivery trip or a refill.
+   */
+  DRIVER_HAS_OPEN_RUN: { driver: string; plateNo: string; run: 'TRIP' | 'REFILL' };
   /** `code` is the code that wasn't found, from a manual delivery (§9.5). */
   SCAN_CYLINDER_UNKNOWN: { code?: string } & ScanRefusalDetails;
   SCAN_EVENT_NOT_ALLOWED: ScanRefusalDetails;
@@ -397,6 +405,7 @@ const DETAIL_KEYS = {
   TRIP_VAN_NOT_EMPTY: ['count', 'cylinders', 'leftoversAllowed'],
   LOAD_INCOMPLETE: ['total', 'done', 'lines'],
   VEHICLE_HAS_CYLINDERS: ['count'],
+  DRIVER_HAS_OPEN_RUN: ['driver', 'plateNo', 'run'],
   SCAN_CYLINDER_UNKNOWN: ['code', 'progress'],
   SCAN_EVENT_NOT_ALLOWED: ['progress'],
   SCAN_USE_STORE_RECEIVE: ['progress'],

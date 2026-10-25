@@ -16,29 +16,23 @@ import {
   useFlashedRow,
   type TableColumn,
 } from '../../ui';
-import { useRefills, type RefillRow } from './api';
+import { useRefillBoard, type RefillRow } from './api';
 import { AssignRefillDialog } from './AssignRefillDialog';
-import { RefillStageChip, refillCylinders, refillDriver, requestedText, TAB_KEYS, TAB_STAGES } from './format';
+import { boardRows, TAB_KEYS } from './board';
+import { RefillStageChip, refillCylinders, refillDriver, requestedText } from './format';
 import { REFILL_TABS, type RefillTab, type RefillsSearch } from './search';
 import './refills.css';
 
 const route = getRouteApi('/refills');
 
-/** A refill matches the search by its number or its distributor's name. */
-function matches(refill: RefillRow, q: string): boolean {
-  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return true;
-  const haystack = `${refill.shortCode ?? ''} ${refill.distributor.businessName}`.toLowerCase();
-  return words.every((word) => haystack.includes(word));
-}
-
 /**
  * Refills (`/refills?tab&q`, UX_ADMIN §4.1, Inc 2/3 spec §4.8), rebuilt in Inc 3 with the Orders pattern:
- * tabs Needs a driver · In progress · Done · Cancelled with counts, a search by refill number or
- * distributor, and 6 columns (Station only with more than one station). A refill waiting for a driver has
- * its own "Assign driver"; every row opens the drawer. It refreshes every 15 seconds. Refills carry no
- * money: no cost, no cancel (only the distributor cancels, before pickup) and no "Mark complete" (the
- * shop's receive scans finish a refill).
+ * tabs Needs a driver · In progress · Done · Cancelled, a search by refill number or distributor, and 6
+ * columns (Station only while the listed refills use more than one station). Each tab is its own server
+ * list with "Load more", and the Needs a driver count is the server's, so an old refill waiting for a
+ * driver never drops out of its tab. A refill waiting for a driver has its own "Assign driver"; every row
+ * opens the drawer. It refreshes every 15 seconds. Refills carry no money: no cost, no cancel (only the
+ * distributor cancels, before pickup) and no "Mark complete" (the shop's receive scans finish a refill).
  */
 export function RefillsPage() {
   const { t } = useTranslation(['refills', 'common']);
@@ -48,7 +42,7 @@ export function RefillsPage() {
   const now = useNow(30_000);
   const tab: RefillTab = search.tab ?? REFILL_TABS[0];
   const q = search.q ?? '';
-  const query = useRefills();
+  const board = useRefillBoard({ tab, q: q || undefined });
   const flashed = useFlashedRow('refills');
   const [assigning, setAssigning] = useState<RefillRow | null>(null);
 
@@ -59,25 +53,13 @@ export function RefillsPage() {
     void navigate({ to: '/refills/$refillId', params: { refillId: refill.id }, search: true });
   };
 
-  const all = query.data;
-  const counts = useMemo(() => {
-    const out: Record<RefillTab, number> = { 'needs-driver': 0, 'in-progress': 0, done: 0, cancelled: 0 };
-    for (const refill of all ?? []) {
-      for (const id of REFILL_TABS) if (TAB_STAGES[id].includes(refill.stage)) out[id] += 1;
-    }
-    return out;
-  }, [all]);
+  // The counts stay from the last answer while another tab loads; its rows don't.
+  const counts = board.data?.pages[0]?.counts;
+  const ownRows = board.data?.pages[0]?.tab === tab;
+  const rows = useMemo(() => (board.data && ownRows ? boardRows(board.data.pages) : undefined), [board.data, ownRows]);
 
-  const rows = useMemo(() => {
-    if (!all) return undefined;
-    const inTab = all.filter((refill) => TAB_STAGES[tab].includes(refill.stage) && matches(refill, q));
-    // The queue is oldest first (the longest wait on top); the other tabs newest first.
-    const order = tab === 'needs-driver' ? 1 : -1;
-    return inTab.sort((a, b) => order * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
-  }, [all, q, tab]);
-
-  // The Station column shows only while more than one station is in use (UX_ADMIN §4.1).
-  const manyStations = useMemo(() => new Set((all ?? []).map((refill) => refill.fillingStation?.id ?? '')).size > 1, [all]);
+  // The Station column shows only while the listed refills use more than one station (UX_ADMIN §4.5).
+  const manyStations = useMemo(() => new Set((rows ?? []).map((refill) => refill.fillingStation?.id ?? '')).size > 1, [rows]);
 
   const columns = useMemo<TableColumn<RefillRow>[]>(() => {
     const list: TableColumn<RefillRow>[] = [
@@ -137,7 +119,7 @@ export function RefillsPage() {
   return (
     <div className="sf-refills">
       <PageHeader title={t('title')} />
-      <StaleBanner query={query} />
+      <StaleBanner query={board} />
 
       <Tabs
         label={t('tabsLabel')}
@@ -145,8 +127,8 @@ export function RefillsPage() {
           id,
           label: t(`tabs.${TAB_KEYS[id]}`),
           // The queue tab carries its count, as Orders' Needs a driver does.
-          count: id === 'needs-driver' && all ? counts[id] : null,
-          countPending: id === 'needs-driver' && !all,
+          count: id === 'needs-driver' && counts ? counts[TAB_KEYS[id]] : null,
+          countPending: id === 'needs-driver' && !counts,
         }))}
         value={tab}
         onChange={(next) => setSearch({ tab: next === REFILL_TABS[0] ? undefined : next })}
@@ -165,10 +147,19 @@ export function RefillsPage() {
         chevron={(refill) => !refill.allowedActions?.includes('ASSIGN')}
         selectedKey={params.refillId ?? null}
         highlightKey={flashed}
-        state={query.isPending ? 'loading' : query.isError && !query.data ? 'error' : 'ready'}
+        state={board.isError && !board.data ? 'error' : rows ? 'ready' : 'loading'}
         empty={empty}
         error={
-          <ErrorState compact error={query.error} title={t('loadFailed')} onRetry={() => void query.refetch()} retrying={query.isFetching} />
+          <ErrorState compact error={board.error} title={t('loadFailed')} onRetry={() => void board.refetch()} retrying={board.isFetching} />
+        }
+        footer={
+          rows && board.hasNextPage ? (
+            <div className="sf-refills__more">
+              <Button variant="ghost" onClick={() => void board.fetchNextPage()} loading={board.isFetchingNextPage}>
+                {t('common:actions.loadMore')}
+              </Button>
+            </div>
+          ) : null
         }
       />
 

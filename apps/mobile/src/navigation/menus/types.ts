@@ -7,6 +7,9 @@ export interface MenuItem {
   icon: IconName;
   label: string;
   subtitle?: string;
+  /** A count at the row's end (the driver's open refills), with what screen readers hear for the row. */
+  badge?: string;
+  accessibilityLabel?: string;
   /** Danger rows (Sign out) are red and have no chevron. */
   tone?: 'default' | 'danger';
   onPress: () => void;

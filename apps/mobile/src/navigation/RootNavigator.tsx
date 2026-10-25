@@ -33,7 +33,8 @@ interface Props {
 
 /**
  * The shell's gates, in order (UX_MOBILE §3.6):
- * 1. UpdateRequired, on `APP_UPDATE_REQUIRED` or when `appConfig.minVersion` is above this build;
+ * 1. UpdateRequired, on `APP_UPDATE_REQUIRED` or when `appConfig.minVersion` is above this app's version
+ *    (`APP_VERSION`: the JS release, the same value the server's gate reads from `X-App-Version`);
  * 2. SignIn, with no session;
  * 3. WrongApp, unless the shop build has a DISTRIBUTOR or the driver build a DRIVER;
  * 4. the app's stack.

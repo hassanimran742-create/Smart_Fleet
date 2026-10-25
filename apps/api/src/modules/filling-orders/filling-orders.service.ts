@@ -8,16 +8,34 @@ import { ownDistributorId, ownDriverId } from '../../common/auth/own-driver-id';
 import { AppError } from '../../common/errors/app-error';
 import { isUniqueViolation } from '../../common/errors/prisma-errors';
 import { alreadyApplied, assertSameRequest, replayed, type IdempotentResponse } from '../../common/idempotency/idempotency';
+import { decodeCursor, invalidCursor, toPage } from '../../common/pagination/cursor';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { LOCKING_TX, type Tx } from '../orders/support/tx';
 import { sizeLabelOf } from '../pricing/size-label';
 import { SettingsService } from '../settings/settings.service';
-import { REFILL_VIEW_INCLUDE, refillShortCode, toRefillView, type RefillView } from './refill.mapper';
+import {
+  CLOSED_REFILL_STATUSES,
+  OPEN_REFILL_STATUSES,
+  REFILL_TAB_STATUSES,
+  refillSearchWhere,
+  refillTabAscending,
+  type RefillBoardDto,
+  type RefillBoardTab,
+} from './refill-board';
+import { REFILL_VIEW_INCLUDE, refillShortCode, toRefillView, type RefillView, type RefillViewRow } from './refill.mapper';
 
 const CANCELLABLE: FillingOrderStatus[] = [FillingOrderStatus.PENDING, FillingOrderStatus.ASSIGNED];
-const LIST_LIMIT = 200;
+/** The bare-array lists keep every open refill, and the newest this many done or cancelled ones. */
+const CLOSED_LIST_LIMIT = 200;
 const CLIENT_REQUEST_KEY = 'filling_orders_distributor_id_client_request_id_key';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Newest first by `createdAt`, then id: the bare-array lists' order. */
+function newestFirst(a: RefillViewRow, b: RefillViewRow): number {
+  const at = b.createdAt.getTime() - a.createdAt.getTime();
+  return at !== 0 ? at : b.id < a.id ? -1 : b.id > a.id ? 1 : 0;
+}
 
 /** "Leave store" and "Leave station" (API_CONTRACT §10.1 `POST /filling-orders/:id/advance`): the step each one leaves. */
 const ADVANCE_FROM: Record<RefillAdvanceTarget, FillingOrderStatus> = {
@@ -136,15 +154,83 @@ export class FillingOrdersService {
     return this.view(actor, id);
   }
 
-  /** The refill lists (bare arrays, newest first): the shop's own, the driver's own, or the office's. */
+  /**
+   * The bare-array refill lists (newest first): the shop's own (`/mine`), the driver's own (`/driver/mine`),
+   * and the office's without a tab. Every open refill, however old, is in it (a refill stays open until its
+   * cylinders are back, §10.1), plus the newest 200 done or cancelled ones (review23 contract-compat-06,
+   * robustness-jobs-05): an old refill waiting for a driver never drops off.
+   */
   async list(caller: PolicyCaller, where: Prisma.FillingOrderWhereInput): Promise<RefillView[]> {
+    const order: Prisma.FillingOrderOrderByWithRelationInput[] = [{ createdAt: 'desc' }, { id: 'desc' }];
+    const [open, closed] = await Promise.all([
+      this.prisma.fillingOrder.findMany({ where: { AND: [where, { status: { in: [...OPEN_REFILL_STATUSES] } }] }, include: REFILL_VIEW_INCLUDE, orderBy: order }),
+      this.prisma.fillingOrder.findMany({
+        where: { AND: [where, { status: { in: [...CLOSED_REFILL_STATUSES] } }] },
+        include: REFILL_VIEW_INCLUDE,
+        orderBy: order,
+        take: CLOSED_LIST_LIMIT,
+      }),
+    ]);
+    return [...open, ...closed].sort(newestFirst).map((row) => toRefillView(row, caller));
+  }
+
+  /**
+   * `GET /filling-orders?tab=needs-driver|in-progress|done|cancelled&q&distributorId&driverId&limit&cursor`
+   * (office): one tab, filtered, sorted and paged here, with every tab's size (`distributorId` and `driverId`
+   * applied, `q` ignored), the Orders board's shape. "Needs a driver" is oldest first, the other tabs newest
+   * first, by `createdAt` then id. The cursor is the tab's own (§1.3).
+   */
+  async board(
+    caller: PolicyCaller,
+    query: { tab: RefillBoardTab; q?: string; distributorId?: string; driverId?: string; limit: number; cursor?: string },
+  ): Promise<RefillBoardDto> {
+    const scope: Prisma.FillingOrderWhereInput[] = [];
+    if (query.distributorId) scope.push({ distributorId: query.distributorId.toLowerCase() });
+    if (query.driverId && UUID.test(query.driverId)) scope.push({ assignedDriverId: query.driverId.toLowerCase() });
+    const inTab = (tab: RefillBoardTab): Prisma.FillingOrderWhereInput => ({ status: { in: [...REFILL_TAB_STATUSES[tab]] } });
+    const count = (tab: RefillBoardTab) => this.prisma.fillingOrder.count({ where: { AND: [...scope, inTab(tab)] } });
+    const [needsDriver, inProgress, done, cancelled, page] = await Promise.all([
+      count('needs-driver'),
+      count('in-progress'),
+      count('done'),
+      count('cancelled'),
+      this.page(caller, { AND: [...scope, inTab(query.tab), refillSearchWhere(query.q)] }, query.limit, query.cursor, refillTabAscending(query.tab)),
+    ]);
+    return { counts: { needsDriver, inProgress, done, cancelled }, items: page.items, nextCursor: page.nextCursor };
+  }
+
+  /** One cursor page of refills, by `createdAt` then id (`take: limit + 1`, §1.3). */
+  private async page(
+    caller: PolicyCaller,
+    where: Prisma.FillingOrderWhereInput,
+    limit: number,
+    cursor: string | undefined,
+    ascending: boolean,
+  ): Promise<{ items: RefillView[]; nextCursor: string | null }> {
+    const after = decodeCursor(cursor, 2);
+    const conditions: Prisma.FillingOrderWhereInput[] = [where];
+    if (after) {
+      const [at, id] = after;
+      const atDate = new Date(String(at));
+      if (typeof at !== 'string' || Number.isNaN(atDate.getTime()) || typeof id !== 'string' || !UUID.test(id)) throw invalidCursor();
+      conditions.push(
+        ascending
+          ? { OR: [{ createdAt: { gt: atDate } }, { createdAt: atDate, id: { gt: id } }] }
+          : { OR: [{ createdAt: { lt: atDate } }, { createdAt: atDate, id: { lt: id } }] },
+      );
+    }
+    const direction = ascending ? 'asc' : 'desc';
     const rows = await this.prisma.fillingOrder.findMany({
-      where,
+      where: { AND: conditions },
       include: REFILL_VIEW_INCLUDE,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: LIST_LIMIT,
+      orderBy: [{ createdAt: direction }, { id: direction }],
+      take: limit + 1,
     });
-    return rows.map((row) => toRefillView(row, caller));
+    return toPage(
+      rows.map((row) => toRefillView(row, caller)),
+      limit,
+      (view) => [view.createdAt, view.id],
+    );
   }
 
   /** `GET /filling-orders/:id` (`canSeeRefill`: the office, the owner, the assigned driver), with its picked cylinders. */
@@ -163,6 +249,9 @@ export class FillingOrdersService {
   async assign(actor: Actor, caller: PolicyCaller, id: string, driverId: string): Promise<RefillView | IdempotentResponse<RefillView>> {
     const applied = await this.prisma.$transaction(async (tx) => {
       const refill = await this.lock(tx, id);
+      // The driver row is share-locked before its van is read, as assign-driver does: a van change waits for
+      // this assignment, or this one for it, so the pickups go onto the van the driver has (holder-scans-01).
+      await tx.$queryRaw`SELECT id FROM drivers WHERE id = ${driverId}::uuid FOR KEY SHARE`;
       const driver = await tx.driver.findUnique({
         where: { id: driverId },
         select: { id: true, availability: true, currentVehicleId: true, user: { select: { name: true, status: true } } },

@@ -94,6 +94,12 @@ const UNAVAILABLE_PRISMA_CODES = new Set(['P1001', 'P1002', 'P1008', 'P1017', 'P
 const STALE_SQLSTATES = new Set(['40001', '40P01']);
 /** Prisma's own refusals of a value that doesn't fit its column: too long (P2000), too big for 64 bits (P2033). */
 const VALUE_PRISMA_CODES = new Set(['P2000', 'P2033']);
+/**
+ * Prisma's query engine refusing text that isn't well-formed UTF-16 (a lone surrogate): "lone leading
+ * surrogate in hex escape", "unexpected end of hex escape". The model API raises it as code InvalidArg, a
+ * raw query's parameters as a validation error. [review23 robustness-jobs-02]
+ */
+const MALFORMED_TEXT = /surrogate|hex escape/i;
 
 /**
  * A value the database can't store or compare, so the client's input, not a server fault (API_CONTRACT
@@ -104,6 +110,12 @@ const VALUE_PRISMA_CODES = new Set(['P2000', 'P2033']);
  */
 function dataException(error: unknown): MappedError | null {
   let sqlState: string | undefined;
+  if (
+    (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'InvalidArg') ||
+    error instanceof Prisma.PrismaClientValidationError
+  ) {
+    if (MALFORMED_TEXT.test(error.message)) return mapped('VALIDATION_FAILED', { fields: [] }, 'warn', 'text that is not well-formed');
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (VALUE_PRISMA_CODES.has(error.code)) return mapped('VALIDATION_FAILED', { fields: [] }, 'warn', error.code);
     if (error.code === 'P2010') sqlState = String((error.meta as Record<string, unknown> | undefined)?.code ?? '');

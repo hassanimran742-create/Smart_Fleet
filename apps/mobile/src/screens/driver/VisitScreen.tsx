@@ -125,9 +125,10 @@ const STALE_CODES: ReadonlySet<string> = new Set(['SCAN_STOP_CLOSED', 'SCAN_TRIP
  * 1. Deliver: "0 of 3" + "delivered", the camera, one line per size; "Could not deliver" until a
  *    cylinder is given; "Finish visit" stays off with "2 more to deliver" above it. When the server says
  *    every cylinder is given, the visit moves on to Take back by itself, with the long buzz.
- * 2. Take back: "All 3 delivered", the state tap (Empty | Part-filled | Full, sticky), "0 taken back · 3
- *    expected", the camera, three lists by state and "No label" for returns without a label. "Finish
- *    visit" asks why when fewer came back than expected (rule 7).
+ * 2. Take back: "All 3 delivered", the state tap (Empty | Part-filled | Full, sticky), right under it the
+ *    result strip naming the state ("AG-C0031 · Full"), "0 taken back · 3 expected", a shorter camera,
+ *    three lists by state and "No label" for returns without a label. "Finish visit" asks why when fewer
+ *    came back than expected (rule 7).
  * 3. Done: "Visit done", "Gave 3 · Took back 3" and the states, and the next step's button.
  * No money, no confirmation link: the driver never sees either.
  */
@@ -528,17 +529,8 @@ function VisitBody({
           }
           title={t('driver.steps.takeBack.title', { name })}
           control={<StateTap value={returnState} onChange={onReturnState} />}
-          count={
-            visit ? (
-              <CountBar
-                mode="soft"
-                count={visit.takeBack.count}
-                total={visit.takeBack.expected}
-                verb={t('scan.verb.TAKE_BACK')}
-                testID="visit.count"
-              />
-            ) : null
-          }
+          // The strip "AG-C0031 · Full" sits right under the state tap, then the count and a shorter
+          // camera, so a wrong tap is caught at once on a 360×640 phone too (review23 ux-03).
           scan={
             <ScanPanel
               key="TAKE_BACK"
@@ -547,6 +539,18 @@ function VisitBody({
               returnState={returnState}
               active={cameraActive}
               allowTyped={allowTyped}
+              resultFirst
+              beforeCamera={
+                visit ? (
+                  <CountBar
+                    mode="soft"
+                    count={visit.takeBack.count}
+                    total={visit.takeBack.expected}
+                    verb={t('scan.verb.TAKE_BACK')}
+                    testID="visit.count"
+                  />
+                ) : null
+              }
               testID="visit.scan"
             >
               {visit ? <TakeBackLists visit={visit} order={order} onEditRow={onNoLabel} /> : null}

@@ -140,6 +140,15 @@ export function networkError(kind: 'NETWORK_TIMEOUT' | 'NETWORK_OFFLINE', reques
  * is down. The "No connection" banner already says so, so screens show the outcome ("Not sent. Tap
  * again.", "Nothing saved yet.") instead of a second network message.
  */
+/**
+ * A 426: this build is below `app.minVersion` (APP_UPDATE_REQUIRED), or a call without this build's
+ * headers was taken for the 0.1.0 JS (APP_RESTART_TO_UPDATE, which only the 0.1.0 JS should ever get).
+ * Either way the update gate takes over (UX_MOBILE §3.6; review23 contract-compat-02).
+ */
+export function isUpdateRefusal(error: { code: string } | null | undefined): boolean {
+  return error?.code === 'APP_UPDATE_REQUIRED' || error?.code === 'APP_RESTART_TO_UPDATE';
+}
+
 export function isNetworkError(error: unknown): boolean {
   if (error === null || error === undefined || typeof error === 'string') return false;
   const code = toApiError(error).code;
@@ -221,7 +230,7 @@ export function errorAction(input: unknown): ErrorAction | null {
   }
   if (code === 'WALLET_INSUFFICIENT_BALANCE') return 'ADD_MONEY';
   if (code.endsWith('_NO_STORE') || CALL_OFFICE_CODES.has(code)) return 'CALL_OFFICE';
-  if (code === 'APP_UPDATE_REQUIRED') return 'UPDATE_APP';
+  if (isUpdateRefusal({ code })) return 'UPDATE_APP';
   if (code.startsWith('AUTH_') && status === 401) return 'SIGN_IN';
   if (retryable) return 'RETRY';
   return null;

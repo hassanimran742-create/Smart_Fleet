@@ -193,7 +193,10 @@ export interface StepFrameProps {
   icon?: IconName;
   /** A line under the title (the customer's address, data). */
   subtitle?: string;
-  /** A control read before the count (the take-back state tap). */
+  /**
+   * A control read before the count: the take-back state tap, or the fill step's "Bring back unfilled"
+   * (kept the camera's height away from "Type number", review23 ux-04).
+   */
   control?: ReactNode;
   /** The CountBar while scanning; the state card once the step has ended. */
   count?: ReactNode;

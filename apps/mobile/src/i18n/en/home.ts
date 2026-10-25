@@ -37,7 +37,17 @@ export const home = {
     receiveNone: 'Nothing coming back',
     /** [Inc 3] The Day-end status row (S19), while `features.dayEnd` is on. */
     dayEnd: 'Day-end sheet',
+    /** Today with no sheet sent yet; once sent, the row shows today's chip words (`stages.dayEnd.*`). */
     dayEndHelp: "Send today's count",
+    /**
+     * A day that waits for the shop (review23 ux-01), named by its date ("Sat 24 Oct"): sent back or
+     * reopened by the office (the row is red), or an earlier day uploaded or started and never sent.
+     */
+    dayEndDue: {
+      SENT_BACK: '{{date}} sent back · fix it',
+      READY: '{{date}} ready to send',
+      NOT_SENT: '{{date}} not sent yet',
+    },
   },
 
   activeTitle: 'Active orders',

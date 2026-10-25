@@ -610,6 +610,11 @@ export class OrdersService {
         return { applied: false, result: { tripId: order.trip.id, driverId: body.driverId, originStoreId: order.trip.originStoreId } };
       }
 
+      // The driver row is share-locked before its van is read: a van change (`PATCH /drivers/:id/vehicle`,
+      // which locks it FOR UPDATE and refuses while a run is open on the van) then waits for this
+      // assignment, or this one for it, so the run is always made on the van the driver has (review23
+      // holder-scans-01). KEY SHARE doesn't wait for the driver's own location or online updates.
+      await tx.$queryRaw`SELECT id FROM drivers WHERE id = ${body.driverId}::uuid FOR KEY SHARE`;
       const driver = await tx.driver.findUnique({
         where: { id: body.driverId },
         select: { id: true, availability: true, currentVehicleId: true, user: { select: { name: true, status: true } } },

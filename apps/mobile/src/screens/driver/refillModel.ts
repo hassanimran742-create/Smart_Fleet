@@ -172,7 +172,9 @@ export function refillStepOf(refill: DriverRefill, broughtBackUnfilled: boolean)
 /**
  * "Bring back unfilled" (UX_MOBILE §8.2): the driver goes on to the unload with nothing filled. No
  * server call: the shop's receive scans still finish the refill. Kept in memory per refill while the
- * app runs, so the screen opens on the unload again.
+ * app runs, so the screen opens on the unload again. "Back to filling" undoes it, also with no server
+ * call, while the server still has the refill at the station step and nothing has come back
+ * (`canGoBackToFilling`; review23 ux-04).
  */
 const useUnfilledStore = create<{ ids: Readonly<Record<string, true>> }>(() => ({ ids: {} }));
 
@@ -180,6 +182,49 @@ export function useBroughtBackUnfilled(id: string): boolean {
   return useUnfilledStore((state) => state.ids[id] === true);
 }
 
+/** Every refill this phone is bringing back unfilled (the lists' chips follow it). */
+export function useBroughtBackUnfilledIds(): Readonly<Record<string, true>> {
+  return useUnfilledStore((state) => state.ids);
+}
+
 export function bringBackUnfilled(id: string): void {
   useUnfilledStore.setState((state) => ({ ids: { ...state.ids, [id]: true } }));
+}
+
+/** "Back to filling": the run returns to step 2 (Fill). */
+export function backToFilling(id: string): void {
+  useUnfilledStore.setState((state) => {
+    if (!state.ids[id]) return state;
+    const ids = { ...state.ids };
+    delete ids[id];
+    return { ids };
+  });
+}
+
+/**
+ * True while "Back to filling" can undo "Bring back unfilled": the server still has the refill at the
+ * station step (EMPTIES_PICKED or AT_STATION, so FILL scans are still taken) and the shop has received
+ * none of its cylinders yet.
+ */
+export function canGoBackToFilling(refill: DriverRefill, broughtBackUnfilled: boolean): boolean {
+  return (
+    broughtBackUnfilled &&
+    (refill.status === 'EMPTIES_PICKED' || refill.status === 'AT_STATION') &&
+    countsOf(refill).received === 0
+  );
+}
+
+/**
+ * The chip the driver's lists show (Today, Refills): the server's stage, except that a refill this phone
+ * is bringing back unfilled reads "Bring them back", the run's own step, rather than "Go to the station"
+ * (review23 ux-04).
+ */
+export function driverStageOf(refill: DriverRefill, broughtBackUnfilled: boolean): RefillStage {
+  const stage = stageOf(refill);
+  return broughtBackUnfilled && (stage === 'PICKED_UP' || stage === 'AT_STATION') ? 'COMING_BACK' : stage;
+}
+
+/** The driver's open refills, oldest first (Today's rows, the Refills list). */
+export function openRefillsOf(list: readonly DriverRefill[]): DriverRefill[] {
+  return list.filter(isRefillOpen).sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
 }

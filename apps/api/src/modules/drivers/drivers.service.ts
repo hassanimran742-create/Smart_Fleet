@@ -22,6 +22,7 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { SessionCheckService } from '../auth/session-check.service';
 import { assertVansEmptyForDriverChange } from '../custody/van';
 import { CnicVault } from '../users/cnic-vault.service';
+import { openRunBlockingVanChange, openRunRefusal } from './open-runs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -368,6 +369,13 @@ export class DriversService {
    * From Inc 2 (API_CONTRACT §9.5): while the driver's current van or the new one holds any cylinder,
    * the change is refused with 409 `VEHICLE_HAS_CYLINDERS` `{count}` and nothing is written; the store
    * scans them in first, so every cylinder keeps one responsible driver.
+   *
+   * [review23 holder-scans-01, security-01] Then, while a run could still put cylinders onto either van
+   * (a trip with a stop still open, or a refill not yet past pickup; the driver's own on any van, or anyone's
+   * on these two vans), it is refused with 409 `DRIVER_HAS_OPEN_RUN` `{driver, plateNo, run}` ("Finish or
+   * reassign Kashif's trip on LEA-101 first.") and nothing is written: a run keeps its van, and is never
+   * moved to another. Both drivers' rows are locked first, and the assignments lock the driver row too, so
+   * no run can appear between the check and the change.
    */
   async assignVehicle(actor: UserActor, id: string, body: DriverVehicleInput): Promise<DriverView | IdempotentResponse<DriverView>> {
     const vehicleId = body.vehicleId;
@@ -378,27 +386,26 @@ export class DriversService {
       }
       const current = await this.lockDriver(tx, id);
       if (current.currentVehicleId === vehicleId) return false;
+      // The driver who has the new van now loses it: their row is locked too, so neither driver can be
+      // given a new run on these vans until this change commits.
+      const previous = vehicleId ? await this.lockHolderOf(tx, vehicleId, id) : null;
       await assertVansEmptyForDriverChange(tx, [current.currentVehicleId, vehicleId]);
-      if (vehicleId) {
-        const previous = await tx.driver.findFirst({
-          where: { currentVehicleId: vehicleId, id: { not: id } },
-          select: { id: true, user: { select: { name: true } } },
-        });
-        if (previous) {
-          await tx.driver.update({ where: { id: previous.id }, data: { currentVehicleId: null } });
-          await this.audit.record(
-            {
-              action: 'driver.update',
-              actor,
-              resourceType: 'driver',
-              resourceId: previous.id,
-              diff: { name: previous.user.name },
-              before: { currentVehicleId: vehicleId },
-              after: { currentVehicleId: null },
-            },
-            tx,
-          );
-        }
+      const open = await openRunBlockingVanChange(tx, { driverId: id, vehicleIds: [current.currentVehicleId, vehicleId] });
+      if (open) throw openRunRefusal(open);
+      if (previous) {
+        await tx.driver.update({ where: { id: previous.id }, data: { currentVehicleId: null } });
+        await this.audit.record(
+          {
+            action: 'driver.update',
+            actor,
+            resourceType: 'driver',
+            resourceId: previous.id,
+            diff: { name: previous.name },
+            before: { currentVehicleId: vehicleId },
+            after: { currentVehicleId: null },
+          },
+          tx,
+        );
       }
       await tx.driver.update({ where: { id }, data: { currentVehicleId: vehicleId } });
       await this.audit.record(
@@ -543,6 +550,18 @@ export class DriversService {
     const row = await tx.driver.findUnique({ where: { id }, select: DRIVER_ROW_SELECT });
     if (!row) throw new AppError('NOT_FOUND');
     return row;
+  }
+
+  /**
+   * The other driver who has this van now, locked (`FOR UPDATE`) and read under the lock; null when none.
+   * `FOR UPDATE` re-checks the van on the row's newest version, so a driver who just lost it isn't returned.
+   */
+  private async lockHolderOf(tx: Prisma.TransactionClient, vehicleId: string, exceptDriverId: string): Promise<{ id: string; name: string } | null> {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM drivers WHERE current_vehicle_id = ${vehicleId}::uuid AND id <> ${exceptDriverId}::uuid ORDER BY id FOR UPDATE`;
+    if (!rows[0]) return null;
+    const holder = await tx.driver.findUnique({ where: { id: rows[0].id }, select: { id: true, user: { select: { name: true } } } });
+    return holder ? { id: holder.id, name: holder.user.name } : null;
   }
 
   /** 409 CONFLICT_DUPLICATE when another account uses the email. */

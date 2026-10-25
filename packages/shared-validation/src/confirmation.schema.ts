@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { pageQuerySchema, reasonSchema } from './common.schema';
+import { pageQuerySchema, reasonSchema, toWellFormedText } from './common.schema';
 import { CASE_STATUSES, CONFIRMATION_RESPONSES, CONFIRMATION_SHARE_VIAS } from './internal/codes';
 
 /**
@@ -52,7 +52,8 @@ export const CUSTOMER_OTHER_COMMENT_MIN = 3;
  */
 export function cleanCustomerComment(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
-  const cleaned = raw
+  // A lone surrogate (half an emoji) becomes U+FFFD: the database can't store one (review23 robustness-jobs-02).
+  const cleaned = toWellFormedText(raw)
     .replace(/\r\n|\r|\n|\t/g, ' ')
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f-\u009f]/g, '')

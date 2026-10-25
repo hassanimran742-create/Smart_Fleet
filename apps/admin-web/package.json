@@ -8,7 +8,32 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "jest": {
+    "rootDir": ".",
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "testRegex": ".*\\.spec\\.ts$",
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "module": "commonjs",
+            "moduleResolution": "node",
+            "allowImportingTsExtensions": false,
+            "isolatedModules": true
+          }
+        }
+      ]
+    },
+    "moduleNameMapper": {
+      "^@smartfleet/(.*)$": "<rootDir>/../../packages/$1/src"
+    }
   },
   "dependencies": {
     "@smartfleet/shared-types": "*",

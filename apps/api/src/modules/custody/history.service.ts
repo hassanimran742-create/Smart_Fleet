@@ -10,7 +10,7 @@ import { orderShortCode } from '../orders/orders.mapper';
 import { sizeLabelOf } from '../pricing/size-label';
 import { cylinderShortCode, resolveQrOrFullNumber, resolveQrOrNumber } from './cylinder-codes';
 import { holderLabels, labelOf, shownHolderType } from './holders';
-import { responsibleDriver } from './responsible';
+import { changedHolder, responsibleDriver } from './responsible';
 
 /** The station a refill filled at: the station's name, or the shop's own station (Inc 1 own-service refills). */
 function stationOf(refill: { ownStationName: string | null; fillingStation: { name: string } | null } | null): { name: string } | null {
@@ -97,7 +97,14 @@ export class CylinderHistoryService {
       responsibleDriver(this.prisma, cylinderId),
     ]);
     const ref = (type: CustodyType | null, id: string | null) => (type && id ? { type, id } : null);
-    const last = events[events.length - 1];
+    // "Since" is when the holder took the cylinder: the newest move that changed the holder. A refill FILL
+    // and a day-end SET_STATE or MARK_LOST fix keep the holder, so they don't move it (review23
+    // holder-scans-08); with no holder change at all, the newest move.
+    const tookIt =
+      [...events]
+        .reverse()
+        .find((event) => changedHolder({ fromType: event.fromCustodyType, fromId: event.fromCustodyId, toType: event.toCustodyType, toId: event.toCustodyId })) ??
+      events[events.length - 1];
     return {
       cylinder: {
         id: cylinder.id,
@@ -110,7 +117,7 @@ export class CylinderHistoryService {
       holder: {
         type: shownHolderType(current.type),
         label: labelOf(labels, current) ?? '',
-        since: last ? last.createdAt.toISOString() : null,
+        since: tookIt ? tookIt.createdAt.toISOString() : null,
         responsible: responsible ? { userId: responsible.userId, name: responsible.name, role: 'DRIVER' } : null,
       },
       events: events.map((event) => ({

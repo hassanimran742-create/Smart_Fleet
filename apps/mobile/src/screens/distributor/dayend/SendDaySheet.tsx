@@ -47,6 +47,8 @@ export function SendDaySheet({
         try {
           const day = await submitDayEnd(date, version);
           queryClient.setQueryData(qk.dayEnd(date), day);
+          // Home's row moves on to the next day that waits, or today's chip words.
+          void queryClient.invalidateQueries({ queryKey: qk.dayEndList });
           queryClient.removeQueries({ queryKey: shopKeys.dayEndUpload(date) });
           toast.show({ message: t('dayEnd.send.done'), tone: 'success' });
           onSent();
@@ -54,6 +56,7 @@ export function SendDaySheet({
           const error = toApiError(thrown);
           if (error.code === 'DAY_VERSION_CHANGED' || error.code === 'DAY_SHEET_NOT_UPLOADED' || error.code === 'DAY_ALREADY_SUBMITTED') {
             void queryClient.invalidateQueries({ queryKey: qk.dayEnd(date) });
+            void queryClient.invalidateQueries({ queryKey: qk.dayEndList });
             onStale(error);
             return;
           }

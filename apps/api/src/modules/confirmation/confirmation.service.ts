@@ -56,6 +56,13 @@ const HOUR_MS = 3_600_000;
 export const QUEUED_LOST_AFTER_MS = 2 * 60_000;
 /** At most this many share rows per order in any 60 minutes (API_CONTRACT §9.7). */
 export const SHARES_PER_HOUR = 20;
+/**
+ * [review23 security-05] The texts a shop or the office asks the platform to send with a new link
+ * (`new-link { send: 'SMS' }`, link version 2 and up; the delivery's own first SMS doesn't count): at most
+ * this many per order, and per shop, in any 60 minutes (API_CONTRACT §9.7, §3.6).
+ */
+export const NEW_LINK_SMS_PER_ORDER_PER_HOUR = 3;
+export const NEW_LINK_SMS_PER_SHOP_PER_HOUR = 20;
 /** Transactions that take row locks may wait behind a racing one. */
 const LOCKING_TX = { maxWait: 10_000, timeout: 20_000 } as const;
 
@@ -343,6 +350,7 @@ export class ConfirmationServiceImpl extends ConfirmationService {
       const locked = await this.lockConfirmation(tx, confirmation.id);
       if (key && locked.lastNewLinkKey === key) return { replay: true as const, messageId: null };
       if (effectiveStatus(locked) !== ConfirmationStatus.PENDING) throw new AppError('CONFIRM_CLOSED');
+      if (p.send === 'SMS') await this.assertNewLinkSmsAllowed(tx, orderId, order.distributorId);
       const version = locked.tokenVersion + 1;
       const token = deriveConfirmationToken(confirmLinkSecret(), locked.id, version);
       await tx.deliveryConfirmation.update({
@@ -596,6 +604,30 @@ export class ConfirmationServiceImpl extends ConfirmationService {
   }
 
   /** Writes the QUEUED SMS row of a link version (`confirm:<orderId>:v<n>:sms`); null when none can be sent. */
+  /**
+   * 429 RATE_LIMITED `{ minutes }` once the order, or its shop, has had its new-link texts for the last 60
+   * minutes ({@link NEW_LINK_SMS_PER_ORDER_PER_HOUR}, {@link NEW_LINK_SMS_PER_SHOP_PER_HOUR}). The shop's
+   * lock makes two rotations at once count each other. A new link without a text is never limited.
+   */
+  private async assertNewLinkSmsAllowed(tx: Prisma.TransactionClient, orderId: string, distributorId: string): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`confirm-new-link-sms:${distributorId}`}))`;
+    const now = Date.now();
+    const asked = (where: Prisma.OutboundMessageWhereInput) =>
+      tx.outboundMessage.findMany({
+        where: { channel: MessageChannel.SMS, tokenVersion: { gt: 1 }, createdAt: { gt: new Date(now - HOUR_MS) }, ...where },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      });
+    /** Milliseconds until one more fits under `limit` (0 when it fits now). */
+    const waitFor = (rows: Array<{ createdAt: Date }>, limit: number) =>
+      rows.length < limit ? 0 : rows[rows.length - limit].createdAt.getTime() + HOUR_MS - now;
+    const wait = Math.max(
+      waitFor(await asked({ orderId }), NEW_LINK_SMS_PER_ORDER_PER_HOUR),
+      waitFor(await asked({ distributorId }), NEW_LINK_SMS_PER_SHOP_PER_HOUR),
+    );
+    if (wait > 0) throw new AppError('RATE_LIMITED', { minutes: Math.max(1, Math.ceil(wait / 60_000)) });
+  }
+
   private async queueSms(
     tx: Prisma.TransactionClient,
     p: {

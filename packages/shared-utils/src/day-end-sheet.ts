@@ -110,7 +110,7 @@ export const DAY_SHEET_REASON_MAX = 200;
  */
 export function cleanDaySheetReason(cell: unknown): string | null {
   const text = cellText(cell);
-  const cleaned = text
+  const cleaned = withoutLoneSurrogates(text)
     .replace(/\r\n|\r|\n|\t/g, ' ')
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
@@ -118,6 +118,25 @@ export function cleanDaySheetReason(cell: unknown): string | null {
     .trim();
   const cut = Array.from(cleaned).slice(0, DAY_SHEET_REASON_MAX).join('').trim();
   return cut === '' ? null : cut;
+}
+
+/**
+ * Every lone surrogate (half an emoji) as U+FFFD: the database can't store one (review23 robustness-jobs-02).
+ * A plain loop, like shared-validation's `toWellFormedText`: `String.prototype.toWellFormed` isn't on Hermes.
+ */
+function withoutLoneSurrogates(text: string): string {
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    const unit = text.charCodeAt(i);
+    const next = text.charCodeAt(i + 1);
+    if (unit >= 0xd800 && unit <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
+      out += text[i] + text[i + 1];
+      i++;
+    } else {
+      out += unit >= 0xd800 && unit <= 0xdfff ? '�' : text[i];
+    }
+  }
+  return out;
 }
 
 /** True when a cleaned reason is long enough for a differing row. */

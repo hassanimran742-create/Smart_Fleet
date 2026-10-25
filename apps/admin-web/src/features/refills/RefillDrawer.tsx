@@ -23,7 +23,7 @@ import {
   useStaleness,
   type TimelineItem,
 } from '../../ui';
-import { refillKeys, useRefill, useRefillHistory, type RefillRow } from './api';
+import { listedRefill, useRefill, useRefillHistory, type RefillRow } from './api';
 import { AssignRefillDialog } from './AssignRefillDialog';
 import { RefillStageChip, refillCylinders, refillDriver } from './format';
 import './refills.css';
@@ -140,10 +140,7 @@ function DrawerSkeleton() {
 /** The refill's number from a list row already on screen, for the title while the drawer loads. */
 function useCachedShortCode(refillId: string): string | null {
   const queryClient = useQueryClient();
-  return useMemo(() => {
-    const rows = queryClient.getQueryData<RefillRow[]>(refillKeys.list());
-    return rows?.find((row) => row.id === refillId)?.shortCode ?? null;
-  }, [queryClient, refillId]);
+  return useMemo(() => listedRefill(queryClient, refillId)?.shortCode ?? null, [queryClient, refillId]);
 }
 
 /**

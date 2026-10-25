@@ -1656,7 +1656,8 @@ model DayClose {
   @@map("day_closes")
 }
 
-// One row per cylinder on the uploaded sheet, plus one per extra number. An upload replaces them all.
+// One row per cylinder on the uploaded sheet, plus one per extra number. An upload replaces them all,
+// keeping applied fixes' links (applied_event_id) on the new lines (review23 holder-scans-07).
 model DayCloseLine {
   id                String         @id @default(uuid()) @db.Uuid
   dayCloseId        String         @map("day_close_id") @db.Uuid

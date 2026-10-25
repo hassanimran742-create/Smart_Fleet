@@ -406,8 +406,16 @@ function GiveTab() {
     },
     onError: (e, variables) => {
       // [Inc 2] A van with cylinders on it keeps its driver until the store scans them in (UX_ADMIN §3.7).
+      // [review23] So does a van with an open run (DRIVER_HAS_OPEN_RUN, the catalogue's words). Moving a van
+      // from one driver to another is two calls refused for the same reason: one toast per van, not two.
       const loaded = errorDetails(e, 'VEHICLE_HAS_CYLINDERS');
-      toast.error(loaded ? lt('vans.give.hasCylinders', { plate: variables.plate, count: loaded.count }) : e);
+      const run = errorDetails(e, 'DRIVER_HAS_OPEN_RUN');
+      const words = loaded
+        ? lt('vans.give.hasCylinders', { plate: variables.plate, count: loaded.count })
+        : run?.run === 'REFILL'
+          ? lt('vans.give.openRefill', { driver: run.driver, plate: run.plateNo })
+          : e;
+      toast.error(words, { id: `van-give-${variables.plate}` });
       void qc.invalidateQueries({ queryKey: ['drivers'] });
     },
   });

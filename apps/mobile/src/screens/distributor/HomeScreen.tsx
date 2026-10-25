@@ -1,5 +1,6 @@
 import { useCallback, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type {
@@ -11,6 +12,7 @@ import type {
   StoreIncomingDto,
   WalletSummary,
 } from '@smartfleet/shared-types';
+import { formatIsoDay } from '@smartfleet/shared-utils';
 import type { ApiError } from '../../api/errors';
 import { POLL_MS, qk } from '../../api/keys';
 import { useAppConfig, useOfficeContact } from '../../hooks/useAppConfig';
@@ -33,6 +35,8 @@ import {
   useNoConnection,
   type IconName,
 } from '../../ui';
+import type { DayEndTarget } from './dayend/dayEndModel';
+import { useDayEndDue } from './dayend/useDayEndDue';
 import { cylindersComing } from './receive/receiveModel';
 import { fetchHome, fetchMyCases, fetchMyTopups, fetchStoreIncoming } from './shared/api';
 import { isPositivePaisa } from './shared/format';
@@ -51,8 +55,10 @@ const ACTIVE_ROWS = 3;
  * data is old, "Being checked" above Rs 0, and Add money. A new shop gets "Get started". Then the
  * status rows, each only while its feature is on (Inc 2/3 spec §2.1): the red customer problems row
  * first, then Receive from driver with what is coming back (polled with `store.incoming`), then the
- * Day-end sheet. Then four tiles (My orders with its count, Customers, History, Refills), up to three
- * active orders, and "New order" as the one main button, or "Call office" while the store isn't set up.
+ * Day-end sheet, naming the day that waits for the shop (red when the office sent it back) or today's
+ * state, and opening that day. Then four tiles (My orders with its count, Customers, History, Refills),
+ * up to three active orders, and "New order" as the one main button, or "Call office" while the store
+ * isn't set up.
  */
 export function DistributorHomeScreen() {
   const { t } = useTranslation();
@@ -85,12 +91,16 @@ export function DistributorHomeScreen() {
     enabled: scanFlowOn,
     refetchInterval: incomingPoll,
   });
+  // [Inc 3] The day that waits for the shop: sent back or reopened, or an earlier day never sent (ux-01).
+  const dayEndOn = config.features.dayEnd;
+  const dayEnd = useDayEndDue(Date.now());
 
   const refetchHome = home.refetch;
   const refetchActive = active.refetch;
   const refetchClients = clients.refetch;
   const refetchCases = cases.refetch;
   const refetchIncoming = incoming.refetch;
+  const refetchDayEnd = dayEnd.refetch;
   const refetchAll = useCallback(
     () =>
       Promise.all([
@@ -99,8 +109,21 @@ export function DistributorHomeScreen() {
         quiet ? refetchClients() : undefined,
         confirmationsOn ? refetchCases() : undefined,
         scanFlowOn ? refetchIncoming() : undefined,
+        dayEndOn ? refetchDayEnd() : undefined,
       ]),
-    [refetchHome, refetchActive, refetchClients, refetchCases, refetchIncoming, activeCount, quiet, confirmationsOn, scanFlowOn],
+    [
+      refetchHome,
+      refetchActive,
+      refetchClients,
+      refetchCases,
+      refetchIncoming,
+      refetchDayEnd,
+      activeCount,
+      quiet,
+      confirmationsOn,
+      scanFlowOn,
+      dayEndOn,
+    ],
   );
   const pull = usePullRefresh(refetchAll);
   useRefetchOnReturn(refetchAll);
@@ -185,12 +208,14 @@ export function DistributorHomeScreen() {
             testID="home.receive"
           />
         ) : null}
-        {config.features.dayEnd ? (
+        {dayEndOn ? (
           <StatusRow
             icon="sheet"
+            tone={dayEnd.target.due === 'SENT_BACK' ? 'danger' : 'default'}
             title={t('home.tiles.dayEnd')}
-            subtitle={t('home.tiles.dayEndHelp')}
-            onPress={() => navigation.navigate('DayEnd')}
+            subtitle={dayEndLine(dayEnd.target, t)}
+            subtitleStrong={dayEnd.target.due === 'READY' || dayEnd.target.due === 'NOT_SENT'}
+            onPress={() => navigation.navigate('DayEnd', { date: dayEnd.target.date })}
             testID="home.dayEnd"
           />
         ) : null}
@@ -430,6 +455,17 @@ function StatusRow({
       </View>
     </Card>
   );
+}
+
+/**
+ * The Day-end row's grey line (review23 ux-01): a day that waits for the shop by its date ("Sat 24 Oct
+ * sent back · fix it", "Sat 24 Oct not sent yet"); otherwise today's state in the chip's words ("Waiting
+ * for office", "Approved · day closed"), or "Send today's count" before anything is sent.
+ */
+function dayEndLine(target: DayEndTarget, t: TFunction): string {
+  if (target.due) return t(`home.tiles.dayEndDue.${target.due}`, { date: formatIsoDay(target.date) });
+  if (target.stage === 'NOT_STARTED' || target.stage === 'SENT_BACK') return t('home.tiles.dayEndHelp');
+  return t(`stages.dayEnd.${target.stage}`);
 }
 
 /** Two tiles a row; an odd last tile keeps half the width. */

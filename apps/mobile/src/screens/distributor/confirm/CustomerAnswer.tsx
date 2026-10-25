@@ -17,6 +17,7 @@ import {
   ConfirmSheet,
   ErrorBanner,
   Icon,
+  keepTogether,
   PickerSheet,
   Skeleton,
   space,
@@ -326,14 +327,15 @@ function AnswerCard({
 function AnswerLine({ line }: { line: CardLine }) {
   const { t } = useTranslation();
   switch (line.kind) {
+    // The number never splits across two lines (review23 ux-11).
     case 'notSent':
-      return <Text>{t('confirm.notSent', { name: line.name, phone: line.phone })}</Text>;
+      return <Text>{t('confirm.notSent', { name: line.name, phone: keepTogether(line.phone) })}</Text>;
     case 'smsFailed':
       return <Text>{t('confirm.smsFailed', { reason: t(`confirm.smsFailReason.${line.reason}`) })}</Text>;
     case 'smsSending':
       return <Text>{t('confirm.smsSending')}</Text>;
     case 'smsSent':
-      return <Text>{t('confirm.smsSent', { time: lineTime(line.at, whenTranslate), phone: line.phone })}</Text>;
+      return <Text>{t('confirm.smsSent', { time: lineTime(line.at, whenTranslate), phone: keepTogether(line.phone) })}</Text>;
     case 'shared':
       return <Text>{t('confirm.shared', { time: lineTime(line.at, whenTranslate), via: t(`confirm.via.${line.via}`) })}</Text>;
     case 'badPhone':
@@ -341,7 +343,7 @@ function AnswerLine({ line }: { line: CardLine }) {
         <View style={styles.warnLine}>
           <Icon name="warn" size={20} tone="warning" />
           <Text tone="warning" style={styles.flex}>
-            {t('confirm.badPhone', { phone: line.phone })}
+            {t('confirm.badPhone', { phone: keepTogether(line.phone) })}
           </Text>
         </View>
       );

@@ -54,15 +54,26 @@ export class ConfirmationController {
     }
   }
 
-  /** `POST /orders/:id/confirmation/new-link` `{ send?: 'SMS' }`: a new link (the old one stops working). */
+  /**
+   * `POST /orders/:id/confirmation/new-link` `{ send?: 'SMS' }`: a new link (the old one stops working). With
+   * `send: 'SMS'`, at most 3 texts per order and 20 per shop an hour (429 RATE_LIMITED with Retry-After).
+   */
   @Post(':id/confirmation/new-link')
   @HttpCode(200)
-  newLink(
+  async newLink(
     @Param('id') id: string,
     @Body(new ZodBody(newLinkSchema)) body: NewLinkInput,
     @IdempotencyKey() key: string | undefined,
     @CurrentActor() actor: UserActor,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.confirmations.newLink(id, { send: body.send, idempotencyKey: key }, actor);
+    try {
+      return await this.confirmations.newLink(id, { send: body.send, idempotencyKey: key }, actor);
+    } catch (error) {
+      if (AppError.is(error, 'RATE_LIMITED')) {
+        res.setHeader(RESPONSE_HEADER.retryAfter, String(Math.max(1, error.details.minutes) * 60));
+      }
+      throw error;
+    }
   }
 }

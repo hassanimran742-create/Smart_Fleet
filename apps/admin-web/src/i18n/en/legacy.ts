@@ -213,6 +213,12 @@ export const legacy = {
       /** [Inc 2] `VEHICLE_HAS_CYLINDERS` (UX_ADMIN §3.7): the driver of a loaded van can't change. */
       hasCylinders_one: '{{plate}} still has {{count}} cylinder on it. Unload at the store before changing the driver.',
       hasCylinders_other: '{{plate}} still has {{count}} cylinders on it. Unload at the store before changing the driver.',
+      /**
+       * [review23 holder-scans-01] `DRIVER_HAS_OPEN_RUN` with `run` REFILL (UX_ADMIN §3.7). A trip shows the
+       * catalogue's words ("Finish or reassign Kashif's trip on LEA-101 first."); an assigned refill can't
+       * be reassigned, so it names what can be done.
+       */
+      openRefill: "{{driver}}'s refill on {{plate}} isn't finished. The shop can cancel it before pickup.",
       empty: 'No vans in service.',
     },
   },
