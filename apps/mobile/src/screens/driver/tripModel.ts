@@ -1,81 +1,95 @@
 import type { TFunction } from 'i18next';
 import type {
+  ReturnState,
+  StopProgress,
+  StopProgressLine,
+  TripDetailDto,
   TripOrderDto,
-  TripOrderLineDto,
-  TripStopDto,
-  TripStopStatus,
-  TripViewDto,
+  TripStopViewDto,
+  TripSummary,
+  VanCounts,
+  VanLeftoverCylinder,
 } from '@smartfleet/shared-types';
-import { businessDate, localDate, type BusinessDayOptions } from '@smartfleet/shared-utils';
+import { businessDate, formatNo, localDate, type BusinessDayOptions } from '@smartfleet/shared-utils';
 import type { DriverStepState, IconName } from '../../ui';
+import type { SizeLine } from '../../ui/scan';
+
+/** The store stop's progress (API_CONTRACT §9.3): per size, what the trip needs and what is loaded. */
+export type PickupProgress = Extract<StopProgress, { type: 'STORE_PICKUP' }>;
+/** A visit's progress: what is given against the order, and what was taken back. */
+export type DeliveryProgress = Extract<StopProgress, { type: 'DELIVERY' }>;
 
 /**
- * `GET /trips/mine` and `GET /trips/:id` (API_CONTRACT §7.7: the existing shape, plus `stops[].status`
- * and `allowedActions`). The shapes are shared-types' DTOs (README rule 2: apps never redefine them);
- * these names keep the driver screens' imports short.
+ * The van as `GET /trips/:id` sends it (shared-types `TripVanDto`): the counts, plus the cylinders on it
+ * from the trip's point of view, in the shape TRIP_VAN_NOT_EMPTY lists them, for the Unload rows with
+ * ticks (driver spec R7). `cylinders` stays optional so an older server's answer still shows the Unload
+ * groups as counts.
  */
-export type TripView = TripViewDto;
-export type TripStop = TripStopDto;
+export type VanOnTrip = VanCounts & { cylinders?: VanLeftoverCylinder[] };
+
+/**
+ * `GET /trips/:id` from Inc 2 (shared-types `TripDetailDto`: each stop with its words and progress, the
+ * van and the trip's buttons). The shapes are shared-types' DTOs (README rule 2); these names keep the
+ * driver screens' imports short.
+ */
+export type TripDetail = Omit<TripDetailDto, 'van'> & { van: VanOnTrip | null };
+export type TripStop = TripStopViewDto;
 export type TripOrder = TripOrderDto;
-export type TripOrderLine = TripOrderLineDto;
 
 /** A trip the driver can still work on. Scans and steps are refused once it is closed. */
-export function isTripOpen(trip: Pick<TripView, 'status'>): boolean {
+export function isTripOpen(trip: Pick<TripDetail, 'status'>): boolean {
   return trip.status === 'PLANNED' || trip.status === 'IN_PROGRESS';
 }
 
-/** An order that still needs the driver: assigned to the trip and not finished. */
-export function isOrderOpen(order: Pick<TripOrder, 'status'> | null | undefined): boolean {
-  return order?.status === 'ASSIGNED' || order?.status === 'IN_TRANSIT';
-}
-
-export function stopsOf(trip: TripView): TripStop[] {
+export function stopsOf(trip: TripDetail): TripStop[] {
   return [...(trip.stops ?? [])].sort((a, b) => a.seq - b.seq);
 }
 
-export function findStop(trip: TripView, stopId: string): TripStop | null {
+export function findStop(trip: TripDetail, stopId: string): TripStop | null {
   return (trip.stops ?? []).find((stop) => stop.id === stopId) ?? null;
 }
 
-export function orderOf(trip: TripView, stop: Pick<TripStop, 'orderId'>): TripOrder | null {
-  if (!stop.orderId) return null;
+export function orderOf(trip: TripDetail, stop: Pick<TripStop, 'orderId'> | null): TripOrder | null {
+  if (!stop?.orderId) return null;
   return (trip.orders ?? []).find((order) => order.id === stop.orderId) ?? null;
 }
 
-/** The stop's status: the server's when it sends one, else read from the timestamps and the order. */
-export function stopStatusOf(stop: TripStop, order: TripOrder | null): TripStopStatus {
-  if (stop.status) return stop.status;
-  if (stop.cancelledAt || order?.status === 'CANCELLED') return 'CANCELLED';
-  if (order?.status === 'FAILED') return 'FAILED';
-  if (stop.departedAt) return 'DONE';
-  if (stop.arrivedAt) return 'ARRIVED';
-  return 'PENDING';
-}
-
-/** True while a stop still has something to do. */
-export function isStopOpen(trip: TripView, stop: TripStop): boolean {
-  const status = stopStatusOf(stop, orderOf(trip, stop));
-  return status === 'PENDING' || status === 'ARRIVED';
-}
-
-/** The store stops (Load), in trip order. Inc 1 trips have one, first. */
-export function loadStops(trip: TripView): TripStop[] {
-  return stopsOf(trip).filter((stop) => stop.stopType === 'STORE_PICKUP');
+/** The store stop (Load): one per trip. */
+export function loadStopOf(trip: TripDetail): TripStop | null {
+  return stopsOf(trip).find((stop) => stop.type === 'STORE_PICKUP') ?? null;
 }
 
 /** The delivery stops (one per customer), in trip order. */
-export function deliveryStops(trip: TripView): TripStop[] {
-  return stopsOf(trip).filter((stop) => stop.stopType === 'DELIVERY');
+export function deliveryStops(trip: TripDetail): TripStop[] {
+  return stopsOf(trip).filter((stop) => stop.type === 'DELIVERY');
 }
 
-/** True while a customer of the trip still waits for the driver. */
-export function hasOpenDelivery(trip: TripView): boolean {
-  return deliveryStops(trip).some((stop) => isStopOpen(trip, stop));
+/** True while a stop still has something to do. */
+export function isStopOpen(stop: Pick<TripStop, 'status'>): boolean {
+  return stop.status === 'PENDING' || stop.status === 'ARRIVED';
+}
+
+export function pickupOf(stop: TripStop | null): PickupProgress | null {
+  return stop?.progress?.type === 'STORE_PICKUP' ? stop.progress : null;
+}
+
+export function deliveryOf(stop: TripStop | null): DeliveryProgress | null {
+  return stop?.progress?.type === 'DELIVERY' ? stop.progress : null;
+}
+
+/** What is on the van now (the server's count); 0 with no van. */
+export function vanTotalOf(trip: Pick<TripDetail, 'van'>): number {
+  return trip.van?.total ?? 0;
+}
+
+/** True while a stop of the trip (the load or a visit) is still open. */
+export function hasOpenStop(trip: TripDetail): boolean {
+  return stopsOf(trip).some((stop) => stop.type !== 'RETURN_DROPOFF' && isStopOpen(stop));
 }
 
 /**
  * The trip's steps, as the driver sees them (driver spec §1.9): Load at the store, Deliver to each
- * customer, then Unload at the store. Unload isn't a server stop in Inc 1 (the store's SCAN_IN).
+ * customer, then Unload at the store. Unload isn't a server stop: the shop scans the cylinders in.
  */
 export type StepKind = 'LOAD' | 'DELIVER' | 'UNLOAD';
 
@@ -85,16 +99,17 @@ export interface TripStep {
   stop: TripStop | null;
 }
 
-export function tripSteps(trip: TripView): TripStep[] {
+export function tripSteps(trip: TripDetail): TripStep[] {
+  const stops = stopsOf(trip);
   return [
-    ...loadStops(trip).map((stop): TripStep => ({ kind: 'LOAD', stop })),
-    ...deliveryStops(trip).map((stop): TripStep => ({ kind: 'DELIVER', stop })),
+    ...stops.filter((stop) => stop.type === 'STORE_PICKUP').map((stop): TripStep => ({ kind: 'LOAD', stop })),
+    ...stops.filter((stop) => stop.type === 'DELIVERY').map((stop): TripStep => ({ kind: 'DELIVER', stop })),
     { kind: 'UNLOAD', stop: null },
   ];
 }
 
 /** "Step 2 of 3" for a stop, or for Unload (`stopId` null), the last step. */
-export function stepPosition(trip: TripView, stopId: string | null): { step: number; total: number } {
+export function stepPosition(trip: TripDetail, stopId: string | null): { step: number; total: number } {
   const steps = tripSteps(trip);
   const index = steps.findIndex((step) => (stopId === null ? step.kind === 'UNLOAD' : step.stop?.id === stopId));
   return { step: Math.max(0, index) + 1, total: steps.length };
@@ -104,11 +119,12 @@ export function stepPosition(trip: TripView, stopId: string | null): { step: num
 export const STEP_ICON: Record<StepKind, IconName> = { LOAD: 'van', DELIVER: 'customer', UNLOAD: 'store' };
 
 /**
- * What the driver does next (driver spec D6's footer table), the one rule behind Today's "Continue
- * trip", the Trip screen's footer and the footer of a finished step:
+ * What the driver does next (driver spec D6 and R3's footer table), the one rule behind Today's
+ * "Continue trip", the Trip screen's footer and the footer of a finished step:
  * - planned: start the trip;
- * - a customer still waits: load first if the store stop is open, else deliver to the first customer;
- * - no customer waits: unload while the van holds cylinders, else finish the trip;
+ * - the load is open: load (a trip is finished only once every stop is closed);
+ * - a customer still waits: deliver to the first one, in trip order;
+ * - nothing left to visit: unload while the van holds cylinders, else finish the trip;
  * - closed: nothing to do.
  */
 export type NextStep =
@@ -119,27 +135,21 @@ export type NextStep =
   | { kind: 'FINISH' }
   | { kind: 'CLOSED' };
 
-export function nextStep(trip: TripView, vanHasCylinders: boolean): NextStep {
+export function nextStep(trip: TripDetail): NextStep {
   if (!isTripOpen(trip)) return { kind: 'CLOSED' };
   if (trip.status === 'PLANNED') return { kind: 'START' };
-  const delivery = deliveryStops(trip).find((stop) => isStopOpen(trip, stop));
-  if (delivery) {
-    const load = loadStops(trip).find((stop) => isStopOpen(trip, stop));
-    return load ? { kind: 'LOAD', stop: load } : { kind: 'DELIVER', stop: delivery };
-  }
-  return vanHasCylinders ? { kind: 'UNLOAD' } : { kind: 'FINISH' };
+  const load = loadStopOf(trip);
+  if (load && isStopOpen(load)) return { kind: 'LOAD', stop: load };
+  const delivery = deliveryStops(trip).find((stop) => isStopOpen(stop));
+  if (delivery) return { kind: 'DELIVER', stop: delivery };
+  return vanTotalOf(trip) > 0 ? { kind: 'UNLOAD' } : { kind: 'FINISH' };
 }
 
 /** The stop the "Next" chip points at: the first step of a planned trip, else the next step's stop. */
-function nextStopId(trip: TripView, vanHasCylinders: boolean): string | null {
+function nextStopId(trip: TripDetail): string | null {
   if (trip.status === 'PLANNED') return tripSteps(trip)[0]?.stop?.id ?? null;
-  const next = nextStep(trip, vanHasCylinders);
+  const next = nextStep(trip);
   return next.kind === 'LOAD' || next.kind === 'DELIVER' ? next.stop.id : null;
-}
-
-/** True once loading has begun on the trip (the first load scan stamps `loadStartedAt`). */
-function loadingStarted(trip: TripView): boolean {
-  return (trip.orders ?? []).some((order) => Boolean(order.loadStartedAt));
 }
 
 /**
@@ -147,63 +157,48 @@ function loadingStarted(trip: TripView): boolean {
  * Cancelled (the order or stop CANCELLED, or the office stopped the trip); In progress (arrived, or
  * loading begun); Next (the step to do now); To do.
  */
-export function stopStepState(trip: TripView, stop: TripStop, vanHasCylinders = true): DriverStepState {
+export function stopStepState(trip: TripDetail, stop: TripStop): DriverStepState {
   const order = orderOf(trip, stop);
-  const status = stopStatusOf(stop, order);
-  if (status === 'DONE') return 'DONE';
-  if (order?.status === 'FAILED' || status === 'FAILED') return 'NOT_DELIVERED';
-  if (order?.status === 'CANCELLED' || status === 'CANCELLED') return 'CANCELLED';
-  // A finished trip left a stop unclosed only when its work was done (the server checks the orders).
+  if (stop.status === 'DONE') return 'DONE';
+  if (stop.status === 'FAILED' || order?.status === 'FAILED') return 'NOT_DELIVERED';
+  if (stop.status === 'CANCELLED' || order?.status === 'CANCELLED') return 'CANCELLED';
   if (trip.status === 'COMPLETED') return 'DONE';
   if (!isTripOpen(trip)) return 'CANCELLED';
-  if (status === 'ARRIVED' || order?.status === 'DELIVERED') return 'IN_PROGRESS';
-  if (stop.stopType === 'STORE_PICKUP' && loadingStarted(trip)) return 'IN_PROGRESS';
-  return nextStopId(trip, vanHasCylinders) === stop.id ? 'NEXT' : 'TO_DO';
+  if (stop.status === 'ARRIVED') return 'IN_PROGRESS';
+  if (stop.type === 'STORE_PICKUP' && (pickupOf(stop)?.doneCount ?? 0) > 0) return 'IN_PROGRESS';
+  return nextStopId(trip) === stop.id ? 'NEXT' : 'TO_DO';
 }
 
-/** The Unload step's chip: To do while a customer waits, Next while the van holds cylinders, then Done. */
-export function unloadStepState(trip: TripView, vanHasCylinders: boolean): DriverStepState {
+/** The Unload step's chip: To do while a stop is open, Next while the van holds cylinders, then Done. */
+export function unloadStepState(trip: TripDetail): DriverStepState {
   if (trip.status === 'COMPLETED') return 'DONE';
   if (!isTripOpen(trip)) return 'CANCELLED';
-  if (trip.status === 'PLANNED' || hasOpenDelivery(trip)) return 'TO_DO';
-  return vanHasCylinders ? 'NEXT' : 'DONE';
-}
-
-/** The trip a driver should do now: the one in progress, else the oldest one still planned. */
-export function currentTrip(trips: readonly TripView[]): TripView | null {
-  const running = trips.find((trip) => trip.status === 'IN_PROGRESS');
-  if (running) return running;
-  const planned = trips
-    .filter((trip) => trip.status === 'PLANNED')
-    .sort((a, b) => (a.plannedAt ?? '').localeCompare(b.plannedAt ?? ''));
-  return planned[0] ?? null;
+  if (trip.status === 'PLANNED' || hasOpenStop(trip)) return 'TO_DO';
+  return vanTotalOf(trip) > 0 ? 'NEXT' : 'DONE';
 }
 
 /** A trip's chip on Today: In progress, Next (the trip to do now) or To do. */
-export function tripStepState(trip: TripView, current: TripView | null): DriverStepState {
-  if (trip.status === 'COMPLETED') return 'DONE';
-  if (trip.status === 'ABORTED') return 'CANCELLED';
+export function tripChip(trip: Pick<TripSummary, 'id' | 'status'>, currentId: string | null): DriverStepState {
   if (trip.status === 'IN_PROGRESS') return 'IN_PROGRESS';
-  return current?.id === trip.id ? 'NEXT' : 'TO_DO';
+  return trip.id === currentId ? 'NEXT' : 'TO_DO';
 }
 
 /** The store's name, or "the store" while it isn't known. */
-export function storeNameOf(trip: TripView | null | undefined, t: TFunction): string {
-  return trip?.originStore?.name ?? t('scan.theStore');
+export function storeNameOf(trip: TripDetail | null | undefined, t: TFunction): string {
+  if (!trip) return t('scan.theStore');
+  return trip.originStore?.name || loadStopOf(trip)?.title || t('scan.theStore');
 }
 
-/** The customer's name, or "the customer" while it isn't known. */
-export function customerNameOf(order: TripOrder | null | undefined, t: TFunction): string {
-  return order?.client?.name ?? t('scan.theCustomer');
+/** The customer's name (the visit's title from the server), or "the customer" while it isn't known. */
+export function customerNameOf(stop: TripStop | null, order: TripOrder | null, t: TFunction): string {
+  return stop?.title || order?.client?.name || t('scan.theCustomer');
 }
 
-/** A step in words: "Load at Ahmed Gas Store", "Deliver to Sana" or "Unload at Ahmed Gas Store". */
-export function stepTitle(trip: TripView, stop: TripStop | null, t: TFunction): string {
-  const store = storeNameOf(trip, t);
-  if (stop?.stopType === 'DELIVERY')
-    return t('driver.trip.deliverTo', { name: customerNameOf(orderOf(trip, stop), t) });
-  if (stop?.stopType === 'STORE_PICKUP') return t('driver.trip.loadAt', { store });
-  return t('driver.trip.unloadAt', { store });
+/** The customers of a trip, in visit order: the visits that weren't cancelled. */
+export function customerNames(trip: TripDetail, t: TFunction): string[] {
+  return deliveryStops(trip)
+    .filter((stop) => stop.status !== 'CANCELLED')
+    .map((stop) => customerNameOf(stop, orderOf(trip, stop), t));
 }
 
 /** Full cylinders the order gives the customer. */
@@ -211,58 +206,86 @@ export function cylindersToGive(order: TripOrder | null | undefined): number {
   return (order?.lines ?? []).reduce((sum, line) => sum + (line.fullCount ?? 0), 0);
 }
 
-/** Empty cylinders the customer is expected to give back. */
+/** Cylinders the customer is expected to give back. */
 export function cylindersToTakeBack(order: TripOrder | null | undefined): number {
   return (order?.lines ?? []).reduce((sum, line) => sum + (line.expectedReturnCount ?? 0), 0);
 }
 
 /** Full cylinders the trip's open and delivered orders carry (cancelled and failed ones left out). */
-export function tripCylinderCount(trip: TripView): number {
+export function tripCylinderCount(trip: TripDetail): number {
   return (trip.orders ?? [])
     .filter((order) => order.status !== 'CANCELLED' && order.status !== 'FAILED')
     .reduce((sum, order) => sum + cylindersToGive(order), 0);
 }
 
-/** The orders still to load at the store (open orders: cancelled or failed ones never load). */
-export function ordersToLoad(trip: TripView): TripOrder[] {
-  return (trip.orders ?? []).filter((order) => isOrderOpen(order));
+/** "2 × 11.8 kg" per size: what to load or give, from a progress's lines. */
+export function needLines(lines: readonly StopProgressLine[], t: TFunction): SizeLine[] {
+  return lines
+    .filter((line) => line.needed > 0)
+    .map((line) => ({
+      key: line.cylinderTypeId,
+      text: t('driver.steps.line', { count: line.needed, size: line.sizeLabel }),
+    }));
 }
 
-/**
- * The orders the store step loaded or loads: all but an order cancelled before its first load scan.
- * A failed order was loaded, so the Load row still says "3 cylinders" after "Not delivered".
- */
-export function ordersOfTheLoad(trip: TripView): TripOrder[] {
-  return (trip.orders ?? []).filter((order) => order.status !== 'CANCELLED' || Boolean(order.loadStartedAt));
+/** "11.8 kg · 0 of 2" per size, with a tick once that size is complete (R4, R5; SizeLines). */
+export function progressLines(lines: readonly StopProgressLine[], t: TFunction): SizeLine[] {
+  return lines
+    .filter((line) => line.needed > 0)
+    .map((line) => ({
+      key: line.cylinderTypeId,
+      text: t('scan.sizeProgress', { size: line.sizeLabel, done: Math.min(line.done, line.needed), total: line.needed }),
+      complete: line.done >= line.needed,
+    }));
 }
 
-/**
- * A cylinder size for people, "11.8 kg", from the type's weight, else its name, else its code (the trip
- * routes send the raw order line, which has no size label). `kgLabel` turns a weight into words
- * (`driver.size`).
- */
-export function sizeLabelOf(line: TripOrderLine, kgLabel: (kg: string) => string): string {
-  const weight = Number(line.cylinderType?.weightKg);
-  if (Number.isFinite(weight) && weight > 0) return kgLabel(String(Math.round(weight * 100) / 100));
-  return line.cylinderType?.name ?? line.cylinderType?.code ?? '';
-}
-
-/** "2 × 11.8 kg" for each size, added up over the given orders, as SizeLines takes them. */
-export function sizeLinesOf(orders: readonly (TripOrder | null)[], t: TFunction): { key: string; text: string }[] {
-  const bySize = new Map<string, { size: string; count: number }>();
-  for (const order of orders) {
-    for (const line of order?.lines ?? []) {
-      if (!line.fullCount) continue;
-      const size = sizeLabelOf(line, (kg) => t('driver.size', { kg }));
-      const entry = bySize.get(line.cylinderTypeId) ?? { size, count: 0 };
-      entry.count += line.fullCount;
-      bySize.set(line.cylinderTypeId, entry);
-    }
+/** A cylinder's number as people read it ("AG-C0042"), or its QR value without a number. */
+export function shortCodeOf(code: string, shortNo: number | null, distributorCode: string | null | undefined): string {
+  if (shortNo === null || shortNo === undefined) return code;
+  try {
+    return formatNo(distributorCode ?? null, 'CYLINDER', shortNo);
+  } catch {
+    return code;
   }
-  return [...bySize.entries()].map(([key, entry]) => ({
-    key,
-    text: t('driver.steps.line', { count: entry.count, size: entry.size }),
-  }));
+}
+
+/** The Unload step's groups (R7), in this order. */
+export const UNLOAD_GROUPS = ['NOT_DELIVERED', 'EMPTY', 'PART_FILLED', 'FULL'] as const;
+export type UnloadGroup = (typeof UNLOAD_GROUPS)[number];
+
+/**
+ * What is still on the van by Unload group, from the counts alone (when the trip doesn't list the
+ * cylinders): the loaded cylinders still on the van are the store stop's loaded count less what the
+ * visits gave, per size (API_CONTRACT §9.3: a cylinder the store took back no longer counts as loaded);
+ * the rest of the van is what was taken back, by state.
+ */
+export function unloadGroupCounts(trip: TripDetail): Record<UnloadGroup, number> | null {
+  const van = trip.van;
+  if (!van) return null;
+  const given = new Map<string, number>();
+  for (const stop of deliveryStops(trip)) {
+    for (const line of deliveryOf(stop)?.give.lines ?? []) given.set(line.cylinderTypeId, (given.get(line.cylinderTypeId) ?? 0) + line.done);
+  }
+  let loadedLeft = 0;
+  for (const line of pickupOf(loadStopOf(trip))?.lines ?? []) loadedLeft += Math.max(0, line.done - (given.get(line.cylinderTypeId) ?? 0));
+  const notDelivered = Math.min(loadedLeft, van.full);
+  return { NOT_DELIVERED: notDelivered, EMPTY: van.empty, PART_FILLED: van.partFilled, FULL: Math.max(0, van.full - notDelivered) };
+}
+
+/** The return states in the order every list shows them (rulebook §5.2: Empty · Part-filled · Full). */
+export const RETURN_STATES: readonly ReturnState[] = ['EMPTY', 'PART_FILLED', 'FULL'];
+
+/**
+ * The van's counts with the zeros hidden: "3 full · 1 empty · 1 part-filled"; "" when it is empty. Each
+ * part is a whole phrase, so " · " is the one join the copy rules allow (driver spec §6).
+ */
+export function vanCountsLine(van: Pick<VanCounts, 'full' | 'empty' | 'partFilled'> | null | undefined, t: TFunction): string {
+  if (!van) return '';
+  const parts: string[] = [];
+  if (van.full > 0) parts.push(t('driver.van.fullCount', { count: van.full }));
+  if (van.empty > 0) parts.push(t('driver.van.emptyCount', { count: van.empty }));
+  if (van.partFilled > 0) parts.push(t('driver.van.partCount', { count: van.partFilled }));
+  return parts.join(' · ');
 }
 
 /** The business date (`YYYY-MM-DD`) of a moment, by the server's day settings; never throws. */

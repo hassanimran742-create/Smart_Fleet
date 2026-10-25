@@ -12,6 +12,7 @@ import {
   type TripAction as SharedTripAction,
   type TripStatusValue,
   type TripStopViewDto,
+  type TripVanDto,
   type UnlabelledReturnsResult,
   type VanLeftoverCylinder,
 } from '@smartfleet/shared-types';
@@ -29,7 +30,7 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { ConfirmationService, type IssuedConfirmation } from '../confirmation/confirmation.interface';
 import { deliveryProgress, pickupProgress, stopProgress, type ProgressTrip } from '../custody/progress';
 import { ScanService, type ScanAnswer } from '../custody/scan.service';
-import { vanCounts, vanCylinders } from '../custody/van';
+import { vanCounts, vanCylinders, type VanCylinder } from '../custody/van';
 import { raiseVanNotEmpty } from '../custody/van-alerts';
 import { lockOrder, lockTripOrders, markOrderDeliveredByScans, markTripOrdersOnTheWay, releaseTripOrders } from '../orders/order-writes';
 import { ORDER_VIEW_INCLUDE, toOrderDtos } from '../orders/orders.mapper';
@@ -43,6 +44,19 @@ import { CLOSED_STOP, isOpenTrip, nextOpenStopId, OPEN_STOP_STATUSES, stopWords,
 export type TripAction = SharedTripAction;
 /** Buttons a stop offers the trip's driver. */
 export type StopAction = 'ARRIVE' | 'DEPART';
+
+/**
+ * A cylinder on the van as the trip names it (`TRIP_VAN_NOT_EMPTY`, and from Inc 2 `GET /trips/:id`
+ * `van.cylinders`). From a run's point of view `vanCylinders` leaves refill cylinders out already.
+ */
+function leftoverOf(cylinder: VanCylinder): VanLeftoverCylinder {
+  return {
+    shortCode: cylinder.shortCode,
+    sizeLabel: cylinder.sizeLabel,
+    state: cylinder.state,
+    came: cylinder.came === 'REFILL' ? 'SPARE' : cylinder.came,
+  };
+}
 
 const OPEN_TRIP: TripStatusValue[] = ['PLANNED', 'IN_PROGRESS'];
 const OPEN_STOP: TripStopStatus[] = [TripStopStatus.PENDING, TripStopStatus.ARRIVED];
@@ -83,7 +97,7 @@ export type TripView = Omit<TripRow, 'stops'> & {
 /** [Inc 2] `GET /trips/:id` from Inc 2 (`TripDetailDto`): the Inc 1 trip plus each stop's progress and the van. */
 export type TripDetailView = Omit<TripView, 'stops' | 'allowedActions'> & {
   stops: StopDetailView[];
-  van: { full: number; empty: number; partFilled: number; total: number } | null;
+  van: TripVanDto | null;
   allowedActions: TripAction[];
 };
 
@@ -169,13 +183,17 @@ export class TripsService {
     const { driver, ...rest } = trip;
     const [view] = await this.withStops([rest], caller);
     const stops = await this.detailStops(this.prisma, rest, view.stops);
-    const van = await vanCounts(this.prisma, rest.vehicleId);
+    const [counts, onVan] = await Promise.all([
+      vanCounts(this.prisma, rest.vehicleId),
+      vanCylinders(this.prisma, rest.vehicleId, { perspectiveTripId: rest.id }),
+    ]);
+    const van: TripVanDto = { ...counts, cylinders: onVan.map(leftoverOf) };
     return {
       ...view,
       stops,
       van,
       driver: { id: driver.id, name: driver.user.name, phone: driver.user.phone },
-      allowedActions: await this.tripActions(caller, rest, van.total),
+      allowedActions: await this.tripActions(caller, rest, counts.total),
     };
   }
 
@@ -654,14 +672,7 @@ export class TripsService {
       if (!allowed || !leftoverReason) {
         throw new AppError('TRIP_VAN_NOT_EMPTY', {
           count: onVan.length,
-          cylinders: onVan.map(
-            (cylinder): VanLeftoverCylinder => ({
-              shortCode: cylinder.shortCode,
-              sizeLabel: cylinder.sizeLabel,
-              state: cylinder.state,
-              came: cylinder.came === 'REFILL' ? 'SPARE' : cylinder.came,
-            }),
-          ),
+          cylinders: onVan.map(leftoverOf),
           leftoversAllowed: allowed,
         });
       }

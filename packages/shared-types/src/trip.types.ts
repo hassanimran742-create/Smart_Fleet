@@ -1,4 +1,5 @@
 import type { GeoPoint, IsoDate, IsoDateTime, ISODateString, UUID } from './common.types';
+import type { VanLeftoverCylinder } from './errors';
 import type { OrderDto, OrderStatusValue } from './order.types';
 
 export enum TripStatus {
@@ -158,7 +159,7 @@ export interface TripStopViewDto extends TripStopDto {
  */
 export interface TripDetailDto extends Omit<TripViewDto, 'stops' | 'allowedActions'> {
   stops: TripStopViewDto[];
-  van: VanCounts | null;
+  van: TripVanDto | null;
   /** Set by a finish with cylinders left on the van while `trip.allowFinishWithLeftovers` is on. */
   leftoverReason: string | null;
   allowedActions: TripAction[];
@@ -176,6 +177,14 @@ export interface VanCounts {
 }
 
 /**
+ * [Inc 2] The van of `GET /trips/:tripId`: its counts, plus every cylinder on it from the trip's point of
+ * view (the list `TRIP_VAN_NOT_EMPTY` names: `came` TAKEN_BACK, NOT_DELIVERED or SPARE). Cylinders on an
+ * open refill line aren't the trip's, so they are left out of `cylinders` (they still count in the
+ * counts). The driver's Unload rows tick off as the store scans them in (UX_MOBILE §7.2 R7).
+ */
+export type TripVanDto = VanCounts & { cylinders: VanLeftoverCylinder[] };
+
+/**
  * [Inc 2] A trip row of `GET /driver/home` (UX_MOBILE §7.2 R2: "Trip · {{count}} customers · load at
  * {{store}}", a step chip, "Start" or "Continue").
  */
@@ -188,6 +197,10 @@ export interface TripSummary {
   store: { id: UUID; name: string };
   /** DELIVERY stops that are not CANCELLED. */
   customers: number;
+  /** The customers' names in visit order (the DELIVERY stops that are not CANCELLED): "Deliver to Sana". */
+  customerNames: string[];
+  /** Full cylinders the trip's orders deliver (orders not CANCELLED or FAILED): "3 cylinders". */
+  cylinders: number;
   /** Stops DONE, FAILED or CANCELLED, of all stops. */
   stops: { done: number; total: number };
 }

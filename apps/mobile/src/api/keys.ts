@@ -57,8 +57,6 @@ export const qk = {
   stations: ['stations'] as const,
 
   driver: {
-    /** `GET /trips/mine` (Inc 1). */
-    trips: ['driver', 'trips'] as const,
     /** `GET /driver/home` (Inc 2). */
     home: ['driver', 'home'] as const,
   },
@@ -89,8 +87,8 @@ export const POLL_MS = {
   orderOnTheWay: 20_000,
   topupBeingChecked: 30_000,
   trip: 15_000,
-  /** Inc 2's passive Unload screen (the store scans); Inc 1 doesn't poll faster. Rename to `tripUnload` with it. */
-  tripHandBack: 5_000,
+  /** The passive Unload screen (Inc 2): the store scans the van's cylinders in. */
+  tripUnload: 5_000,
   storeIncoming: 15_000,
   driverHome: 30_000,
 } as const;
@@ -119,7 +117,6 @@ export const invalidate = {
     return Promise.all([
       client.invalidateQueries({ queryKey: qk.trip(tripId) }),
       client.invalidateQueries({ queryKey: qk.driver.home }),
-      client.invalidateQueries({ queryKey: qk.driver.trips }),
     ]).then(() => undefined);
   },
 };

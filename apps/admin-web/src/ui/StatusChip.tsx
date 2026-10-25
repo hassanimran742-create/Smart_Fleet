@@ -48,6 +48,8 @@ export interface StatusChipProps<K extends StatusKind> {
   kind: K;
   /** The API value, for example the order's `stage`. An unknown value shows "Unknown" and is logged once. */
   value: StatusValue<K> | (string & {}) | null | undefined;
+  /** The words' counts, for a kind with them: `refillProgress` ("Coming back · {{done}} of {{total}} filled"). */
+  params?: Record<string, string | number>;
   className?: string;
 }
 
@@ -55,9 +57,9 @@ export interface StatusChipProps<K extends StatusKind> {
  * `<StatusChip kind="order" value={order.stage} />`: the plain words from `status:<kind>.<VALUE>`, the
  * tone from `STATUS_TONES` and the icon from `STATUS_ICONS` (UX_PRINCIPLES §4).
  */
-export function StatusChip<K extends StatusKind>({ kind, value, className }: StatusChipProps<K>) {
+export function StatusChip<K extends StatusKind>({ kind, value, params, className }: StatusChipProps<K>) {
   const { t } = useTranslation();
-  const label = value ? translateDynamic(`status:${kind}.${value}`) : null;
+  const label = value ? translateDynamic(`status:${kind}.${value}`, params) : null;
   if (value && label === null) reportUnknown(kind, value);
   const known = Boolean(label && value);
   return (

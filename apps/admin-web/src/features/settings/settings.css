@@ -131,6 +131,20 @@
   max-inline-size: 420px;
 }
 
+/* [Inc 2] Team phones: one number per line, its remove button beside it, then "+ Add phone". */
+.sf-settings__phones {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-2);
+}
+
+.sf-settings__phone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-inline-size: 100%;
+}
+
 .sf-settings__hours {
   display: inline-flex;
   align-items: center;

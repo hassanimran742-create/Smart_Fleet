@@ -1,0 +1,76 @@
+/*
+ * Day-end (UX_ADMIN §4.3): the list and the review page. Tokens only (src/ui/tokens.css) and logical
+ * properties.
+ */
+
+.sf-dayend {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.sf-dayend .sf-page-header {
+  margin-block-end: 0;
+}
+
+.sf-dayend .sf-tabs {
+  overflow-y: hidden;
+}
+
+.sf-dayend__two-line {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.sf-dayend__muted {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-dayend__nowrap {
+  white-space: nowrap;
+}
+
+.sf-dayend__number {
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-dayend__note {
+  display: -webkit-box;
+  max-inline-size: 28ch;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The facts row: In store · On vans · With customers · Differences, each label above its number. */
+.sf-dayend__facts.sf-kv {
+  grid-template-columns: repeat(4, minmax(0, max-content));
+  column-gap: var(--sp-8);
+  margin-block-end: 0;
+}
+
+.sf-dayend__facts .sf-kv__value {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-dayend__files {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.sf-dayend__download {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+}
+
+@media (max-width: 767px) {
+  .sf-dayend__facts.sf-kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

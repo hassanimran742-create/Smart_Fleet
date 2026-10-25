@@ -31,6 +31,23 @@ export const today = {
       oldest: 'Oldest {{wait}}',
       action: 'Check problems',
     },
+    /** Inc 3: refills waiting for a driver (`summary.refills`, absent before Inc 3). */
+    refills: {
+      label_one: 'refill needs a driver',
+      label_other: 'refills need a driver',
+      oldest: 'Oldest {{wait}}',
+      action: 'Assign drivers',
+    },
+    /** Inc 3: day-ends sent for approval (`summary.dayEnd`, absent while day-end is off). */
+    dayEnd: {
+      label_one: 'day-end to approve',
+      label_other: 'day-ends to approve',
+      /** One waiting: "Ahmed Gas · Thu 22 Oct". */
+      one: '{{distributor}} · {{day}}',
+      /** More waiting: "Oldest Thu 22 Oct". */
+      oldest: 'Oldest {{day}}',
+      action: 'Review day-end',
+    },
     prices: {
       label_one: 'zone has no price',
       label_other: 'zones have no price',

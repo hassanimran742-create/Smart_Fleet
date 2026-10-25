@@ -305,7 +305,7 @@ export class DayEndService {
           this.core.differences(tx, updated),
           this.core.summary(tx, { day: updated, distributorId, homeStoreId: distributor.homeStoreId, date, options }),
         ]);
-        return { version: updated.uploadVersion, differences, summary };
+        return { version: updated.uploadVersion, differences, summary, checked: lines.length };
       }, SHEET_TX);
     } catch (error) {
       for (const key of stored) await this.files.discard(key);

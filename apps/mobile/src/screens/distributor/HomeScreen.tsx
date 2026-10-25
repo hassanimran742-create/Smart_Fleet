@@ -2,7 +2,15 @@ import { useCallback, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { CaseDto, DistributorHomeDto, OrderDto, Page, PaymentDto, WalletSummary } from '@smartfleet/shared-types';
+import type {
+  CaseDto,
+  DistributorHomeDto,
+  OrderDto,
+  Page,
+  PaymentDto,
+  StoreIncomingDto,
+  WalletSummary,
+} from '@smartfleet/shared-types';
 import type { ApiError } from '../../api/errors';
 import { POLL_MS, qk } from '../../api/keys';
 import { useAppConfig, useOfficeContact } from '../../hooks/useAppConfig';
@@ -25,7 +33,8 @@ import {
   useNoConnection,
   type IconName,
 } from '../../ui';
-import { fetchHome, fetchMyCases, fetchMyTopups } from './shared/api';
+import { cylindersComing } from './receive/receiveModel';
+import { fetchHome, fetchMyCases, fetchMyTopups, fetchStoreIncoming } from './shared/api';
 import { isPositivePaisa } from './shared/format';
 import { useShopNavigation } from './shared/navigation';
 import { OrderRow } from './shared/OrderRow';
@@ -39,9 +48,11 @@ const ACTIVE_ROWS = 3;
 /**
  * S2 Home (UX_MOBILE §4; shop spec §D). The header greets the shop. The wallet card: the balance
  * (never "Rs 0" while loading) with "Low balance" when the server flags it, "Saved 11:08 am" when the
- * data is old, "Being checked" above Rs 0, and Add money. A new shop gets "Get started". Then four
- * tiles (My orders with its count, Customers, History, Refills), up to three active orders, and
- * "New order" as the one main button, or "Call office" while the store isn't set up.
+ * data is old, "Being checked" above Rs 0, and Add money. A new shop gets "Get started". Then the
+ * status rows, each only while its feature is on (Inc 2/3 spec §2.1): the red customer problems row
+ * first, then Receive from driver with what is coming back (polled with `store.incoming`), then the
+ * Day-end sheet. Then four tiles (My orders with its count, Customers, History, Refills), up to three
+ * active orders, and "New order" as the one main button, or "Call office" while the store isn't set up.
  */
 export function DistributorHomeScreen() {
   const { t } = useTranslation();
@@ -65,11 +76,21 @@ export function DistributorHomeScreen() {
     queryFn: fetchMyCases,
     enabled: confirmationsOn,
   });
+  // [Inc 2] What the vans are bringing back (S13), polled every 15 s while Home is focused.
+  const scanFlowOn = config.features.scanFlow;
+  const incomingPoll = useFocusedInterval(POLL_MS.storeIncoming, scanFlowOn);
+  const incoming = useQuery<StoreIncomingDto, ApiError>({
+    queryKey: qk.store.incoming,
+    queryFn: fetchStoreIncoming,
+    enabled: scanFlowOn,
+    refetchInterval: incomingPoll,
+  });
 
   const refetchHome = home.refetch;
   const refetchActive = active.refetch;
   const refetchClients = clients.refetch;
   const refetchCases = cases.refetch;
+  const refetchIncoming = incoming.refetch;
   const refetchAll = useCallback(
     () =>
       Promise.all([
@@ -77,8 +98,9 @@ export function DistributorHomeScreen() {
         activeCount > 0 ? refetchActive() : undefined,
         quiet ? refetchClients() : undefined,
         confirmationsOn ? refetchCases() : undefined,
+        scanFlowOn ? refetchIncoming() : undefined,
       ]),
-    [refetchHome, refetchActive, refetchClients, refetchCases, activeCount, quiet, confirmationsOn],
+    [refetchHome, refetchActive, refetchClients, refetchCases, refetchIncoming, activeCount, quiet, confirmationsOn, scanFlowOn],
   );
   const pull = usePullRefresh(refetchAll);
   useRefetchOnReturn(refetchAll);
@@ -90,6 +112,14 @@ export function DistributorHomeScreen() {
   }, [navigation, businessName, t]);
 
   const openCases = confirmationsOn ? cases.data?.items ?? [] : [];
+  // A failed /store/incoming with nothing saved hides its row; the wallet card's strip says the rest.
+  const vans = scanFlowOn ? incoming.data?.vans : undefined;
+  const coming = vans ? cylindersComing(vans) : 0;
+  const openReceive = () => {
+    // With exactly one van, the list is skipped and the scan opens (S13).
+    if (vans && vans.length === 1) navigation.navigate('ReceiveScan', { vehicleId: vans[0].vehicle.id });
+    else navigation.navigate('ReceiveList');
+  };
   const storeSet = data?.distributor.storeSet ?? true;
   const accountActive = data ? data.distributor.status === 'ACTIVE' : true;
   const blocked = !storeSet || !accountActive;
@@ -134,7 +164,8 @@ export function DistributorHomeScreen() {
 
         {openCases.length > 0 ? (
           <StatusRow
-            icon="warn"
+            tone="danger"
+            icon="error"
             title={t('home.problems', { count: openCases.length })}
             subtitle={t('home.problemsHelp')}
             onPress={() =>
@@ -144,7 +175,25 @@ export function DistributorHomeScreen() {
             }
           />
         ) : null}
-        {/* Receive from driver (features.scanFlow, Inc 2) and Day-end sheet (features.dayEnd, Inc 3) join here as status rows. */}
+        {vans ? (
+          <StatusRow
+            icon="store"
+            title={t('home.tiles.receive')}
+            subtitle={coming > 0 ? t('home.tiles.receiveComing', { count: coming }) : t('home.tiles.receiveNone')}
+            subtitleStrong={coming > 0}
+            onPress={openReceive}
+            testID="home.receive"
+          />
+        ) : null}
+        {config.features.dayEnd ? (
+          <StatusRow
+            icon="sheet"
+            title={t('home.tiles.dayEnd')}
+            subtitle={t('home.tiles.dayEndHelp')}
+            onPress={() => navigation.navigate('DayEnd')}
+            testID="home.dayEnd"
+          />
+        ) : null}
 
         <TileGrid>
           {[
@@ -341,27 +390,41 @@ function GetStarted({
   );
 }
 
-/** A status row above the tiles (Inc 2/3: customer problems, Receive from driver, Day-end sheet). */
+/**
+ * A status row above the tiles (Inc 2/3 spec §2.1; the `HubTile` row): an icon in its circle, a bold
+ * title, one grey line and a chevron. The customer problems row is red (`danger`, the `error` icon);
+ * Receive and Day-end use the default card, with Receive's live count in bold brand text.
+ */
 function StatusRow({
   icon,
   title,
   subtitle,
+  subtitleStrong = false,
+  tone = 'default',
   onPress,
+  testID,
 }: {
   icon: IconName;
   title: string;
   subtitle: string;
+  /** The grey line carries a live count: bold brand text ("3 coming back"). */
+  subtitleStrong?: boolean;
+  tone?: 'default' | 'danger';
   onPress: () => void;
+  testID?: string;
 }) {
+  const danger = tone === 'danger';
   return (
-    <Card onPress={onPress} tone="warning" accessibilityLabel={`${title}, ${subtitle}`}>
+    <Card onPress={onPress} tone={tone} accessibilityLabel={`${title}, ${subtitle}`} testID={testID}>
       <View style={styles.statusRow}>
-        <View style={styles.statusIcon}>
-          <Icon name={icon} size={24} tone="warning" />
+        <View style={[styles.statusIcon, danger ? null : styles.statusIconDefault]}>
+          <Icon name={icon} size={24} tone={danger ? 'danger' : 'brand'} />
         </View>
         <View style={styles.flex}>
           <Text variant="heading">{title}</Text>
-          <Text tone="secondary">{subtitle}</Text>
+          <Text variant={subtitleStrong ? 'bodyStrong' : 'body'} tone={subtitleStrong ? 'brand' : 'secondary'}>
+            {subtitle}
+          </Text>
         </View>
         <Icon name="chevron" size={24} tone="secondary" />
       </View>
@@ -510,6 +573,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // On the white card the circle is the tiles' brandSoft one.
+  statusIconDefault: { backgroundColor: colors.brandSoft },
   grid: { gap: space.md },
   gridRow: { flexDirection: 'row', gap: space.md },
   tile: { flex: 1, minHeight: 96, alignItems: 'center', justifyContent: 'center', gap: space.sm },

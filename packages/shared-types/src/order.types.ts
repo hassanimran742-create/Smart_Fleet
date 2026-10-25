@@ -2,7 +2,7 @@ import type { GeoPoint, IdName, IsoDateTime, ISODateString, Paisa, UUID } from '
 import type { OrderConfirmationSummary } from './confirmation.types';
 import type { DistributorRef } from './distributor.types';
 import type { DeliveryQuote } from './pricing.types';
-import type { TripStatusValue } from './trip.types';
+import type { ReturnState, TripStatusValue } from './trip.types';
 
 export enum OrderStatus {
   PENDING = 'PENDING',
@@ -198,6 +198,27 @@ export interface OrderTripDto {
   vehicle: { plateNo: string };
 }
 
+/** [Inc 2] A cylinder of a visit, by its number. */
+export interface OrderVisitCylinder {
+  /** "AG-C0042"; the QR value for a cylinder without a short number. */
+  shortCode: string;
+  cylinderTypeId: UUID;
+  sizeLabel: string;
+}
+
+/**
+ * [Inc 2] What the order's visit gave the customer and took back, from its scans (and the office's manual
+ * delivery, which names each cylinder): `GET /orders/:id` for the owning shop and the office (UX_MOBILE
+ * S14 "Empty · AG-C0011", UX_ADMIN §3.2 "Delivered" one row per cylinder). `takenBack[].state` is the
+ * state the driver tapped. Oldest first. A record only: it never moves money.
+ */
+export interface OrderVisitDto {
+  given: OrderVisitCylinder[];
+  takenBack: (OrderVisitCylinder & { state: ReturnState })[];
+  /** No label or another brand, counted at the door by size and state. */
+  unlabelled: { cylinderTypeId: UUID; sizeLabel: string; state: ReturnState; count: number }[];
+}
+
 /** `GET /orders/:id` and every order list (API_CONTRACT §7). */
 export interface OrderDto {
   id: UUID;
@@ -240,6 +261,17 @@ export interface OrderDto {
    * anything of the customer's link. Never money. The apps show it only while `features.confirmations`.
    */
   confirmation?: OrderConfirmationSummary | null;
+  /**
+   * [Inc 2] While the order is LOADING: its trip's load so far ("Loading · 3 of 5 loaded"), the trip's
+   * `STORE_PICKUP` progress (`doneCount` of `neededCount`). Null in any other stage. For the shop and the
+   * office on every order answer; absent for a driver.
+   */
+  load?: { done: number; total: number } | null;
+  /**
+   * [Inc 2] The visit's cylinders by number (see {@link OrderVisitDto}), on `GET /orders/:id` for the
+   * owning shop and the office: null while nothing was given or taken back. Lists leave it out.
+   */
+  visit?: OrderVisitDto | null;
 }
 
 /** `POST /orders/quote` (distributor): the cost of the order as it stands, and whether the wallet covers it. */

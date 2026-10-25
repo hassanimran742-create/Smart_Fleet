@@ -50,7 +50,7 @@ function summary(extra: Partial<Summary> = {}): Summary {
 
 describe('REV web-ux-04 the Today badge and the tab count are top-ups to check + orders needing a driver', () => {
   it('REV web-ux-04 missing prices and distributors waiting to start are Today cards, not part of the count (7, not 10)', () => {
-    expect(navBadgeCounts(summary())).toEqual({ waiting: 7, needsDriver: 3, topupsToCheck: 4 });
+    expect(navBadgeCounts(summary())).toEqual({ waiting: 7, needsDriver: 3, topupsToCheck: 4, problems: 0, dayEnd: 0 });
   });
 
   it('REV web-ux-04 the count reaches zero when nothing waits, even while a standing condition (a zone without a price) remains', () => {
@@ -63,7 +63,20 @@ describe('REV web-ux-04 the Today badge and the tab count are top-ups to check +
 
   it('REV web-ux-04 from Inc 2 open customer problems join it (G07-22); nothing before the summary loads', () => {
     expect(navBadgeCounts(summary({ problems: { open: 2, oldestOpenAt: '2026-10-23T03:00:00.000Z' } })).waiting).toBe(9);
-    expect(navBadgeCounts(undefined)).toEqual({ waiting: 0, needsDriver: 0, topupsToCheck: 0 });
+    expect(navBadgeCounts(undefined)).toEqual({ waiting: 0, needsDriver: 0, topupsToCheck: 0, problems: 0, dayEnd: 0 });
+  });
+
+  it('REV web-ux-04 Customer problems and Day-end carry their own badges; day-end to approve is not part of the Today count', () => {
+    const counts = navBadgeCounts(
+      summary({
+        problems: { open: 2, oldestOpenAt: '2026-10-23T03:00:00.000Z' },
+        dayEnd: { toApprove: 1, oldest: { id: 'd', businessDate: '2026-10-22', distributor: { id: 'a', name: 'Ahmed Gas' } } },
+      }),
+    );
+    expect(counts).toEqual({ waiting: 9, needsDriver: 3, topupsToCheck: 4, problems: 2, dayEnd: 1 });
+    const nav = fs.readFileSync(path.join(ADMIN_SRC, 'app', 'nav.ts'), 'utf8');
+    expect(nav).toMatch(/\{ id: 'problems', to: '\/problems', icon: MessageSquareWarning, badge: 'problems' \}/);
+    expect(nav).toMatch(/\{ id: 'dayEnd', to: '\/day-end', icon: FileSpreadsheet, module: 'dayEnd', badge: 'dayEnd' \}/);
   });
 
   it('REV web-ux-04 the shell feeds that one count to the Today badge and to the tab title', () => {

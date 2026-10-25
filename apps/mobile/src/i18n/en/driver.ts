@@ -1,6 +1,6 @@
 /**
- * `driver.*` copy: the driver app's screens (driver spec D4–D16; UX_MOBILE §0, §5). Owned by the
- * mobile-driver lane.
+ * `driver.*` copy: the driver app's screens (driver spec D4–D16 and R2–R10; UX_MOBILE §0, §5, §7.2,
+ * §8.2). Owned by the driver lane.
  *
  * Driver words (UX_PRINCIPLES §5.2): say "trip", never "job" or "run", and name the four actions Load,
  * Deliver, Take back and Unload. Keys follow `area.screen.element`. Every string that shows a count has
@@ -25,6 +25,9 @@ export const driver = {
   /** A cylinder size from its weight, e.g. "11.8 kg". */
   size: '{{kg}} kg',
 
+  /** A group's heading with its count: "Part-filled · 2", "Not delivered · 3". */
+  groupCount: '{{group}} · {{n}}',
+
   /** Live location and the duty row (hooks/useLiveLocation.ts, Today). One line, only when something is wrong. */
   location: {
     paused: 'Location paused',
@@ -35,7 +38,7 @@ export const driver = {
     openSettings: 'Open settings',
   },
 
-  /** Today (D4): the duty row, the van, the open trips and the one next action. */
+  /** Today (D4, R2): the duty row, the van, the open trips and the one next action. */
   home: {
     empty: {
       title: 'Nothing to do.',
@@ -52,8 +55,8 @@ export const driver = {
   },
 
   /**
-   * The van (components/VehicleLoad.tsx): Today's van row and My van. Counts join with " · " and hide
-   * their zeros ("3 full · 1 empty"); each part is a whole phrase.
+   * The van: Today's van row and My van (R9). Counts join with " · " and hide their zeros ("3 full · 1
+   * empty · 1 part-filled"); each part is a whole phrase.
    */
   van: {
     /** Read by screen readers before the plate. */
@@ -63,16 +66,24 @@ export const driver = {
     fullCount_plural: '{{count}} full',
     emptyCount: '{{count}} empty',
     emptyCount_plural: '{{count}} empty',
+    partCount: '{{count}} part-filled',
+    partCount_plural: '{{count}} part-filled',
     noCylinders: 'No cylinders',
     /** The word beside My van's big number. */
     total: 'cylinder',
     total_plural: 'cylinders',
-    /** The word beside the Unload step's big number. */
-    onVan: 'on the van',
     nothing: 'Nothing on the van.',
+    /** My van's groups, by state (R9). */
+    group: {
+      FULL: 'Full',
+      EMPTY: 'Empty',
+      PART_FILLED: 'Part-filled',
+    },
+    /** One size in a group: "11.8 kg · 2". */
+    sizeCount: '{{size}} · {{n}}',
   },
 
-  /** The trip (D6): its steps in order, start and finish. */
+  /** The trip (D6, R3): its steps in order, start and finish. */
   trip: {
     loadAt: 'Load at {{store}}',
     deliverTo: 'Deliver to {{name}}',
@@ -83,6 +94,9 @@ export const driver = {
     cylindersBack_plural: '{{count}} cylinders · take back {{back}}',
     onVan: '{{count}} on the van',
     onVan_plural: '{{count}} on the van',
+    /** A step's line once it has begun (R3). */
+    loadedOf: '{{done}} of {{total}} loaded',
+    deliveredOf: '{{done}} of {{total}} delivered',
     goLoad: 'Load at store',
     goUnload: 'Unload at store',
     start: 'Start trip',
@@ -91,7 +105,8 @@ export const driver = {
     finishing: 'Finishing…',
     finishSheet: {
       title: 'Finish this trip?',
-      body: "Unload at {{store}} first. You can't scan for this trip after.",
+      /** The van is empty: only the no-undo part is left to say (R3). */
+      bodyEmpty: "You can't scan for this trip after.",
       confirm: 'Finish trip',
       cancel: 'Not yet',
     },
@@ -118,7 +133,7 @@ export const driver = {
     backHome: 'Back to home',
   },
 
-  /** One step of the trip at a time, with its camera (screens/driver/DeliverySteps, Unload). */
+  /** The step screens (Load, the visit, Unload), each with its camera. */
   steps: {
     load: {
       done: 'Done loading',
@@ -132,25 +147,6 @@ export const driver = {
     },
     /** On the way to the customer and at the customer (DECIDED: the customer's name on the button). */
     callCustomer: 'Call {{name}}',
-    deliver: {
-      all: 'All delivered',
-      /** The strip over the take-back phase. */
-      marked: 'All delivered',
-      sheet: {
-        title: 'All delivered?',
-        body: 'Only if the customer has every cylinder.',
-        confirm: 'Yes, all delivered',
-        cancel: 'Not yet',
-      },
-    },
-    /**
-     * "Done loading" or "All delivered" pressed before the screen's count is reached (DECIDED): the
-     * sheet asks once, and nothing blocks (the Inc 1 server allows it).
-     */
-    early: {
-      title: 'Only {{done}} of {{total}} scanned. Continue?',
-      keep: 'Keep scanning',
-    },
     takeBack: {
       title: 'Take back from {{name}}',
       count: 'Take back {{count}}',
@@ -167,6 +163,69 @@ export const driver = {
     closed: 'This trip is closed.',
     missing: {
       title: 'This step is no longer on your trip.',
+    },
+  },
+
+  /** Load (R4). */
+  load: {
+    /** Why "Done loading" is off, above it. */
+    left: '{{count}} more to load',
+    left_plural: '{{count}} more to load',
+    /** The way out when the store is short, last on the screen. */
+    missing: 'Missing some? Call office',
+  },
+
+  /** The visit (R5): on the way, deliver, take back, done. */
+  visit: {
+    /** Why "Finish visit" is off while giving. */
+    left: '{{count}} more to deliver',
+    left_plural: '{{count}} more to deliver',
+    /** Under the disabled "Could not deliver" once a cylinder is given. */
+    locked: 'You already gave some. Call office.',
+    allDelivered: 'All {{count}} delivered',
+    allDelivered_plural: 'All {{count}} delivered',
+    /** A taken-back row: "AG-C0012 · 11.8 kg". */
+    item: '{{shortCode}} · {{size}}',
+    noLabel: {
+      open: 'No label',
+      title: 'No label or other brand',
+      size: 'Size',
+      state: 'State',
+      count: 'How many',
+      save: 'Save',
+      saving: 'Saving…',
+      cancel: 'Go back',
+      /** A row of the lists, counted by size. */
+      row: 'No label · {{count}} × {{size}}',
+      row_plural: 'No label · {{count}} × {{size}}',
+    },
+    /** Fewer taken back than expected (rule 7). The reason's code is sent, not these words. */
+    short: {
+      title: 'Took back {{taken}} of {{expected}}',
+      reason: {
+        CUSTOMER_KEPT: 'Customer kept them',
+        CUSTOMER_HAD_NONE: 'Customer had none',
+        OTHER: 'Other',
+      },
+      note: 'What happened?',
+      confirm: 'Finish visit',
+      cancel: 'Go back',
+    },
+    /** The done card's two lines, no brackets (rulebook §5.1). */
+    done: {
+      gave: 'Gave {{given}} · Took back {{taken}}',
+      states: '{{empty}} empty · {{part}} part-filled · {{full}} full',
+    },
+  },
+
+  /** Unload (R7): the shop scans each cylinder in; the driver hands them over. */
+  unload: {
+    hint: 'Give each cylinder to the shop to scan.',
+    group: {
+      NOT_DELIVERED: 'Not delivered',
+      EMPTY: 'Empty',
+      PART_FILLED: 'Part-filled',
+      FULL: 'Full',
     },
   },
 
@@ -189,7 +248,7 @@ export const driver = {
     },
   },
 
-  /** Refills (D13 list, D14 one refill; Inc 1 counts by stepper, Inc 3 by scans). No money anywhere. */
+  /** Refills (D13 list; R10 one refill on scans: pick up, fill, unload). No money anywhere. */
   refills: {
     empty: {
       title: 'No refills now.',
@@ -201,28 +260,20 @@ export const driver = {
     doneToday_plural: 'Done today: {{count}}',
     theStation: 'the station',
     theStore: 'the store',
-    /** The title of each step of a refill. */
+    /** The title of each step of a refill (the third is `driver.trip.unloadAt`). */
     step: {
       pickUp: 'Pick up empties at {{store}}',
-      goStation: 'Go to {{station}}',
       fill: 'Fill at {{station}}',
-      bringBack: 'Bring them back to {{store}}',
-      back: 'Back at {{store}}',
     },
-    picked: 'Empties picked up',
-    pickedHelp: 'Up to {{count}}',
-    pickedHelp_plural: 'Up to {{count}}',
-    markPicked: 'Picked up {{count}} empty',
-    markPicked_plural: 'Picked up {{count}} empties',
-    filled: 'Cylinders filled',
-    filledHelp: 'Out of {{count}} picked up',
-    filledHelp_plural: 'Out of {{count}} picked up',
-    markFilled: 'Mark {{count}} filled',
-    markFilled_plural: 'Mark {{count}} filled',
-    filledOf: 'Filled {{filled}} of {{count}}',
-    filledOf_plural: 'Filled {{filled}} of {{count}}',
-    markReturned: 'Brought back',
-    returnedNote: 'The office will finish this refill.',
+    run: {
+      pickupDone: 'Done picking up',
+      fillDone: 'Done filling',
+      /** Why "Done picking up" or "Done filling" is off, above it. */
+      needOne: 'Scan a cylinder first.',
+      /** Step 2 while none is filled: go to the unload without a fill (UX_MOBILE §8.2). */
+      noneFilled: 'Bring back unfilled',
+      refillDone: 'Refill done',
+    },
     back: 'Back to refills',
     /** The driver's next job for each `RefillStage` (API_CONTRACT §1.4); tones from ui/statusTables. */
     stage: {

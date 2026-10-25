@@ -19,6 +19,7 @@ import {
   ConfirmSheet,
   EmptyState,
   Icon,
+  ltr,
   QueryBoundary,
   radius,
   Screen,
@@ -30,12 +31,14 @@ import {
   useToast,
   type TimelineItem,
 } from '../../ui';
+import { useCustomerAnswer } from './confirm/CustomerAnswer';
 import { cancelOrder, fetchOrder, fetchOrderTracking, type OrderTrackingDto } from './shared/api';
 import { CallButton } from './shared/CallButton';
-import { costParts, isPositivePaisa, orderCost, paisaOrZero, phoneText } from './shared/format';
+import { costParts, feeText, isPositivePaisa, orderCost, paisaOrZero, phoneText } from './shared/format';
 import { shopKeys } from './shared/keys';
 import { useShopNavigation, useShopRoute } from './shared/navigation';
 import { usePullRefresh } from './shared/refresh';
+import { visitFromConfirmation, visitFromOrder, type TakenBackState, type VisitSummary } from './shared/visit';
 
 const ACTIVE_STATUSES: ReadonlySet<string> = new Set(['PENDING', 'CONFIRMED', 'ASSIGNED', 'IN_TRANSIT']);
 /** The stages with a driver on the order: "Call driver" is the footer and the facts show the driver. */
@@ -56,8 +59,13 @@ function cancelWords(terms: OrderCancelTerms, order: OrderDto): 'refund' | 'noRe
  * finished order shows one line, with "All steps"), one facts card (customer with a call button,
  * driver, cylinders, cost), the driver on the map while on the way, and the red-outline cancel at
  * the end of the content (never the footer). "Call driver" is the footer while a driver has the
- * order; otherwise there is nothing to do and no footer. The cancel sheet's words come from the
- * order's own terms, and it sends the refund the person saw.
+ * order. The cancel sheet's words come from the order's own terms, and it sends the refund the person
+ * saw.
+ *
+ * [Inc 2] A delivered order (S14) adds the customer answer card under the status block, whose main
+ * button is then the footer (CUSTOMER_PAGE §10), and its facts card shows what was delivered and taken
+ * back in place of the cylinders line, with the cost line "Delivery cost Rs 480 · paid when the order
+ * was placed". No money moves on any of it.
  */
 export function OrderDetailScreen() {
   const { t } = useTranslation();
@@ -78,6 +86,8 @@ export function OrderDetailScreen() {
   });
   const pull = usePullRefresh(order.refetch);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // [Inc 2] The customer answer (only while confirmations are on and the order has one).
+  const answer = useCustomerAnswer(order.data);
 
   useEffect(() => {
     navigation.setOptions({
@@ -100,16 +110,30 @@ export function OrderDetailScreen() {
             size="lg"
             icon="call"
           />
-        ) : undefined
+        ) : (
+          answer.footer ?? undefined
+        )
       }
     >
       {notFound ? (
         <EmptyState icon="order" title={t('orders.detail.notFound')} />
       ) : (
         <QueryBoundary query={order} skeleton={<SkeletonCard lines={5} />}>
-          {(data) => <OrderBody order={data} onCancel={() => setSheetOpen(true)} />}
+          {(data) => (
+            <OrderBody
+              order={data}
+              onCancel={() => setSheetOpen(true)}
+              answerCard={answer.card}
+              visit={
+                data.status === 'DELIVERED'
+                  ? (visitFromOrder(data) ?? (answer.view ? visitFromConfirmation(data, answer.view) : null))
+                  : null
+              }
+            />
+          )}
         </QueryBoundary>
       )}
+      {answer.overlays}
       {/* Outside the boundary (like the driver's sheets), so nothing the boundary shows can reset the
           reason, the note or the spinner of an open sheet. */}
       {order.data ? (
@@ -124,7 +148,19 @@ export function OrderDetailScreen() {
   );
 }
 
-function OrderBody({ order, onCancel }: { order: OrderDto; onCancel: () => void }) {
+function OrderBody({
+  order,
+  onCancel,
+  answerCard,
+  visit,
+}: {
+  order: OrderDto;
+  onCancel: () => void;
+  /** [Inc 2] The customer answer card, under the status block (null when there is none). */
+  answerCard: ReactNode;
+  /** [Inc 2] What was delivered and taken back, once known. */
+  visit: VisitSummary | null;
+}) {
   const { t } = useTranslation();
   const finished = FINISHED_STAGES.has(order.stage);
   const [allSteps, setAllSteps] = useState(false);
@@ -155,13 +191,15 @@ function OrderBody({ order, onCancel }: { order: OrderDto; onCancel: () => void 
         ) : null}
       </View>
 
+      {answerCard}
+
       {!finished || allSteps ? (
         <Card>
           <Timeline items={timelineOf(order, t)} />
         </Card>
       ) : null}
 
-      <FactsCard order={order} />
+      <FactsCard order={order} visit={visit} />
 
       {order.stage === 'ON_THE_WAY' ? <TrackingCard order={order} /> : null}
 
@@ -266,13 +304,18 @@ function timelineOf(order: OrderDto, t: TFunction): TimelineItem[] {
   return items;
 }
 
-/** The facts (shop spec §T item 4): customer, driver while active, cylinders and cost, one card. */
-function FactsCard({ order }: { order: OrderDto }) {
+/**
+ * The facts (shop spec §T item 4): customer, driver while active, cylinders and cost, one card. A
+ * delivered order shows what was delivered and taken back in place of the cylinders line once the
+ * visit's lists are known (S14), and its cost as one line instead of the chip.
+ */
+function FactsCard({ order, visit }: { order: OrderDto; visit: VisitSummary | null }) {
   const { t } = useTranslation();
   const trip = order.trip;
   const showDriver = !!trip && DRIVER_STAGES.has(order.stage);
   const charged = order.fee.status !== 'NONE' && isPositivePaisa(order.fee.totalPaisa);
   const cancelled = order.stage === 'CANCELLED';
+  const delivered = order.stage === 'DELIVERED';
   const cost = orderCost(order);
   const parts = charged && !cancelled && cost ? costParts(cost, t) : null;
   const kept = cancelled && order.fee.status === 'DEDUCTED' && charged;
@@ -309,23 +352,31 @@ function FactsCard({ order }: { order: OrderDto }) {
         </Section>
       ) : null}
 
-      <Section>
-        {order.lines.map((line) => (
-          <Text key={line.id}>
-            {line.expectedReturnCount > 0
-              ? t('orders.detail.itemLine', { count: line.fullCount, size: line.sizeLabel, back: line.expectedReturnCount })
-              : t('orders.detail.itemLineNoBack', { count: line.fullCount, size: line.sizeLabel })}
-          </Text>
-        ))}
-      </Section>
+      {delivered && visit ? (
+        <VisitSection visit={visit} />
+      ) : (
+        <Section>
+          {order.lines.map((line) => (
+            <Text key={line.id}>
+              {line.expectedReturnCount > 0
+                ? t('orders.detail.itemLine', { count: line.fullCount, size: line.sizeLabel, back: line.expectedReturnCount })
+                : t('orders.detail.itemLineNoBack', { count: line.fullCount, size: line.sizeLabel })}
+            </Text>
+          ))}
+        </Section>
+      )}
 
       <Section>
-        <View style={styles.between}>
-          <Text variant="label" tone="secondary" style={styles.flex}>
-            {t('orders.detail.costTitle')}
-          </Text>
-          <StatusChip kind="fee" value={order.fee.status} amountPaisa={order.fee.totalPaisa} />
-        </View>
+        {delivered && charged ? (
+          <Text>{t('orders.detail.costPaid', { fee: feeText(order.fee.totalPaisa) })}</Text>
+        ) : (
+          <View style={styles.between}>
+            <Text variant="label" tone="secondary" style={styles.flex}>
+              {t('orders.detail.costTitle')}
+            </Text>
+            <StatusChip kind="fee" value={order.fee.status} amountPaisa={order.fee.totalPaisa} />
+          </View>
+        )}
         {parts ? (
           <Text variant="caption" tone="secondary">
             {parts}
@@ -343,6 +394,70 @@ function FactsCard({ order }: { order: OrderDto }) {
 
 function Section({ children, first = false }: { children: ReactNode; first?: boolean }) {
   return <View style={[styles.section, first ? null : styles.divided]}>{children}</View>;
+}
+
+const STATE_ICONS: Record<TakenBackState, 'empty' | 'partFilled' | 'full'> = {
+  EMPTY: 'empty',
+  PART_FILLED: 'partFilled',
+  FULL: 'full',
+};
+
+/**
+ * [Inc 2] Delivered (`customer`): one line per size, "2 × 11.8 kg", or "11.8 kg · 1 of 2" when short.
+ * Taken back (`cylinder`): one line per state with the numbers ("Empty · AG-C0011"), the unlabelled ones
+ * as "Empty · No label · 1 × 11.8 kg", and "2 expected" when the total differs from the order's
+ * take-back (Inc 2/3 spec §2.4). Without the order's visit list, the link's snapshot gives counts only.
+ */
+function VisitSection({ visit }: { visit: VisitSummary }) {
+  const { t } = useTranslation();
+  const showTakenBack = visit.takenBack.length > 0 || visit.expected > 0;
+  return (
+    <Section>
+      <View style={styles.between}>
+        <Icon name="customer" size={20} tone="secondary" />
+        <Text variant="label" tone="secondary" style={styles.flex}>
+          {t('orders.detail.delivered')}
+        </Text>
+      </View>
+      {visit.delivered.map((line) => (
+        <Text key={line.key} style={styles.indented}>
+          {line.short
+            ? t('orders.detail.deliveredShort', { size: line.sizeLabel, done: line.count, total: line.needed })
+            : t('orders.detail.deliveredLine', { count: line.count, size: line.sizeLabel })}
+        </Text>
+      ))}
+      {showTakenBack ? (
+        <>
+          <View style={[styles.between, styles.subheading]}>
+            <Icon name="cylinder" size={20} tone="secondary" />
+            <Text variant="label" tone="secondary" style={styles.flex}>
+              {t('orders.detail.takenBack')}
+            </Text>
+          </View>
+          {visit.takenBack.map((line) => {
+            const state = t(`orders.detail.state.${line.state}`);
+            return (
+              <View key={line.key} style={[styles.between, styles.indented]}>
+                <Icon name={STATE_ICONS[line.state]} size={16} tone="secondary" />
+                <Text style={styles.flex} tabular={Boolean(line.numbers)}>
+                  {line.numbers
+                    ? t('orders.detail.takenBackNumbers', { state, numbers: line.numbers.map((no) => ltr(no)).join(', ') })
+                    : line.unlabelled
+                      ? t('orders.detail.noLabel', { state, count: line.count, size: line.sizeLabel })
+                      : t('orders.detail.takenBackCount', { state, count: line.count, size: line.sizeLabel })}
+                </Text>
+              </View>
+            );
+          })}
+          {visit.takenTotal !== visit.expected ? (
+            <Text variant="caption" tone="secondary" style={styles.indented}>
+              {t('orders.detail.expected', { count: visit.expected })}
+            </Text>
+          ) : null}
+        </>
+      ) : null}
+    </Section>
+  );
 }
 
 /**
@@ -509,6 +624,9 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
   divided: { borderTopWidth: 1, borderTopColor: colors.border },
   between: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // The visit's lines start under their heading's words, past its 20 dp icon.
+  indented: { marginStart: 20 + space.sm },
+  subheading: { marginTop: space.sm },
   // 24 dp below the last card (the stack's 16 plus 8).
   cancel: { marginTop: space.sm },
   map: {

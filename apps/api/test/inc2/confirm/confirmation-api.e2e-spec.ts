@@ -184,6 +184,7 @@ describeDb('confirmation routes for the shop and the office', () => {
     const audits = await auditRows('confirmation.new_link', d1.order.id);
     expect(audits).toHaveLength(1);
     expect(audits[0]).toMatchObject({ actorKind: 'USER', actorUserId: std.DA.userId, resourceType: 'Order' });
+    expect(audits[0].diff).toMatchObject({ tokenVersion: 2, no: d1.order.shortCode });
 
     // The race: a new link and an answer on the old link at the same moment.
     const d2 = await deliverX1(app, std);

@@ -47,6 +47,21 @@ export const customers = {
     saved: 'Customer saved',
   },
 
+  /**
+   * [Inc 2] S15b Edit customer (`PATCH /clients/:id`): Add customer step 1 in edit mode, reached from
+   * the customer answer card's "Fix number". The field labels are `add.name`, `add.mobile` and `add.notes`.
+   */
+  edit: {
+    title: 'Edit customer',
+    /** AddMore's label when the customer has no note yet ("+ Add note"). */
+    addNote: 'Add note',
+    /** The caption under the read-only address: addresses are add-only in the pilot. */
+    addressNote: 'New address? Use New order.',
+    save: 'Save customer',
+    saving: 'Saving…',
+    saved: 'Customer saved',
+  },
+
   /** The delivery spot: search, "Use my location", the map pin, and House and street. */
   location: {
     searchPlaceholder: 'Search area or street',

@@ -356,7 +356,7 @@ export class ConfirmationServiceImpl extends ConfirmationService {
           resourceType: 'Order',
           resourceId: orderId,
           distributorId: order.distributorId,
-          diff: { tokenVersion: version, send: p.send ?? null },
+          diff: { tokenVersion: version, send: p.send ?? null, no: formatNo(order.distributor.code, 'ORDER', order.orderNo ?? 0) },
         },
         tx,
       );
@@ -431,7 +431,7 @@ export class ConfirmationServiceImpl extends ConfirmationService {
           resourceType: 'Order',
           resourceId: row.orderId,
           distributorId: row.distributorId,
-          diff: { response: answer },
+          diff: { response: answer, no: snapshot.orderNo },
         },
         tx,
       );

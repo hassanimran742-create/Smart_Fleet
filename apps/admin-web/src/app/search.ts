@@ -127,7 +127,7 @@ export function validateExpensesSearch(raw: RawSearch): ExpensesSearch {
   };
 }
 
-export const SETTINGS_SECTIONS = ['money', 'orders', 'refills', 'modules', 'account', 'support', 'versions'] as const;
+export const SETTINGS_SECTIONS = ['money', 'orders', 'refills', 'messages', 'scans', 'modules', 'account', 'support', 'versions'] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /** `/settings?section=` */

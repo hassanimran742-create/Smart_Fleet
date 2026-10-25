@@ -5,6 +5,7 @@ import {
   formatPkPhone,
   formatPkTime,
   formatRs,
+  formatWhen,
   localDate,
   PK_TIME_ZONE,
   toAsciiDigits,
@@ -74,6 +75,14 @@ export function weightSortKey(weightKg: string | number): number {
  */
 export function rowTime(at: TimeInput, t?: WhenTranslate, now: TimeInput = Date.now()): string {
   return localDate(at) === localDate(now) ? formatPkTime(at) : formatDayLabel(at, now, t);
+}
+
+/**
+ * A time inside a line ("Text sent 4:12 pm · …", "1 difference · 4:12 pm"): the clock alone when it is
+ * today, otherwise "Yesterday, 9:05 am" or "Mon 19 Oct, 4:12 pm", in Asia/Karachi.
+ */
+export function lineTime(at: TimeInput, t?: WhenTranslate, now: TimeInput = Date.now()): string {
+  return localDate(at) === localDate(now) ? formatPkTime(at) : formatWhen(at, now, t);
 }
 
 /** The parts of a delivery cost: a quote, a price applied to counts, or an order's stored copy. */

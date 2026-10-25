@@ -150,7 +150,8 @@ export class FillingOrdersService {
   /** `GET /filling-orders/:id` (`canSeeRefill`: the office, the owner, the assigned driver), with its picked cylinders. */
   async byId(caller: PolicyCaller, id: string): Promise<RefillView> {
     const row = await this.prisma.fillingOrder.findUnique({ where: { id }, include: REFILL_VIEW_INCLUDE });
-    return toRefillView(canSeeRefill(caller, row), caller, { withCylinders: true });
+    const seen = canSeeRefill(caller, row);
+    return toRefillView(seen, caller, { withCylinders: true, assignedAt: await this.assignedAt(seen.id) });
   }
 
   /**
@@ -316,7 +317,17 @@ export class FillingOrdersService {
   /** One refill as the caller sees it, with its picked cylinders (the answer of every refill action). */
   async view(caller: PolicyCaller, id: string): Promise<RefillView> {
     const row = await this.prisma.fillingOrder.findUniqueOrThrow({ where: { id }, include: REFILL_VIEW_INCLUDE });
-    return toRefillView(row, caller, { withCylinders: true });
+    return toRefillView(row, caller, { withCylinders: true, assignedAt: await this.assignedAt(id) });
+  }
+
+  /** When the office assigned the refill's driver: its newest `refill.assign` audit row (null before any). */
+  private async assignedAt(id: string): Promise<Date | null> {
+    const row = await this.prisma.auditLog.findFirst({
+      where: { resourceType: 'refill', resourceId: id, action: 'refill.assign' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { createdAt: true },
+    });
+    return row?.createdAt ?? null;
   }
 
   // ---------- internals ----------

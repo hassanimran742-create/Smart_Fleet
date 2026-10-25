@@ -15,6 +15,10 @@ export const status = {
     NOT_DELIVERED: 'Not delivered',
     CANCELLED: 'Cancelled',
   },
+  /** [Inc 2] An order's stage with its count after "·" (UX_PRINCIPLES §4.2), for `<StatusChip params />`. */
+  orderProgress: {
+    LOADING: 'Loading · {{done}} of {{total}} loaded',
+  },
   /** Raw `OrderStatus`, for screens that still read it (prefer `order` with the stage). */
   orderStatus: {
     PENDING: 'Needs a driver',
@@ -132,11 +136,12 @@ export const status = {
     ONLINE: 'On duty',
     OFFLINE: 'Offline',
   },
-  /** `CylinderState`. */
+  /** `CylinderState`. FAULTY says "Damaged", the day-end sheet's word. */
   cylinder: {
     FULL: 'Full',
     EMPTY: 'Empty',
-    FAULTY: 'Faulty',
+    PART_FILLED: 'Part-filled',
+    FAULTY: 'Damaged',
     LOST: 'Lost',
   },
   /** `AlertStatus`. */
@@ -162,5 +167,38 @@ export const status = {
   module: {
     ON: 'On',
     OFF: 'Off',
+  },
+  /**
+   * [Inc 2] The customer's answer, its own chip beside the order's (UX_PRINCIPLES §4.2): an answer once
+   * answered, else where the link stands.
+   */
+  answer: {
+    YES: 'Customer: all received',
+    PARTLY: 'Customer: partly received',
+    NO: 'Customer: not received',
+    OTHER: 'Customer sent a note',
+    PENDING: 'Waiting for customer',
+    EXPIRED: 'No answer',
+    /** Reserved: no pilot route writes it (API_CONTRACT §9.8). */
+    CANCELLED: 'Not needed',
+  },
+  /** [Inc 3] `DayEndStage` in the office's words (UX_ADMIN §4.3). */
+  dayEnd: {
+    NOT_STARTED: 'Waiting for sheet',
+    READY: 'Sheet uploaded',
+    SENT_BACK: 'Sent back',
+    WAITING_FOR_APPROVAL: 'To approve',
+    APPROVED: 'Approved · day closed',
+  },
+  /**
+   * [Inc 3] `RefillStage` with its count after "·" (UX_ADMIN §4.1), for `<StatusChip params />`. DONE
+   * here is the short one: "Done · 1 of 2 filled" (a full refill is plain `refillStage.DONE`).
+   */
+  refillProgress: {
+    PICKING_UP: 'Picking up empties · {{done}} of {{total}}',
+    PICKED_UP: 'Empties picked up · {{done}} of {{total}}',
+    COMING_BACK: 'Coming back · {{done}} of {{total}} filled',
+    BACK_AT_STORE: 'Back at store · {{done}} of {{total}} in',
+    DONE: 'Done · {{done}} of {{total}} filled',
   },
 } as const;

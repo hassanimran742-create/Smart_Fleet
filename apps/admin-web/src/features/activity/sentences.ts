@@ -53,9 +53,23 @@ function walletCheckParams(params: Params): Params {
     : { ...params, context: 'mismatch', count: mismatches };
 }
 
+/** Inc 2 rows about one order: the customer's answer, a new link, a sorted problem. */
+const ORDER_NUMBER_ACTIONS: ReadonlySet<string> = new Set(['confirmation.answer', 'confirmation.new_link', 'case.resolve']);
+
+/**
+ * The order's number for those rows: the row's `no` when the API writes one, else the customer's link
+ * label ("link:AG-0001", the actor of an answer). With it the sentence names the order (`_order`).
+ */
+function orderNumberParams(row: AuditLogDto, params: Params): Params {
+  const fromLink = /^link:(.+)$/.exec(row.actor.label ?? '')?.[1];
+  const no = typeof params.no === 'string' && params.no ? params.no : fromLink;
+  return no ? { ...params, no, context: 'order' } : params;
+}
+
 /** The template params of a row, with what the page adds. */
 function sentenceParams(row: AuditLogDto, context: ActivityContext): Params {
   let params: Params = { ...activityParams(row) };
+  if (ORDER_NUMBER_ACTIONS.has(row.action)) return orderNumberParams(row, params);
   if (row.action === 'setting.update') params = settingParams(row, params);
   else if (row.action === 'wallet.check') params = walletCheckParams(params);
   else if (params.distributor !== undefined) params = { ...params, context: LOG_CONTEXT };

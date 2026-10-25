@@ -196,7 +196,9 @@ describeDb('customer problems (cases)', () => {
     const retried = await page().answer(d1.token as string, 'NO', 'Nothing came').expect(303);
     expect(textOf((await page().path('get', retried.headers.location).expect(200)).text)).toContain('Thank you!');
     expect(await confirmationOf(d1.order.id)).toMatchObject({ status: 'ANSWERED', response: 'NO' });
-    expect(await auditRows('confirmation.answer', d1.order.id)).toHaveLength(1);
+    const answers = await auditRows('confirmation.answer', d1.order.id);
+    expect(answers).toHaveLength(1);
+    expect(answers[0].diff).toMatchObject({ response: 'NO', no: d1.order.shortCode });
     expect(await casesOf(d1.order.id)).toHaveLength(1);
   });
 
@@ -229,6 +231,8 @@ describeDb('customer problems (cases)', () => {
       resourceId: caseId,
       reason: note,
     });
+    // [Inc 2/3 UI gate] The row names the order, so the Activity line can say which one.
+    expect(audit.body.items[0].diff).toMatchObject({ orderId: d1.order.id, no: d1.order.shortCode });
   });
 
   it('CAS-006 the resolve note must be 5 to 300 characters', async () => {

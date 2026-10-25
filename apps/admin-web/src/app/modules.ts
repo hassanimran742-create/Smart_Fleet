@@ -12,6 +12,10 @@ export const MODULES = {
   accessories: { feature: 'accessories', labelKey: 'modules.accessories' },
   support: { feature: 'support', labelKey: 'modules.support' },
   clientApp: { feature: 'clientApp', labelKey: 'modules.clientApp' },
+  /** [Inc 2] The customer's confirmation link (`confirmation.enabled`): the shop card and the office's answer section. */
+  confirmations: { feature: 'confirmations', labelKey: 'modules.confirmations' },
+  /** [Inc 3] The day-end sheet (`dayEnd.enabled`): the Day-end menu item shows only while it is on. */
+  dayEnd: { feature: 'dayEnd', labelKey: 'modules.dayEnd' },
 } as const satisfies Record<string, { feature: keyof PublicAppConfig['features']; labelKey: `modules.${string}` }>;
 
 export type ModuleId = keyof typeof MODULES;

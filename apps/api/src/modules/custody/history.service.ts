@@ -12,6 +12,12 @@ import { cylinderShortCode, resolveQrOrFullNumber, resolveQrOrNumber } from './c
 import { holderLabels, labelOf, shownHolderType } from './holders';
 import { responsibleDriver } from './responsible';
 
+/** The station a refill filled at: the station's name, or the shop's own station (Inc 1 own-service refills). */
+function stationOf(refill: { ownStationName: string | null; fillingStation: { name: string } | null } | null): { name: string } | null {
+  const name = refill?.fillingStation?.name ?? refill?.ownStationName ?? null;
+  return name ? { name } : null;
+}
+
 /**
  * A cylinder's holder and its moves in time order (API_CONTRACT §9.4 `GET /cylinders/:code/history`,
  * the office's Find cylinder). The owning distributor may type `42`, `0042`, `C0042` or `AG-C0042`; the
@@ -66,9 +72,13 @@ export class CylinderHistoryService {
         reason: true,
         orderId: true,
         fillingOrderId: true,
+        toState: true,
         createdAt: true,
         actor: { select: { name: true, role: true } },
         stopCylinder: { select: { returnState: true, direction: true } },
+        // [Inc 3] The station of a fill, and the day-end that made a fix or registered the cylinder.
+        fillingOrder: { select: { ownStationName: true, fillingStation: { select: { name: true } } } },
+        dayCloseLine: { select: { dayClose: { select: { businessDate: true } } } },
       },
     });
     // The cylinder's own last move is the newest, whatever the clock says (moves can share a millisecond).
@@ -115,6 +125,9 @@ export class CylinderHistoryService {
         source: event.source as CylinderEventSource,
         returnState: event.stopCylinder?.direction === 'TAKEN_BACK' ? ((event.stopCylinder.returnState as CylinderStateValue | null) ?? null) : null,
         reason: event.reason,
+        toState: (event.toState as CylinderStateValue | null) ?? null,
+        station: event.eventType === 'FILLED' ? stationOf(event.fillingOrder) : null,
+        dayEnd: event.dayCloseLine ? { businessDate: event.dayCloseLine.dayClose.businessDate.toISOString().slice(0, 10) } : null,
       })),
     };
   }

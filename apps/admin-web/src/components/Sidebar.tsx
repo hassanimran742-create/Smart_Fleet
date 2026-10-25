@@ -3,6 +3,7 @@ import { useMatches, useRouter } from '@tanstack/react-router';
 import { ChevronDown, ChevronRight, Cylinder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { rememberedListSearch } from '../app/lastSearch';
+import { FindCylinderBox } from '../features/cylinders/FindCylinderBox';
 import { MODULES } from '../app/modules';
 import { groupOf, NAV_GROUPS, NAV_PINNED, QUEUE_BADGES, type NavBadge, type NavItem, type NavItemId } from '../app/nav';
 import { useAppConfig } from '../hooks/useAppConfig';
@@ -121,9 +122,10 @@ function NavLink({ item, count, active, onNavigate }: NavLinkProps) {
 
 /**
  * The navigation (UX_ADMIN §1.3, website spec §1.1): the labelled sidebar from 1024 px (232 px from
- * 1280, 200 px below) and the same menu in the sheet under 1024 px. Today, then Work, Money and Setup
- * (which opens and closes, and remembers the choice), with Settings and Activity log pinned at the foot
- * and one account row under them. Badges: Today (everything waiting), Orders, Top-ups and Alerts.
+ * 1280, 200 px below) and the same menu in the sheet under 1024 px. The product name, the Find cylinder
+ * box (Inc 2), then Today, Work, Money and Setup (which opens and closes, and remembers the choice), with
+ * Settings and Activity log pinned at the foot and one account row under them. Badges: Today (everything
+ * waiting), Orders, Top-ups, Alerts, Customer problems (Inc 2) and Day-end (Inc 3).
  */
 export function Sidebar({ counts, variant = 'docked', onNavigate, className }: SidebarProps) {
   const { t } = useTranslation(['nav', 'common']);
@@ -168,6 +170,8 @@ export function Sidebar({ counts, variant = 'docked', onNavigate, className }: S
         </span>
         <span className="sf-nav__product">{t('common:appName')}</span>
       </div>
+      {/* Find cylinder (Inc 2, UX_ADMIN §3.5): a number and Enter, or a USB scanner, opens the cylinder. */}
+      <FindCylinderBox tone="nav" onNavigate={onNavigate} />
 
       <div className="sf-nav__body">
         <div ref={scrollRef} className="sf-nav__scroll">

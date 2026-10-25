@@ -2,10 +2,14 @@ import type { ComponentType, FC } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect } from '@tanstack/react-router';
 import { ActivityPage } from '../features/activity';
+import { CylinderPage } from '../features/cylinders';
+import { DayEndPage, DayEndReviewPage, validateDayEndSearch } from '../features/dayend';
 import { DistributorPage, DistributorsPage, NewDistributorDrawer } from '../features/distributors';
 import { ExpensesPage, ExpenseTypesDrawer } from '../features/expenses';
 import { OrderDrawer, OrdersPage } from '../features/orders';
 import { PriceDrawer, PricesIndexPage, PricesPage } from '../features/prices';
+import { ProblemsPage } from '../features/problems';
+import { RefillDrawer, RefillsPage, validateRefillsSearch } from '../features/refills';
 import { SettingsPage } from '../features/settings';
 import { TodayPage } from '../features/today';
 import { TopupDrawer, TopupsPage } from '../features/topups';
@@ -237,14 +241,58 @@ const activityRoute = createRoute({
   staticData: { titleKey: 'activity', navId: 'activity' },
 });
 
-// ---- Legacy screens inside the shell (UX_ADMIN §1.2, §2.11) ---------------------------------------
+// ---- Increment 2 pages (UX_ADMIN §3) -------------------------------------------------------------
 
+const problemsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'problems',
+  component: ProblemsPage,
+  staticData: { titleKey: 'problems', navId: 'problems' },
+});
+
+/** Find cylinder (§3.5): a full page; the search box at the top of the menu opens it. */
+const cylinderFindRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'cylinders/find/$number',
+  component: CylinderPage,
+  staticData: { titleKey: 'findCylinder' },
+});
+
+// ---- Increment 3 pages (UX_ADMIN §4) -------------------------------------------------------------
+
+/** Refills, rebuilt with the Orders pattern (§4.1): it replaces the legacy refill screen. */
 const refillsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'refills',
-  component: legacyScreen('FillingOrdersScreen'),
+  validateSearch: validateRefillsSearch,
+  component: withDrawer(RefillsPage),
   staticData: { titleKey: 'refills', navId: 'refills' },
 });
+
+const refillRoute = createRoute({
+  getParentRoute: () => refillsRoute,
+  path: '$refillId',
+  component: RefillDrawer,
+  staticData: { titleKey: 'refill', navId: 'refills' },
+});
+
+const dayEndRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'day-end',
+  validateSearch: validateDayEndSearch,
+  component: DayEndPage,
+  staticData: { titleKey: 'dayEnd', navId: 'dayEnd' },
+});
+
+/** A full page, not a drawer: the differences table needs the width (§4.3). */
+const dayEndReviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'day-end/$dayEndId',
+  component: DayEndReviewPage,
+  staticData: { titleKey: 'dayEndReview', navId: 'dayEnd', parent: { titleKey: 'dayEnd', href: '/day-end' } },
+});
+
+// ---- Legacy screens inside the shell (UX_ADMIN §1.2, §2.11) ---------------------------------------
 
 const stationsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -353,7 +401,11 @@ export const routeTree = rootRoute.addChildren([
   expensesRoute.addChildren([expenseTypesRoute]),
   settingsRoute,
   activityRoute,
-  refillsRoute,
+  problemsRoute,
+  cylinderFindRoute,
+  refillsRoute.addChildren([refillRoute]),
+  dayEndRoute,
+  dayEndReviewRoute,
   stationsRoute,
   driversRoute,
   vansRoute,

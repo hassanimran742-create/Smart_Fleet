@@ -61,6 +61,9 @@ const GLYPHS = {
   // The redesign's names (UX_PRINCIPLES §3; shop spec §10.3): search fields, the customer list.
   search: 'magnify',
   customers: 'account-multiple-outline',
+  // Inc 2/3 (spec §0.2, §6): the Send link sheet's "Text message" and "Make a new link".
+  sms: 'message-text-outline',
+  link: 'link-variant',
 } as const satisfies Record<string, Glyph>;
 
 export type IconName = keyof typeof GLYPHS;

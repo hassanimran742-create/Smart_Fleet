@@ -162,6 +162,11 @@ export interface FillingOrderDto {
   allowedActions?: string[];
   /** [Inc 3] `refill_no`, numbered per distributor from `next_refill_no` (the number in `shortCode`). */
   refillNo?: number | null;
+  /**
+   * [Inc 3] When the office gave the refill its driver (the `refill.assign` audit row), on the routes that
+   * show one refill: the timeline's "Driver assigned · 9:40 am". Null before; lists leave it out.
+   */
+  assignedAt?: IsoDateTime | null;
   /** [Inc 3] The first pickup scan; from then on the owner can't cancel. */
   pickedUpAt?: IsoDateTime | null;
   /** [Inc 3] The owner's cancel (only before pickup). */

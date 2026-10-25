@@ -23,17 +23,19 @@ import {
   Skeleton,
   SkeletonText,
   StaleBanner,
-  StatusChip,
   Timeline,
   useStaleness,
   type TimelineItem,
 } from '../../ui';
-import { useOrder, useOrderHistory } from './api';
+import { useOrder, useOrderHistory, useOrderTrip } from './api';
 import { AssignDriverDialog } from './AssignDriverDialog';
 import { CancelOrderDialog } from './CancelOrderDialog';
+import { CustomerAnswerSection, useAnswerOf } from './CustomerAnswer';
 import { FailOrderDialog } from './FailOrderDialog';
 import { costBreakdown, drawerSubtitle, driverText, FINISHED_STAGES, outcomeReason } from './format';
 import { ManualDeliveryDialog } from './ManualDeliveryDialog';
+import { OrderScans } from './OrderScans';
+import { OrderStageChip } from './OrderStageChip';
 import './orders.css';
 
 const route = getRouteApi('/orders/$orderId');
@@ -182,6 +184,9 @@ function OrderBody({ order, history }: { order: OrderDto; history: readonly Audi
   const timeline = useMemo(() => orderTimeline(order, history), [order, history]);
   const driver = driverText(order);
   const cost = costBreakdown(order);
+  // Inc 2: the trip's scans (loaded, delivered, taken back) and the customer's answer while it is on.
+  const trip = useOrderTrip(order.id, order.trip?.id ?? null, !FINISHED_STAGES.includes(order.stage));
+  const answer = useAnswerOf(order);
 
   return (
     <>
@@ -215,7 +220,10 @@ function OrderBody({ order, history }: { order: OrderDto; history: readonly Audi
             </li>
           ))}
         </ul>
+        <OrderScans order={order} trip={trip.data} answer={answer.query.data} />
       </Section>
+
+      <CustomerAnswerSection order={order} answer={answer} />
 
       <Section title={t('drawer.sections.cost')}>
         <div className="sf-order__line">
@@ -345,7 +353,7 @@ export function OrderDrawer() {
     <>
       <Drawer
         title={shortCode ? t('drawer.title', { no: shortCode }) : <Skeleton width={160} height="1.2em" />}
-        chip={order ? <StatusChip kind="order" value={order.stage} /> : null}
+        chip={order ? <OrderStageChip order={order} /> : null}
         subtitle={order ? drawerSubtitle(order, now) : undefined}
         width="lg"
         onClose={close}

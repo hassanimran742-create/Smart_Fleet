@@ -35,6 +35,8 @@ import { ZodBody } from '../../common/pipes/zod-body.pipe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { ConfirmationService } from '../confirmation/confirmation.interface';
+import { orderVisit } from '../custody/order-visit';
+import { pickupCounts } from '../custody/progress';
 import { ScanService } from '../custody/scan.service';
 import { toDeliveryQuote, type FeeQuote } from '../pricing/delivery-fee.strategy';
 import { PricingService } from '../pricing/pricing.service';
@@ -232,7 +234,10 @@ export class OrdersService {
   async byId(caller: PolicyCaller, id: string): Promise<OrderDto> {
     const row = await this.prisma.order.findUnique({ where: { id }, include: ORDER_VIEW_INCLUDE });
     canSeeOrder(caller, row ? { distributorId: row.distributorId, trip: row.trip ? { driverId: row.trip.driverId } : null } : null);
-    return (await this.views(caller, [row as OrderViewRow]))[0];
+    const [dto] = await this.views(caller, [row as OrderViewRow]);
+    // [Inc 2] The visit by cylinder number, for the shop's and the office's order detail (never a driver's).
+    if (caller.role === UserRole.DRIVER) return dto;
+    return { ...dto, visit: await orderVisit(this.prisma, id) };
   }
 
   /**
@@ -961,8 +966,17 @@ export class OrdersService {
     const rule = await this.feePolicy.deliveryStartedRule();
     const dtos = await toOrderDtos(this.prisma, rows, caller, rule);
     if (caller.role === UserRole.DRIVER || dtos.length === 0) return dtos;
-    const summaries = await this.confirmations.summariesFor(dtos.map((dto) => dto.id));
-    return dtos.map((dto) => ({ ...dto, confirmation: summaries.get(dto.id) ?? null }));
+    const loadingTrips = dtos.filter((dto) => dto.stage === 'LOADING' && dto.trip).map((dto) => (dto.trip as { id: string }).id);
+    const [summaries, loads] = await Promise.all([
+      this.confirmations.summariesFor(dtos.map((dto) => dto.id)),
+      pickupCounts(this.prisma, loadingTrips),
+    ]);
+    return dtos.map((dto) => ({
+      ...dto,
+      confirmation: summaries.get(dto.id) ?? null,
+      // [Inc 2] "Loading · 3 of 5 loaded": the trip's load so far, only while the order is loading.
+      load: dto.stage === 'LOADING' && dto.trip ? (loads.get(dto.trip.id) ?? null) : null,
+    }));
   }
 
   /** A cursor page of orders sorted by `createdAt`, then id (ascending for the needs-driver tab). */

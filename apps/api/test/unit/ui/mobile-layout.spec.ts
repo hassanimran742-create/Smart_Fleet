@@ -171,7 +171,7 @@ describe('REV mobile-ux-05 The driver\'s trip and stop rows give the customer\'s
     expect(inside).not.toContain('trailing');
   });
 
-  it.each(['screens/driver/HomeScreen.tsx', 'screens/driver/ActiveTripScreen.tsx'])(
+  it.each(['screens/driver/TodayScreen.tsx', 'screens/driver/TripScreen.tsx'])(
     'REV mobile-ux-05 %s puts every row\'s step chip under the title, not beside it',
     (file) => {
       const rows = jsx(parse(file), 'ListRow');

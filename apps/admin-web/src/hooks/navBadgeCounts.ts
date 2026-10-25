@@ -11,12 +11,17 @@ export interface NavBadgeCounts {
   waiting: number;
   needsDriver: number;
   topupsToCheck: number;
+  /** [Inc 2] Open customer problems (Customer problems' badge). */
+  problems: number;
+  /** [Inc 3] Day-end sheets waiting for approval (Day-end's badge); 0 while day-end is off. */
+  dayEnd: number;
 }
 
 export function navBadgeCounts(summary: AdminSummaryDto | undefined): NavBadgeCounts {
-  if (!summary) return { waiting: 0, needsDriver: 0, topupsToCheck: 0 };
+  if (!summary) return { waiting: 0, needsDriver: 0, topupsToCheck: 0, problems: 0, dayEnd: 0 };
   const topupsToCheck = summary.topups.toCheck;
   const needsDriver = summary.orders.needsDriver;
-  const waiting = topupsToCheck + needsDriver + (summary.problems?.open ?? 0);
-  return { waiting, needsDriver, topupsToCheck };
+  const problems = summary.problems?.open ?? 0;
+  const waiting = topupsToCheck + needsDriver + problems;
+  return { waiting, needsDriver, topupsToCheck, problems, dayEnd: summary.dayEnd?.toApprove ?? 0 };
 }

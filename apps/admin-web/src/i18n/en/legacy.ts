@@ -210,6 +210,9 @@ export const legacy = {
       hasVan: '{{name}} (has another van)',
       toast: '{{plate}} given to {{name}}',
       takenToast: '{{plate}} taken from {{name}}',
+      /** [Inc 2] `VEHICLE_HAS_CYLINDERS` (UX_ADMIN §3.7): the driver of a loaded van can't change. */
+      hasCylinders_one: '{{plate}} still has {{count}} cylinder on it. Unload at the store before changing the driver.',
+      hasCylinders_other: '{{plate}} still has {{count}} cylinders on it. Unload at the store before changing the driver.',
       empty: 'No vans in service.',
     },
   },

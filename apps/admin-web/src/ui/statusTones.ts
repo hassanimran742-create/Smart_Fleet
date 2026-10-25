@@ -4,6 +4,7 @@ import {
   Store,
   TriangleAlert,
   Truck,
+  Upload,
   UserRoundCheck,
   Wrench,
   type LucideIcon,
@@ -33,6 +34,7 @@ export const STATUS_TONES: { readonly [K in StatusKind]: Partial<Record<StatusVa
     NOT_DELIVERED: 'danger',
     CANCELLED: 'neutral',
   },
+  orderProgress: { LOADING: 'info' },
   orderStatus: {
     PENDING: 'warning',
     CONFIRMED: 'warning',
@@ -77,11 +79,24 @@ export const STATUS_TONES: { readonly [K in StatusKind]: Partial<Record<StatusVa
   vehicle: { ACTIVE: 'success', MAINTENANCE: 'warning', RETIRED: 'neutral' },
   driver: { AVAILABLE: 'success', ON_LEAVE: 'warning', OFF_DUTY: 'neutral' },
   presence: { ONLINE: 'success', OFFLINE: 'neutral' },
-  cylinder: { FULL: 'success', EMPTY: 'neutral', FAULTY: 'warning', LOST: 'danger' },
+  // [Inc 2] A taken-back part-filled cylinder is a plain fact, like an empty one.
+  cylinder: { FULL: 'success', EMPTY: 'neutral', PART_FILLED: 'neutral', FAULTY: 'warning', LOST: 'danger' },
   alert: { OPEN: 'danger', ACKNOWLEDGED: 'warning', RESOLVED: 'success' },
   severity: { INFO: 'info', WARNING: 'warning', CRITICAL: 'danger' },
   transfer: { REQUESTED: 'warning', IN_TRANSIT: 'info', COMPLETED: 'success', CANCELLED: 'neutral' },
   module: { ON: 'success', OFF: 'neutral' },
+  /** [Inc 2] The customer's answer (settled point G07-23, kept by the lead on 2026-10-23). */
+  answer: { YES: 'success', PARTLY: 'warning', NO: 'danger', OTHER: 'warning', PENDING: 'warning', EXPIRED: 'neutral', CANCELLED: 'neutral' },
+  /** [Inc 3] A day-end's stage (UX_ADMIN §4.3). */
+  dayEnd: { NOT_STARTED: 'neutral', READY: 'info', SENT_BACK: 'danger', WAITING_FOR_APPROVAL: 'warning', APPROVED: 'success' },
+  /** [Inc 3] A refill's stage with its count (UX_ADMIN §4.1): the tones of `refillStage`. */
+  refillProgress: {
+    PICKING_UP: 'info',
+    PICKED_UP: 'info',
+    COMING_BACK: 'info',
+    BACK_AT_STORE: 'info',
+    DONE: 'success',
+  },
 };
 
 /**
@@ -93,6 +108,7 @@ export const STATUS_TONES: { readonly [K in StatusKind]: Partial<Record<StatusVa
  */
 export const STATUS_ICONS: { readonly [K in StatusKind]?: Partial<Record<StatusValue<K>, LucideIcon>> } = {
   order: { DRIVER_ASSIGNED: UserRoundCheck, LOADING: Store, ON_THE_WAY: Truck },
+  orderProgress: { LOADING: Store },
   orderStatus: { ASSIGNED: UserRoundCheck, IN_TRANSIT: Truck },
   refillStage: {
     DRIVER_ASSIGNED: UserRoundCheck,
@@ -109,6 +125,10 @@ export const STATUS_ICONS: { readonly [K in StatusKind]?: Partial<Record<StatusV
   driver: { ON_LEAVE: CalendarOff },
   cylinder: { FAULTY: TriangleAlert },
   severity: { WARNING: TriangleAlert },
+  // Amber that isn't waiting takes the warning icon, never the clock (UX_PRINCIPLES §4.1).
+  answer: { PARTLY: TriangleAlert, OTHER: TriangleAlert },
+  dayEnd: { READY: Upload },
+  refillProgress: { PICKING_UP: Store, PICKED_UP: Truck, COMING_BACK: Truck, BACK_AT_STORE: Store },
 };
 
 export function toneOf<K extends StatusKind>(kind: K, value: string): Tone {

@@ -41,22 +41,29 @@ export async function tripSummaries(db: Db, tripIds: readonly string[]): Promise
       plannedAt: true,
       startedAt: true,
       originStore: { select: { id: true, name: true } },
-      stops: { select: { stopType: true, status: true } },
+      stops: { select: { stopType: true, status: true, seq: true, orderId: true }, orderBy: { seq: 'asc' } },
+      orders: { select: { id: true, status: true, client: { select: { name: true } }, lines: { select: { fullCount: true } } } },
     },
   });
   return new Map(
-    trips.map((trip) => [
-      trip.id,
-      {
+    trips.map((trip) => {
+      const visits = trip.stops.filter((stop) => stop.stopType === TripStopType.DELIVERY && stop.status !== TripStopStatus.CANCELLED);
+      const orderById = new Map(trip.orders.map((order) => [order.id, order]));
+      const summary: TripSummary = {
         id: trip.id,
         status: trip.status,
         plannedAt: trip.plannedAt.toISOString(),
         startedAt: trip.startedAt ? trip.startedAt.toISOString() : null,
         store: { id: trip.originStore.id, name: trip.originStore.name },
-        customers: trip.stops.filter((stop) => stop.stopType === TripStopType.DELIVERY && stop.status !== TripStopStatus.CANCELLED).length,
+        customers: visits.length,
+        customerNames: visits.map((stop) => (stop.orderId ? orderById.get(stop.orderId)?.client.name : undefined) ?? '').filter((name) => name !== ''),
+        cylinders: trip.orders
+          .filter((order) => order.status !== 'CANCELLED' && order.status !== 'FAILED')
+          .reduce((sum, order) => sum + order.lines.reduce((n, line) => n + line.fullCount, 0), 0),
         stops: { done: trip.stops.filter((stop) => CLOSED_STOP.includes(stop.status)).length, total: trip.stops.length },
-      },
-    ]),
+      };
+      return [trip.id, summary];
+    }),
   );
 }
 

@@ -4,7 +4,9 @@ import {
   Banknote,
   CircleCheck,
   ClipboardList,
+  FileSpreadsheet,
   MessageSquareWarning,
+  RefreshCw,
   Store,
   Tags,
   TriangleAlert,
@@ -14,7 +16,6 @@ import type { AdminSummaryDto, IdName } from '@smartfleet/shared-types';
 import { businessDate } from '@smartfleet/shared-utils';
 import { useTranslation } from 'react-i18next';
 import { ButtonLink } from '../../app/ButtonLink';
-import { HrefLink } from '../../app/HrefLink';
 import { useAdminSummary } from '../../hooks/useAdminSummary';
 import { useAppConfig } from '../../hooks/useAppConfig';
 import { useNow } from '../../hooks/useNow';
@@ -30,18 +31,23 @@ const WAITING_NAMES = 2;
 
 type MissingPrice = AdminSummaryDto['prices']['missing'][number];
 
+type DayEndOldest = NonNullable<NonNullable<AdminSummaryDto['dayEnd']>['oldest']>;
+
 type TodayCard =
   | { kind: 'topups'; count: number; oldestAt: string | null }
   | { kind: 'orders'; count: number; oldestAt: string | null }
   | { kind: 'problems'; count: number; oldestAt: string | null }
+  | { kind: 'refills'; count: number; oldestAt: string | null }
+  | { kind: 'dayEnd'; count: number; oldest: DayEndOldest | null }
   | { kind: 'prices'; count: number; rows: MissingPrice[]; target: string }
   | { kind: 'waiting'; count: number; distributors: IdName[] };
 
 /**
  * The "needs you" cards, in the order of website spec W05: Top-ups, Orders, (Inc 2) Customer
- * problems, Prices, Distributors. Only cards with a count above 0 show. Missing prices are one card
- * for every distributor (the API lists active distributors only); "Set prices" opens the one with the
- * most zones missing. Distributors waiting to start are one card too.
+ * problems, (Inc 3) Refills and Day-end, Prices, Distributors. Only cards with a count above 0 show.
+ * Missing prices are one card for every distributor (the API lists active distributors only); "Set
+ * prices" opens the one with the most zones missing. Distributors waiting to start are one card too.
+ * The Inc 3 cards read `summary.refills` and `summary.dayEnd` (the second is absent while day-end is off).
  */
 export function todayCards(summary: AdminSummaryDto): TodayCard[] {
   const cards: TodayCard[] = [];
@@ -53,6 +59,12 @@ export function todayCards(summary: AdminSummaryDto): TodayCard[] {
   }
   if (summary.problems && summary.problems.open > 0) {
     cards.push({ kind: 'problems', count: summary.problems.open, oldestAt: summary.problems.oldestOpenAt });
+  }
+  if (summary.refills && summary.refills.needsDriver > 0) {
+    cards.push({ kind: 'refills', count: summary.refills.needsDriver, oldestAt: summary.refills.oldestNeedsDriverAt });
+  }
+  if (summary.dayEnd && summary.dayEnd.toApprove > 0) {
+    cards.push({ kind: 'dayEnd', count: summary.dayEnd.toApprove, oldest: summary.dayEnd.oldest });
   }
   const missing = summary.prices.missing.filter((row) => row.zones > 0);
   if (missing.length > 0) {
@@ -159,15 +171,51 @@ function Card({ card, now }: { card: TodayCard; now: number }) {
           label={t('cards.problems.label', { count: card.count })}
           detail={card.oldestAt ? t('cards.problems.oldest', { wait: formatWait(card.oldestAt, now) }) : null}
           action={
-            // The Customer problems page arrives with Inc 2, together with its route.
-            <HrefLink href="/problems" className="sf-btn sf-btn--secondary sf-btn--md sf-today__card-link">
-              <span className="sf-btn__content">
-                <span className="sf-btn__label">{t('cards.problems.action')}</span>
-              </span>
-            </HrefLink>
+            <ButtonLink to="/problems" className="sf-today__card-link">
+              {t('cards.problems.action')}
+            </ButtonLink>
           }
         />
       );
+    case 'refills':
+      return (
+        <CardView
+          icon={RefreshCw}
+          count={card.count}
+          label={t('cards.refills.label', { count: card.count })}
+          detail={card.oldestAt ? t('cards.refills.oldest', { wait: formatWait(card.oldestAt, now) }) : null}
+          action={
+            // Needs a driver is the Refills page's first tab.
+            <ButtonLink to="/refills" search={{}} className="sf-today__card-link">
+              {t('cards.refills.action')}
+            </ButtonLink>
+          }
+        />
+      );
+    case 'dayEnd': {
+      const oldest = card.oldest;
+      const day = oldest ? formatCalendarDate(oldest.businessDate) : null;
+      return (
+        <CardView
+          icon={FileSpreadsheet}
+          count={card.count}
+          label={t('cards.dayEnd.label', { count: card.count })}
+          detail={
+            oldest && day
+              ? card.count === 1
+                ? t('cards.dayEnd.one', { distributor: oldest.distributor.name, day })
+                : t('cards.dayEnd.oldest', { day })
+              : null
+          }
+          action={
+            // To approve is the Day-end page's first tab.
+            <ButtonLink to="/day-end" search={{}} className="sf-today__card-link">
+              {t('cards.dayEnd.action')}
+            </ButtonLink>
+          }
+        />
+      );
+    }
     case 'prices':
       return (
         <CardView

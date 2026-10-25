@@ -86,6 +86,10 @@ export class CasesService {
         });
         if (moved.count !== 1) throw new AppError('CONFLICT_STALE_STATE');
         const row = await tx.alert.findUniqueOrThrow({ where: { id }, select: { distributorId: true, resourceId: true } });
+        // The order's number, so the Activity line can say which order the problem was about.
+        const order = row.resourceId
+          ? await tx.order.findUnique({ where: { id: row.resourceId }, select: { orderNo: true, distributor: { select: { code: true } } } })
+          : null;
         await this.audit.record(
           {
             action: 'case.resolve',
@@ -94,7 +98,7 @@ export class CasesService {
             resourceId: id,
             distributorId: row.distributorId,
             reason: note,
-            diff: { orderId: row.resourceId },
+            diff: { orderId: row.resourceId, no: order ? formatNo(order.distributor.code, 'ORDER', order.orderNo ?? 0) : null },
           },
           tx,
         );

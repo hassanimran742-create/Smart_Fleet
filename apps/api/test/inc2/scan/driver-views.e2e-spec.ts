@@ -50,9 +50,22 @@ describeDb('inc2 scan: driver reads', () => {
         startedAt: expect.any(String),
         store: { id: std.DA.homeStoreId, name: 'Ahmed Gas Store' },
         customers: 1,
+        // [Inc 2/3 UI gate] Today's rows read the names and the cylinder count from the summary.
+        customerNames: ['Sana'],
+        cylinders: 3,
         stops: { done: 0, total: 2 },
       },
-      nextTrips: [expect.objectContaining({ id: t2.id, status: 'PLANNED', startedAt: null, customers: 1, stops: { done: 0, total: 2 } })],
+      nextTrips: [
+        expect.objectContaining({
+          id: t2.id,
+          status: 'PLANNED',
+          startedAt: null,
+          customers: 1,
+          customerNames: ['Usman'],
+          cylinders: 1,
+          stops: { done: 0, total: 2 },
+        }),
+      ],
       doneToday: 0,
     });
     expect((await scans.driverHome(std.DA)).status).toBe(403);
@@ -81,6 +94,16 @@ describeDb('inc2 scan: driver reads', () => {
     expect(sana).toMatchObject({ type: 'DELIVERY', title: 'Sana', address: "Sana's house", status: 'PENDING', orderId: x1.id });
     expect(sana.progress).toMatchObject({ type: 'DELIVERY', give: { doneCount: 0, neededCount: 3 }, canFinish: false });
 
+    // [Inc 2/3 UI gate] The van's cylinders from the trip's point of view, for Unload's rows (R7): loaded
+    // for an order still open, so NOT_DELIVERED.
+    expect(trip.body.van.cylinders).toHaveLength(3);
+    expect(trip.body.van.cylinders).toEqual(
+      expect.arrayContaining([
+        { shortCode: 'AG-C0001', sizeLabel: '11.8 kg', state: 'FULL', came: 'NOT_DELIVERED' },
+        { shortCode: 'AG-C0002', sizeLabel: '11.8 kg', state: 'FULL', came: 'NOT_DELIVERED' },
+      ]),
+    );
+
     const office = await scans.trip(std.SA1, t1.id).expect(200);
     expect(office.body.allowedActions).toEqual([]);
     expect((await scans.trip(std.DR2, t1.id)).status).toBe(404);
@@ -95,6 +118,7 @@ describeDb('inc2 scan: driver reads', () => {
     const ready = await scans.trip(std.DR1, t1.id).expect(200);
     expect(ready.body.allowedActions).toEqual(['COMPLETE']);
     expect(ready.body.van.total).toBe(0);
+    expect(ready.body.van.cylinders).toEqual([]);
   });
 
   it('Appendix A GET /inventory/my-vehicle counts the cylinders on the driver\'s van', async () => {
@@ -105,5 +129,11 @@ describeDb('inc2 scan: driver reads', () => {
     const load = await w.as(std.DR1).get('/inventory/my-vehicle').expect(200);
     expect(load.body).toMatchObject({ vehicleId: std.DR1.vehicleId, plateNo: 'LEA-101', totalFull: 3, totalEmpty: 0, totalPartFilled: 0 });
     expect(load.body.byType.map((row: { full: number }) => row.full).sort()).toEqual([1, 2]);
+    // [Inc 2/3 UI gate] My van's numbers line (R9): each cylinder by number, lowest first.
+    expect(load.body.cylinders.map((cylinder: { shortCode: string }) => cylinder.shortCode)).toEqual(['AG-C0001', 'AG-C0002', 'AG-C0031']);
+    expect(load.body.cylinders[0]).toEqual({ shortCode: 'AG-C0001', cylinderTypeId: expect.any(String), state: 'FULL' });
+
+    const none = await w.as(std.DR2).get('/inventory/my-vehicle').expect(200);
+    expect(none.body.cylinders).toEqual([]);
   });
 });

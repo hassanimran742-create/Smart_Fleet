@@ -1,87 +1,112 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  AccessibilityInfo,
-  ActivityIndicator,
-  AppState,
-  Linking,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Vibration,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, AppState, Linking, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import * as Location from 'expo-location';
 import { errorAction, toApiError, toUserMessage } from '../../api/errors';
+import { newRequestId } from '../../api/ids';
 import { useOfficeContact } from '../../hooks/useAppConfig';
+import { ltr } from '../bidi';
 import { Button } from '../Button';
+import { confirm } from '../ConfirmSheet';
+import { Field } from '../Field';
 import { Icon, type IconName } from '../Icon';
 import { Text } from '../Text';
-import { colors, layout, radius, sizes, space, type IconTone, type TextTone } from '../tokens';
+import { colors, layout, radius, sizes, space, toneSurfaces, type IconTone, type TextTone } from '../tokens';
+import {
+  createScanLoop,
+  type PendingScan,
+  type ScanEntryMethod,
+  type ScanLoop,
+  type ScanLoopState,
+  type ScanReturnState,
+} from './scanReducer';
+import { useCompleteBuzz, useScanFeedback } from './useScanFeedback';
 
 /**
- * The steps the Inc 1 panel serves (driver spec §1.2, UX_MOBILE §5): the driver's scans on the legacy
- * route. Inc 2 (§7.1) adds the store's receive and the refill steps.
+ * The scanning steps (UX_MOBILE §7.1): the driver's Load, Deliver and Take back, the shop's Receive, and
+ * the refill run's pick-up and fill. The driver's Unload is the shop's Receive scan, so it has no panel.
  */
-export type ScanStep = 'LOAD' | 'HANDOVER' | 'TAKE_BACK' | 'UNLOAD';
+export type ScanStep = 'LOAD' | 'HANDOVER' | 'TAKE_BACK' | 'RECEIVE' | 'REFILL_PICKUP' | 'REFILL_FILL';
 
 /** What the server did with a read: a new move, or one it already had. */
 export type ScanOutcome = 'recorded' | 'already';
 
-/** One read of a cylinder's QR label, with a best-effort position. */
+/** The server's answer as the strip shows it: "AG-C0042 · 11.8 kg loaded", "Already scanned · AG-C0042". */
+export interface ScanAnswer {
+  outcome: ScanOutcome;
+  /** "AG-C0042" (the QR value for a cylinder without a number). Without it the strip says the verb alone. */
+  shortCode?: string | null;
+  /** "11.8 kg". */
+  sizeLabel?: string | null;
+  /** The strip's own words, when the screen has them ("AG-C0011 · 11.8 kg received · Kashif's van"). */
+  text?: string;
+}
+
+/** `onScan` resolves with an outcome alone or with the cylinder it was. */
+export type ScanReply = ScanOutcome | ScanAnswer;
+
+/** One read sent to the server. Every resend of a read keeps its `scanId`. */
 export interface ScanRead {
+  scanId: string;
   code: string;
+  entryMethod: ScanEntryMethod;
+  /** Take back only: the state tapped when the read was made. */
+  returnState?: ScanReturnState;
   lat?: number;
   lng?: number;
+}
+
+/**
+ * The strip's answer from a shared-types `ScanResult` (and the store's and refill's, which extend it).
+ * `text` replaces the strip's words.
+ */
+export function answerFromResult(
+  result: { result: 'RECORDED' | 'ALREADY_RECORDED'; cylinder: { code: string; shortCode: string | null; size: { label: string } } },
+  text?: string,
+): ScanAnswer {
+  return {
+    outcome: result.result === 'RECORDED' ? 'recorded' : 'already',
+    shortCode: result.cylinder.shortCode ?? result.cylinder.code,
+    sizeLabel: result.cylinder.size.label,
+    text,
+  };
 }
 
 export interface ScanPanelProps {
   step: ScanStep;
   /** Sends one read. Resolves with what the server did; rejects with the error (an ApiError). */
-  onScan: (read: ScanRead) => Promise<ScanOutcome>;
+  onScan: (read: ScanRead) => Promise<ScanReply>;
   /**
    * False while the screen is hidden or a sheet is open: the camera stops. It also stops while the app
    * is in the background.
    */
   active?: boolean;
   /**
-   * The step's count is reached. Turning true after a scan plays the long buzz (driver spec §1.3);
-   * `undefined` while the count isn't known yet, so a count that loads complete never buzzes.
+   * The step's count is reached: the long buzz when it turns true after a scan, and the camera stops
+   * (driver spec R-SP). `undefined` while the count isn't known, so a step that loads complete never
+   * buzzes. Take back never passes it: more can come back than expected.
    */
   complete?: boolean;
+  /** Take back: the tapped state, sent with each read and named in its strip ("AG-C0012 · Part-filled"). */
+  returnState?: ScanReturnState;
+  /** "Type number" (`features.typedCylinderNumber`). */
+  allowTyped?: boolean;
+  /** The details under the strip and "Not saved", above "Type number": SizeLines, the take-back lists. */
+  children?: ReactNode;
   testID?: string;
 }
 
-/** Read-loop timings (UX_MOBILE §7.1; the same-QR ignore is kept from TransferScanScreen.tsx:64-67). */
-const SAME_CODE_IGNORE_MS = 2_500;
-const REARM_AFTER_SUCCESS_MS = 600;
-const REARM_AFTER_REFUSAL_MS = 1_200;
 /** A position older than this isn't attached to a scan. */
 const FIX_MAX_AGE_MS = 5 * 60_000;
-
-/**
- * Vibration (rulebook §9.2): a short buzz for a recorded scan, a double buzz for a refusal, a stutter
- * for "not sent", and a long buzz when the step's count is reached.
- */
-const BUZZ_RECORDED = 40;
-const BUZZ_REFUSED = [0, 100, 80, 100];
-const BUZZ_NOT_SENT = [0, 60, 60, 60, 60, 60];
-const BUZZ_COMPLETE = 200;
 
 /** The camera's height: 28% of the window, between 160 and 300 dp (driver spec §1.2). */
 export function cameraHeightFor(windowHeight: number): number {
   return Math.round(Math.min(Math.max(windowHeight * 0.28, 160), 300));
 }
 
-/** The result strip under the camera. */
-type Strip =
-  | { kind: 'idle' }
-  | { kind: 'recorded' }
-  | { kind: 'already' }
-  | { kind: 'refused'; message: string; callOffice: boolean }
-  | { kind: 'notSent'; read: ScanRead };
+type StripKind = 'idle' | 'checking' | 'recorded' | 'already' | 'refused';
 
 interface StripLook {
   background: string;
@@ -91,12 +116,12 @@ interface StripLook {
 }
 
 /** Solid strips with white text for the results read in sunlight (rulebook §9.3). */
-const STRIP_LOOKS: Record<Strip['kind'], StripLook> = {
+const STRIP_LOOKS: Record<StripKind, StripLook> = {
   idle: { background: colors.surface, text: 'default', icon: 'scan', iconTone: 'brand' },
+  checking: { background: colors.surface, text: 'default', icon: 'scan', iconTone: 'brand' },
   recorded: { background: colors.scanOk, text: 'onBrand', icon: 'ok', iconTone: 'onBrand' },
   already: { background: colors.neutralSoft, text: 'default', icon: 'info', iconTone: 'neutral' },
   refused: { background: colors.scanError, text: 'onBrand', icon: 'error', iconTone: 'onBrand' },
-  notSent: { background: colors.warningSoft, text: 'warning', icon: 'offline', iconTone: 'warning' },
 };
 
 /** True while the app is in the foreground. */
@@ -129,38 +154,91 @@ function KeepScreenOn() {
   return null;
 }
 
+/** No answer (no signal, or our server down): the read waits on the "Not saved" list. */
+function failureOf(error: unknown): { kind: 'notSent' } | { kind: 'refused'; code: string } {
+  const apiError = toApiError(error);
+  return apiError.retryable ? { kind: 'notSent' } : { kind: 'refused', code: String(apiError.code) };
+}
+
+function outcomeOf(reply: ScanReply): ScanOutcome {
+  return typeof reply === 'string' ? reply : reply.outcome;
+}
+
+/** One loop per panel: made once, fed the latest `onScan` through a ref, stopped when the panel goes. */
+function useScanLoop(onScan: (read: ScanRead) => Promise<ScanReply>): [ScanLoop<ScanReply>, ScanLoopState<ScanReply>] {
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+  const loopRef = useRef<ScanLoop<ScanReply> | null>(null);
+  if (loopRef.current === null) {
+    loopRef.current = createScanLoop<ScanReply>({
+      send: (scan: PendingScan) =>
+        onScanRef.current({
+          scanId: scan.scanId,
+          code: scan.code,
+          entryMethod: scan.entryMethod,
+          returnState: scan.returnState,
+          lat: scan.lat,
+          lng: scan.lng,
+        }),
+      outcomeOf,
+      failureOf,
+      newScanId: newRequestId,
+    });
+  }
+  const loop = loopRef.current;
+  useEffect(() => {
+    loop.resume();
+    return () => loop.dispose();
+  }, [loop]);
+  const state = useSyncExternalStore(loop.subscribe, loop.getState, loop.getState);
+  return [loop, state];
+}
+
 /**
- * The camera of a step screen (driver spec §1.2–§1.3, §5; UX_MOBILE §5). The screen gives it one fixed
- * step, so there is nothing to choose; the title and the count are the screen's (StepFrame, CountBar).
+ * The camera of a step screen (driver spec §1.2–§1.3, R-SP; UX_MOBILE §7.1). The screen gives it one
+ * fixed step and owns the title, the count, the state tap and the footer; the panel is the camera, its
+ * result strip, "Not saved", the screen's details and "Type number", in that order.
  *
- * - The camera reads QR labels only, in a continuous loop: one request at a time, the same label is
- *   ignored for 2.5 seconds, and the loop re-arms 600 ms after a recorded scan and 1.2 seconds after
- *   a refusal. The screen stays awake while it runs.
- * - Every result shows in the 56 dp strip under the camera, never in a pop-up, with vibration:
- *   recorded (solid green), already recorded (grey), refused (solid red, the mapped `errors.<CODE>`
- *   text, with "Call office" when that is the fix; it stays until the next result) and not sent
- *   (amber, with Retry for the same read). While a read is checked, the strip says so in place.
- * - While a recorded or refused result is up, the camera has a 4 dp frame in its colour.
- * - A best-effort position is attached when the phone already has one; it never delays a scan.
+ * - QR labels only, in a continuous loop (scanReducer.ts): the same label is ignored for 2.5 seconds,
+ *   one request is in flight at a time, every read has its own scan id, and the camera re-arms 600 ms
+ *   after an answer and 1.2 seconds after a refusal. The screen stays awake while it runs.
+ * - Every result shows in the 56 dp strip under the camera, never in a pop-up, with a buzz: recorded
+ *   (solid green, naming the cylinder), already recorded (grey), refused (solid red, the mapped
+ *   `errors.<CODE>` text and "Call office" when that is the fix; it stays until the next answer). While
+ *   a read is checked the strip says so in place, and the camera has a 4 dp frame in the result's colour.
+ * - A read with no answer goes to one amber "Not saved: 2" row with one Retry, which resends them all
+ *   with their first scan ids. Leaving the screen with any asks first (rule 7).
+ * - When the step's count is reached the camera stops; "Type number" stays for a label the camera
+ *   can't read, and opens on its own when the camera is blocked.
  */
-export function ScanPanel({ step, onScan, active = true, complete, testID }: ScanPanelProps) {
+export function ScanPanel({
+  step,
+  onScan,
+  active = true,
+  complete,
+  returnState,
+  allowTyped = false,
+  children,
+  testID,
+}: ScanPanelProps) {
   const { t } = useTranslation();
   const office = useOfficeContact();
+  const navigation = useNavigation();
   const { height } = useWindowDimensions();
   const appActive = useAppActive();
   const [permission, requestPermission] = useCameraPermissions();
-  const [strip, setStrip] = useState<Strip>({ kind: 'idle' });
-  const [checking, setChecking] = useState(false);
   const [torch, setTorch] = useState(false);
   const [cameraFailed, setCameraFailed] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [typedOpen, setTypedOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const typedScanId = useRef<string | null>(null);
+  const [loop, state] = useScanLoop(onScan);
 
-  const busy = useRef(false);
-  const armedAt = useRef(0);
-  const lastRead = useRef<{ code: string; at: number } | null>(null);
   const fix = useRef<{ lat: number; lng: number } | null>(null);
   const mounted = useRef(true);
-  const onScanRef = useRef(onScan);
-  onScanRef.current = onScan;
+  const returnStateRef = useRef(returnState);
+  returnStateRef.current = returnState;
 
   useEffect(() => {
     mounted.current = true;
@@ -169,12 +247,7 @@ export function ScanPanel({ step, onScan, active = true, complete, testID }: Sca
     };
   }, []);
 
-  // The long buzz when the count is reached after a scan (false → true), never on the first render.
-  const wasComplete = useRef(complete);
-  useEffect(() => {
-    if (complete === true && wasComplete.current === false) Vibration.vibrate(BUZZ_COMPLETE);
-    if (complete !== undefined) wasComplete.current = complete;
-  }, [complete]);
+  useCompleteBuzz(complete);
 
   /** Keeps the phone's last known position ready for the next scan, without ever waiting for it. */
   const refreshFix = useCallback(() => {
@@ -194,96 +267,111 @@ export function ScanPanel({ step, onScan, active = true, complete, testID }: Sca
 
   useEffect(() => {
     refreshFix();
-  }, [refreshFix]);
-
-  const send = useCallback(
-    async (read: ScanRead) => {
-      if (busy.current) return;
-      busy.current = true;
-      setChecking(true);
-      try {
-        const outcome = await onScanRef.current(read);
-        if (!mounted.current) return;
-        if (outcome === 'recorded') {
-          setStrip({ kind: 'recorded' });
-          Vibration.vibrate(BUZZ_RECORDED);
-        } else {
-          setStrip({ kind: 'already' });
-        }
-        armedAt.current = Date.now() + REARM_AFTER_SUCCESS_MS;
-      } catch (thrown) {
-        if (!mounted.current) return;
-        const error = toApiError(thrown);
-        if (error.retryable) {
-          setStrip({ kind: 'notSent', read });
-          Vibration.vibrate(BUZZ_NOT_SENT);
-        } else {
-          setStrip({
-            kind: 'refused',
-            message: toUserMessage(error, t),
-            callOffice: errorAction(error) === 'CALL_OFFICE',
-          });
-          Vibration.vibrate(BUZZ_REFUSED);
-        }
-        armedAt.current = Date.now() + REARM_AFTER_REFUSAL_MS;
-      } finally {
-        busy.current = false;
-        if (mounted.current) setChecking(false);
-        refreshFix();
-      }
-    },
-    [refreshFix, t],
-  );
+  }, [refreshFix, state.seq]);
 
   const onRead = useCallback(
     (result: BarcodeScanningResult) => {
-      // Some labels and scanners add spaces or a newline; the stored value has none.
-      const code = (result.data ?? '').trim();
-      if (!code || busy.current) return;
-      const now = Date.now();
-      if (now < armedAt.current) return;
-      const last = lastRead.current;
-      if (last && last.code === code && now - last.at < SAME_CODE_IGNORE_MS) return;
-      lastRead.current = { code, at: now };
-      void send({ code, ...(fix.current ?? {}) });
+      loop.read(result.data ?? '', { entryMethod: 'QR', returnState: returnStateRef.current, ...(fix.current ?? {}) });
     },
-    [send],
+    [loop],
   );
 
-  const allowed = permission?.granted === true;
-  const cameraOn = allowed && active && appActive && !cameraFailed;
-  const cameraHeight = cameraHeightFor(height);
+  const sendTyped = () => {
+    const code = typed.trim();
+    if (!code) return;
+    typedScanId.current = loop.read(code, {
+      entryMethod: 'TYPED',
+      returnState: returnStateRef.current,
+      ...(fix.current ?? {}),
+    });
+  };
 
-  // While a read is checked, the strip keeps the idle look with a spinner (nothing jumps).
-  const look = STRIP_LOOKS[checking ? 'idle' : strip.kind];
-  let stripText: string;
-  if (checking) stripText = t('scan.checking');
-  else if (strip.kind === 'recorded') stripText = t(`scan.step.${step}.recorded`);
-  else if (strip.kind === 'already') stripText = t('scan.already');
-  else if (strip.kind === 'refused') stripText = strip.message;
-  else if (strip.kind === 'notSent') stripText = t('scan.notSent');
-  else stripText = t(`scan.step.${step}.hint`);
-
-  // VoiceOver has no live regions: announce each new result (TalkBack reads the live region).
+  // A typed number clears once it is answered or waits on "Not saved"; an unknown number stays, to fix it.
   useEffect(() => {
-    if (Platform.OS === 'ios' && strip.kind !== 'idle') AccessibilityInfo.announceForAccessibility(stripText);
-  }, [strip, stripText]);
+    const id = typedScanId.current;
+    if (!id) return;
+    const last = state.last;
+    if (last && last.scan.scanId === id) {
+      typedScanId.current = null;
+      if (!(last.kind === 'refused' && last.code === 'SCAN_CYLINDER_UNKNOWN')) setTyped('');
+    } else if (state.unsaved.some((scan) => scan.scanId === id) && state.inFlight?.scanId !== id) {
+      typedScanId.current = null;
+      setTyped('');
+    }
+  }, [state]);
 
-  const problem = !checking && (strip.kind === 'refused' || strip.kind === 'notSent');
-  // The hint shows once the camera may run (also while a sheet pauses it, so nothing jumps); before
-  // the permission is known, or when the camera failed, the camera block alone speaks.
-  const showStrip = checking || strip.kind !== 'idle' || (allowed && !cameraFailed);
-  const frameColour = checking
-    ? null
-    : strip.kind === 'recorded'
-      ? colors.scanOk
-      : strip.kind === 'refused'
-        ? colors.scanError
-        : null;
+  // Leaving with reads that aren't saved yet asks first (rule 7): they would be lost.
+  const pending = state.unsaved.length + state.waiting.length;
+  useEffect(() => {
+    if (pending === 0) return;
+    return navigation.addListener('beforeRemove', (event) => {
+      event.preventDefault();
+      setAsking(true);
+      void confirm({
+        title: t('scan.unsaved.title', { count: pending }),
+        body: t('scan.unsaved.body'),
+        confirmLabel: t('scan.unsaved.leave'),
+        confirmTone: 'danger',
+        cancelLabel: t('scan.unsaved.stay'),
+      }).then(({ confirmed }) => {
+        if (mounted.current) setAsking(false);
+        if (confirmed) navigation.dispatch(event.data.action);
+      });
+    });
+  }, [pending, navigation, t]);
+
+  // The strip: the read being checked, else the server's last answer, else the hint.
+  let kind: StripKind;
+  let stripText: string;
+  let callOffice = false;
+  const last = state.last;
+  if (state.inFlight) {
+    kind = 'checking';
+    stripText = t('scan.checking');
+  } else if (!last) {
+    kind = 'idle';
+    stripText = t(`scan.step.${step}.hint`);
+  } else if (last.kind === 'refused') {
+    kind = 'refused';
+    stripText = toUserMessage(last.error, t);
+    callOffice = errorAction(last.error) === 'CALL_OFFICE';
+  } else {
+    kind = last.kind;
+    const answer: ScanAnswer = typeof last.reply === 'string' ? { outcome: last.reply } : last.reply;
+    const shortCode = answer.shortCode ? ltr(answer.shortCode) : null;
+    if (answer.text) stripText = answer.text;
+    else if (last.kind === 'already') {
+      stripText =
+        step === 'RECEIVE'
+          ? t('scan.step.RECEIVE.already')
+          : shortCode
+            ? t('scan.alreadyCode', { shortCode })
+            : t('scan.already');
+    } else if (shortCode && step === 'TAKE_BACK' && last.scan.returnState) {
+      stripText = t('scan.recordedState', { shortCode, state: t(`scan.state.${last.scan.returnState}`) });
+    } else if (shortCode && answer.sizeLabel) {
+      stripText = t('scan.recorded', { shortCode, size: answer.sizeLabel, verb: t(`scan.verb.${step}`) });
+    } else {
+      stripText = t(`scan.step.${step}.recorded`);
+    }
+  }
+  useScanFeedback(state, stripText);
+
+  const allowed = permission?.granted === true;
+  const blocked = permission !== null && !allowed && !permission.canAskAgain;
+  const cameraOn = allowed && active && appActive && !cameraFailed && !asking && complete !== true;
+  const cameraHeight = cameraHeightFor(height);
+  const look = STRIP_LOOKS[kind];
+  const problem = kind === 'refused';
+  const frameColour = kind === 'recorded' ? colors.scanOk : kind === 'refused' ? colors.scanError : null;
+  // The hint shows once the camera may run (also while a sheet pauses it, so nothing jumps); before the
+  // permission is known, or when the camera failed, the camera block alone speaks. A result always shows.
+  const showStrip = kind !== 'idle' || (allowed && !cameraFailed) || typedOpen;
+  const retrying = state.retrying.length > 0 || state.unsaved.some((scan) => scan.scanId === state.inFlight?.scanId);
 
   return (
     <View testID={testID} style={styles.panel}>
-      {permission && !allowed ? (
+      {complete === true ? null : permission && !allowed ? (
         <View style={[styles.permission, { minHeight: cameraHeight }]}>
           <Icon name="scan" size={48} tone="brand" />
           <Text align="center">{permission.canAskAgain ? t('scan.camera.why') : t('scan.camera.blocked')}</Text>
@@ -304,6 +392,17 @@ export function ScanPanel({ step, onScan, active = true, complete, testID }: Sca
               style={styles.centred}
             />
           )}
+          {blocked && allowTyped && !typedOpen ? (
+            <Button
+              label={t('scan.typed.instead')}
+              icon="keyboard"
+              variant="ghost"
+              onPress={() => setTypedOpen(true)}
+              fullWidth={false}
+              style={styles.centred}
+              testID={testID ? `${testID}.typeInstead` : undefined}
+            />
+          ) : null}
         </View>
       ) : (
         <View
@@ -318,7 +417,7 @@ export function ScanPanel({ step, onScan, active = true, complete, testID }: Sca
                 facing="back"
                 enableTorch={torch}
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={checking ? undefined : onRead}
+                onBarcodeScanned={onRead}
                 onMountError={() => setCameraFailed(true)}
               />
               <KeepScreenOn />
@@ -362,15 +461,11 @@ export function ScanPanel({ step, onScan, active = true, complete, testID }: Sca
         <View
           testID={testID ? `${testID}.strip` : undefined}
           accessibilityRole={problem ? 'alert' : undefined}
-          accessibilityLiveRegion={!checking && strip.kind === 'refused' ? 'assertive' : 'polite'}
-          style={[
-            styles.strip,
-            { backgroundColor: look.background },
-            look === STRIP_LOOKS.idle ? styles.stripIdle : null,
-          ]}
+          accessibilityLiveRegion={problem ? 'assertive' : 'polite'}
+          style={[styles.strip, { backgroundColor: look.background }, kind === 'idle' || kind === 'checking' ? styles.stripIdle : null]}
         >
           <View style={styles.stripWords}>
-            {checking ? (
+            {kind === 'checking' ? (
               <ActivityIndicator color={colors.brand} style={styles.stripSpinner} />
             ) : (
               <Icon name={look.icon} size={32} tone={look.iconTone} />
@@ -379,15 +474,7 @@ export function ScanPanel({ step, onScan, active = true, complete, testID }: Sca
               {stripText}
             </Text>
           </View>
-          {!checking && strip.kind === 'notSent' ? (
-            <Button
-              label={t('scan.retry')}
-              onPress={() => void send(strip.read)}
-              variant="secondary"
-              fullWidth={false}
-            />
-          ) : null}
-          {!checking && strip.kind === 'refused' && strip.callOffice && office.phone ? (
+          {kind === 'refused' && callOffice && office.phone ? (
             <Button
               label={t('common.actions.callOffice')}
               onPress={office.call}
@@ -397,6 +484,66 @@ export function ScanPanel({ step, onScan, active = true, complete, testID }: Sca
             />
           ) : null}
         </View>
+      ) : null}
+
+      {state.unsaved.length > 0 ? (
+        <View
+          testID={testID ? `${testID}.unsaved` : undefined}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          style={[styles.strip, styles.unsaved]}
+        >
+          <View style={styles.stripWords}>
+            <Icon name="offline" size={32} tone={toneSurfaces.warning.icon} />
+            <Text variant="bodyStrong" tone="warning" style={styles.stripText}>
+              {t('scan.notSaved', { count: state.unsaved.length })}
+            </Text>
+          </View>
+          <Button
+            label={t('scan.retry')}
+            loading={retrying}
+            onPress={() => loop.retry()}
+            variant="secondary"
+            fullWidth={false}
+            testID={testID ? `${testID}.retry` : undefined}
+          />
+        </View>
+      ) : null}
+
+      {children}
+
+      {allowTyped ? (
+        typedOpen ? (
+          <View style={styles.typed}>
+            <Field
+              label={t('scan.typed.label')}
+              value={typed}
+              onChangeText={setTyped}
+              placeholder={t('scan.typed.placeholder')}
+              keyboardType="number-pad"
+              autoFocus
+              maxLength={16}
+              returnKeyType="send"
+              onSubmitEditing={sendTyped}
+              testID={testID ? `${testID}.typedField` : undefined}
+            />
+            <Button
+              label={t(`scan.typed.send.${step}`)}
+              onPress={sendTyped}
+              disabled={!typed.trim()}
+              testID={testID ? `${testID}.typedSend` : undefined}
+            />
+          </View>
+        ) : blocked && complete !== true ? null : (
+          <Button
+            label={t('scan.typed.open')}
+            icon="keyboard"
+            variant="ghost"
+            onPress={() => setTypedOpen(true)}
+            fullWidth={false}
+            testID={testID ? `${testID}.typeNumber` : undefined}
+          />
+        )
       ) : null}
     </View>
   );
@@ -454,7 +601,9 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
   },
   stripIdle: { borderWidth: 1, borderColor: colors.border },
+  unsaved: { backgroundColor: colors.warningSoft },
   stripWords: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexGrow: 1, flexShrink: 1, flexBasis: 180 },
   stripSpinner: { width: 32, height: 32 },
   stripText: { flex: 1 },
+  typed: { gap: space.sm },
 });

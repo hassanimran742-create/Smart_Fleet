@@ -225,6 +225,11 @@ export interface DayEndUploadResult {
   version: number;
   differences: DayCloseDifferenceDto[];
   summary: DayEndSummary;
+  /**
+   * The cylinders the upload checked: every cylinder of the shop on the sheet (lost and damaged ones
+   * included) plus each extra row ("35 cylinders checked").
+   */
+  checked: number;
 }
 
 /** Buttons the server allows the office on a day: approve or send back a SUBMITTED day, reopen an APPROVED one. */

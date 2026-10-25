@@ -23,6 +23,9 @@ export const settings = {
   sections: {
     money: 'Money',
     orders: 'Orders and delivery',
+    /** [Inc 2] UX_ADMIN §3.6. */
+    messages: 'Customer messages',
+    scans: 'Scans',
     modules: 'Features',
     support: 'Support',
     account: 'Company account',
@@ -88,6 +91,14 @@ export const settings = {
       fuelRefills: 'The driver app has no fuel screen yet.',
       clientApp: 'Customers confirm by link instead.',
     },
+    /** [Inc 2] Customer messages and Scans (UX_ADMIN §3.6). */
+    confirmation: { enabled: 'Customers confirm by link. It never changes money.' },
+    messaging: { testMode: 'Send real texts only to the team phones.' },
+    custody: { typedEntry: { enabled: "Drivers and shops can type a number when a label won't scan." } },
+    trip: { allowFinishWithLeftovers: 'Lets a driver finish a trip before the store scans everything.' },
+    /** [Inc 3] UX_ADMIN §4.4. */
+    dayEnd: { enabled: 'Distributors send a daily cylinder sheet.' },
+    day: { cutoffLocalTime: 'Change only when no day-end is waiting.' },
     support: {
       phone: 'The apps call this for “Call office”. Empty hides it.',
       whatsApp: 'The apps open this in WhatsApp.',
@@ -115,6 +126,13 @@ export const settings = {
     },
     noLimit: 'No limit',
     setLimit: 'Set a limit',
+    /** [Inc 2] The answer chips ("Answers that open a problem"), as toggles. */
+    answers: {
+      NO: 'Not received',
+      OTHER: 'Other problem',
+      PARTLY: 'Partly received',
+      YES: 'All received',
+    },
   },
 
   values: {
@@ -126,12 +144,24 @@ export const settings = {
     hours: '{{from}}–{{to}}',
     from: 'From',
     to: 'To',
+    none: 'None',
+    /** [Inc 2] `custody.forgottenInPolicy`, the only rule built. */
+    forgottenIn: 'Blocked · the office marks it delivered',
   },
 
   /** The unit after a number box: "30 cylinders", "3 top-ups". */
   units: {
     cylinders: 'cylinders',
     topups: 'top-ups',
+    hours: 'hours',
+  },
+
+  /** [Inc 2] Team phones (`messaging.allowlist`): a list of numbers with "+ Add phone". */
+  phones: {
+    label: 'Team phone {{n}}',
+    add: 'Add phone',
+    remove: 'Remove {{phone}}',
+    removeEmpty: 'Remove this phone',
   },
 
   placeholders: {
@@ -190,6 +220,7 @@ export const settings = {
     time: 'Use a time like 9:00 am.',
     sameHours: "The start and the end can't be the same.",
     phone: 'Enter a number like 300 1234567.',
+    phoneTwice: 'This number is on the list twice.',
     limitMissing: 'Type the limit.',
     amountMissing: 'Type the amount.',
     numberMissing: 'Type a number.',

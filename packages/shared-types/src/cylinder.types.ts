@@ -1,4 +1,4 @@
-import type { IsoDateTime, UUID } from './common.types';
+import type { IsoDate, IsoDateTime, UUID } from './common.types';
 import type { StopProgress, TripStatusValue, TripStopTypeValue } from './trip.types';
 
 /** Mirrors Prisma `CylinderState`. PART_FILLED [Inc 2] is a taken-back cylinder neither full nor empty. */
@@ -259,6 +259,12 @@ export interface CylinderHistoryDto {
     source: CylinderEventSource;
     returnState: CylinderStateValue | null;
     reason: string | null;
+    /** [Inc 2] The cylinder's state after the move ("Added … as a new cylinder · Full"); null on older rows. */
+    toState?: CylinderStateValue | null;
+    /** [Inc 3] For a FILLED move: the refill's station ("Filled at Karachi Filling"). */
+    station?: { name: string } | null;
+    /** [Inc 3] For a move an approved day-end made (ADJUSTED, or REGISTERED from the sheet): that day. */
+    dayEnd?: { businessDate: IsoDate } | null;
   }[];
 }
 

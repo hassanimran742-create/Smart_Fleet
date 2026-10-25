@@ -4,9 +4,11 @@ import {
   Bell,
   ClipboardList,
   Factory,
+  FileSpreadsheet,
   History,
   Map as MapIcon,
   MapPinned,
+  MessageSquareWarning,
   QrCode,
   Receipt,
   RefreshCw,
@@ -24,11 +26,11 @@ import type { nav } from '../i18n/en/nav';
 import type { ModuleId } from './modules';
 
 /**
- * Where a badge count comes from: `/admin/summary` (waiting, needsDriver, topupsToCheck) or alerts.
- * `waiting` is the Today badge: top-ups to check + orders needing a driver (+ open customer problems
- * from Inc 2), the same count as the browser tab (navBadgeCounts, REV web-ux-04).
+ * Where a badge count comes from: `/admin/summary` (waiting, needsDriver, topupsToCheck, and from Inc 2
+ * problems, from Inc 3 dayEnd) or alerts. `waiting` is the Today badge: top-ups to check + orders needing
+ * a driver + open customer problems, the same count as the browser tab (navBadgeCounts, REV web-ux-04).
  */
-export type NavBadge = 'waiting' | 'needsDriver' | 'topupsToCheck' | 'alerts';
+export type NavBadge = 'waiting' | 'needsDriver' | 'topupsToCheck' | 'alerts' | 'problems' | 'dayEnd';
 
 export type NavItemId = keyof typeof nav.items;
 export type NavGroupId = 'today' | keyof typeof nav.groups;
@@ -52,6 +54,8 @@ export type NavPath =
   | '/transfers'
   | '/accessories'
   | '/alerts'
+  | '/problems'
+  | '/day-end'
   | '/settings'
   | '/activity'
   | '/profile';
@@ -96,6 +100,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'topups', to: '/topups', icon: Banknote, badge: 'topupsToCheck' },
       { id: 'refills', to: '/refills', icon: RefreshCw },
       { id: 'alerts', to: '/alerts', icon: Bell, badge: 'alerts' },
+      // Inc 2 (UX_ADMIN §3.3: open problems) and Inc 3 (§4.3: days to approve; hidden while day-end is off).
+      { id: 'problems', to: '/problems', icon: MessageSquareWarning, badge: 'problems' },
+      { id: 'dayEnd', to: '/day-end', icon: FileSpreadsheet, module: 'dayEnd', badge: 'dayEnd' },
     ],
   },
   {

@@ -68,6 +68,28 @@ const deliveryStartedAt: Formatter = (value) =>
 const onAmountMismatch: Formatter = (value) =>
   value === 'CREDIT_BANK_AMOUNT' || value === 'REJECT' ? i18n.t(`settings:options.onAmountMismatch.${value}`) : null;
 
+const ANSWERS = ['YES', 'PARTLY', 'NO', 'OTHER'] as const;
+
+/** [Inc 2] The answers that open a problem: "Not received, Other problem", or "None". */
+const answers: Formatter = (value) => {
+  if (!Array.isArray(value)) return null;
+  if (value.length === 0) return i18n.t('settings:values.none');
+  const words: Array<string | null> = value.map((item) =>
+    (ANSWERS as readonly unknown[]).includes(item) ? i18n.t(`settings:options.answers.${item as (typeof ANSWERS)[number]}`) : null,
+  );
+  return words.every((word): word is string => word !== null) ? words.join(', ') : null;
+};
+
+/** [Inc 2] The team phones: "+92 300 1234567, +92 321 7654321", or "None". */
+const phoneList: Formatter = (value) => {
+  if (!Array.isArray(value)) return null;
+  if (value.length === 0) return i18n.t('settings:values.none');
+  return value.every((item) => typeof item === 'string') ? value.map((item) => formatPhone(item as string)).join(', ') : null;
+};
+
+/** [Inc 2] The only rule built: "Blocked · the office marks it delivered". */
+const forgottenIn: Formatter = (value) => (value === 'BLOCK_OUT_MANUAL_DELIVERY' ? i18n.t('settings:values.forgottenIn') : null);
+
 /** No words for it (an account, a role list, a reserved object): the sentence names the setting only. */
 const notShown: Formatter = () => null;
 
@@ -105,11 +127,11 @@ const FORMATTERS: { readonly [K in SettingKey]: Formatter } = {
   'day.cutoffLocalTime': clock,
   'confirmation.enabled': onOff,
   'confirmation.linkTtlHours': wholeNumber,
-  'confirmation.caseOnAnswers': notShown,
+  'confirmation.caseOnAnswers': answers,
   'messaging.testMode': onOff,
-  'messaging.allowlist': notShown,
+  'messaging.allowlist': phoneList,
   'custody.typedEntry.enabled': onOff,
-  'custody.forgottenInPolicy': notShown,
+  'custody.forgottenInPolicy': forgottenIn,
   'trip.allowFinishWithLeftovers': onOff,
   'walkIn.counterSwap.enabled': onOff,
   'dayEnd.enabled': onOff,

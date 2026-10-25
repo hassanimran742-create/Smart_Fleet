@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Truck } from 'lucide-react';
 import { api } from '../api/client';
-import { messageFor } from '../api/errors';
+import { errorDetails, messageFor } from '../api/errors';
 import { formatPhone } from '../i18n/format';
 import { translateDynamic } from '../i18n';
 import {
@@ -397,15 +397,17 @@ function GiveTab() {
   const drivers = useQuery({ queryKey: ['drivers'], queryFn: async () => (await api.get<DriverRow[]>('/drivers')).data });
 
   const give = useMutation({
-    mutationFn: ({ driverId, vehicleId }: { driverId: string; vehicleId: string | null; message: string }) =>
+    mutationFn: ({ driverId, vehicleId }: { driverId: string; vehicleId: string | null; message: string; plate: string }) =>
       api.patch(`/drivers/${driverId}/vehicle`, { vehicleId }).then((r) => r.data),
     onSuccess: (_data, variables) => {
       toast.success(variables.message);
       void qc.invalidateQueries({ queryKey: ['drivers'] });
       void qc.invalidateQueries({ queryKey: VANS_KEY });
     },
-    onError: (e) => {
-      toast.error(e);
+    onError: (e, variables) => {
+      // [Inc 2] A van with cylinders on it keeps its driver until the store scans them in (UX_ADMIN §3.7).
+      const loaded = errorDetails(e, 'VEHICLE_HAS_CYLINDERS');
+      toast.error(loaded ? lt('vans.give.hasCylinders', { plate: variables.plate, count: loaded.count }) : e);
       void qc.invalidateQueries({ queryKey: ['drivers'] });
     },
   });
@@ -421,13 +423,13 @@ function GiveTab() {
   const change = (van: Van, nextId: string) => {
     const current = driverForVan[van.id];
     if (!nextId) {
-      if (current) give.mutate({ driverId: current.id, vehicleId: null, message: lt('vans.give.takenToast', { plate: van.plateNo, name: current.user.name }) });
+      if (current) give.mutate({ driverId: current.id, vehicleId: null, plate: van.plateNo, message: lt('vans.give.takenToast', { plate: van.plateNo, name: current.user.name }) });
       return;
     }
     const next = activeDrivers.find((d) => d.id === nextId);
     if (!next) return;
-    if (current && current.id !== nextId) give.mutate({ driverId: current.id, vehicleId: null, message: lt('vans.give.takenToast', { plate: van.plateNo, name: current.user.name }) });
-    give.mutate({ driverId: nextId, vehicleId: van.id, message: lt('vans.give.toast', { plate: van.plateNo, name: next.user.name }) });
+    if (current && current.id !== nextId) give.mutate({ driverId: current.id, vehicleId: null, plate: van.plateNo, message: lt('vans.give.takenToast', { plate: van.plateNo, name: current.user.name }) });
+    give.mutate({ driverId: nextId, vehicleId: van.id, plate: van.plateNo, message: lt('vans.give.toast', { plate: van.plateNo, name: next.user.name }) });
   };
 
   const columns: TableColumn<Van>[] = [

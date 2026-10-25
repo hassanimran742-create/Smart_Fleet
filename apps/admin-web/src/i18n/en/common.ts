@@ -179,6 +179,8 @@ export const common = {
     accessories: 'Accessories',
     support: 'Support tickets',
     clientApp: 'Customer app sign-in',
+    confirmations: 'Customer confirmation',
+    dayEnd: 'Day-end',
   },
   legacy: {
     movedTitle: 'This screen has moved',

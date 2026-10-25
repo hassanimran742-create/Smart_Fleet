@@ -7,7 +7,7 @@ import type { DriverStackParams } from '../DriverStack';
 import type { MenuActions, MenuItem, MenuModel } from './types';
 
 /** The routes the menu opens (typed against the driver stack). */
-type MenuRoute = Extract<keyof DriverStackParams, 'VehicleInfo' | 'Refills' | 'Help'>;
+type MenuRoute = Extract<keyof DriverStackParams, 'Van' | 'Refills' | 'Help'>;
 
 /**
  * The driver app's side menu (driver spec D5), owned by the mobile-driver lane: My van, Refills, Help
@@ -27,7 +27,7 @@ export function useDriverMenu({ visible, go, signOut }: MenuActions): MenuModel 
   };
 
   const items: MenuItem[] = [
-    { key: 'van', icon: 'van', label: t('common.menu.van'), onPress: open('VehicleInfo') },
+    { key: 'van', icon: 'van', label: t('common.menu.van'), onPress: open('Van') },
     { key: 'refills', icon: 'cylinder', label: t('driver.menu.refills'), onPress: open('Refills') },
     { key: 'help', icon: 'help', label: t('common.menu.help'), onPress: open('Help') },
     { key: 'signOut', icon: 'signOut', label: t('common.menu.signOut'), tone: 'danger', onPress: signOut },

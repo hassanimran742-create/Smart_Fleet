@@ -228,3 +228,127 @@
 .sf-order-dialog__drivers {
   padding: 2px;
 }
+
+/* ---------- Inc 2: the customer's answer and what came back ---------- */
+.sf-order__quote {
+  overflow-wrap: anywhere;
+}
+
+.sf-order__answer-copy {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-2);
+  margin-block-start: var(--sp-1);
+}
+
+.sf-order__taken-back {
+  display: grid;
+  gap: var(--sp-1);
+  margin-block-start: var(--sp-2);
+}
+
+.sf-order__taken-back .sf-kv {
+  max-inline-size: 360px;
+  margin-block-end: 0;
+}
+
+.sf-order__lines-stack {
+  display: grid;
+  gap: 2px;
+}
+
+/* ---------- Inc 2: Mark delivered, naming each cylinder ---------- */
+.sf-manual__body {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.sf-manual__body .sf-field {
+  margin-block-end: 0;
+}
+
+.sf-manual__section {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.sf-manual__heading {
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.sf-manual__progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* The number box and its Add button on one row. */
+.sf-manual__number {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.sf-manual__number > :first-child {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.sf-manual__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-manual__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-inline-size: 100%;
+}
+
+.sf-manual__chip .sf-chip {
+  max-inline-size: calc(100% - 36px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sf-manual__chip .sf-spinner {
+  flex: none;
+}
+
+/* "Still needed: …" at the start of the footer; red once the main button was pressed with sizes missing. */
+.sf-manual__still {
+  align-self: center;
+  margin-inline-end: auto;
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-manual__still.is-error {
+  color: var(--danger-fg);
+  font-weight: 600;
+}
+
+/* The link, when the browser blocks the clipboard: wide enough to see and select. */
+.sf-order__answer-copy .sf-copy-manual {
+  inline-size: 100%;
+}
+
+.sf-order__answer-copy .sf-copy-manual .sf-input {
+  inline-size: 100%;
+}
+
+/* Inside the dialog the grid's gap spaces "+ Add taken back"; it needs no margin of its own. */
+.sf-manual__body .sf-add-more {
+  margin-block-end: 0;
+}
+
+.sf-order__scans {
+  display: grid;
+  gap: var(--sp-1);
+  margin-block-start: var(--sp-1);
+}

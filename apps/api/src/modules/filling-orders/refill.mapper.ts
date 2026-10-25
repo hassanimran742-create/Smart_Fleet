@@ -135,10 +135,14 @@ function toLineDto(row: RefillViewRow, line: RefillViewRow['cylinders'][number])
 }
 
 /**
- * The DTO. `withCylinders` adds the picked cylinders (the routes that show one refill: `GET
- * /filling-orders/:id`, the scan, advance, assign and cancel answers); the lists leave them out.
+ * The DTO. `withCylinders` adds the picked cylinders and `assignedAt` (the routes that show one refill:
+ * `GET /filling-orders/:id`, the scan, advance, assign and cancel answers); the lists leave them out.
  */
-export function toRefillView(row: RefillViewRow, caller: PolicyCaller, opts: { withCylinders?: boolean } = {}): RefillView {
+export function toRefillView(
+  row: RefillViewRow,
+  caller: PolicyCaller,
+  opts: { withCylinders?: boolean; assignedAt?: Date | null } = {},
+): RefillView {
   const counts = refillCountsOf(row);
   const unfilledOpen = row.cylinders.filter((line) => line.status === 'PICKED_UP').length;
   const view: RefillView = {
@@ -175,6 +179,9 @@ export function toRefillView(row: RefillViewRow, caller: PolicyCaller, opts: { w
     serviceType: row.serviceType,
     updatedAt: row.updatedAt.toISOString(),
   };
-  if (opts.withCylinders) view.cylinders = row.cylinders.map((line) => toLineDto(row, line));
+  if (opts.withCylinders) {
+    view.cylinders = row.cylinders.map((line) => toLineDto(row, line));
+    view.assignedAt = opts.assignedAt ? opts.assignedAt.toISOString() : null;
+  }
   return view;
 }

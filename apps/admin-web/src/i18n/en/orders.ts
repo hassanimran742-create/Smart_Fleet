@@ -208,12 +208,116 @@ export const orders = {
       OTHER: 'Other',
     },
   },
+  /**
+   * Mark delivered by the office, naming each cylinder (Inc 2, UX_ADMIN §3.4, Inc 2/3 spec §3.3): the
+   * forgotten-IN path. No money moves. A chip reads "AG-C0001 · 11.8 kg", or names its problem after "·".
+   */
   manual: {
     title: 'Mark {{no}} delivered?',
-    body: "Only when the driver can't do it in the app. No money moves.",
-    reasonLabel: 'Who confirmed the delivery?',
-    needReason: 'Write a reason of at least 10 characters.',
+    body: "Only when the driver can't scan. No money moves.",
+    delivered: 'Delivered',
+    sizeProgress: '{{size}} · {{done}} of {{total}}',
+    number: 'Cylinder number',
+    numberPlaceholder: 'For example AG-C0042 or 42',
+    add: 'Add',
+    addTakenBack: 'Add taken back',
+    takenBack: 'Taken back',
+    /** Names the state chips for screen readers: the state the next number is taken back in. */
+    takenBackState: 'Taken back as',
+    state: {
+      EMPTY: 'Empty',
+      PART_FILLED: 'Part-filled',
+      FULL: 'Full',
+    },
+    reason: 'Reason',
+    reasons: {
+      NOT_SCANNED: 'Not scanned at the store',
+      PHONE: "Driver's phone not working",
+      OTHER: 'Other',
+    },
+    otherNote: 'What happened?',
+    needNote: 'Write a reason of at least 10 characters.',
+    stillNeeded: 'Still needed: {{list}}',
+    pickReason: 'Pick a reason.',
+    /** A chip: "AG-C0001 · 11.8 kg" or "AG-C0014 · with another customer". */
+    chip: '{{code}} · {{detail}}',
+    checking: 'Checking {{code}}',
+    remove: 'Remove {{code}}',
     confirm: 'Mark delivered',
-    toast: '{{no}} marked delivered by the office.',
+    toast: '{{no}} delivered · cylinders moved to the customer',
+    mismatch: "Some cylinders can't be used. Fix the red ones.",
+    /** What is wrong with a named cylinder (from the check as it is added, or the server's refusal). */
+    problem: {
+      WRONG_OWNER: "another shop's cylinder",
+      NOT_FULL: 'not full',
+      BLOCKED: 'marked damaged or lost',
+      WRONG_SIZE: "order doesn't need {{size}}",
+      WITH_CUSTOMER: 'with another customer',
+      ON_VAN: 'on a van, not for this trip',
+      NOT_AVAILABLE: 'not in the store or on this van',
+      NOT_WITH_THIS_CUSTOMER: 'not with this customer',
+      LISTED_TWICE: 'listed twice',
+      UNKNOWN: 'unknown number',
+      TOO_MANY: 'more than the order needs',
+      NOT_CHECKED: "couldn't check",
+    },
+  },
+  /**
+   * The order drawer's "Customer answer" (Inc 2, UX_ADMIN §3.2, CUSTOMER_PAGE §8): the answer chip
+   * (`status:answer.*`), the comment and one link-status line. Never a money line.
+   */
+  answer: {
+    title: 'Customer answer',
+    comment: '“{{comment}}”',
+    link: {
+      notSent: 'Not sent',
+      smsOff: 'Not sent · text messages are off',
+      sending: 'Sending text…',
+      sent: 'Text sent {{time}}',
+      failed: "Text didn't send · {{reason}}",
+      shared: 'Shared {{time}} by {{name}} ({{via}})',
+      sharedNoName: 'Shared {{time}} ({{via}})',
+      answered: 'Answered {{time}}',
+      expired: 'Expired',
+    },
+    failReason: {
+      INVALID_NUMBER: 'the number looks wrong',
+      REJECTED: 'the SMS company refused it',
+      TIMEOUT: 'the SMS company did not answer',
+      AUTH: 'SMS account problem',
+      UNAVAILABLE: 'the SMS company is down',
+      UNKNOWN: 'something went wrong',
+    },
+    via: {
+      WHATSAPP: 'WhatsApp',
+      SMS: 'text message',
+      SHARE_SHEET: 'other app',
+      COPY: 'copied',
+    },
+    copy: 'Copy customer link',
+    copied: 'Link copied',
+    /** The link, when the browser blocks the clipboard. */
+    linkLabel: 'Customer link',
+    loadFailed: "Couldn't load the customer answer.",
+  },
+  /**
+   * The Cylinders section's Inc 2 lines (UX_ADMIN §3.2), from the trip's scans: the load, what was
+   * delivered and what was taken back, grouped by state.
+   */
+  scans: {
+    loaded: 'Loaded {{done}} of {{total}} · {{time}} · {{driver}}',
+    delivered: 'Delivered',
+    /** One delivered cylinder by number: "AG-C0001 · 11.8 kg". */
+    deliveredItem: '{{no}} · {{size}}',
+    /** A size given in full: "2 × 11.8 kg"; short: "11.8 kg · 1 of 2". */
+    deliveredLine: '{{count}} × {{size}}',
+    deliveredShort: '{{size}} · {{done}} of {{total}}',
+    takenBack: 'Taken back',
+    /** A taken-back cylinder with its label: "AG-C0011 · 11.8 kg". */
+    takenBackItem: '{{no}} · {{size}}',
+    takenBackLine: '{{count}} × {{size}}',
+    noLabel: 'No label · {{count}} × {{size}}',
+    expected_one: '{{count}} expected',
+    expected_other: '{{count}} expected',
   },
 } as const;

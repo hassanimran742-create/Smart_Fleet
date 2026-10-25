@@ -6,6 +6,9 @@ import { HamburgerButton, SideMenu } from '../components/SideMenu';
 import { AddCustomerScreen } from '../screens/distributor/AddCustomerScreen';
 import { CasesScreen } from '../screens/distributor/CasesScreen';
 import { CustomersScreen } from '../screens/distributor/CustomersScreen';
+import { DayEndPreviewScreen } from '../screens/distributor/dayend/DayEndPreviewScreen';
+import { DayEndScreen } from '../screens/distributor/dayend/DayEndScreen';
+import { EditCustomerScreen } from '../screens/distributor/EditCustomerScreen';
 import { HelpScreen } from '../screens/distributor/HelpScreen';
 import { DistributorHomeScreen } from '../screens/distributor/HomeScreen';
 import { NewAddressScreen } from '../screens/distributor/NewAddressScreen';
@@ -14,6 +17,9 @@ import { NewRefillScreen } from '../screens/distributor/NewRefillScreen';
 import { OrderDetailScreen } from '../screens/distributor/OrderDetailScreen';
 import { OrdersScreen } from '../screens/distributor/OrdersScreen';
 import { ProfileScreen } from '../screens/distributor/ProfileScreen';
+import { ReceiveListScreen } from '../screens/distributor/receive/ReceiveListScreen';
+import { ReceiveScanScreen } from '../screens/distributor/receive/ReceiveScanScreen';
+import { RefillDetailScreen } from '../screens/distributor/RefillDetailScreen';
 import { RefillListScreen } from '../screens/distributor/RefillListScreen';
 import { WalletScreen, type WalletFilter } from '../screens/distributor/WalletScreen';
 import { TopupAmountScreen } from '../screens/distributor/topup/TopupAmountScreen';
@@ -36,8 +42,8 @@ export interface TopupPrefill {
 }
 
 /**
- * The shop app's routes (UX_MOBILE S2–S12b; shop spec §4). Typed, so every `navigate` names a real
- * screen with the right params. Home is first: it is the initial route.
+ * The shop app's routes (UX_MOBILE S2–S12b, Inc 2 S13–S15b, Inc 3 S16–S20; shop spec §4). Typed, so
+ * every `navigate` names a real screen with the right params. Home is first: it is the initial route.
  */
 export type DistributorStackParams = {
   Home: undefined;
@@ -67,8 +73,23 @@ export type DistributorStackParams = {
   Refills: undefined;
   /** S17 New refill (the shop spec's X2). */
   NewRefill: undefined;
+  /** [Inc 3] S18 one refill: its count, timeline, driver and (before pickup) its cancel. */
+  RefillDetail: { refillId: string };
   /** [Inc 2] Open customer problems; reached from Home only while `features.confirmations` is on. */
   Cases: undefined;
+  /** [Inc 2] S13 the vans coming back; Home opens the scan straight away when there is one van. */
+  ReceiveList: undefined;
+  /** [Inc 2] S13 scanning one van's cylinders into the store. */
+  ReceiveScan: { vehicleId: string };
+  /**
+   * [Inc 2] S15b. `orderId`: opened from that order's customer answer card ("Fix number"), so a number
+   * that needs a new link makes the order ask "Make a new link?".
+   */
+  EditCustomer: { clientId: string; orderId?: string };
+  /** [Inc 3] S19 today's day-end; reached from Home only while `features.dayEnd` is on. */
+  DayEnd: undefined;
+  /** [Inc 3] S20 the differences of the upload just made, and "Send for approval". */
+  DayEndPreview: { date: string };
 };
 
 const Stack = createNativeStackNavigator<DistributorStackParams>();
@@ -119,7 +140,21 @@ export function DistributorStack() {
         <Stack.Screen name="Help" component={HelpScreen} options={{ title: t('home.help.title') }} />
         <Stack.Screen name="Refills" component={RefillListScreen} options={{ title: t('refill.list.title') }} />
         <Stack.Screen name="NewRefill" component={NewRefillScreen} options={{ title: t('refill.request.title') }} />
+        <Stack.Screen
+          name="RefillDetail"
+          component={RefillDetailScreen}
+          options={{ title: t('refill.detail.titleLoading') }}
+        />
         <Stack.Screen name="Cases" component={CasesScreen} options={{ title: t('home.cases.title') }} />
+        <Stack.Screen name="ReceiveList" component={ReceiveListScreen} options={{ title: t('receive.title') }} />
+        <Stack.Screen name="ReceiveScan" component={ReceiveScanScreen} options={{ title: t('receive.title') }} />
+        <Stack.Screen name="EditCustomer" component={EditCustomerScreen} options={{ title: t('customers.edit.title') }} />
+        <Stack.Screen name="DayEnd" component={DayEndScreen} options={{ title: t('dayEnd.title') }} />
+        <Stack.Screen
+          name="DayEndPreview"
+          component={DayEndPreviewScreen}
+          options={{ title: t('dayEnd.preview.title') }}
+        />
       </Stack.Navigator>
       <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} variant="distributor" />
     </>

@@ -237,6 +237,8 @@ describeDb('day-end: the sheet, the upload and the submit (shop)', () => {
     });
     // The live summary: 32 in the store (AG-C0010 on a van, AG-C0003 with Sana, AG-C0035 missing).
     expect(res.body.summary).toMatchObject({ inStore: { total: 32 }, onVans: 1, withCustomers: 1 });
+    // [Inc 2/3 UI gate] "35 cylinders checked": every cylinder on the sheet, the missing one included.
+    expect(res.body.checked).toBe(35);
     expect(res.body.summary.inStore.bySize).toEqual([
       { sizeLabel: '11.8 kg', count: 18 },
       { sizeLabel: '15 kg', count: 10 },

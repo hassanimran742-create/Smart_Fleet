@@ -29,21 +29,31 @@ export const home = {
     customers: 'Customers',
     history: 'History',
     refills: 'Refills',
+    /** [Inc 2] The Receive status row (S13; Inc 2/3 spec §2.1), while `features.scanFlow` is on. */
+    receive: 'Receive from driver',
+    /** The row's grey line, in bold brand text: the cylinders still on the vans. */
+    receiveComing: '{{count}} coming back',
+    receiveComing_plural: '{{count}} coming back',
+    receiveNone: 'Nothing coming back',
+    /** [Inc 3] The Day-end status row (S19), while `features.dayEnd` is on. */
+    dayEnd: 'Day-end sheet',
+    dayEndHelp: "Send today's count",
   },
 
   activeTitle: 'Active orders',
   moreOrders: '+{{count}} more',
   moreOrders_plural: '+{{count}} more',
 
-  /** [Inc 2] Open customer problems (S15), shown only while `features.confirmations` is on. */
+  /** [Inc 2] Open customer problems (S15), the red Home row, only while `features.confirmations` is on. */
   problems: '{{count}} customer problem',
   problems_plural: '{{count}} customer problems',
-  problemsHelp: 'The office is looking into it',
+  problemsHelp: 'The office will look into it',
+  /** S15 Customer problems: who (the row), then the order and the note (the grey line). */
   cases: {
     title: 'Customer problems',
-    row: '{{shortCode}} · {{customer}}',
-    since: 'since {{when}}',
-    empty: 'No open customer problems.',
+    row: '{{customer}}',
+    sub: '{{shortCode}} · “{{comment}}”',
+    empty: 'No customer problems.',
   },
 
   noStore: "Your store isn't set up yet.",

@@ -213,12 +213,20 @@ export const activity = {
     typed_entry: 'Typed a cylinder number instead of scanning',
     manual_event: 'Moved a cylinder in an office delivery',
   },
+  // The order's number: the row's `no` when the API writes one, else the customer's link label ("link:AG-0001");
+  // the page then asks for the `_order` variant (features/activity/sentences.ts).
   confirmation: {
-    answer: 'Customer answered “$t(activity:parts.answer.{{answer}})” for {{no}}',
-    new_link: 'Made a new customer link for {{no}}',
+    /** diff { response } */
+    answer: 'Customer answered “$t(activity:parts.answer.{{response}})”',
+    answer_order: 'Customer answered “$t(activity:parts.answer.{{response}})” for {{no}}',
+    /** diff { tokenVersion, send } */
+    new_link: 'Made a new customer link',
+    new_link_order: 'Made a new customer link for {{no}}',
   },
   case: {
-    resolve: 'Marked the problem on {{no}} as sorted',
+    /** diff { orderId }, the note as the reason */
+    resolve: 'Marked a customer problem as sorted',
+    resolve_order: 'Marked the problem on {{no}} as sorted',
   },
 
   // Inc 3

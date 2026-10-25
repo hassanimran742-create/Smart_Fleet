@@ -3,6 +3,8 @@ import { initReactI18next } from 'react-i18next';
 import { activity } from './en/activity';
 import { auth } from './en/auth';
 import { common } from './en/common';
+import { cylinders } from './en/cylinders';
+import { dayend } from './en/dayend';
 import { distributors } from './en/distributors';
 import { errors } from './en/errors';
 import { expenses } from './en/expenses';
@@ -10,6 +12,8 @@ import { legacy } from './en/legacy';
 import { nav } from './en/nav';
 import { orders } from './en/orders';
 import { prices } from './en/prices';
+import { problems } from './en/problems';
+import { refills } from './en/refills';
 import { settings } from './en/settings';
 import { status } from './en/status';
 import { today } from './en/today';
@@ -48,6 +52,10 @@ export const resources = {
     activity,
     expenses,
     legacy,
+    problems,
+    cylinders,
+    refills,
+    dayend,
   },
 } as const;
 

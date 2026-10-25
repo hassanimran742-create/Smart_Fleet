@@ -142,6 +142,66 @@ export async function deliveryProgress(db: Db, trip: ProgressTrip, stop: Progres
   };
 }
 
+/**
+ * [Inc 2] The load so far of several trips at once (`OrderDto.load`, the office board's "Loading · 3 of 5
+ * loaded"): per trip, `done` and `total` are {@link pickupProgress}'s `doneCount` and `neededCount`, read
+ * in three queries for every trip instead of three per trip.
+ */
+export async function pickupCounts(db: Db, tripIds: readonly string[]): Promise<Map<string, { done: number; total: number }>> {
+  const ids = [...new Set(tripIds)];
+  if (ids.length === 0) return new Map();
+  const [needed, onVan, handedOver] = await Promise.all([
+    db.$queryRaw<Array<{ trip_id: string; type_id: string; n: number }>>`
+      SELECT o.trip_id, ol.cylinder_type_id AS type_id, SUM(ol.full_count)::int AS n
+      FROM order_lines ol JOIN orders o ON o.id = ol.order_id
+      WHERE o.trip_id = ANY(${ids}::uuid[]) AND o.status NOT IN ('CANCELLED', 'FAILED')
+      GROUP BY o.trip_id, ol.cylinder_type_id`,
+    db.$queryRaw<Array<{ trip_id: string; type_id: string; n: number }>>`
+      SELECT e.trip_id, c.cylinder_type_id AS type_id, count(*)::int AS n
+      FROM cylinders c
+      JOIN cylinder_events e ON e.id = c.last_event_id
+      JOIN trips t ON t.id = e.trip_id
+      WHERE e.trip_id = ANY(${ids}::uuid[]) AND e.event_type = 'SCAN_OUT'
+        AND c.custody_type = 'VEHICLE' AND c.custody_id = t.vehicle_id
+      GROUP BY e.trip_id, c.cylinder_type_id`,
+    db.$queryRaw<Array<{ trip_id: string; type_id: string; n: number }>>`
+      SELECT ts.trip_id, sc.cylinder_type_id AS type_id, count(*)::int AS n
+      FROM stop_cylinders sc
+      JOIN trip_stops ts ON ts.id = sc.trip_stop_id
+      JOIN cylinder_events e ON e.id = sc.event_id
+      WHERE ts.trip_id = ANY(${ids}::uuid[]) AND sc.direction = 'GIVEN'
+        AND NOT EXISTS (
+          SELECT 1 FROM cylinder_events s
+          WHERE s.cylinder_id = sc.cylinder_id AND s.to_custody_type = 'STORE' AND s.created_at > e.created_at)
+      GROUP BY ts.trip_id, sc.cylinder_type_id`,
+  ]);
+  const need = new Map<string, Map<string, number>>();
+  for (const row of needed) {
+    const byType = need.get(row.trip_id) ?? new Map<string, number>();
+    byType.set(row.type_id, (byType.get(row.type_id) ?? 0) + Number(row.n));
+    need.set(row.trip_id, byType);
+  }
+  const done = new Map<string, Map<string, number>>();
+  for (const row of [...onVan, ...handedOver]) {
+    const byType = done.get(row.trip_id) ?? new Map<string, number>();
+    byType.set(row.type_id, (byType.get(row.type_id) ?? 0) + Number(row.n));
+    done.set(row.trip_id, byType);
+  }
+  const out = new Map<string, { done: number; total: number }>();
+  for (const tripId of ids) {
+    const needs = need.get(tripId) ?? new Map<string, number>();
+    const dones = done.get(tripId) ?? new Map<string, number>();
+    let total = 0;
+    let doneCount = 0;
+    for (const [typeId, n] of needs) {
+      total += n;
+      doneCount += Math.min(dones.get(typeId) ?? 0, n);
+    }
+    out.set(tripId, { done: doneCount, total });
+  }
+  return out;
+}
+
 /** The progress of any stop; null for a RETURN_DROPOFF stop. */
 export async function stopProgress(db: Db, trip: ProgressTrip, stop: ProgressStop): Promise<StopProgress | null> {
   if (stop.type === TripStopType.STORE_PICKUP) return pickupProgress(db, trip);

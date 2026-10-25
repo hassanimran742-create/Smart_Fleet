@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import type { CylinderStateValue, MyVehicleLoadDto, VanCylinderCode } from '@smartfleet/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CustodyType, CylinderState } from '@prisma/client';
+import { cylinderShortCode } from '../custody/cylinder-codes';
 
 @Injectable()
 export class InventoryService {
@@ -104,16 +106,37 @@ export class InventoryService {
     });
   }
 
-  /** The signed-in driver's current vehicle load. */
-  async forMyVehicle(userId: string) {
+  /**
+   * The signed-in driver's current van (`GET /inventory/my-vehicle`): the counts by size, plus each
+   * cylinder on it by number (Inc 2, My van's numbers line "AG-C0001, AG-C0002").
+   */
+  async forMyVehicle(userId: string): Promise<MyVehicleLoadDto> {
     const driver = await this.prisma.driver.findFirst({
       where: { userId },
       select: { currentVehicleId: true },
     });
     if (!driver?.currentVehicleId) {
-      return { vehicleId: null, plateNo: null, totalFull: 0, totalEmpty: 0, totalPartFilled: 0, byType: [], noVehicle: true };
+      return { vehicleId: null, plateNo: null, totalFull: 0, totalEmpty: 0, totalPartFilled: 0, byType: [], cylinders: [], noVehicle: true };
     }
-    return this.vehicleSummary(driver.currentVehicleId);
+    const [summary, cylinders] = await Promise.all([
+      this.vehicleSummary(driver.currentVehicleId),
+      this.vanCylinderCodes(driver.currentVehicleId),
+    ]);
+    return { ...summary, cylinders };
+  }
+
+  /** Every cylinder on a van by its number (AG-C0042, or the QR value without one), lowest number first. */
+  private async vanCylinderCodes(vehicleId: string): Promise<VanCylinderCode[]> {
+    const rows = await this.prisma.cylinder.findMany({
+      where: { custodyType: CustodyType.VEHICLE, custodyId: vehicleId },
+      select: { qrCode: true, shortNo: true, cylinderTypeId: true, state: true, distributor: { select: { code: true } } },
+      orderBy: [{ shortNo: 'asc' }, { qrCode: 'asc' }],
+    });
+    return rows.map((row) => ({
+      shortCode: cylinderShortCode(row.distributor.code, row.shortNo) ?? row.qrCode,
+      cylinderTypeId: row.cylinderTypeId,
+      state: row.state as CylinderStateValue,
+    }));
   }
 
   async fullCountForOrderLine(opts: {

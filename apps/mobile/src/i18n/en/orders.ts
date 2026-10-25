@@ -116,7 +116,35 @@ export const orders = {
     itemLineNoBack: 'Deliver {{count}} × {{size}}',
     itemLineNoBack_plural: 'Deliver {{count}} × {{size}}',
     costTitle: 'Delivery cost',
+    /** [Inc 2] A delivered order's cost line (UX_MOBILE S14), in place of the fee chip. */
+    costPaid: 'Delivery cost {{fee}} · paid when the order was placed',
     noRefund: 'No refund. Delivery had started.',
+    /**
+     * [Inc 2] What went to the customer and what came back (S14; Inc 2/3 spec §2.4), once the visit is
+     * finished. A size short of the order reads like the scan screens: "11.8 kg · 1 of 2".
+     */
+    delivered: 'Delivered',
+    deliveredLine: '{{count}} × {{size}}',
+    deliveredLine_plural: '{{count}} × {{size}}',
+    deliveredShort: '{{size}} · {{done}} of {{total}}',
+    takenBack: 'Taken back',
+    /** A state with its cylinders by number, from the order's visit: "Empty · AG-C0011, AG-C0012". */
+    takenBackNumbers: '{{state}} · {{numbers}}',
+    /** A state with its cylinders counted by size (the customer link's snapshot): "Empty · 1 × 11.8 kg". */
+    takenBackCount: '{{state}} · {{count}} × {{size}}',
+    takenBackCount_plural: '{{state}} · {{count}} × {{size}}',
+    /** Cylinders with no label, after their state (the driver's and the office's "No label" piece). */
+    noLabel: '{{state}} · No label · {{count}} × {{size}}',
+    noLabel_plural: '{{state}} · No label · {{count}} × {{size}}',
+    /** When the total taken back differs from the order's take-back. */
+    expected: '{{count}} expected',
+    expected_plural: '{{count}} expected',
+    /** A cylinder's state on the taken-back lines. */
+    state: {
+      EMPTY: 'Empty',
+      PART_FILLED: 'Part-filled',
+      FULL: 'Full',
+    },
     /** A finished order's caption: "Today, 10:30 am · Customer cancelled". */
     statusLine: '{{when}} · {{reason}}',
     allSteps: 'All steps',

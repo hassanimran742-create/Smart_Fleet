@@ -11,8 +11,8 @@ export interface ModalProps {
   title: ReactNode;
   /** Esc, the close button and a click outside call this (unless `dismissible` is false). */
   onClose: () => void;
-  /** 440 px (`sm`) or 560 px (`md`); a bottom sheet under 768 px. */
-  size?: 'sm' | 'md';
+  /** 440 px (`sm`), 560 px (`md`) or 640 px (`lg`, a dialog with a list, such as Mark delivered…); a bottom sheet under 768 px. */
+  size?: 'sm' | 'md' | 'lg';
   /** A width in px, only for the legacy Modal shim; new screens use `size`. */
   width?: number;
   description?: ReactNode;

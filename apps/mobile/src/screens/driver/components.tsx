@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
+import type { DriverHomeDto } from '@smartfleet/shared-types';
 import { formatIsoDay } from '@smartfleet/shared-utils';
+import type { ApiError } from '../../api/errors';
+import { qk } from '../../api/keys';
 import { useAppConfig, useOfficeContact } from '../../hooks/useAppConfig';
 import { useLocationPaused } from '../../hooks/useLiveLocation';
 import type { DriverStackParams } from '../../navigation/DriverStack';
@@ -26,7 +30,8 @@ import {
   type Tone,
 } from '../../ui';
 import { cameraHeightFor } from '../../ui/scan';
-import { businessDayOf, customerNameOf, nextStep, orderOf, type NextStep, type TripView } from './tripModel';
+import { fetchDriverHome } from './tripApi';
+import { businessDayOf, customerNameOf, nextStep, orderOf, type NextStep, type TripDetail } from './tripModel';
 
 type DriverNav = NativeStackNavigationProp<DriverStackParams>;
 
@@ -84,6 +89,8 @@ export interface NoticeStripProps {
   message: string;
   /** A second line, e.g. "Bring the cylinders back to the store." under "Not delivered". */
   detail?: string;
+  /** More lines under it (the visit's "Gave 3 · Took back 3" and its states). */
+  lines?: readonly string[];
   icon?: IconName;
   testID?: string;
 }
@@ -93,7 +100,7 @@ export interface NoticeStripProps {
  * done", "Visit done", "Not delivered", "This trip is closed.". The icon is 32 dp in the driver app.
  * Announced to screen readers; never a pop-up.
  */
-export function NoticeStrip({ tone, message, detail, icon, testID }: NoticeStripProps) {
+export function NoticeStrip({ tone, message, detail, lines, icon, testID }: NoticeStripProps) {
   const surface = toneSurfaces[tone];
   return (
     <View
@@ -107,6 +114,11 @@ export function NoticeStrip({ tone, message, detail, icon, testID }: NoticeStrip
           {message}
         </Text>
         {detail ? <Text style={{ color: surface.text }}>{detail}</Text> : null}
+        {lines?.map((line) => (
+          <Text key={line} tabular style={{ color: surface.text }}>
+            {line}
+          </Text>
+        ))}
       </View>
     </View>
   );
@@ -121,6 +133,18 @@ export function InfoRow({ label, value }: { label: string; value: string }) {
       </Text>
       <Text variant="bodyStrong">{value}</Text>
     </View>
+  );
+}
+
+/**
+ * Why the footer's button is off, in one line just above it (rulebook §7.3: "3 more to load"). Plain
+ * text, not grey: it is an instruction read at a glance (§9.3).
+ */
+export function FooterReason({ text, testID }: { text: string; testID?: string }) {
+  return (
+    <Text align="center" accessibilityLiveRegion="polite" testID={testID}>
+      {text}
+    </Text>
   );
 }
 
@@ -147,44 +171,64 @@ export function usePullToRefresh(...refetches: Array<() => Promise<unknown>>): {
   return { refreshing, onRefresh };
 }
 
-/** Today's header: "Today · Thu 22 Oct", the business date (the day starts at the cut-off). */
+/**
+ * Today's header: "Today · Thu 22 Oct", the business date. It is the server's (`GET /driver/home`) once
+ * Today has loaded it, and the phone's own reading of the cut-off until then. This only reads the
+ * cache: Today fetches.
+ */
 export function useTodayTitle(): string {
   const { t } = useTranslation();
   const { config } = useAppConfig();
-  return t('driver.nav.homeDate', { date: formatIsoDay(businessDayOf(Date.now(), config.day)) });
+  const home = useQuery<DriverHomeDto, ApiError>({ queryKey: qk.driver.home, queryFn: fetchDriverHome, enabled: false });
+  const date = home.data?.businessDate ?? businessDayOf(Date.now(), config.day);
+  return t('driver.nav.homeDate', { date: formatIsoDay(date) });
 }
 
 export interface StepFrameProps {
-  /** A state strip above the title, e.g. "All delivered" while taking back. */
+  /** A state strip above the title, e.g. "All 3 delivered" while taking back. */
   notice?: ReactNode;
   /** The verb and the place: "Load at Ahmed Gas Store". Wraps to two lines, never cut. */
   title: string;
+  /** The step's 32 dp icon before the title (the refill run's steps). */
+  icon?: IconName;
   /** A line under the title (the customer's address, data). */
   subtitle?: string;
+  /** A control read before the count (the take-back state tap). */
+  control?: ReactNode;
   /** The CountBar while scanning; the state card once the step has ended. */
   count?: ReactNode;
-  /** The camera and its result strip (ScanPanel). */
+  /** The camera and its result strip (ScanPanel, with the step's details inside). */
   scan?: ReactNode;
-  /** What to load or give (SizeLines), and on the way the Maps and Call buttons. */
+  /** What to load or give when there is no camera, and on the way the Maps and Call buttons. */
   details?: ReactNode;
-  /** Rare actions ("Could not deliver"), last, 24 dp below the rest. */
+  /** Rare actions ("Could not deliver", "Missing some? Call office"), last, 24 dp below the rest. */
   rare?: ReactNode;
   testID?: string;
 }
 
 /**
- * The step screen (driver spec §1.2), the same order on every step so it never drifts: title, count,
- * camera, result strip, details, then the rare actions. The footer, outside the scroll, holds the one
- * button, so nothing hides under it.
+ * The step screen (driver spec §1.2, R-SP), the same order on every step so it never drifts: title,
+ * the state tap, count, camera, result strip, details, then the rare actions. The footer, outside the
+ * scroll, holds the one button, so nothing hides under it.
  */
-export function StepFrame({ notice, title, subtitle, count, scan, details, rare, testID }: StepFrameProps) {
+export function StepFrame({ notice, title, icon, subtitle, control, count, scan, details, rare, testID }: StepFrameProps) {
   return (
     <View style={styles.frame} testID={testID}>
       {notice}
       <View style={styles.heading}>
-        <Text variant="title">{title}</Text>
+        {icon ? (
+          <View style={styles.titleRow}>
+            <Icon name={icon} size={32} tone="brand" />
+            <Text variant="title" style={styles.titleText}>
+              {title}
+            </Text>
+          </View>
+        ) : (
+          <Text variant="title">{title}</Text>
+        )}
         {subtitle ? <Text tone="secondary">{subtitle}</Text> : null}
       </View>
+      {control}
       {count}
       {scan}
       {details}
@@ -210,16 +254,15 @@ export function StepSkeleton() {
 }
 
 /** Opens a step from Today with the Trip screen under it, so the step's back arrow goes to the trip. */
-export function openStepFromToday(navigation: Pick<DriverNav, 'navigate'>, trip: TripView, next: NextStep): void {
-  navigation.navigate('ActiveTrip', { tripId: trip.id });
-  if (next.kind === 'LOAD' || next.kind === 'DELIVER')
-    navigation.navigate('DeliverySteps', { tripId: trip.id, stopId: next.stop.id });
+export function openStepFromToday(navigation: Pick<DriverNav, 'navigate'>, trip: TripDetail, next: NextStep): void {
+  navigation.navigate('Trip', { tripId: trip.id });
+  if (next.kind === 'LOAD') navigation.navigate('Load', { tripId: trip.id, stopId: next.stop.id });
+  else if (next.kind === 'DELIVER') navigation.navigate('Visit', { tripId: trip.id, stopId: next.stop.id });
   else if (next.kind === 'UNLOAD') navigation.navigate('Unload', { tripId: trip.id });
 }
 
 export interface NextStepButtonProps {
-  trip: TripView;
-  vanHasCylinders: boolean;
+  trip: TripDetail;
   /**
    * `step`: from a finished step, the next step replaces it (back still goes to the Trip screen);
    * `trip`: from the Trip screen, the step opens over it.
@@ -230,40 +273,43 @@ export interface NextStepButtonProps {
 }
 
 /**
- * The footer's one button for what comes next (driver spec D6 table): "Load at store", "Deliver to
- * {{name}}", "Unload at store" or "Finish trip"; "Back to trip" or "Back to home" once the trip has
+ * The footer's one button for what comes next (driver spec D6 and R3 tables): "Load at store", "Deliver
+ * to {{name}}", "Unload at store" or "Finish trip"; "Back to trip" or "Back to home" once the trip has
  * closed. Labels never start with "Next:". "Start trip" is the caller's, because it sends a request.
  */
-export function NextStepButton({ trip, vanHasCylinders, from, onFinish }: NextStepButtonProps) {
+export function NextStepButton({ trip, from, onFinish }: NextStepButtonProps) {
   const { t } = useTranslation();
   const navigation = useNavigation<DriverNav>();
   const tripId = trip.id;
-  const openStop = (stopId: string) => {
-    if (from === 'step') navigation.replace('DeliverySteps', { tripId, stopId });
-    else navigation.navigate('DeliverySteps', { tripId, stopId });
-  };
-  const openUnload = () => {
-    if (from === 'step') navigation.replace('Unload', { tripId });
+  const open = (next: Extract<NextStep, { kind: 'LOAD' | 'DELIVER' | 'UNLOAD' }>) => {
+    const replace = from === 'step';
+    if (next.kind === 'LOAD') {
+      const params = { tripId, stopId: next.stop.id };
+      if (replace) navigation.replace('Load', params);
+      else navigation.navigate('Load', params);
+    } else if (next.kind === 'DELIVER') {
+      const params = { tripId, stopId: next.stop.id };
+      if (replace) navigation.replace('Visit', params);
+      else navigation.navigate('Visit', params);
+    } else if (replace) navigation.replace('Unload', { tripId });
     else navigation.navigate('Unload', { tripId });
   };
-  const next = nextStep(trip, vanHasCylinders);
+  const next = nextStep(trip);
 
   switch (next.kind) {
     case 'LOAD':
-      return (
-        <Button label={t('driver.trip.goLoad')} icon="van" onPress={() => openStop(next.stop.id)} testID="next.load" />
-      );
+      return <Button label={t('driver.trip.goLoad')} icon="van" onPress={() => open(next)} testID="next.load" />;
     case 'DELIVER':
       return (
         <Button
-          label={t('driver.trip.deliverTo', { name: customerNameOf(orderOf(trip, next.stop), t) })}
+          label={t('driver.trip.deliverTo', { name: customerNameOf(next.stop, orderOf(trip, next.stop), t) })}
           icon="customer"
-          onPress={() => openStop(next.stop.id)}
+          onPress={() => open(next)}
           testID="next.deliver"
         />
       );
     case 'UNLOAD':
-      return <Button label={t('driver.trip.goUnload')} icon="store" onPress={openUnload} testID="next.unload" />;
+      return <Button label={t('driver.trip.goUnload')} icon="store" onPress={() => open(next)} testID="next.unload" />;
     case 'FINISH':
       return <Button label={t('driver.trip.finish')} icon="ok" onPress={onFinish} testID="next.finish" />;
     case 'START':
@@ -271,7 +317,7 @@ export function NextStepButton({ trip, vanHasCylinders, from, onFinish }: NextSt
       return from === 'step' ? (
         <Button
           label={t('driver.steps.backToTrip')}
-          onPress={() => navigation.navigate('ActiveTrip', { tripId })}
+          onPress={() => navigation.navigate('Trip', { tripId })}
           testID="next.backToTrip"
         />
       ) : (
@@ -305,6 +351,8 @@ const styles = StyleSheet.create({
   },
   frame: { gap: space.md },
   heading: { gap: space.xs },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  titleText: { flex: 1 },
   rare: { marginTop: space.xl - space.md, gap: space.lg },
   skeletonCard: {
     gap: space.md,

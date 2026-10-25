@@ -1,11 +1,12 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { getRouteApi, useBlocker } from '@tanstack/react-router';
-import { Lock } from 'lucide-react';
+import { Lock, Plus, X } from 'lucide-react';
 import type { AnySettingRow, SettingKey, TopupAccount } from '@smartfleet/shared-types';
-import { formatPkDay } from '@smartfleet/shared-utils';
+import { formatClock, formatPkDay } from '@smartfleet/shared-utils';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { messageFor, toApiError } from '../../api/errors';
+import { formatPhone } from '../../i18n/format';
 import { MODULES } from '../../app/modules';
 import {
   Button,
@@ -13,6 +14,8 @@ import {
   cx,
   ErrorState,
   Field,
+  FilterChips,
+  IconButton,
   InlineAlert,
   KeyValueList,
   MoneyInput,
@@ -29,7 +32,7 @@ import {
 } from '../../ui';
 import { patchSetting, useInvalidateAfterSettings, useReplaceSettingRow, useSettingRows } from './api';
 import { draftFromValue, parseDraft, type Draft, type Parsed } from './drafts';
-import { FIELDS, SECTIONS, sectionOf, type FieldDef, type SectionId } from './fields';
+import { CUTOFF_HOURS, FIELDS, PROBLEM_ANSWERS, SECTIONS, sectionOf, type FieldDef, type SectionId } from './fields';
 import { formatSettingValue, sameValue, settingLabel } from './values';
 import './settings.css';
 
@@ -45,6 +48,14 @@ interface Change {
   field: FieldDef;
   row: AnySettingRow;
   value: unknown;
+}
+
+/** True when a draft's value is what is stored (the answer chips compare as a set, not by order). */
+function unchanged(field: FieldDef, value: unknown, stored: unknown): boolean {
+  if (field.control.kind === 'answers' && Array.isArray(value) && Array.isArray(stored)) {
+    return sameValue([...value].map(String).sort(), [...stored].map(String).sort());
+  }
+  return sameValue(value, stored);
 }
 
 /** A feature switch being turned on: the save review warns about it (website spec W39). */
@@ -102,7 +113,7 @@ export function SettingsPage() {
       const result = parsed.get(field.key);
       const row = rows.get(field.key);
       if (!result || !row) continue;
-      if (result.ok && sameValue(result.value, row.value)) continue;
+      if (result.ok && unchanged(field, result.value, row.value)) continue;
       list.push({ field, row, result });
     }
     return list;
@@ -297,6 +308,7 @@ export function SettingsPage() {
                   );
                 })}
               {section === 'orders' ? <RefillCostBlock row={rows.get('refill.deliveryCost')} /> : null}
+              {section === 'scans' ? <ForgottenInBlock row={rows.get('custody.forgottenInPolicy')} /> : null}
             </>
           )}
         </section>
@@ -492,6 +504,67 @@ function FieldRow({ field, row, draft, error, unsaved, disabled, onPatch }: Fiel
       if (locked) input = <fieldset disabled className="sf-settings__locked">{input}</fieldset>;
       break;
     }
+    case 'answers': {
+      // The chips the office can pick; any other answer stored (only the CLI could add "All received") stays.
+      const items = draft.kind === 'list' ? draft.items : [];
+      const shown = PROBLEM_ANSWERS.filter((answer) => (row.options ?? PROBLEM_ANSWERS).includes(answer));
+      const others = items.filter((item) => !(shown as readonly string[]).includes(item));
+      input = (
+        <FilterChips
+          multiple
+          options={shown.map((answer) => ({ value: answer, label: t(`options.answers.${answer}`), disabled: locked }))}
+          value={shown.filter((answer) => items.includes(answer))}
+          onChange={(next) => onPatch({ kind: 'list', items: [...next, ...others] })}
+        />
+      );
+      break;
+    }
+    case 'phoneList': {
+      const items = draft.kind === 'list' ? draft.items : [];
+      const setAt = (index: number, value: string) => onPatch({ kind: 'list', items: items.map((item, at) => (at === index ? value : item)) });
+      input = (
+        <div className="sf-settings__phones">
+          {items.map((phone, index) => (
+            <span key={index} className="sf-settings__phone">
+              <PhoneInput
+                value={phone}
+                className="sf-settings__short"
+                aria-label={t('phones.label', { n: index + 1 })}
+                onChange={(value) => setAt(index, value)}
+                disabled={locked}
+              />
+              <IconButton
+                icon={X}
+                label={phone ? t('phones.remove', { phone: formatPhone(phone) }) : t('phones.removeEmpty')}
+                onClick={() => onPatch({ kind: 'list', items: items.filter((_item, at) => at !== index) })}
+                disabled={locked}
+              />
+            </span>
+          ))}
+          <span>
+            <Button variant="ghost" icon={Plus} onClick={() => onPatch({ kind: 'list', items: [...items, ''] })} disabled={locked}>
+              {t('phones.add')}
+            </Button>
+          </span>
+        </div>
+      );
+      break;
+    }
+    case 'cutoff': {
+      const value = draft.kind === 'choice' ? draft.value : '';
+      // A stored time that isn't a whole hour (set by the tech team) still shows as it is.
+      const hours: string[] = (CUTOFF_HOURS as readonly string[]).includes(value) || !value ? [...CUTOFF_HOURS] : [...CUTOFF_HOURS, value];
+      input = (
+        <Select
+          value={value}
+          className="sf-settings__short"
+          options={hours.map((hour) => ({ value: hour, label: formatClock(hour) }))}
+          onChange={(event) => onPatch({ kind: 'choice', value: event.target.value })}
+          disabled={locked}
+        />
+      );
+      break;
+    }
     case 'hours': {
       const hours = draft.kind === 'hours' ? draft : { from: '', to: '' };
       input = (
@@ -540,6 +613,24 @@ function optionWord(t: TFunction<'settings'>, kind: 'deliveryStartedAt' | 'onAmo
     return t(`options.onAmountMismatch.${value}`);
   }
   return t('values.notSet');
+}
+
+/**
+ * [Inc 2] "Not scanned at the store" (under Scans): the only rule built, read only (UX_ADMIN §3.6). A
+ * cylinder that was never scanned in can't be loaded again; the office marks the order delivered.
+ */
+function ForgottenInBlock({ row }: { row: AnySettingRow | undefined }) {
+  const { t } = useTranslation('settings');
+  if (!row) return null;
+  return (
+    <div className="sf-settings__row">
+      <p className="sf-settings__readonly-label">
+        <LockedLabel>{settingLabel('custody.forgottenInPolicy')}</LockedLabel>
+      </p>
+      <p className="sf-settings__readonly-value">{t('values.forgottenIn')}</p>
+      <RowMeta row={row} unsaved={false} />
+    </div>
+  );
 }
 
 /** Refill delivery cost (under Orders and delivery): reserved and off, read only (ADR-16). */

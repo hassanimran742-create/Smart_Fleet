@@ -3,6 +3,12 @@ import type {
   ClientAddressCreateResult,
   ClientCreateResult,
   ClientDto,
+  ClientUpdateResult,
+  ConfirmationShareResult,
+  ConfirmationShareVia,
+  ConfirmationView,
+  DayEndDayDto,
+  DayEndUploadResult,
   DistributorDto,
   DistributorHomeDto,
   FillingOrderDto,
@@ -15,12 +21,17 @@ import type {
   Page,
   PayerChannel,
   PaymentDto,
+  ScanEntryMethod,
   StatementItem,
   StatementKind,
+  StoreIncomingDto,
+  StoreScanResult,
   TopupInfoDto,
   UUID,
 } from '@smartfleet/shared-types';
-import { api, withIdempotencyKey } from '../../../api/client';
+import { api, postMultipart, UPLOAD_TIMEOUT_MS, withIdempotencyKey } from '../../../api/client';
+import { apiErrorFromHttp, isApiError } from '../../../api/errors';
+import { bytesToBase64, bytesToText } from './bytes';
 
 /**
  * The shop app's calls (UX_MOBILE Appendix B, API_CONTRACT §7). Every function returns the response
@@ -259,4 +270,149 @@ export async function requestRefill(body: NewRefillBody, idempotencyKey: string)
 /** `PATCH /filling-orders/:id/cancel { reason }`: the owner, before pickup only. */
 export async function cancelRefill(id: string, reason: string): Promise<FillingOrderDto> {
   return (await api.patch<FillingOrderDto>(path('/filling-orders/:id/cancel', id), { reason })).data;
+}
+
+/** [Inc 3] `GET /filling-orders/:id` (S18): the refill with its picked cylinders (`cylinders`). */
+export async function fetchRefill(id: string): Promise<FillingOrderDto> {
+  return (await api.get<FillingOrderDto>(path('/filling-orders/:id', id))).data;
+}
+
+// ---- Store receive [Inc 2] (API_CONTRACT §9.4) --------------------------------------------------
+
+/** `GET /store/incoming`: the shop's cylinders on any van, one row per van with something left. */
+export async function fetchStoreIncoming(): Promise<StoreIncomingDto> {
+  const { data } = await api.get<StoreIncomingDto>('/store/incoming');
+  return { vans: Array.isArray(data?.vans) ? data.vans : [] };
+}
+
+export interface StoreScanBody {
+  /** A new id per read, kept for every resend of it, so the server records the read once. */
+  scanId: string;
+  code: string;
+  entryMethod: ScanEntryMethod;
+}
+
+/**
+ * `POST /store/scans` (RECEIVE): a cylinder off a van into the shop's one store. 201 RECORDED; a resend
+ * or the same move again answers 200 ALREADY_RECORDED. The body can never name a store (ADR-13).
+ */
+export async function sendStoreScan(body: StoreScanBody): Promise<StoreScanResult> {
+  return (await api.post<StoreScanResult>('/store/scans', body)).data;
+}
+
+// ---- Customer confirmation [Inc 2] (CUSTOMER_PAGE §10, API_CONTRACT §9.7) ------------------------
+
+/** `GET /orders/:id/confirmation`: the card's state. 403 FEATURE_DISABLED while the switch is off. */
+export async function fetchConfirmation(orderId: string): Promise<ConfirmationView> {
+  return (await api.get<ConfirmationView>(path('/orders/:id/confirmation', orderId))).data;
+}
+
+/**
+ * `POST /orders/:id/confirmation/share { via }` with a new Idempotency-Key per tap: the link and the
+ * message to pass on. `whatsappUrl` and `smsUrl` are null when the customer's phone isn't a mobile.
+ */
+export async function shareConfirmation(
+  orderId: string,
+  via: ConfirmationShareVia,
+  idempotencyKey: string,
+): Promise<ConfirmationShareResult> {
+  return (
+    await api.post<ConfirmationShareResult>(
+      path('/orders/:id/confirmation/share', orderId),
+      { via },
+      withIdempotencyKey(idempotencyKey),
+    )
+  ).data;
+}
+
+/** `POST /orders/:id/confirmation/new-link`: the old link stops working; `expiresAt` never changes. */
+export async function makeNewConfirmationLink(orderId: string, idempotencyKey: string): Promise<ConfirmationView> {
+  return (
+    await api.post<ConfirmationView>(path('/orders/:id/confirmation/new-link', orderId), {}, withIdempotencyKey(idempotencyKey))
+  ).data;
+}
+
+// ---- Customers [Inc 2] (API_CONTRACT §9.4) ------------------------------------------------------
+
+export interface ClientUpdateBody {
+  name?: string;
+  /** E.164 (`+923001234567`). */
+  phone?: string;
+  /** A blank note clears it. */
+  notes?: string;
+}
+
+/**
+ * `PATCH /clients/:id` (S15b). `confirmationNeedsNewLink` is true only when the phone changed while a
+ * link is pending: the order then asks "Make a new link?". Addresses can't change here (add-only).
+ */
+export async function updateClient(id: string, body: ClientUpdateBody): Promise<ClientUpdateResult> {
+  return (await api.patch<ClientUpdateResult>(path('/clients/:id', id), body)).data;
+}
+
+// ---- Day-end [Inc 3] (API_CONTRACT §10.2) -------------------------------------------------------
+
+/** The day-end sheet's file type (an Excel workbook). */
+export const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** `GET /day-end/:date` (S19). A date with no row reads NOT_STARTED; a later date is 404 DAY_NOT_FOUND. */
+export async function fetchDayEnd(date: string): Promise<DayEndDayDto> {
+  return (await api.get<DayEndDayDto>(path('/day-end/:id', date))).data;
+}
+
+/** The workbook's bytes, ready to write into a file, and the name the server gave it. */
+export interface DaySheetFile {
+  base64: string;
+  fileName: string;
+}
+
+function fileNameFrom(disposition: unknown, date: string): string {
+  const match = typeof disposition === 'string' ? /filename="?([^";]+)"?/i.exec(disposition) : null;
+  return match?.[1]?.trim() || `day-end-${date}.xlsx`;
+}
+
+/**
+ * `GET /day-end/:date/sheet.xlsx`: a new sheet (only the newest can be uploaded). It goes through the
+ * API client (auth, renewal, the connection banner); a refusal's JSON body arrives as bytes, so it is
+ * read again here into its catalogue code.
+ */
+export async function fetchDaySheet(date: string): Promise<DaySheetFile> {
+  try {
+    const response = await api.get<ArrayBuffer>(`${path('/day-end/:id', date)}/sheet.xlsx`, {
+      responseType: 'arraybuffer',
+      timeout: UPLOAD_TIMEOUT_MS,
+      headers: { Accept: XLSX_MIME_TYPE },
+    });
+    return {
+      base64: bytesToBase64(new Uint8Array(response.data)),
+      fileName: fileNameFrom(response.headers['content-disposition'], date),
+    };
+  } catch (thrown) {
+    const reply = isApiError(thrown) ? thrown.response : undefined;
+    if (!isApiError(thrown) || !reply || !(reply.data instanceof ArrayBuffer)) throw thrown;
+    let body: unknown = null;
+    try {
+      body = JSON.parse(bytesToText(new Uint8Array(reply.data)));
+    } catch {
+      body = null;
+    }
+    throw apiErrorFromHttp(reply.status, body, reply.headers, thrown.requestId);
+  }
+}
+
+/**
+ * `POST /day-end/:date/upload` (multipart field `file`, at most 2 MiB). `uri` may be a `content://`
+ * document the shop picked: React Native's networking reads it directly. A refusal for the whole file
+ * (DAY_SHEET_UNREADABLE …) or for rows (DAY_SHEET_ROW_ERRORS) stores nothing.
+ */
+export async function uploadDaySheet(date: string, file: { uri: string; name: string }): Promise<DayEndUploadResult> {
+  const form = new FormData();
+  // React Native's FormData takes a { uri, name, type } file part.
+  form.append('file', { uri: file.uri, name: file.name, type: XLSX_MIME_TYPE } as unknown as Blob);
+  return postMultipart<DayEndUploadResult>(`${path('/day-end/:id', date)}/upload`, form, { timeoutMs: UPLOAD_TIMEOUT_MS });
+}
+
+/** `POST /day-end/:date/submit { version }`: sends the uploaded version for approval (rule 7). */
+export async function submitDayEnd(date: string, version: number): Promise<DayEndDayDto> {
+  return (await api.post<DayEndDayDto>(`${path('/day-end/:id', date)}/submit`, { version })).data;
 }

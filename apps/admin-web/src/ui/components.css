@@ -1855,6 +1855,10 @@
   inline-size: min(440px, 100%);
 }
 
+.sf-modal--lg {
+  inline-size: min(640px, 100%);
+}
+
 .sf-modal:focus {
   outline: none;
 }
@@ -2442,7 +2446,8 @@
   }
 
   .sf-modal,
-  .sf-modal--sm {
+  .sf-modal--sm,
+  .sf-modal--lg {
     inline-size: 100%;
     max-block-size: 92vh;
     border-end-start-radius: 0;

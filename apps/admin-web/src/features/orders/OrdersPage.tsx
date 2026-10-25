@@ -4,6 +4,7 @@ import { Inbox, SearchX, UserRoundCheck } from 'lucide-react';
 import { ORDER_BOARD_TABS, type OrderBoardDto, type OrderBoardTab, type OrderDto } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
 import type { OrdersSearch } from '../../app/search';
+import { useAppConfig } from '../../hooks/useAppConfig';
 import { useNow } from '../../hooks/useNow';
 import {
   Button,
@@ -16,16 +17,17 @@ import {
   SearchField,
   SearchSelect,
   StaleBanner,
-  StatusChip,
   Table,
   Tabs,
   useFlashedRow,
   type FilterChipOption,
   type TableColumn,
 } from '../../ui';
+import { AnswerChip, answerValue } from '../problems/answer';
 import { useDistributors, useOrderBoard } from './api';
 import { AssignDriverDialog } from './AssignDriverDialog';
 import { cylindersText, driverText, outcomeReason, rowWhen } from './format';
+import { OrderStageChip } from './OrderStageChip';
 import './orders.css';
 
 const route = getRouteApi('/orders');
@@ -82,6 +84,9 @@ export function OrdersPage() {
   const board = useOrderBoard({ tab, q: q || undefined, distributorId: search.distributor });
   const flashed = useFlashedRow('orders');
   const [assigning, setAssigning] = useState<OrderDto | null>(null);
+  // Inc 2: a delivered row adds the customer's answer under its status (UX_ADMIN §3.1), while it is on.
+  const { config } = useAppConfig();
+  const answers = config.features.confirmations;
 
   const setSearch = (patch: Partial<OrdersSearch>) => {
     void navigate({ to: '/orders', search: (prev) => ({ ...prev, ...patch }), replace: true });
@@ -146,11 +151,18 @@ export function OrdersPage() {
         header: t('columns.status'),
         cell: (order) => {
           const reason = outcomeReason(order);
+          // The answer is its own chip under the status, never in place of it.
+          const answer = answers ? answerValue(order.confirmation) : null;
           return (
             <span className="sf-orders__two-line">
               <span>
-                <StatusChip kind="order" value={order.stage} />
+                <OrderStageChip order={order} />
               </span>
+              {answer ? (
+                <span>
+                  <AnswerChip value={answer} />
+                </span>
+              ) : null}
               {reason ? <span className="sf-orders__muted">{reason}</span> : null}
             </span>
           );
@@ -182,7 +194,7 @@ export function OrdersPage() {
       },
     );
     return list;
-  }, [now, showDistributor, t, tab]);
+  }, [answers, now, showDistributor, t, tab]);
 
   const tabKey = TAB_KEYS[tab];
   const empty = q ? (

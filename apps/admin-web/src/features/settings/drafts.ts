@@ -1,7 +1,7 @@
 import type { AnySettingRow } from '@smartfleet/shared-types';
 import i18n from '../../i18n';
 import { formatRs } from '../../i18n/format';
-import type { FieldDef } from './fields';
+import { CUTOFF_HOURS, type FieldDef } from './fields';
 
 /**
  * What a Settings row holds while it is being edited, and how it becomes the value `PATCH /settings/:key`
@@ -16,7 +16,9 @@ export type Draft =
   | { kind: 'text'; text: string }
   | { kind: 'flag'; value: boolean }
   | { kind: 'choice'; value: string }
-  | { kind: 'hours'; from: string; to: string };
+  | { kind: 'hours'; from: string; to: string }
+  /** [Inc 2] A list: the answers that open a problem, or the team phones (each as PhoneInput hands it over). */
+  | { kind: 'list'; items: string[] };
 
 export type Parsed = { ok: true; value: unknown } | { ok: false; error: string };
 
@@ -30,9 +32,17 @@ function moneyDraft(value: unknown): { text: string; paisa: string | null } {
   return typeof value === 'number' ? { text: String(value / 100), paisa: String(value) } : { text: '', paisa: null };
 }
 
+/** The most team phones the server keeps (`messaging.allowlist`). */
+const MAX_PHONES = 50;
+
 /** The draft of a row that hasn't been touched: its stored value. */
 export function draftFromValue(field: FieldDef, value: unknown): Draft {
   switch (field.control.kind) {
+    case 'answers':
+    case 'phoneList':
+      return { kind: 'list', items: Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [] };
+    case 'cutoff':
+      return { kind: 'choice', value: typeof value === 'string' ? value : '' };
     case 'money':
       return { kind: 'money', ...moneyDraft(value) };
     case 'limit':
@@ -104,6 +114,25 @@ export function parseDraft(field: FieldDef, draft: Draft, row: AnySettingRow): P
     return { ok: true, value: { from: draft.from, to: draft.to } };
   }
   if (control.kind === 'switch' && draft.kind === 'flag') return { ok: true, value: draft.value };
+  if (control.kind === 'answers' && draft.kind === 'list') {
+    // In the server's order of the answers, so the same picks always compare equal.
+    const options = row.options ?? [];
+    const picked = new Set(draft.items);
+    return { ok: true, value: [...options.filter((option) => picked.has(option)), ...[...picked].filter((item) => !options.includes(item))] };
+  }
+  if (control.kind === 'phoneList' && draft.kind === 'list') {
+    // A row added and left empty is dropped; every other one must be a whole number, once.
+    const phones = draft.items.map((item) => item.trim()).filter((item) => item !== '');
+    if (phones.some((phone) => !PK_PHONE.test(phone))) return { ok: false, error: t('settings:errors.phone') };
+    if (new Set(phones).size !== phones.length) return { ok: false, error: t('settings:errors.phoneTwice') };
+    if (phones.length > MAX_PHONES) return { ok: false, error: t('validation:TOO_LARGE', { max: MAX_PHONES }) };
+    return { ok: true, value: phones };
+  }
+  if (control.kind === 'cutoff' && draft.kind === 'choice') {
+    return (CUTOFF_HOURS as readonly string[]).includes(draft.value) || draft.value === row.value
+      ? { ok: true, value: draft.value }
+      : { ok: false, error: t('validation:INVALID_CHOICE') };
+  }
   if ((control.kind === 'deliveryStartedAt' || control.kind === 'onAmountMismatch') && draft.kind === 'choice') {
     const options = row.options ?? [];
     return options.length === 0 || options.includes(draft.value)

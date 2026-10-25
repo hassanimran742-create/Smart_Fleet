@@ -94,7 +94,8 @@
     "rootDir": ".",
     "roots": [
       "<rootDir>",
-      "<rootDir>/../../packages"
+      "<rootDir>/../../packages",
+      "<rootDir>/../mobile/src/ui/scan"
     ],
     "testRegex": ".*\\.(spec|test)\\.ts$",
     "transform": {

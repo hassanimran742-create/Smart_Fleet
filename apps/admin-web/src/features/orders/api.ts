@@ -2,14 +2,17 @@ import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient, type Quer
 import type {
   AssignDriverResult,
   AuditLogDto,
+  ConfirmationShareResult,
+  ConfirmationView,
   DriverOfficeDto,
   OrderBoardDto,
   OrderBoardTab,
   OrderCancelResult,
   OrderDto,
   Page,
+  TripDetailDto,
 } from '@smartfleet/shared-types';
-import type { ManualDeliveryInput, OfficeCancelOrderInput, OfficeFailOrderInput } from '@smartfleet/shared-validation';
+import type { ManualDeliveryV2Input, OfficeCancelOrderInput, OfficeFailOrderInput } from '@smartfleet/shared-validation';
 import { api } from '../../api/client';
 import { qk } from '../../api/keys';
 import { useApiMutation } from '../../api/useApiMutation';
@@ -161,10 +164,58 @@ export function useFailOrder(orderId: string) {
   });
 }
 
-/** `POST /orders/:id/manual-delivery { reason }` (the office records a delivery; no money moves). */
+/**
+ * `POST /orders/:id/manual-delivery` v2 `{ reason (10–300), cylinders: [{ code }], takenBack?: [{ code,
+ * returnState }] }` (API_CONTRACT §9.5): the office records a delivery the driver couldn't scan, naming
+ * each cylinder. No money moves. A repeat answers 200 with `X-Already-Applied`.
+ */
 export function useManualDelivery(orderId: string) {
   return useApiMutation({
-    mutationFn: (body: ManualDeliveryInput) =>
+    mutationFn: (body: ManualDeliveryV2Input) =>
       api.post<OrderDto>(`/orders/${encodeURIComponent(orderId)}/manual-delivery`, body).then((r) => r.data),
+  });
+}
+
+/**
+ * `GET /orders/:id/confirmation` (Inc 2, CUSTOMER_PAGE §10): the customer's answer and how far the link
+ * got. Only for a delivered order with a confirmation, while `features.confirmations` is on; it polls
+ * with the drawer. A leaf of the order, so an order change refreshes it too.
+ */
+export function useOrderConfirmation(orderId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...qk.orders.detail(orderId), 'confirmation'] as const,
+    queryFn: async ({ signal }) =>
+      (await api.get<ConfirmationView>(`/orders/${encodeURIComponent(orderId)}/confirmation`, { signal })).data,
+    enabled,
+    refetchInterval: DRAWER_POLL_MS,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * `GET /trips/:tripId` (the office may read every trip): each stop's scan progress, for the drawer's load,
+ * delivered and taken-back lines (Inc 2, UX_ADMIN §3.2). It polls with the drawer until the order is done.
+ */
+export function useOrderTrip(orderId: string, tripId: string | null, poll: boolean) {
+  return useQuery({
+    queryKey: [...qk.orders.detail(orderId), 'trip', tripId] as const,
+    queryFn: async ({ signal }) => (await api.get<TripDetailDto>(`/trips/${encodeURIComponent(tripId as string)}`, { signal })).data,
+    enabled: Boolean(tripId),
+    refetchInterval: poll ? DRAWER_POLL_MS : false,
+  });
+}
+
+/**
+ * `POST /orders/:id/confirmation/share { via: 'COPY' }` with an Idempotency-Key: the link to give the
+ * customer (it records "Shared … by <name> (copied)"; no money). Answered, expired or cancelled links are
+ * 409 `CONFIRM_CLOSED`; 20 shares an hour per order, then 429 `RATE_LIMITED`.
+ */
+export function useCopyCustomerLink(orderId: string) {
+  return useApiMutation({
+    idempotent: true,
+    mutationFn: (_: void, { headers }) =>
+      api
+        .post<ConfirmationShareResult>(`/orders/${encodeURIComponent(orderId)}/confirmation/share`, { via: 'COPY' }, { headers })
+        .then((r) => r.data),
   });
 }

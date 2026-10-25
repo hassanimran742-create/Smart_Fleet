@@ -29,6 +29,10 @@ export const nav = {
     transfers: 'Store-to-store transfers',
     accessories: 'Accessories',
     alerts: 'Alerts',
+    /** Inc 2 (UX_ADMIN §3.3): the menu item and the page share one name. */
+    problems: 'Customer problems',
+    /** Inc 3 (UX_ADMIN §4.3). */
+    dayEnd: 'Day-end',
     settings: 'Settings',
     activity: 'Activity log',
     profile: 'My profile',
@@ -51,6 +55,11 @@ export const nav = {
     settings: 'Settings',
     activity: 'Activity log',
     refills: 'Refills',
+    refill: 'Refill',
+    problems: 'Customer problems',
+    dayEnd: 'Day-end',
+    dayEndReview: 'Day-end review',
+    findCylinder: 'Find cylinder',
     stations: 'Refill stations',
     drivers: 'Drivers',
     vans: 'Vans',
@@ -81,5 +90,9 @@ export const nav = {
     topupsToCheck_other: '{{count}} to check',
     alerts_one: '{{count}} new',
     alerts_other: '{{count}} new',
+    problems_one: '{{count}} open',
+    problems_other: '{{count}} open',
+    dayEnd_one: '{{count}} to approve',
+    dayEnd_other: '{{count}} to approve',
   },
 } as const;
