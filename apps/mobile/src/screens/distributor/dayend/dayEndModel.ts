@@ -86,9 +86,18 @@ export function kindsOf(diff: DayCloseDifferenceDto['diff']): DiffKind[] {
   }
 }
 
+/**
+ * A line's kinds as the shop reads them: a cylinder marked Missing is a place difference only (the server
+ * also counts its state, LOST, as different, but a missing cylinder has no state to check).
+ */
+export function lineKinds(line: Pick<DayCloseDifferenceDto, 'diff' | 'sheet'>): DiffKind[] {
+  const kinds = kindsOf(line.diff);
+  return line.sheet.place === 'NOT_FOUND' ? kinds.filter((kind) => kind !== 'STATE') : kinds;
+}
+
 /** The kinds present, in chip order; the chips show only with 2 or more. */
 export function kindsPresent(differences: readonly DayCloseDifferenceDto[]): DiffKind[] {
-  const found = new Set(differences.flatMap((line) => kindsOf(line.diff)));
+  const found = new Set(differences.flatMap((line) => lineKinds(line)));
   return KIND_ORDER.filter((kind) => found.has(kind));
 }
 
@@ -102,7 +111,7 @@ export function yourCount(line: DayCloseDifferenceDto): { place: DayClosePlace |
 
 /** Which parts of "You: …" are in bold: the ones that differ from the app. */
 export function differingParts(line: DayCloseDifferenceDto): { place: boolean; state: boolean } {
-  const kinds = kindsOf(line.diff);
+  const kinds = lineKinds(line);
   return { place: kinds.includes('PLACE'), state: kinds.includes('STATE') };
 }
 

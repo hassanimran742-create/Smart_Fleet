@@ -139,7 +139,9 @@ describe('day-end upload: the ZIP check (API_CONTRACT §10.2 check 3)', () => {
     for (let i = 0; i < 3; i++) zip.file(`xl/part${i}.bin`, Buffer.alloc(8 * 1024 * 1024, 0));
     const many = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
     expect(inspectZip(many, LIMIT).ok).toBe(false);
-  });
+    // [Inc 2/3 UI gate] Deflating about 80 MB of zeros takes 4–5 s on an idle laptop, at jest's 5 s default:
+    // a loaded machine (the DB suites running beside it) timed it out, so it gets its own limit.
+  }, 30_000);
 
   it('refuses a stored entry whose two sizes differ, an unknown method and encrypted entries', () => {
     expect(inspectZip(zipOf('a.xml', Buffer.from('<a/>'), { method: 0, declaredSize: 99 }), LIMIT).ok).toBe(false);

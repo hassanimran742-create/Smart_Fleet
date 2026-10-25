@@ -82,15 +82,25 @@ export function FixChip({ line, store }: { line: DayCloseDifferenceDto; store: s
   return <Chip tone="info">{fixWords(line, store)}</Chip>;
 }
 
+/**
+ * The difference as the office reads it. A cylinder the sheet marks Missing differs in place only: the
+ * server also counts its state (LOST) as different, but a missing cylinder has no state to check, as in
+ * the shop's Check and send ("You: Missing").
+ */
+export function lineDiff(line: Pick<DayCloseDifferenceDto, 'diff' | 'sheet'>): DayCloseDifferenceDto['diff'] {
+  return line.diff === 'PLACE_AND_STATE_DIFFER' && line.sheet.place === 'NOT_FOUND' ? 'PLACE_DIFFERS' : line.diff;
+}
+
 /** The kind filter (more than 10 rows): Place, State or a new number. */
 export type DiffKind = 'all' | 'place' | 'state' | 'newNumber';
 
 export function ofKind(line: DayCloseDifferenceDto, kind: DiffKind): boolean {
+  const diff = lineDiff(line);
   switch (kind) {
     case 'place':
-      return line.diff === 'PLACE_DIFFERS' || line.diff === 'PLACE_AND_STATE_DIFFER';
+      return diff === 'PLACE_DIFFERS' || diff === 'PLACE_AND_STATE_DIFFER';
     case 'state':
-      return line.diff === 'STATE_DIFFERS' || line.diff === 'PLACE_AND_STATE_DIFFER';
+      return diff === 'STATE_DIFFERS' || diff === 'PLACE_AND_STATE_DIFFER';
     case 'newNumber':
       return line.diff === 'UNKNOWN_CYLINDER';
     default:

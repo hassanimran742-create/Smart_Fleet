@@ -411,7 +411,7 @@ As built (API_CONTRACT §9.12): `customer` describes the link's target. `phoneVa
   - Returns `ConfirmationView`. Audit `confirmation.new_link` (resourceType `Order`).
 - **Order lists** (`GET /orders?tab`, `GET /orders/board`) add `confirmation: { status, response, caseOpen } | null` in one join.
 
-**The shop app card** (`apps/mobile/src/components/CustomerConfirmCard.tsx`; designed to the rulebook on 2026-10-23, the Inc 2/3 spec §2.5–§2.6)
+**The shop app card** (`apps/mobile/src/screens/distributor/confirm/CustomerAnswer.tsx`, the `useCustomerAnswer` hook that returns the card, the footer button and the sheets, with its rules in `confirmModel.ts`; built 2026-10-25 to the rulebook design of 2026-10-23, the Inc 2/3 spec §2.5–§2.6. The design named `components/CustomerConfirmCard.tsx`.)
 - Shown in the order detail (UX_MOBILE S14) when `features.confirmations` is on and the order's `confirmation` field is not null. It sits under the status block, above the facts card.
 - It refetches every 20 seconds while PENDING and the screen is focused.
 - It uses only core React Native APIs, so it ships over the air:
@@ -438,7 +438,7 @@ As built (API_CONTRACT §9.12): `customer` describes the link's target. `phoneVa
 | EXPIRED | No answer | none | none | none |
 | CANCELLED (reserved) | grey "Not needed" | none | none | none |
 
-- **The Send link sheet** (a PickerSheet with no search, as an action list): the title "Send link"; 56 dp rows, each an icon and a label: WhatsApp · Text message · Other app · Copy message; a divider, then "Make a new link" (only when `allowedActions` has `NEW_LINK`). A tap calls `share` with the matching `via`; the row shows a spinner until it answers, then the sheet closes and the app opens. WhatsApp and Text message are hidden when their URL is null (the phone isn't valid).
+- **The Send link sheet** (a PickerSheet with no search, as an action list): the title "Send link"; 56 dp rows, each an icon and a label: WhatsApp · Text message · Other app · Copy message; a divider, then "Make a new link" (only when `allowedActions` has `NEW_LINK`). As built the icons are the kit's `whatsApp`, `sms` (message-text-outline), `share`, `copy` and `link` (link-variant), and WhatsApp is listed first. A tap calls `share` with the matching `via`; the row shows a spinner until it answers, then the sheet closes and the app opens. WhatsApp and Text message are hidden when their URL is null (the phone isn't valid).
 - **Make a new link** (rule 7): the sheet closes first (never a sheet on a sheet), then a ConfirmSheet "Make a new link?" / "The old link stops working." / [Make new link] (primary) / [Keep old link] (secondary). Afterwards the toast "New link made", and the card reads "Link not sent yet" until the new link is sent or shared.
 - **Errors:** network: the footer line "Couldn't get the link. Try again." under the one "No connection · Try again" banner; `CONFIRM_CLOSED`: refetch the card and toast `errors.CONFIRM_CLOSED`; `RATE_LIMITED`: `errors.RATE_LIMITED` on the footer line.
 - **The card has no money line.** The order's delivery cost line stays as it was when the order was placed.

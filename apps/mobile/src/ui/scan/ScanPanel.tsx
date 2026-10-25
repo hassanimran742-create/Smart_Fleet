@@ -300,6 +300,17 @@ export function ScanPanel({
     }
   }, [state]);
 
+  // The count is reached: an open typed field folds back to "Type number" (still there for a label the
+  // camera can't read), so a complete step shows its tick, not an empty field and an idle send button.
+  const wasComplete = useRef(complete === true);
+  useEffect(() => {
+    if (complete === true && !wasComplete.current) {
+      setTypedOpen(false);
+      setTyped('');
+    }
+    wasComplete.current = complete === true;
+  }, [complete]);
+
   // Leaving with reads that aren't saved yet asks first (rule 7): they would be lost.
   const pending = state.unsaved.length + state.waiting.length;
   useEffect(() => {
@@ -309,7 +320,7 @@ export function ScanPanel({
       setAsking(true);
       void confirm({
         title: t('scan.unsaved.title', { count: pending }),
-        body: t('scan.unsaved.body'),
+        body: t('scan.unsaved.body', { count: pending }),
         confirmLabel: t('scan.unsaved.leave'),
         confirmTone: 'danger',
         cancelLabel: t('scan.unsaved.stay'),

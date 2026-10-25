@@ -737,6 +737,16 @@ W38's rules apply: a label of 5 words or fewer, a description of 12 or fewer, no
 - **Live map:** copy only ("No signal for 5 min").
 - **The Inc 2 office screens pass the Definition of simple** (TEST_CASES UXQ-032 covers the scan screens; the website checklist UXQ-029 is repeated for the new pages).
 
+### 3.8 As built (Inc 2/3 screens, 2026-10-25)
+- **Shell:** the "Find cylinder" box sits under the product name in the sidebar (and in the sheet under 1024 px); Find cylinder's page header has its own box. The Work group adds Customer problems (badge: open problems) and Day-end (badge: days to approve; the item hides while day-end is off, through `MODULES.dayEnd`). The Today badge stays top-ups to check + orders needing a driver + open problems; days to approve aren't in it. In the 200 px sidebar (1024–1279 px) a long label wraps to two lines, so "Customer problems" keeps its badge in sight.
+- **§3.1:** "Loading · 3 of 5 loaded" reads `OrderDto.load` (API_CONTRACT §9.13; `status:orderProgress`); the answer chip uses the kit's `answer` kind.
+- **§3.2:** the drawer's cylinder lines come from `GET /trips/:tripId` (the load: "Loaded {{done}} of {{total}} · {{time}} · {{driver}}" while loading or on the way) and `OrderDto.visit` (API_CONTRACT §9.13): "Delivered" one row per cylinder by number; "Taken back" by number, grouped by state, with "No label · 1 × 15 kg" and "{{count}} expected". The Customer answer section and "Copy customer link" (inside the section, never in the footer) are as specified; a blocked clipboard shows the selectable box.
+- **§3.4:** the dialog is the kit's 640 px `Modal size="lg"`. Two chip words are added: "· listed twice" when two spellings (a QR value and its number) name one cylinder, and "· more than the order needs" for a size named past its count; the server would refuse both.
+- **§3.5:** a bare number ("42") resolves with the distributor's code only while exactly one distributor exists; otherwise the not-found page says "Type the full number, like AG-C0042.". The history reads the event's `toState` (REGISTERED "… as a new cylinder · Full"), `station` (FILLED "Filled at Lahore Filling Station · refill AG-R002") and `dayEnd` (ADJUSTED "Fixed at day-end Thu 22 Oct · approved by Owner"; a REGISTERED from the sheet adds " · from the day-end sheet").
+- **§2.9 Activity:** `confirmation.answer` reads "Customer answered “Not received” for AG-0001", `confirmation.new_link` "Made a new customer link for AG-0005" and `case.resolve` "Marked the problem on AG-0001 as sorted", the number from the diff's `no` (API_CONTRACT §9.13); older rows fall back to the link label or to the words without the number.
+- **§3.6:** the Customer messages and Scans sections are in Settings (`?section=messages`, `?section=scans`), with "New day starts at" under Orders and delivery and "Day-end sheet" under Features (§4.4).
+- **§3.7:** the Vans page shows the plate words for `VEHICLE_HAS_CYLINDERS` (HLD-018).
+
 ---
 
 ## 4. Increment 3
@@ -799,6 +809,11 @@ Name, address, location and active. **No prices** (DECISIONS ADR-16). The Inc 1 
 - **Settings:** Features "Day-end sheet" (`dayEnd.enabled`, Switch, "Distributors send a daily cylinder sheet."); Orders and delivery "New day starts at" (`day.cutoffLocalTime`, a Select of whole hours shown "12 am" to "6 am" through `formatClock`, "Change only when no day-end is waiting.").
 - **Today:** the cards "{{count}} day-end to approve" (one: "Ahmed Gas · Thu 22 Oct"; more: "Oldest Thu 22 Oct") with [Review day-end], and "{{count}} refill needs a driver" with "Oldest {{wait}}" and [Assign drivers] (§2.1). API_CONTRACT names no `/admin/summary` fields for them yet: they read the counts from the source the build picks (for example `GET /admin/day-end?status=SUBMITTED` and the refills list), and the detail line shows only when that source carries it. No new route.
 - **The Inc 3 office screens pass the Definition of simple** (TEST_CASES UXQ-033 for the Inc 3 screens).
+
+### 4.5 As built (Inc 2/3 screens, 2026-10-25)
+- **§4.1:** `/refills` and its drawer `/refills/$refillId` replace the legacy FillingOrdersScreen (its "Mark complete" gets 410 from Inc 3). The Station column shows only while the listed refills use more than one station. The drawer's line "Only {{distributor}} can cancel, before pickup." shows unless the refill is cancelled. "Assign driver" reuses the orders' driver cards. Chips: the kit's `refillStage` and `refillProgress` kinds.
+- **§4.3:** chips use the kit's `dayEnd` kind (READY carries the Upload icon). A row the sheet marks Missing reads "In a different place" and filters under Place only (the server's PLACE_AND_STATE_DIFFER counts its LOST state too, but a missing cylinder has no state to check), as the shop's Check and send reads "You: Missing". Approving an outdated version shows the "uploaded a new version" notice; the page keeps the version being reviewed until "Load new version". The approve toast and the locked view's "{{count}} new cylinder added…" line are as specified; the sheet links download through `GET /files/:id/url`.
+- **Cylinder words:** FAULTY reads "Damaged" everywhere on the website (the day-end sheet's word), and PART_FILLED "Part-filled".
 
 ---
 

@@ -29,7 +29,7 @@ import {
   checkedCount,
   differingParts,
   fixState,
-  kindsOf,
+  lineKinds,
   kindsPresent,
   ROW_ERRORS_SHOWN,
   yourCount,
@@ -75,7 +75,7 @@ export function DayEndPreviewScreen() {
   // A new upload may not have the kind picked before: then every difference shows again.
   const activeFilter: Filter = filter !== 'ALL' && kinds.length >= 2 && kinds.includes(filter) ? filter : 'ALL';
   const shown =
-    activeFilter === 'ALL' ? differences : differences.filter((line) => kindsOf(line.diff).includes(activeFilter));
+    activeFilter === 'ALL' ? differences : differences.filter((line) => lineKinds(line).includes(activeFilter));
 
   const uploadButton = (label: string) => (
     <Button
@@ -220,7 +220,8 @@ function DifferenceCard({ line }: { line: DayCloseDifferenceDto }) {
   const you = yourCount(line);
   const bold = differingParts(line);
   const where = you.place ? placeWords(you.place, t) : '';
-  const state = you.state ? t(`dayEnd.state.${you.state}`) : '';
+  // A missing cylinder has no state to check: "You: Missing", never "You: Missing · Empty".
+  const state = you.state && you.place !== 'NOT_FOUND' ? t(`dayEnd.state.${you.state}`) : '';
   const setTo = fixState(line);
   const fix =
     line.fix === 'SET_STATE' && setTo ? t('dayEnd.fix.SET_STATE', { state: t(`dayEnd.state.${setTo}`) }) : t(`dayEnd.fix.${line.fix}`);

@@ -1,6 +1,6 @@
 # Smart Fleet pilot test cases
 
-**Date:** 2026-10-24 · **Cases:** 570 (P1 266 · P2 279 · P3 25) · **Branch:** `pilot/happy-path`
+**Date:** 2026-10-25 · **Cases:** 566 (P1 266 · P2 275 · P3 25) · **Branch:** `pilot/happy-path`
 
 These cases test the whole Smart Fleet pilot as the docs in this folder describe it, Increments 1 to 3: money and expenses, orders and drivers, the one-holder rule, customer confirmation, refills, day-end, setup, quality and migrations, and the rehearsal day.
 
@@ -22,7 +22,7 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [ASG · Assignment and trips](#asg--assignment-and-trips) (12)
   - [EXP · Expenses](#exp--expenses) (18)
   - [OFF · Office website](#off--office-website) (19)
-  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (54)
+  - [DRV · Driver app and runs](#drv--driver-app-and-runs) (50)
   - [HLD · One-holder rule](#hld--one-holder-rule) (19)
   - [STR · Store receive](#str--store-receive) (13)
   - [CNF · Customer confirmation page](#cnf--customer-confirmation-page) (47)
@@ -272,7 +272,7 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [ASG · Assignment and trips](#asg--assignment-and-trips) | 12 | 8 | 4 | 0 | 12 | 0 | 0 |
 | [EXP · Expenses](#exp--expenses) | 18 | 3 | 15 | 0 | 18 | 0 | 0 |
 | [OFF · Office website](#off--office-website) | 19 | 2 | 16 | 1 | 19 | 0 | 0 |
-| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 54 | 28 | 22 | 4 | 12 | 42 | 0 |
+| [DRV · Driver app and runs](#drv--driver-app-and-runs) | 50 | 28 | 18 | 4 | 8 | 42 | 0 |
 | [HLD · One-holder rule](#hld--one-holder-rule) | 19 | 13 | 4 | 2 | 1 | 18 | 0 |
 | [STR · Store receive](#str--store-receive) | 13 | 7 | 5 | 1 | 0 | 13 | 0 |
 | [CNF · Customer confirmation page](#cnf--customer-confirmation-page) | 47 | 13 | 32 | 2 | 0 | 47 | 0 |
@@ -284,7 +284,7 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 33 | 1 | 26 | 6 | 30 | 2 | 1 |
 | [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 19 | 17 | 2 | 0 | 18 | 1 | 0 |
 | [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) | 20 | 20 | 0 | 0 | 0 | 0 | 20 |
-| **Total** | **570** | **266** | **279** | **25** | **336** | **161** | **73** |
+| **Total** | **566** | **266** | **275** | **25** | **332** | **161** | **73** |
 
 ### Cases by type
 
@@ -293,20 +293,20 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 60 | 17 | 35 | 8 |
 | AUTO-API | Developers and CI: HTTP against a real test database | 359 | 214 | 140 | 5 |
 | MAN-SHOP | A tester with the shop app on a phone | 60 | 14 | 42 | 4 |
-| MAN-DRIVER | A tester with the driver app on a phone | 26 | 5 | 18 | 3 |
+| MAN-DRIVER | A tester with the driver app on a phone | 22 | 5 | 14 | 3 |
 | MAN-WEB | An office user on the website | 46 | 6 | 35 | 5 |
 | MAN-PAGE | A tester playing the customer, in a phone browser | 8 | 1 | 7 | 0 |
 | MAN-OPS | Engineering or operations: bank app, command line, server or database | 11 | 9 | 2 | 0 |
-| **Total** |  | **570** | **266** | **279** | **25** |
+| **Total** |  | **566** | **266** | **275** | **25** |
 
 ### Cases by increment
 
 | Increment | What it covers | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| Inc 1 | Foundations, money and expenses | 336 | 155 | 164 | 17 |
+| Inc 1 | Foundations, money and expenses | 332 | 155 | 160 | 17 |
 | Inc 2 | Driver flow on scans, store receive and customer confirmation | 161 | 61 | 93 | 7 |
 | Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 73 | 50 | 22 | 1 |
-| **Total** |  | **570** | **266** | **279** | **25** |
+| **Total** |  | **566** | **266** | **275** | **25** |
 
 ## FND · Platform foundations
 
@@ -6626,7 +6626,7 @@ Note: Regression case for review finding web-ux-04 (CHANGELOG, "Review fixes, 20
 
 ## DRV · Driver app and runs
 
-The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 54 cases: P1 28 · P2 22 · P3 4.
+The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not deliver, typed numbers, no signal and finishing a run (Inc 2). 50 cases: P1 28 · P2 18 · P3 4.
 
 ### DRV-001 · Legacy scan route accepts only drivers (no super-admin bypass)
 
@@ -6753,35 +6753,6 @@ Expect:
 - X1 is neither DELIVERED nor FAILED. Balance Rs 4,520. No order.fail row.
 
 Spec: ADR-02; API_CONTRACT §3.1, §3.2, §7.6 (fail, PATCH status), §8.6 · Test file: `apps/api/test/orders/driver-scans.e2e-spec.ts`
-
-### DRV-006 · Inc 1 driver app: the camera is on the step screen, and "All delivered" asks first
-
-**P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
-
-Before: Inc 1 driver app on a pilot phone. Kashif can sign in. At the start no trip is assigned to him. AG-C0011 is with Sana (earlier delivery).
-
-Steps:
-
-1. Sign in to the Smart Fleet Driver app as Kashif. Look at the home screen.
-2. Ask the office to assign order X1 to Kashif. Wait 30 seconds or pull down to refresh.
-3. Tap "Start trip".
-4. On the "Load at Ahmed Gas Store" step (header "Step 1 of 3"), look at the camera on that screen.
-5. Point the camera at the label of AG-C0011 and watch the result.
-6. Open Sana's step, tap "I've arrived", then "All delivered". Read the sheet, then confirm.
-7. Open Sana's step again.
-
-Expect:
-
-- Step 1: Today has no free scan tiles, no "Nearby orders" and no "Transfer tasks". With no trip it reads "Nothing to do." and "New trips appear by themselves." with "Call office".
-- Step 2: the trip appears as "Deliver to Sana" with the chip "Next" and the footer "Start trip".
-- Step 4: the step screen has the camera already set for loading, "0 of 3 scanned" and the strip "Scan each full cylinder.". There is no separate scan screen and no list of scan types.
-- Step 5: a red strip under the camera says "This cylinder isn't in Ahmed Gas Store's stock. Load only from this store." No pop-up box and no code such as SCAN_NOT_AT_STORE.
-- Step 6: with fewer scanned than the order, "All delivered" is outlined and opens "Only 0 of 3 scanned. Continue?" with "Only if the customer has every cylinder.", [Yes, all delivered] and [Keep scanning] (with all scanned it is the filled button and asks "All delivered?" with [Yes, all delivered] and [Not yet]). While sending, the button shows it is busy and can't be pressed twice. After confirming: the green strip "All delivered" and "Take back from Sana" with "0 taken back · N expected" (N is the order's take-back count).
-- Step 7: Sana's step opens on "Take back from Sana" with the "All delivered" strip; nothing asks again. No pop-up box appears at any point.
-
-Spec: ADR-13; UX_MOBILE §5 (Today, the step screens, the Inc 1 count, the early press), §2.2 (ConfirmSheet, CountBar, Button), §6; API_CONTRACT §7.7
-
-Note: The Inc 1 count is the screen's tally of the cylinders the server confirmed, labelled "scanned"; it never blocks a button (UX_PRINCIPLES §9.2). Inc 2 enforces the count on the server.
 
 ### DRV-007 · Could not deliver records a valid reason and moves no money
 
@@ -7454,7 +7425,7 @@ Expect:
 
 Spec: UX_MOBILE §3.1 (Idempotency), §7.1 (read loop, feedback) · Test file: `apps/mobile/src/ui/scan/__tests__/scanReducer.spec.ts`
 
-Note: It waits for the driver-app lane: apps/mobile has no test runner of its own. Not automated yet.
+Note: The API's jest runs it from apps/mobile/src/ui/scan (apps/api/package.json jest.roots): 12 tests, which also cover a label left in front of the camera, typed numbers, a take-back's tapped state on a resend and the buzz patterns.
 
 ### DRV-036 · A scan made with no signal is shown as not saved and can be sent again
 
@@ -7612,9 +7583,9 @@ Steps:
 
 Expect:
 
-- Step 1: "Unload at Ahmed Gas Store" with "Give each cylinder to the shop to scan." Groups: Not delivered 3, Empty 1, Full 1, with "0 of 5" unloaded.
+- Step 1: "Unload at Ahmed Gas Store" with "Give each cylinder to the shop to scan." and "0 of 5" unloaded. The groups list each cylinder by number: "Not delivered · 3" (AG-C0021, AG-C0022, AG-C0023, 15 kg), "Empty · 1" (AG-C0011 · 11.8 kg) and "Full · 1" (AG-C0032 · 45.4 kg).
 - Step 2: the trip is not finished: "Finish trip" can be tapped (it is outlined while cylinders are left), and the line above it says exactly "The store must scan in 5 more from your van." No pop-up box.
-- Step 3: within about 5 seconds the driver's screen shows "2 of 5" unloaded, with no refresh needed.
+- Step 3: within about 5 seconds the driver's screen shows "2 of 5" unloaded, and the rows of AG-C0011 and AG-C0032 get a tick and turn grey, with no refresh needed.
 - Step 4: the count reaches "All 5 unloaded" and "Finish trip" is the filled main button.
 - Step 5: the trip is finished and Today counts it under "Done today".
 
@@ -7707,7 +7678,7 @@ Steps:
 
 Expect:
 
-- The footer reads "Load at store", then "Deliver to Sana", then "Deliver to Usman", then "Unload at store", then "Finish trip", never "Next:": one main button per screen.
+- Step 1: the trip's footer reads "Start trip". Each step then ends on one footer that names the next: "Deliver to Sana" after "Loading done", "Deliver to Usman" after Sana's "Visit done", "Unload at store" after Usman's "Not delivered", and "Finish trip" on Unload. Never "Next:", and one main button per screen.
 - The steps show "To do", "Next", "In progress", "Done", "Not delivered" (red) or "Cancelled" (grey); Usman's visit shows "Not delivered" in red.
 - No screen shows a raw code (EMPTY, PART_FILLED, SCAN_OUT, IN_TRANSIT, FAILED), a long id, "Rs." or a money amount. Cylinders show as "AG-C0011", sizes as "11.8 kg".
 - No pop-up box appears at any point.
@@ -7755,6 +7726,8 @@ Expect:
 
 Spec: UX_MOBILE §7.0 (FCM for the new-trip push), §7.2 (R8 New-trip push); API_CONTRACT §7.2 (POST /push-tokens, DELETE /push-tokens)
 
+Note: Needs the 0.2.0 APK (FCM set-up): on the 0.1.0 APK the phone gets no push token, registration fails quietly and no notification arrives, while Today still polls every 30 seconds. Sign out first sends DELETE /push-tokens, best effort and never longer than 3 seconds (api/session.ts, screens/driver/push.ts).
+
 ### DRV-049 · The Van screen lists the real cylinders on the van by size and state
 
 **P3** · MAN-DRIVER · Inc 2 · Role: DRIVER (Kashif)
@@ -7793,61 +7766,6 @@ Spec: UX_MOBILE §2.2 #13 (ListRow), §5 (driver Home trip rows), §6 · Test fi
 
 Note: Regression case for review finding mobile-ux-05 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV mobile-ux-05 …". The shop's History rows were then decided (2026-10-23): the kind as the title, the number and the customer on the grey line, the amount on the right (UX_MOBILE S7).
 
-### DRV-051 · Inc 1 Unload step counts the van down to "Nothing on the van."
-
-**P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
-
-Before: Inc 1 driver app on a pilot phone. Kashif's trip for X1 is in progress: the store stop is done and Sana's visit ended as not delivered, so AG-C0001, AG-C0002 and AG-C0031 (full) are still on van LEA-101. Kashif is back at Ahmed Gas Store.
-
-Steps:
-
-1. On the trip, tap "Unload at store".
-2. Look at the step screen.
-3. Tap "Finish trip" before scanning. Read the sheet and tap "Not yet".
-4. Scan AG-C0001, then AG-C0002 and AG-C0031.
-5. Tap "Finish trip" and confirm.
-
-Expect:
-
-- Step 2: the header "Step 3 of 3", the title "Unload at Ahmed Gas Store", a big "3" with "on the van" and "3 full" under it, the strip "Scan each cylinder you bring back." and an outlined "Finish trip".
-- Step 3: the sheet "Finish this trip?" with "Unload at Ahmed Gas Store first. You can't scan for this trip after.", [Finish trip] and [Not yet].
-- Step 4: each scan shows the green strip "Unloaded" and the count goes down to the green "Nothing on the van."; "Finish trip" becomes the filled main button.
-- Step 5: Today opens with the toast "Trip done" and "Done today: 1".
-- No pop-up box and no code appear.
-
-Spec: UX_MOBILE §5 (Unload at {{store}}, Trip), §2.2 #29 (CountBar, countdown); API_CONTRACT §7.7
-
-Note: The Inc 1 count is the van's own count (GET /inventory/my-vehicle, refreshed after each scan); with two loaded trips on one van it can't tell whose cylinders are whose (accepted for Inc 1). Inc 2 makes this step passive: the shop scans (DRV-042).
-
-### DRV-052 · Inc 1 Refills: the list and one refill, step by step, with no money
-
-**P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
-
-Before: Inc 1 driver app. Ahmed Gas refill AG-R001 (6 × 11.8 kg, Lahore Filling Station) is assigned to Kashif, with nothing picked up yet.
-
-Steps:
-
-1. Open the menu, then Refills.
-2. Tap the refill.
-3. Tap "Picked up 6 empties".
-4. At the station, tap "I've arrived".
-5. Keep "Cylinders filled" at 6 and tap "Mark 6 filled".
-6. Back at the store, tap "Brought back".
-
-Expect:
-
-- Step 1: the row "6 × 11.8 kg · Ahmed Gas" with the chip "Pick up empties". No money anywhere.
-- Step 2: the header "Refill", the title "Pick up empties at Ahmed Gas Store", the stepper "Empties picked up" with "Up to 6", and the footer "Picked up 6 empties".
-- Step 3: the title "Go to Lahore Filling Station" and the footer "I've arrived".
-- Step 4: the title "Fill at Lahore Filling Station", the stepper "Cylinders filled" with "Out of 6 picked up", and the footer "Mark 6 filled".
-- Step 5: the title "Bring them back to Ahmed Gas Store", "Filled 6 of 6", and the footer "Brought back".
-- Step 6: the title "Back at Ahmed Gas Store" with "The office will finish this refill." and no footer; in the list the chip reads "Back at store".
-- No rupee amount, raw status word or pop-up box appears.
-
-Spec: ADR-16; UX_MOBILE §5 (Refills, Refill), §3.6 (the side menu); API_CONTRACT §7.11
-
-Note: Inc 3 puts scans on this same screen (UX_MOBILE §8.2; REF-025).
-
 ### DRV-053 · Driver Help, with the profile merged in: the office, who you are and the app version, even offline
 
 **P3** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
@@ -7872,31 +7790,6 @@ Expect:
 Spec: UX_MOBILE §5 (Help, with the profile merged in), §3.6 (the side menu, support.contact), §2.2 #4 (Call office never disappears)
 
 Note: The Profile route is retired (DECIDED, 2026-10-23). "The office number isn't loaded yet." shows only when the number has never loaded.
-
-### DRV-054 · An early "Done loading" asks first, and nothing blocks
-
-**P2** · MAN-DRIVER · Inc 1 · Role: DRIVER (DR1 Kashif)
-
-Before: Inc 1 driver app. Kashif's trip for X1 (2 × 11.8 kg + 1 × 45.4 kg) has started; AG-C0001, AG-C0002 and AG-C0031 are in Ahmed Gas Store.
-
-Steps:
-
-1. On "Load at Ahmed Gas Store", scan AG-C0001.
-2. Tap "Done loading".
-3. Tap "Keep scanning". Scan AG-C0002 and AG-C0031.
-4. Tap "Done loading".
-
-Expect:
-
-- Step 1: "1 of 3 scanned" and the green strip "Loaded"; "Done loading" is outlined.
-- Step 2: the sheet "Only 1 of 3 scanned. Continue?" with [Done loading] and [Keep scanning].
-- Step 3: the count reaches "All 3 scanned" and "Done loading" becomes the filled main button.
-- Step 4: it acts at once, with no sheet: the success card "Loading done" and the footer "Deliver to Sana".
-- No hard block and no pop-up box at any point.
-
-Spec: UX_MOBILE §5 (the step screens, the early press); UX_PRINCIPLES §9.2, §2 (rule 7)
-
-Note: The Inc 1 server allows an early finish, so the sheet asks once and never blocks (DECIDED, 2026-10-23). Inc 2 enforces the full load on the server (DRV-017).
 
 ## HLD · One-holder rule
 
@@ -8582,7 +8475,7 @@ Expect:
 
 - Step 1: the holder reads "With Sana · \<X1 number> · since \<time>", and "Responsible driver: Kashif" with the muted line "Last loaded it onto a van".
 - Step 2: the page reads "Responsible driver: none".
-- Step 2: the history reads, in order: "Loaded onto van LEA-101 at Ahmed Gas Store", "Delivered to Sana · \<X1 number>", "Taken back from Sana · Empty", "Unloaded at Ahmed Gas Store". Each line shows who and when.
+- Step 2: the history reads, in order: "Added to Ahmed Gas Store as a new cylinder · Full", "Loaded onto van LEA-101 at Ahmed Gas Store", "Delivered to Sana · \<X1 number>", "Taken back from Sana · Empty", "Unloaded at Ahmed Gas Store". Each line shows who and when.
 - No raw code (SCAN_OUT, DELIVERED, PICKED_UP_EMPTY, SCAN_IN, VEHICLE), no raw source word (SCAN, TYPED, MANUAL), no "Older record", "Handed", "Scanned into" or "pilot", no long id and no "Rs." appears.
 
 Spec: ADR-13; UX_ADMIN §3.5 (Find cylinder), §2.12 (no system words); API_CONTRACT §9.4 (history)
@@ -9423,7 +9316,7 @@ Expect:
 - Step 2: the refresh shows the same page, with no "resubmit the form?" question.
 - Step 3: the second tap shows "Thank you!" again.
 - Step 4: the card shows the green chip "Customer: all received" with the answer time; no comment; no money line.
-- Step 5: the order row shows the chip "Customer: all received" next to "Delivered".
+- Step 5: the order row shows the chip "Customer: all received" under "Delivered".
 - The Home balance is the same as before; D1 still says "Delivery cost Rs 480 · paid when the order was placed".
 
 Spec: ADR-07, ADR-15; CUSTOMER_PAGE §6, §10, §13 (end to end); UX_MOBILE §3.4, §7.3
@@ -9642,7 +9535,7 @@ Expect:
 
 - Step 2: the card shows the red chip "Customer: not received" with the answer time, the note in quotes "Nothing came", and "The office will look into it." while the problem is open.
 - No send buttons, no "Make a new link" and no money line in the card.
-- Step 3: the order row shows the chip "Customer: not received" next to "Delivered".
+- Step 3: the order row shows the chip "Customer: not received" under "Delivered".
 - The Home balance is unchanged; the order still says "Delivery cost Rs 480 · paid when the order was placed".
 
 Spec: ADR-07, ADR-15; CUSTOMER_PAGE §10; UX_MOBILE §3.4, §7.3
@@ -10383,7 +10276,7 @@ Expect:
 
 - Step 1: while loading, the caption "Customer answer" with grey placeholder bars.
 - Step 2: the chip "Waiting for customer" and "Link not sent yet · Sana, 0300 1234567".
-- Step 2: the bottom button "Send on WhatsApp" and, in the card, the ghost "Other ways", which opens the sheet "Send link" with Text message, Other app, Copy message and Make a new link.
+- Step 2: the bottom button "Send on WhatsApp" and, in the card, the ghost "Other ways", which opens the sheet "Send link" with WhatsApp, Text message, Other app and Copy message, then, under a line, Make a new link.
 - Step 2: the caption "Link open until \<day and time 3 days after delivery>".
 - No raw words (PENDING, NOT_SENT, SKIPPED, MOCK_PROVIDER) and no money line in the card; the order still says "Delivery cost Rs 480 · paid when the order was placed".
 - Step 3: the expired order shows the chip "No answer" and no send buttons.
@@ -11181,6 +11074,8 @@ Expect:
 
 Spec: ADR-16; UX_MOBILE §8.1 (S18, Returns), §7.3 (S13)
 
+Note: The server part (the refill's assignedAt, the time on "Driver assigned") also has an automated proof: apps/api/test/inc3/gate/refill-and-history-reads.e2e-spec.ts ("REF-027 …"). The shop screens are walked by hand.
+
 ### REF-028 · Office refills page shows progress, and has no cancel and no money
 
 **P2** · MAN-WEB · Inc 3 · Role: Super admin (Owner)
@@ -11723,27 +11618,29 @@ Note: The shop app hides its Day-end tile while features.dayEnd is false (UX_MOB
 
 **P2** · MAN-SHOP · Inc 3 · Role: Distributor (Ahmed Gas)
 
-Before: The 0.2.0 shop app (or later) on the pilot shop phone, with the spreadsheet app chosen at the site visit (Excel, WPS or Sheets). Day-end is on, and today's sheet hasn't been sent yet. For this test, treat AG-C0020 (in the store) as damaged.
+Before: The Inc 3 shop app on the pilot shop phone (the 0.1.0 APK updated over the air, or the 0.2.0 APK), with the spreadsheet app chosen at the site visit (Excel, WPS or Sheets). Day-end is on, and today's sheet hasn't been sent yet. For this test, treat AG-C0020 (in the store) as damaged.
 
 Steps:
 
 1. On Home, tap "Day-end sheet".
 2. Read the status row and the three step rows.
-3. Tap "Download sheet" and choose the spreadsheet app.
-4. Find AG-C0020. Set "Your count: where" to "In my store", "Your count: state" to "Damaged" and "Why different" to "Valve damaged". Save the file.
-5. Back in the shop app, tap "Upload filled sheet" and pick the saved file.
+3. Tap "Download sheet". The first time, Android's folder screen opens at Documents: allow it. Then open the saved sheet from Documents in the spreadsheet app.
+4. Find AG-C0020. Set "Your count: where" to "In my store", "Your count: state" to "Damaged" and "Why different" to "Valve damaged". Save the file in the same place.
+5. Back in the shop app, tap "Upload filled sheet" and pick the saved file under "Pick your sheet".
 6. Read the "Check and send" screen.
 7. Tap "Send for approval · 1 difference", read the sheet, then confirm.
 
 Expect:
 
 - Step 2: today's date with the chip "Not sent", and three step rows: "Download sheet"; "Fill in only what's different" with "Where it is, its state, and why."; "Upload the sheet".
-- Step 3: the phone offers "Open in your sheet app" (Excel, WPS or Sheets), and the sheet has 35 rows, one per cylinder.
-- Step 5: "Checking your sheet…", then "Check and send".
+- Step 3: the toast "Sheet saved in Documents" and a tick on "Download sheet" with "Download again"; the sheet has 35 rows, one per cylinder.
+- Step 5: "Pick your sheet" lists the sheets in that folder, today's first, then "Other folder"; after the pick, "Checking your sheet…", then "Check and send".
 - Step 6: "1 difference" and "35 cylinders checked". The card reads "AG-C0020 · 11.8 kg", "App: In my store · Full" and "You: In my store · Damaged" (the changed part in bold), with "Valve damaged" in quotes and the fix chip "Set to Damaged". No raw words or long IDs.
 - Step 7: the sheet "Send day-end for \<today's date>?" with "Once the office approves, this day is closed." After confirming, the toast "Sent to the office" and the chip "Waiting for office".
 
 Spec: ADR-17; UX_MOBILE §8.3 (S19, S20), §8.4; API_CONTRACT §10.2
+
+Note: Until the 0.2.0 APK brings expo-sharing and expo-document-picker, the sheet is saved into a folder and picked from it with expo-file-system, already in the 0.1.0 binary (UX_MOBILE §8.3 as built). Android 11 and later refuse the Download folder itself, so the folder screen opens at Documents.
 
 ### DAY-020 · Shop app day-end: file from WhatsApp, no signal, wrong file, unreadable rows, sent back, closed
 
@@ -11753,10 +11650,10 @@ Before: As DAY-019. A team member has a filled sheet for today and can forward i
 
 Steps:
 
-1. Receive the filled sheet on WhatsApp, save it, and upload it with "Upload filled sheet".
+1. Receive the filled sheet on WhatsApp and save it to the phone. Tap "Upload filled sheet", then "Other folder", pick WhatsApp's folder and the sheet.
 2. Turn on airplane mode. Tap "Download sheet", then try "Upload filled sheet" with the sheet.
 3. Turn airplane mode off and tap "Try again".
-4. Upload a photo, then a PDF.
+4. Put a photo and a PDF into the sheet's folder, then tap "Upload filled sheet".
 5. Upload a sheet where AG-C0007's "Your count: where" says "Shop".
 6. After the office sends the day back, open Day-end.
 7. After the office approves, open Day-end and try to upload again.
@@ -11766,7 +11663,7 @@ Expect:
 - Step 1: accepted. "Check and send" shows as in DAY-019.
 - Step 2: the banner "No connection" with "Try again"; where a message shows for the failed download or upload, it is the shared text "No connection. Try again.". Nothing is uploaded.
 - Step 3: it works, and "Check and send" shows the new version.
-- Step 4: "This file isn't the day-end sheet. Download today's sheet and try again."
+- Step 4: "Pick your sheet" lists only the .xlsx sheets: the photo and the PDF aren't offered, so they can't be sent.
 - Step 5: a red card "Some rows couldn't be read. Fix them and upload again." with "Row 8 · Cylinders: Where: use In my store, On driver's van, With customer or Missing." and the footer "Upload fixed sheet". Nothing was saved, so there is nothing to send.
 - Step 6: the chip "Sent back", with the red card "Office note: “\<note>”" and "Fix it and upload again."
 - Step 7: the chip "Approved · day closed". Uploading shows "This day is closed. Ask the office to reopen it."
@@ -12283,7 +12180,7 @@ Before: As UXQ-006: a 360 dp phone, the largest font, and Accessibility Scanner.
 
 Steps:
 
-1. Open Today, the trip, each step screen (each has its camera), Unload, Refills and one refill, My van, the menu and Help.
+1. Open Today, Trip, Load, the visit in its four phases (on the way, deliver, take back, done), Unload, Refills, the refill run, My van, the menu and Help.
 2. Count the main buttons on each screen.
 3. Run Accessibility Scanner on each screen.
 4. Check all text at the largest font.
@@ -12730,7 +12627,7 @@ Spec: UX_PRINCIPLES §10 (Definition of simple), §6 (word budgets), §5; UX_MOB
 
 Note: Run once per release with UI changes. UXQ-006 and UXQ-013 check parts of this in detail.
 
-### UXQ-028 · The driver app passes the Definition of simple on every Inc 1 screen
+### UXQ-028 · The driver app passes the Definition of simple on every screen
 
 **P2** · MAN-DRIVER · Inc 1 · Role: UX reviewer with the driver app (Kashif)
 
@@ -12738,8 +12635,8 @@ Before: A 360 × 640 dp phone, then the largest font, and outdoors in daylight f
 
 Steps:
 
-1. Open every driver screen: Sign in, Today, the menu, Trip, each step screen (Load, on the way, Deliver, Take back), Could not deliver, the early-press and All delivered sheets, Unload, the Finish trip sheet, Refills and one refill, My van and Help.
-2. On each, see every state: the skeleton, empty, the camera states, a refusal, "Not sent" with Retry, no connection, and success.
+1. Open every driver screen: Sign in, Today, the menu, Trip, Load, the visit (on the way, deliver, take back, done), the No label and short take-back sheets, Could not deliver, Unload, the Finish trip sheet, Refills, the refill run (pick up, fill, unload), My van and Help.
+2. On each, see every state: the skeleton, empty, the camera states, a refusal, "Not saved" with Retry and its leave sheet, no connection, and success.
 3. Answer the 12 checks of UX_PRINCIPLES §10 for each screen, counting the fixed words.
 
 Expect:
@@ -13538,7 +13435,7 @@ Steps:
 2. Scan AG-C0001 and AG-C0002 (11.8 kg), AG-C0031 (45.4 kg), then AG-C0021 and AG-C0022 (15 kg).
 3. Turn on airplane mode, then scan AG-C0023.
 4. Turn airplane mode off and tap "Retry".
-5. Scan AG-C0003.
+5. The camera has stopped at "All 6 loaded": tap "Type number", type 3 and tap "Load".
 6. Tap "Done loading".
 7. Shop phone: open AG-0001 (Sana). Tap "Cancel · no refund", read the sheet, then close it without confirming.
 
@@ -13813,7 +13710,7 @@ Expect:
 
 Spec: ADR-17; API_CONTRACT §10.2, §7.13 (costTakenTodayPaisa); UX_ADMIN §4.3, §4.4, §2.1, §3.5; UX_MOBILE §8.3
 
-Note: Delivery costs = Rs 1,860 taken (480 + 400 + 290 + 400 + 290) − Rs 290 returned = Rs 1,570.
+Note: Delivery costs = Rs 1,860 taken (480 + 400 + 290 + 400 + 290) − Rs 290 returned = Rs 1,570. The cylinder history this step reads (the day-end fix with its day) also has an automated proof: apps/api/test/inc3/gate/refill-and-history-reads.e2e-spec.ts ("RHS-019 …").
 
 ### RHS-020 · Rehearsal step 20 · Next morning: the nightly wallet check is clean, then the final go / no-go
 
@@ -13901,10 +13798,10 @@ Built from each case's "Spec" line.
 | ADR-10 | Wallet correction for genuine mistakes only | 9 | WAL-005, WAL-007, WAL-010, WAL-011, WAL-012, WAL-014, WAL-015, WAL-017, SET-002 |
 | ADR-11 | Opening balances | 3 | WAL-005, SET-002, MIG-003 |
 | ADR-12 | Manual assignment from the distributor's store | 18 | FND-001, FEE-001, FEE-019, ORD-011, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-011, ASG-012, OFF-009, DRV-041, DRV-044, SET-006, RHS-007 |
-| ADR-13 | Cylinder holder rules | 77 | SEC-020, FEE-027, ORD-015, ASG-006, DRV-002, DRV-003, DRV-004, DRV-006, DRV-010, DRV-011, DRV-012, DRV-013, DRV-015, DRV-018, DRV-019, DRV-020, DRV-021, DRV-024, DRV-025, DRV-026, DRV-027, DRV-028, DRV-029, DRV-030, DRV-031, DRV-032, DRV-033, DRV-034, DRV-036, DRV-038, DRV-040, DRV-042, DRV-044, DRV-047, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-006, HLD-007, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-014, HLD-016, HLD-017, HLD-018, HLD-019, STR-001, STR-002, STR-003, STR-004, STR-006, STR-007, STR-008, STR-009, STR-010, STR-012, STR-013, REF-014, REF-015, REF-016, REF-019, DAY-012, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015, RHS-017, RHS-018, RHS-020 |
+| ADR-13 | Cylinder holder rules | 76 | SEC-020, FEE-027, ORD-015, ASG-006, DRV-002, DRV-003, DRV-004, DRV-010, DRV-011, DRV-012, DRV-013, DRV-015, DRV-018, DRV-019, DRV-020, DRV-021, DRV-024, DRV-025, DRV-026, DRV-027, DRV-028, DRV-029, DRV-030, DRV-031, DRV-032, DRV-033, DRV-034, DRV-036, DRV-038, DRV-040, DRV-042, DRV-044, DRV-047, HLD-001, HLD-002, HLD-003, HLD-004, HLD-005, HLD-006, HLD-007, HLD-008, HLD-009, HLD-010, HLD-011, HLD-012, HLD-013, HLD-014, HLD-016, HLD-017, HLD-018, HLD-019, STR-001, STR-002, STR-003, STR-004, STR-006, STR-007, STR-008, STR-009, STR-010, STR-012, STR-013, REF-014, REF-015, REF-016, REF-019, DAY-012, SET-007, RHS-009, RHS-011, RHS-013, RHS-014, RHS-015, RHS-017, RHS-018, RHS-020 |
 | ADR-14 | Expenses | 17 | EXP-001, EXP-002, EXP-003, EXP-004, EXP-005, EXP-006, EXP-008, EXP-009, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015, EXP-016, EXP-017, EXP-018, MIG-004 |
 | ADR-15 | Customer confirmation is a record only, and optional | 31 | DRV-022, CNF-001, CNF-002, CNF-003, CNF-005, CNF-007, CNF-011, CNF-012, CNF-013, CNF-018, CNF-020, CNF-034, CNF-037, CNF-038, CNF-040, CNF-043, CNF-044, CNF-045, CAS-001, CAS-002, CAS-005, CAS-008, CAS-010, CAS-011, CAS-012, MSG-007, MSG-014, MSG-015, MSG-022, RHS-012, RHS-014 |
-| ADR-16 | Refills | 31 | FND-003, TOP-027, FEE-028, DRV-052, REF-001, REF-002, REF-003, REF-004, REF-005, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-022, REF-023, REF-024, REF-025, REF-026, REF-027, REF-028, RHS-016, RHS-017 |
+| ADR-16 | Refills | 30 | FND-003, TOP-027, FEE-028, REF-001, REF-002, REF-003, REF-004, REF-005, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-022, REF-023, REF-024, REF-025, REF-026, REF-027, REF-028, RHS-016, RHS-017 |
 | ADR-17 | Day-end Excel | 21 | FEE-028, DAY-001, DAY-002, DAY-003, DAY-004, DAY-005, DAY-006, DAY-007, DAY-008, DAY-009, DAY-010, DAY-012, DAY-013, DAY-014, DAY-015, DAY-016, DAY-019, DAY-020, DAY-021, RHS-018, RHS-019 |
 | ADR-18 | English now, Urdu-ready | 9 | FND-005, FND-008, FND-009, REF-030, DAY-022, UXQ-004, UXQ-005, UXQ-011, UXQ-026 |
 | ADR-19 | Prisma migrations made without a database | 6 | MIG-001, MIG-002, MIG-008, MIG-009, MIG-010, MIG-014 |
@@ -13955,11 +13852,11 @@ Built from each case's "Spec" line.
 | §7.4 | Customers | 22 | FND-031, SEC-011, PRC-005, PRC-009, CUS-001, CUS-002, CUS-003, CUS-005, CUS-006, CUS-007, CUS-008, CUS-009, CUS-010, CUS-012, CUS-014, ORD-016, MSG-011, MSG-013, SET-006, SET-012, MIG-005, RHS-004 |
 | §7.5 | Delivery prices and quotes | 27 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-018, FEE-007, FEE-008, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, RHS-004 |
 | §7.6 | Orders | 90 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
-| §7.7 | Trips and the legacy scan route | 19 | SEC-011, SEC-035, FEE-013, FEE-015, FEE-021, ASG-005, ASG-006, ASG-008, ASG-009, ASG-012, DRV-001, DRV-002, DRV-003, DRV-004, DRV-006, DRV-051, HLD-002, HLD-008, HLD-019 |
+| §7.7 | Trips and the legacy scan route | 17 | SEC-011, SEC-035, FEE-013, FEE-015, FEE-021, ASG-005, ASG-006, ASG-008, ASG-009, ASG-012, DRV-001, DRV-002, DRV-003, DRV-004, HLD-002, HLD-008, HLD-019 |
 | §7.8 | Wallet | 23 | FND-012, FND-014, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, WAL-004, WAL-005, WAL-006, WAL-007, WAL-008, WAL-009, WAL-010, WAL-011, WAL-012, WAL-013, WAL-017, WAL-019, WAL-022, WAL-023, WAL-024, SET-002 |
 | §7.9 | Top-ups | 39 | FND-003, FND-004, FND-018, FND-020, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, TOP-001, TOP-002, TOP-003, TOP-004, TOP-005, TOP-006, TOP-007, TOP-008, TOP-009, TOP-011, TOP-013, TOP-014, TOP-015, TOP-016, TOP-017, TOP-018, TOP-019, TOP-020, TOP-021, TOP-022, TOP-023, TOP-024, TOP-026, TOP-028, TOP-029, TOP-030, FEE-024, SET-005, RHS-002, RHS-003 |
 | §7.10 | Files | 9 | FND-015, FND-016, FND-017, FND-018, FND-035, TOP-008, TOP-009, EXP-005, EXP-007 |
-| §7.11 | Refills | 14 | SEC-011, DRV-052, REF-001, REF-002, REF-003, REF-005, REF-006, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, RHS-016 |
+| §7.11 | Refills | 13 | SEC-011, REF-001, REF-002, REF-003, REF-005, REF-006, REF-007, REF-008, REF-009, REF-010, REF-011, REF-012, RHS-016 |
 | §7.12 | Expenses | 22 | FND-020, SEC-012, WAL-024, EXP-001, EXP-002, EXP-003, EXP-004, EXP-005, EXP-006, EXP-007, EXP-008, EXP-009, EXP-010, EXP-011, EXP-012, EXP-013, EXP-014, EXP-015, EXP-016, EXP-017, EXP-018, MIG-004 |
 | §7.13 | Settings, audit, admin summary, reports | 23 | FND-002, FND-003, FND-013, FND-029, SEC-012, TOP-003, TOP-027, TOP-028, FEE-022, FEE-024, OFF-002, OFF-003, OFF-008, OFF-009, OFF-010, OFF-011, CNF-021, CNF-045, CAS-002, REF-003, REF-004, DAY-017, RHS-019 |
 | §7.14 | Socket /drivers | 5 | SEC-015, SEC-016, SEC-032, SEC-034, OFF-018 |

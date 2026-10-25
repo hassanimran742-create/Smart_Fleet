@@ -25,7 +25,7 @@ import { useDistributor } from '../distributors/api';
 import { whenText } from '../orders/format';
 import { fileUrl, invalidateDayEnd, useApproveDayEnd, useDayEnd, useReopenDayEnd, useSendBackDayEnd } from './api';
 import { DayEndOff } from './DayEndOff';
-import { appSays, DayEndStageChip, FixChip, ofKind, sheetSays, type DiffKind } from './format';
+import { appSays, DayEndStageChip, FixChip, lineDiff, ofKind, sheetSays, type DiffKind } from './format';
 import './dayend.css';
 
 const route = getRouteApi('/day-end/$dayEndId');
@@ -128,7 +128,7 @@ export function DayEndReviewPage() {
             <span className="sf-record-no">
               {line.sizeLabel ? t('review.cylinder', { no: line.shortCode, size: line.sizeLabel }) : line.shortCode}
             </span>
-            <span className="sf-dayend__muted">{t(`review.diff.${line.diff}`)}</span>
+            <span className="sf-dayend__muted">{t(`review.diff.${lineDiff(line)}`)}</span>
           </span>
         ),
         priority: 1,

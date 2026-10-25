@@ -5,9 +5,10 @@ import { DAY_END_ROW_ERROR_EN } from '@smartfleet/shared-types';
  * Inc 2/3 spec §4.6–§4.7). Owned by the mobile-distributor lane. The stage chip is the foundation's
  * `stages.dayEnd.*`; refusals are `errors.<CODE>`. Day-end never moves money.
  *
- * The sheet is saved into a folder the shop picks (Download by default) and picked from that folder
- * for the upload: the 0.1.0 app has no file picker or share sheet (no new native module), so `saved`
- * and `pick.*` stand in for the spec's "Open in your sheet app" share sheet and DocumentPicker.
+ * The sheet is saved into a folder the shop picks (Android's folder screen opens at Documents: Android 11
+ * and later refuse Download itself) and picked from that folder for the upload: the 0.1.0 app has no file
+ * picker or share sheet (no new native module), so `saved` and `pick.*` stand in for the spec's "Open in
+ * your sheet app" share sheet and DocumentPicker.
  */
 export const dayEnd = {
   title: 'Day-end',
@@ -39,7 +40,7 @@ export const dayEnd = {
     fix: 'Fix it and upload again.',
   },
 
-  /** The toast once the sheet is saved on the phone: "Sheet saved in Download". */
+  /** The toast once the sheet is saved on the phone: "Sheet saved in Documents". */
   saved: 'Sheet saved in {{folder}}',
   savedNoFolder: 'Sheet saved',
   /** Picking the filled sheet from the folder it was saved in. */

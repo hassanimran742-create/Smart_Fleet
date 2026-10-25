@@ -391,6 +391,8 @@
 
 .sf-nav__list {
   display: grid;
+  /* One column no wider than the menu: a long label wraps, it never pushes a badge out of sight. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   margin: 0;
   padding: 0;
@@ -431,12 +433,15 @@
   outline-offset: -2px;
 }
 
+/* A label takes two lines at most: "Customer problems" with its badge wraps in the 200 px menu (1024 px). */
 .sf-nav__label {
+  display: -webkit-box;
   flex: 1;
   min-inline-size: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .sf-nav__badge {

@@ -2047,18 +2047,6 @@
 3. Step 3: 400 ORDER_USE_MANUAL_DELIVERY (the office uses ""Mark delivered by office"").
 4. Step 4: 403 PERMISSION_DENIED: could-not-deliver is for the trip's driver or the office, never the shop.
 5. X1 is neither DELIVERED nor FAILED. Balance Rs 4,520. No order.fail row.","ADR-02; API_CONTRACT §3.1, §3.2, §7.6 (fail, PATCH status), §8.6","apps/api/test/orders/driver-scans.e2e-spec.ts","","","","",""
-"DRV-006","Driver app and runs","Inc 1 driver app: the camera is on the step screen, and ""All delivered"" asks first","DRIVER (DR1 Kashif)","P2","MAN-DRIVER","1","Inc 1 driver app on a pilot phone. Kashif can sign in. At the start no trip is assigned to him. AG-C0011 is with Sana (earlier delivery).","1. Sign in to the Smart Fleet Driver app as Kashif. Look at the home screen.
-2. Ask the office to assign order X1 to Kashif. Wait 30 seconds or pull down to refresh.
-3. Tap ""Start trip"".
-4. On the ""Load at Ahmed Gas Store"" step (header ""Step 1 of 3""), look at the camera on that screen.
-5. Point the camera at the label of AG-C0011 and watch the result.
-6. Open Sana's step, tap ""I've arrived"", then ""All delivered"". Read the sheet, then confirm.
-7. Open Sana's step again.","1. Step 1: Today has no free scan tiles, no ""Nearby orders"" and no ""Transfer tasks"". With no trip it reads ""Nothing to do."" and ""New trips appear by themselves."" with ""Call office"".
-2. Step 2: the trip appears as ""Deliver to Sana"" with the chip ""Next"" and the footer ""Start trip"".
-3. Step 4: the step screen has the camera already set for loading, ""0 of 3 scanned"" and the strip ""Scan each full cylinder."". There is no separate scan screen and no list of scan types.
-4. Step 5: a red strip under the camera says ""This cylinder isn't in Ahmed Gas Store's stock. Load only from this store."" No pop-up box and no code such as SCAN_NOT_AT_STORE.
-5. Step 6: with fewer scanned than the order, ""All delivered"" is outlined and opens ""Only 0 of 3 scanned. Continue?"" with ""Only if the customer has every cylinder."", [Yes, all delivered] and [Keep scanning] (with all scanned it is the filled button and asks ""All delivered?"" with [Yes, all delivered] and [Not yet]). While sending, the button shows it is busy and can't be pressed twice. After confirming: the green strip ""All delivered"" and ""Take back from Sana"" with ""0 taken back · N expected"" (N is the order's take-back count).
-6. Step 7: Sana's step opens on ""Take back from Sana"" with the ""All delivered"" strip; nothing asks again. No pop-up box appears at any point.","ADR-13; UX_MOBILE §5 (Today, the step screens, the Inc 1 count, the early press), §2.2 (ConfirmSheet, CountBar, Button), §6; API_CONTRACT §7.7","","The Inc 1 count is the screen's tally of the cylinders the server confirmed, labelled ""scanned""; it never blocks a button (UX_PRINCIPLES §9.2). Inc 2 enforces the count on the server.","","","",""
 "DRV-007","Driver app and runs","Could not deliver records a valid reason and moves no money","DRIVER (DR1 Kashif)","P1","AUTO-API","1","Inc 1 build. Standard test data. X1 placed (balance Rs 4,520) and assigned to DR1 (trip T1). DR1 has loaded AG-C0001 with the legacy SCAN_OUT, so delivery has started.","1. As DR1, POST /orders/X1/fail { reasonCode: ""OTHER"" } with no note.
 2. POST /orders/X1/fail { reasonCode: ""OTHER"", note: ""ab"" } (2 characters).
 3. POST /orders/X1/fail { reasonCode: ""LOST_KEYS"" } (not in the list).
@@ -2274,7 +2262,7 @@
 2. Step 2: a second onScan call with a different scanId.
 3. Step 3: the new read waits; only one request is in flight at a time.
 4. Step 4: the read goes to the ""Not saved"" list, done does not move; retry sends the same scanId as the first attempt.
-5. Step 5: state shows the refusal with code SCAN_NOT_FULL; done does not move; re-arm happens after 1.2 s (0.6 s after a success).","UX_MOBILE §3.1 (Idempotency), §7.1 (read loop, feedback)","apps/mobile/src/ui/scan/__tests__/scanReducer.spec.ts","It waits for the driver-app lane: apps/mobile has no test runner of its own. Not automated yet.","","","",""
+5. Step 5: state shows the refusal with code SCAN_NOT_FULL; done does not move; re-arm happens after 1.2 s (0.6 s after a success).","UX_MOBILE §3.1 (Idempotency), §7.1 (read loop, feedback)","apps/mobile/src/ui/scan/__tests__/scanReducer.spec.ts","The API's jest runs it from apps/mobile/src/ui/scan (apps/api/package.json jest.roots): 12 tests, which also cover a label left in front of the camera, typed numbers, a take-back's tapped state on a resend and the buzz patterns.","","","",""
 "DRV-036","Driver app and runs","A scan made with no signal is shown as not saved and can be sent again","DRIVER (DR1 Kashif)","P1","MAN-DRIVER","2","Inc 2 driver app (0.2.0) on a pilot phone. Order X1 is assigned to Kashif. AG-C0001, AG-C0002 and AG-C0031 are at Ahmed Gas Store.","1. Open ""Load at store"". Turn on airplane mode.
 2. Scan AG-C0001, then AG-C0002.
 3. Tap back to leave the screen.
@@ -2327,9 +2315,9 @@
 2. Tap ""Finish trip"".
 3. On the shop app, scan AG-C0011 and AG-C0032. Watch the driver's screen for 10 seconds.
 4. On the shop app, scan AG-C0021, AG-C0022 and AG-C0023.
-5. On the driver app, tap ""Finish trip"".","1. Step 1: ""Unload at Ahmed Gas Store"" with ""Give each cylinder to the shop to scan."" Groups: Not delivered 3, Empty 1, Full 1, with ""0 of 5"" unloaded.
+5. On the driver app, tap ""Finish trip"".","1. Step 1: ""Unload at Ahmed Gas Store"" with ""Give each cylinder to the shop to scan."" and ""0 of 5"" unloaded. The groups list each cylinder by number: ""Not delivered · 3"" (AG-C0021, AG-C0022, AG-C0023, 15 kg), ""Empty · 1"" (AG-C0011 · 11.8 kg) and ""Full · 1"" (AG-C0032 · 45.4 kg).
 2. Step 2: the trip is not finished: ""Finish trip"" can be tapped (it is outlined while cylinders are left), and the line above it says exactly ""The store must scan in 5 more from your van."" No pop-up box.
-3. Step 3: within about 5 seconds the driver's screen shows ""2 of 5"" unloaded, with no refresh needed.
+3. Step 3: within about 5 seconds the driver's screen shows ""2 of 5"" unloaded, and the rows of AG-C0011 and AG-C0032 get a tick and turn grey, with no refresh needed.
 4. Step 4: the count reaches ""All 5 unloaded"" and ""Finish trip"" is the filled main button.
 5. Step 5: the trip is finished and Today counts it under ""Done today"".","ADR-13; UX_MOBILE §7.2 (R3, R7), Appendix C (qk.trip polls 5 s on Unload); API_CONTRACT §2.3 (TRIP_VAN_NOT_EMPTY), §9.3","","","","","",""
 "DRV-043","Driver app and runs","The 03:00 van check raises a van-not-empty alert only for vans still holding cylinders","SYSTEM (job day-cutoff-van-check), SUPER_ADMIN (SA1)","P2","AUTO-API","2","Inc 2 build. Standard test data. trip.allowFinishWithLeftovers = true. DR1's trip on LEA-101 finished with AG-C0001 left on the van (reason given). DR2's trip on LEB-202 finished with an empty van. Business day Asia/Karachi, cut-off 03:00.","1. Resolve any open VAN_NOT_EMPTY alerts as SA1. Run the day-cutoff-van-check job as if it were 03:00 Asia/Karachi.
@@ -2362,7 +2350,7 @@
 3. Deliver to Sana and take back AG-C0011 as Empty. Note the footer button.
 4. Mark Usman as could not deliver. Note the footer button.
 5. At the store, the shop scans everything in. Finish the trip.
-6. On every screen, read all text.","1. The footer reads ""Load at store"", then ""Deliver to Sana"", then ""Deliver to Usman"", then ""Unload at store"", then ""Finish trip"", never ""Next:"": one main button per screen.
+6. On every screen, read all text.","1. Step 1: the trip's footer reads ""Start trip"". Each step then ends on one footer that names the next: ""Deliver to Sana"" after ""Loading done"", ""Deliver to Usman"" after Sana's ""Visit done"", ""Unload at store"" after Usman's ""Not delivered"", and ""Finish trip"" on Unload. Never ""Next:"", and one main button per screen.
 2. The steps show ""To do"", ""Next"", ""In progress"", ""Done"", ""Not delivered"" (red) or ""Cancelled"" (grey); Usman's visit shows ""Not delivered"" in red.
 3. No screen shows a raw code (EMPTY, PART_FILLED, SCAN_OUT, IN_TRANSIT, FAILED), a long id, ""Rs."" or a money amount. Cylinders show as ""AG-C0011"", sizes as ""11.8 kg"".
 4. No pop-up box appears at any point.","UX_MOBILE §0 (Plain words), §3.4 (stages.step), §7.2 (R3), §7.4","","","","","",""
@@ -2376,34 +2364,13 @@
 3. Tap the notification.
 4. Sign out of the driver app. Ask Owner to assign another waiting order to Kashif, and watch the phone for one minute.","1. Step 2: a notification ""New trip"" with ""Sana · load at Ahmed Gas Store"".
 2. Step 3: the app opens on Today with the new trip.
-3. Step 4: no notification arrives on the signed-out phone, because Sign out removed its push token (DELETE /push-tokens).","UX_MOBILE §7.0 (FCM for the new-trip push), §7.2 (R8 New-trip push); API_CONTRACT §7.2 (POST /push-tokens, DELETE /push-tokens)","","","","","",""
+3. Step 4: no notification arrives on the signed-out phone, because Sign out removed its push token (DELETE /push-tokens).","UX_MOBILE §7.0 (FCM for the new-trip push), §7.2 (R8 New-trip push); API_CONTRACT §7.2 (POST /push-tokens, DELETE /push-tokens)","","Needs the 0.2.0 APK (FCM set-up): on the 0.1.0 APK the phone gets no push token, registration fails quietly and no notification arrives, while Today still polls every 30 seconds. Sign out first sends DELETE /push-tokens, best effort and never longer than 3 seconds (api/session.ts, screens/driver/push.ts).","","","",""
 "DRV-049","Driver app and runs","The Van screen lists the real cylinders on the van by size and state","DRIVER (Kashif)","P3","MAN-DRIVER","2","Inc 2 driver app. Kashif's van LEA-101 holds AG-C0001 and AG-C0002 (11.8 kg, Full, loaded for X1) and AG-C0011 (11.8 kg, taken back Empty).","1. Open the menu, then My van.
 2. Read the screen.","1. ""LEA-101"", a big ""3"" with ""cylinders"", the group ""Full"" with ""11.8 kg · 2"" and AG-C0001, AG-C0002, and the group ""Empty"" with ""11.8 kg · 1"" and AG-C0011.
 2. No capacity bar or percentage, no raw words (FULL, EMPTY, VEHICLE) and no money.","UX_MOBILE §7.2 (R9 My van), §5 (My van), §0; API_CONTRACT §9.3 (GET /driver/home van counts), Appendix A (GET /inventory/my-vehicle counted from cylinders in Inc 2)","","","","","",""
 "DRV-050","Driver app and runs","The driver's trip and stop rows put the step chip under the text, so the customer's name keeps the row's width","DEVELOPER","P3","AUTO-UNIT","1","Static test of apps/mobile/src/ui/ListRow.tsx and the driver's HomeScreen.tsx and ActiveTripScreen.tsx.","1. Read where ListRow draws below.
 2. Read every ListRow on the driver's Home and trip screens.","1. Step 1: inside the text column, under the title, subtitle and meta, taking no width from the title.
 2. Step 2: none has trailing; each has below with the step StatusChip, so at 360 dp ""Deliver to Muhammad Usman"" fits its two lines.","UX_MOBILE §2.2 #13 (ListRow), §5 (driver Home trip rows), §6","apps/api/test/unit/ui/mobile-layout.spec.ts","Regression case for review finding mobile-ux-05 (CHANGELOG, ""Review fixes, 2026-10-23""); its tests are named ""REV mobile-ux-05 …"". The shop's History rows were then decided (2026-10-23): the kind as the title, the number and the customer on the grey line, the amount on the right (UX_MOBILE S7).","","","",""
-"DRV-051","Driver app and runs","Inc 1 Unload step counts the van down to ""Nothing on the van.""","DRIVER (DR1 Kashif)","P2","MAN-DRIVER","1","Inc 1 driver app on a pilot phone. Kashif's trip for X1 is in progress: the store stop is done and Sana's visit ended as not delivered, so AG-C0001, AG-C0002 and AG-C0031 (full) are still on van LEA-101. Kashif is back at Ahmed Gas Store.","1. On the trip, tap ""Unload at store"".
-2. Look at the step screen.
-3. Tap ""Finish trip"" before scanning. Read the sheet and tap ""Not yet"".
-4. Scan AG-C0001, then AG-C0002 and AG-C0031.
-5. Tap ""Finish trip"" and confirm.","1. Step 2: the header ""Step 3 of 3"", the title ""Unload at Ahmed Gas Store"", a big ""3"" with ""on the van"" and ""3 full"" under it, the strip ""Scan each cylinder you bring back."" and an outlined ""Finish trip"".
-2. Step 3: the sheet ""Finish this trip?"" with ""Unload at Ahmed Gas Store first. You can't scan for this trip after."", [Finish trip] and [Not yet].
-3. Step 4: each scan shows the green strip ""Unloaded"" and the count goes down to the green ""Nothing on the van.""; ""Finish trip"" becomes the filled main button.
-4. Step 5: Today opens with the toast ""Trip done"" and ""Done today: 1"".
-5. No pop-up box and no code appear.","UX_MOBILE §5 (Unload at {{store}}, Trip), §2.2 #29 (CountBar, countdown); API_CONTRACT §7.7","","The Inc 1 count is the van's own count (GET /inventory/my-vehicle, refreshed after each scan); with two loaded trips on one van it can't tell whose cylinders are whose (accepted for Inc 1). Inc 2 makes this step passive: the shop scans (DRV-042).","","","",""
-"DRV-052","Driver app and runs","Inc 1 Refills: the list and one refill, step by step, with no money","DRIVER (DR1 Kashif)","P2","MAN-DRIVER","1","Inc 1 driver app. Ahmed Gas refill AG-R001 (6 × 11.8 kg, Lahore Filling Station) is assigned to Kashif, with nothing picked up yet.","1. Open the menu, then Refills.
-2. Tap the refill.
-3. Tap ""Picked up 6 empties"".
-4. At the station, tap ""I've arrived"".
-5. Keep ""Cylinders filled"" at 6 and tap ""Mark 6 filled"".
-6. Back at the store, tap ""Brought back"".","1. Step 1: the row ""6 × 11.8 kg · Ahmed Gas"" with the chip ""Pick up empties"". No money anywhere.
-2. Step 2: the header ""Refill"", the title ""Pick up empties at Ahmed Gas Store"", the stepper ""Empties picked up"" with ""Up to 6"", and the footer ""Picked up 6 empties"".
-3. Step 3: the title ""Go to Lahore Filling Station"" and the footer ""I've arrived"".
-4. Step 4: the title ""Fill at Lahore Filling Station"", the stepper ""Cylinders filled"" with ""Out of 6 picked up"", and the footer ""Mark 6 filled"".
-5. Step 5: the title ""Bring them back to Ahmed Gas Store"", ""Filled 6 of 6"", and the footer ""Brought back"".
-6. Step 6: the title ""Back at Ahmed Gas Store"" with ""The office will finish this refill."" and no footer; in the list the chip reads ""Back at store"".
-7. No rupee amount, raw status word or pop-up box appears.","ADR-16; UX_MOBILE §5 (Refills, Refill), §3.6 (the side menu); API_CONTRACT §7.11","","Inc 3 puts scans on this same screen (UX_MOBILE §8.2; REF-025).","","","",""
 "DRV-053","Driver app and runs","Driver Help, with the profile merged in: the office, who you are and the app version, even offline","DRIVER (DR1 Kashif)","P3","MAN-DRIVER","1","Inc 1 driver app signed in as Kashif (van LEA-101). support.phone, support.whatsApp and support.hours are set.","1. Open the menu and read it.
 2. Tap Help and read the screen.
 3. Tap ""Call office"", then come back.
@@ -2412,14 +2379,6 @@
 3. Step 3: the dialler opens with the office number.
 4. Step 4: Help still shows the office number, and ""Call office"" opens the dialler: the number is saved on the phone (support.contact).
 5. No pop-up box appears.","UX_MOBILE §5 (Help, with the profile merged in), §3.6 (the side menu, support.contact), §2.2 #4 (Call office never disappears)","","The Profile route is retired (DECIDED, 2026-10-23). ""The office number isn't loaded yet."" shows only when the number has never loaded.","","","",""
-"DRV-054","Driver app and runs","An early ""Done loading"" asks first, and nothing blocks","DRIVER (DR1 Kashif)","P2","MAN-DRIVER","1","Inc 1 driver app. Kashif's trip for X1 (2 × 11.8 kg + 1 × 45.4 kg) has started; AG-C0001, AG-C0002 and AG-C0031 are in Ahmed Gas Store.","1. On ""Load at Ahmed Gas Store"", scan AG-C0001.
-2. Tap ""Done loading"".
-3. Tap ""Keep scanning"". Scan AG-C0002 and AG-C0031.
-4. Tap ""Done loading"".","1. Step 1: ""1 of 3 scanned"" and the green strip ""Loaded""; ""Done loading"" is outlined.
-2. Step 2: the sheet ""Only 1 of 3 scanned. Continue?"" with [Done loading] and [Keep scanning].
-3. Step 3: the count reaches ""All 3 scanned"" and ""Done loading"" becomes the filled main button.
-4. Step 4: it acts at once, with no sheet: the success card ""Loading done"" and the footer ""Deliver to Sana"".
-5. No hard block and no pop-up box at any point.","UX_MOBILE §5 (the step screens, the early press); UX_PRINCIPLES §9.2, §2 (rule 7)","","The Inc 1 server allows an early finish, so the sheet asks once and never blocks (DECIDED, 2026-10-23). Inc 2 enforces the full load on the server (DRV-017).","","","",""
 "HLD-001","One-holder rule","Every cylinder has exactly one holder at every step of a full day","DRIVER (DR1, DR2), DISTRIBUTOR (DA)","P1","AUTO-API","2","Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). Scripted day: X1 (expected returns 1 × 11.8 kg, 1 × 45.4 kg) and X2 on DR1's trip; Y1 (1 × 11.8 kg for Usman) on DR2's trip. DR1 delivers X1 (AG-C0001, AG-C0002, AG-C0031) and takes back AG-C0011 Empty and AG-C0032 Full; X2 is marked could not deliver; DR2 delivers AG-C0003 to Usman; the store receives everything; both trips finish.","1. After every scan of the script, read all 35 DA cylinders with their last event (lastEventId).
 2. At the end, as DA, GET /store/stock and GET /store/incoming.
 3. Search cylinder_events for any event whose destination is DISTRIBUTOR or RETURNED_TO_DISTRIBUTOR.","1. At every checkpoint each cylinder has one holder of type STORE, VEHICLE or CLIENT with a holder id, and that holder equals the destination of its last event, which is its newest event.
@@ -2620,7 +2579,7 @@
 2. After the store scan-in, search AG-C0001 again and read the history.
 3. Read every line on the page.","1. Step 1: the holder reads ""With Sana · <X1 number> · since <time>"", and ""Responsible driver: Kashif"" with the muted line ""Last loaded it onto a van"".
 2. Step 2: the page reads ""Responsible driver: none"".
-3. Step 2: the history reads, in order: ""Loaded onto van LEA-101 at Ahmed Gas Store"", ""Delivered to Sana · <X1 number>"", ""Taken back from Sana · Empty"", ""Unloaded at Ahmed Gas Store"". Each line shows who and when.
+3. Step 2: the history reads, in order: ""Added to Ahmed Gas Store as a new cylinder · Full"", ""Loaded onto van LEA-101 at Ahmed Gas Store"", ""Delivered to Sana · <X1 number>"", ""Taken back from Sana · Empty"", ""Unloaded at Ahmed Gas Store"". Each line shows who and when.
 4. No raw code (SCAN_OUT, DELIVERED, PICKED_UP_EMPTY, SCAN_IN, VEHICLE), no raw source word (SCAN, TYPED, MANUAL), no ""Older record"", ""Handed"", ""Scanned into"" or ""pilot"", no long id and no ""Rs."" appears.","ADR-13; UX_ADMIN §3.5 (Find cylinder), §2.12 (no system words); API_CONTRACT §9.4 (history)","","The shop app has no history screen in the docs, so this runs on the office website. <X1 number> is X1's order number.","","","",""
 "STR-013","Store receive","Shop order detail shows delivered and taken-back cylinders as separate lists","DISTRIBUTOR (DA Ahmed Gas)","P3","MAN-SHOP","2","Inc 2 shop app. Order X1 for Sana was delivered: AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) given; AG-C0011 taken back Empty, AG-C0032 taken back Full, and 1 unlabelled 11.8 kg Empty counted.","1. Open My orders, then order X1.
 2. Read the ""Delivered"" and ""Taken back"" parts and the cost line.","1. Step 2: ""Delivered"" shows one line per size: ""2 × 11.8 kg"" and ""1 × 45.4 kg"".
@@ -2900,7 +2859,7 @@
 2. Step 2: the refresh shows the same page, with no ""resubmit the form?"" question.
 3. Step 3: the second tap shows ""Thank you!"" again.
 4. Step 4: the card shows the green chip ""Customer: all received"" with the answer time; no comment; no money line.
-5. Step 5: the order row shows the chip ""Customer: all received"" next to ""Delivered"".
+5. Step 5: the order row shows the chip ""Customer: all received"" under ""Delivered"".
 6. The Home balance is the same as before; D1 still says ""Delivery cost Rs 480 · paid when the order was placed"".","ADR-07, ADR-15; CUSTOMER_PAGE §6, §10, §13 (end to end); UX_MOBILE §3.4, §7.3","","","","","",""
 "CNF-035","Customer confirmation page","""Other problem"" asks for a message before sending","Customer (public link, no login)","P2","MAN-PAGE","2","A delivered order like D1 with a fresh link on Sana's phone. Customer confirmation is on. An order ""like D1"" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).","1. Open the link and tap ""Other problem"".
 2. Tap ""Send"" with the box empty.
@@ -2963,7 +2922,7 @@
 2. Read the ""Customer answer"" card.
 3. Open My orders → Done and find the order row. Open Home.","1. Step 2: the card shows the red chip ""Customer: not received"" with the answer time, the note in quotes ""Nothing came"", and ""The office will look into it."" while the problem is open.
 2. No send buttons, no ""Make a new link"" and no money line in the card.
-3. Step 3: the order row shows the chip ""Customer: not received"" next to ""Delivered"".
+3. Step 3: the order row shows the chip ""Customer: not received"" under ""Delivered"".
 4. The Home balance is unchanged; the order still says ""Delivery cost Rs 480 · paid when the order was placed"".","ADR-07, ADR-15; CUSTOMER_PAGE §10; UX_MOBILE §3.4, §7.3","","","","","",""
 "CNF-045","Customer confirmation page","Customer messages settings on the website","SUPER_ADMIN SA1 Owner (website)","P2","MAN-WEB","2","Fresh test server with the default settings. Signed in as Owner.","1. Open Settings → Customer messages and read each setting and its description.
 2. Turn on ""Customer confirmation"", turn on the ""Partly received"" chip under ""Answers that open a problem"", set ""How long the link works"" to 48, and under ""Team phones"" click ""+ Add phone"" and type 0300 1234567. Click away from the phone field.
@@ -3183,7 +3142,7 @@
 2. Read the card and the bottom of the screen. Tap ""Other ways"", read the sheet, then close it.
 3. Open the expired order and read its card.","1. Step 1: while loading, the caption ""Customer answer"" with grey placeholder bars.
 2. Step 2: the chip ""Waiting for customer"" and ""Link not sent yet · Sana, 0300 1234567"".
-3. Step 2: the bottom button ""Send on WhatsApp"" and, in the card, the ghost ""Other ways"", which opens the sheet ""Send link"" with Text message, Other app, Copy message and Make a new link.
+3. Step 2: the bottom button ""Send on WhatsApp"" and, in the card, the ghost ""Other ways"", which opens the sheet ""Send link"" with WhatsApp, Text message, Other app and Copy message, then, under a line, Make a new link.
 4. Step 2: the caption ""Link open until <day and time 3 days after delivery>"".
 5. No raw words (PENDING, NOT_SENT, SKIPPED, MOCK_PROVIDER) and no money line in the card; the order still says ""Delivery cost Rs 480 · paid when the order was placed"".
 6. Step 3: the expired order shows the chip ""No answer"" and no send buttons.","CUSTOMER_PAGE §8, §10; UX_MOBILE §0, §3.4, §7.3 (S14)","","","","","",""
@@ -3473,7 +3432,7 @@
 3. Step 3: no ""Cancel refill"" after pickup, or the message ""This refill can't be cancelled after pickup.""
 4. Step 4: while Imran is at the station, the chip reads ""At the station""; once he has left it, ""Coming back"". Receive shows the row ""Imran · LEB-202"" with a ""Refill"" chip and ""0 of 2 received"".
 5. Step 5: a tick for each, then ""All 2 back · Refill done"".
-6. Step 6: the chip ""Done"" and ""Back at store"" in the timeline. No amount appears anywhere.","ADR-16; UX_MOBILE §8.1 (S18, Returns), §7.3 (S13)","","","","","",""
+6. Step 6: the chip ""Done"" and ""Back at store"" in the timeline. No amount appears anywhere.","ADR-16; UX_MOBILE §8.1 (S18, Returns), §7.3 (S13)","","The server part (the refill's assignedAt, the time on ""Driver assigned"") also has an automated proof: apps/api/test/inc3/gate/refill-and-history-reads.e2e-spec.ts (""REF-027 …""). The shop screens are walked by hand.","","","",""
 "REF-028","Refills","Office refills page shows progress, and has no cancel and no money","Super admin (Owner)","P2","MAN-WEB","3","Inc 3 website, signed in as Owner. AG-R001 (2 × 11.8 kg) is waiting for a driver.","1. Open Refills.
 2. Read the tabs and the table.
 3. On AG-R001, click ""Assign driver"" and pick Imran.
@@ -3660,27 +3619,27 @@
 2. Step 2: 403 FEATURE_DISABLED ""This isn't available yet."" with the header X-Feature-Disabled: dayEnd for every call; the two lists answer 403 too, never []. No day row is created.
 3. Step 3: 200, and an audit row setting.update with the reason.
 4. Step 4: features.dayEnd is true, the sheet downloads, and the upload is accepted.","API_CONTRACT §6 (dayEnd.enabled, PublicAppConfig.features.dayEnd), §3.4; UX_MOBILE §8.3, §3.6; UX_ADMIN §4.4","apps/api/test/inc3/dayend/day-end.e2e-spec.ts","The shop app hides its Day-end tile while features.dayEnd is false (UX_MOBILE §8.3); DAY-019 runs on the phone with it on.","","","",""
-"DAY-019","Day-end Excel","Shop app: download, fill, upload and send the day-end sheet on the phone","Distributor (Ahmed Gas)","P2","MAN-SHOP","3","The 0.2.0 shop app (or later) on the pilot shop phone, with the spreadsheet app chosen at the site visit (Excel, WPS or Sheets). Day-end is on, and today's sheet hasn't been sent yet. For this test, treat AG-C0020 (in the store) as damaged.","1. On Home, tap ""Day-end sheet"".
+"DAY-019","Day-end Excel","Shop app: download, fill, upload and send the day-end sheet on the phone","Distributor (Ahmed Gas)","P2","MAN-SHOP","3","The Inc 3 shop app on the pilot shop phone (the 0.1.0 APK updated over the air, or the 0.2.0 APK), with the spreadsheet app chosen at the site visit (Excel, WPS or Sheets). Day-end is on, and today's sheet hasn't been sent yet. For this test, treat AG-C0020 (in the store) as damaged.","1. On Home, tap ""Day-end sheet"".
 2. Read the status row and the three step rows.
-3. Tap ""Download sheet"" and choose the spreadsheet app.
-4. Find AG-C0020. Set ""Your count: where"" to ""In my store"", ""Your count: state"" to ""Damaged"" and ""Why different"" to ""Valve damaged"". Save the file.
-5. Back in the shop app, tap ""Upload filled sheet"" and pick the saved file.
+3. Tap ""Download sheet"". The first time, Android's folder screen opens at Documents: allow it. Then open the saved sheet from Documents in the spreadsheet app.
+4. Find AG-C0020. Set ""Your count: where"" to ""In my store"", ""Your count: state"" to ""Damaged"" and ""Why different"" to ""Valve damaged"". Save the file in the same place.
+5. Back in the shop app, tap ""Upload filled sheet"" and pick the saved file under ""Pick your sheet"".
 6. Read the ""Check and send"" screen.
 7. Tap ""Send for approval · 1 difference"", read the sheet, then confirm.","1. Step 2: today's date with the chip ""Not sent"", and three step rows: ""Download sheet""; ""Fill in only what's different"" with ""Where it is, its state, and why.""; ""Upload the sheet"".
-2. Step 3: the phone offers ""Open in your sheet app"" (Excel, WPS or Sheets), and the sheet has 35 rows, one per cylinder.
-3. Step 5: ""Checking your sheet…"", then ""Check and send"".
+2. Step 3: the toast ""Sheet saved in Documents"" and a tick on ""Download sheet"" with ""Download again""; the sheet has 35 rows, one per cylinder.
+3. Step 5: ""Pick your sheet"" lists the sheets in that folder, today's first, then ""Other folder""; after the pick, ""Checking your sheet…"", then ""Check and send"".
 4. Step 6: ""1 difference"" and ""35 cylinders checked"". The card reads ""AG-C0020 · 11.8 kg"", ""App: In my store · Full"" and ""You: In my store · Damaged"" (the changed part in bold), with ""Valve damaged"" in quotes and the fix chip ""Set to Damaged"". No raw words or long IDs.
-5. Step 7: the sheet ""Send day-end for <today's date>?"" with ""Once the office approves, this day is closed."" After confirming, the toast ""Sent to the office"" and the chip ""Waiting for office"".","ADR-17; UX_MOBILE §8.3 (S19, S20), §8.4; API_CONTRACT §10.2","","","","","",""
-"DAY-020","Day-end Excel","Shop app day-end: file from WhatsApp, no signal, wrong file, unreadable rows, sent back, closed","Distributor (Ahmed Gas)","P2","MAN-SHOP","3","As DAY-019. A team member has a filled sheet for today and can forward it to the shop phone by WhatsApp.","1. Receive the filled sheet on WhatsApp, save it, and upload it with ""Upload filled sheet"".
+5. Step 7: the sheet ""Send day-end for <today's date>?"" with ""Once the office approves, this day is closed."" After confirming, the toast ""Sent to the office"" and the chip ""Waiting for office"".","ADR-17; UX_MOBILE §8.3 (S19, S20), §8.4; API_CONTRACT §10.2","","Until the 0.2.0 APK brings expo-sharing and expo-document-picker, the sheet is saved into a folder and picked from it with expo-file-system, already in the 0.1.0 binary (UX_MOBILE §8.3 as built). Android 11 and later refuse the Download folder itself, so the folder screen opens at Documents.","","","",""
+"DAY-020","Day-end Excel","Shop app day-end: file from WhatsApp, no signal, wrong file, unreadable rows, sent back, closed","Distributor (Ahmed Gas)","P2","MAN-SHOP","3","As DAY-019. A team member has a filled sheet for today and can forward it to the shop phone by WhatsApp.","1. Receive the filled sheet on WhatsApp and save it to the phone. Tap ""Upload filled sheet"", then ""Other folder"", pick WhatsApp's folder and the sheet.
 2. Turn on airplane mode. Tap ""Download sheet"", then try ""Upload filled sheet"" with the sheet.
 3. Turn airplane mode off and tap ""Try again"".
-4. Upload a photo, then a PDF.
+4. Put a photo and a PDF into the sheet's folder, then tap ""Upload filled sheet"".
 5. Upload a sheet where AG-C0007's ""Your count: where"" says ""Shop"".
 6. After the office sends the day back, open Day-end.
 7. After the office approves, open Day-end and try to upload again.","1. Step 1: accepted. ""Check and send"" shows as in DAY-019.
 2. Step 2: the banner ""No connection"" with ""Try again""; where a message shows for the failed download or upload, it is the shared text ""No connection. Try again."". Nothing is uploaded.
 3. Step 3: it works, and ""Check and send"" shows the new version.
-4. Step 4: ""This file isn't the day-end sheet. Download today's sheet and try again.""
+4. Step 4: ""Pick your sheet"" lists only the .xlsx sheets: the photo and the PDF aren't offered, so they can't be sent.
 5. Step 5: a red card ""Some rows couldn't be read. Fix them and upload again."" with ""Row 8 · Cylinders: Where: use In my store, On driver's van, With customer or Missing."" and the footer ""Upload fixed sheet"". Nothing was saved, so there is nothing to send.
 6. Step 6: the chip ""Sent back"", with the red card ""Office note: “<note>”"" and ""Fix it and upload again.""
 7. Step 7: the chip ""Approved · day closed"". Uploading shows ""This day is closed. Ask the office to reopen it.""","ADR-17; UX_MOBILE §8.3, §8.4, §3.1, §3.2; API_CONTRACT §2.3 (Day-end, Client-only)","","""Row 8"" is the Excel row number: the header is row 1 and AG-C0001 is row 2. The row texts are the shorter ones of UX_MOBILE §8.3 (shared-types DAY_END_ROW_ERROR_EN, changed when Inc 3 is built).","","","",""
@@ -3850,7 +3809,7 @@
 4. Scroll each screen to the end and check that all text can be read.","1. Exactly one main button per screen: in the bottom bar (Home ""New order"", Add money ""Next"", New order step 3 ""Place order · pay Rs 480"", Order detail ""Call driver"" once a driver is assigned) or floating (Customers and New order step 1 ""+ Add customer"", My orders ""+ New order"", Refills ""+ New refill""). ""Cancel order"" is never in the bottom bar.
 2. No touch target smaller than 48 dp; list rows at least 64 dp tall.
 3. At the largest font: no cut-off or overlapping text, the bottom button stays visible, and nothing scrolls sideways (History's three filters wrap).","UX_MOBILE §2 (Principles), §2.1 (Sizes, Type: maxFontSizeMultiplier 1.3), §2.2 (Screen footer, Fab, Button, screen rules), §6 (Targets, Large font)","","Don't place the order on step 3; going back leaves the balance at Rs 5,000.","","","",""
-"UXQ-007","UI and UX quality","Driver app: 56 dp targets and one main button per screen, on a small phone with large text","DRIVER (DR1)","P2","MAN-DRIVER","1","As UXQ-006: a 360 dp phone, the largest font, and Accessibility Scanner. DR1 has X1 assigned, on a trip with van LEA-101, and one refill of Ahmed Gas assigned.","1. Open Today, the trip, each step screen (each has its camera), Unload, Refills and one refill, My van, the menu and Help.
+"UXQ-007","UI and UX quality","Driver app: 56 dp targets and one main button per screen, on a small phone with large text","DRIVER (DR1)","P2","MAN-DRIVER","1","As UXQ-006: a 360 dp phone, the largest font, and Accessibility Scanner. DR1 has X1 assigned, on a trip with van LEA-101, and one refill of Ahmed Gas assigned.","1. Open Today, Trip, Load, the visit in its four phases (on the way, deliver, take back, done), Unload, Refills, the refill run, My van, the menu and Help.
 2. Count the main buttons on each screen.
 3. Run Accessibility Scanner on each screen.
 4. Check all text at the largest font.","1. One main button per screen, 56 dp tall, naming the next step (for example ""Start trip"", ""Done loading"", ""Finish trip"").
@@ -3956,8 +3915,8 @@
 2. Each screen has exactly one main button (the footer or the Fab) and stays within its budget: about 25 fixed words, buttons 3, helpers 8, errors 12.
 3. No banned word (UX_PRINCIPLES §5.3), no code or enum value and no ""Rs.""; each thing uses its §5.2 word (""History"", ""Delivery cost"", ""Call office"").
 4. At the largest font nothing is cut off or scrolls sideways, and every target is at least 48 dp.","UX_PRINCIPLES §10 (Definition of simple), §6 (word budgets), §5; UX_MOBILE §4, §6","","Run once per release with UI changes. UXQ-006 and UXQ-013 check parts of this in detail.","","","",""
-"UXQ-028","UI and UX quality","The driver app passes the Definition of simple on every Inc 1 screen","UX reviewer with the driver app (Kashif)","P2","MAN-DRIVER","1","A 360 × 640 dp phone, then the largest font, and outdoors in daylight for the reading checks. UX_PRINCIPLES §10 and §6 at hand. Kashif has a trip with two customers and a refill.","1. Open every driver screen: Sign in, Today, the menu, Trip, each step screen (Load, on the way, Deliver, Take back), Could not deliver, the early-press and All delivered sheets, Unload, the Finish trip sheet, Refills and one refill, My van and Help.
-2. On each, see every state: the skeleton, empty, the camera states, a refusal, ""Not sent"" with Retry, no connection, and success.
+"UXQ-028","UI and UX quality","The driver app passes the Definition of simple on every screen","UX reviewer with the driver app (Kashif)","P2","MAN-DRIVER","1","A 360 × 640 dp phone, then the largest font, and outdoors in daylight for the reading checks. UX_PRINCIPLES §10 and §6 at hand. Kashif has a trip with two customers and a refill.","1. Open every driver screen: Sign in, Today, the menu, Trip, Load, the visit (on the way, deliver, take back, done), the No label and short take-back sheets, Could not deliver, Unload, the Finish trip sheet, Refills, the refill run (pick up, fill, unload), My van and Help.
+2. On each, see every state: the skeleton, empty, the camera states, a refusal, ""Not saved"" with Retry and its leave sheet, no connection, and success.
 3. Answer the 12 checks of UX_PRINCIPLES §10 for each screen, counting the fixed words.","1. Every screen answers Yes to all 12 checks; the review lists any screen and the check numbers that fail.
 2. Each step screen has the place as its title, the CountBar, the camera, the strip and one footer button naming the next step; driver screens aim for 15 fixed words, and none is over 25.
 3. ""Trip"", never ""job"" or ""run""; Load, Deliver, Take back and Unload, never ""Hand over"" or ""Hand back""; ""Call office"" in every header, even with no signal.
@@ -4185,7 +4144,7 @@
 2. Scan AG-C0001 and AG-C0002 (11.8 kg), AG-C0031 (45.4 kg), then AG-C0021 and AG-C0022 (15 kg).
 3. Turn on airplane mode, then scan AG-C0023.
 4. Turn airplane mode off and tap ""Retry"".
-5. Scan AG-C0003.
+5. The camera has stopped at ""All 6 loaded"": tap ""Type number"", type 3 and tap ""Load"".
 6. Tap ""Done loading"".
 7. Shop phone: open AG-0001 (Sana). Tap ""Cancel · no refund"", read the sheet, then close it without confirming.","1. Step 2: a green strip ""AG-C0001 · 11.8 kg loaded"" with a tick for each. The lines read ""11.8 kg · 2 of 2"", ""45.4 kg · 1 of 1"" and ""15 kg · 2 of 3"".
 2. Step 3: one amber row ""Not saved: 1"" with ""Retry"". The count doesn't move.
@@ -4287,7 +4246,7 @@
 2. Step 3: In store 31 · On vans 0 · With customers 4 · Differences 1. AG-C0020 shows ""State differs"" with the note ""Valve damaged"".
 3. Step 4: the dialog ""Approve and lock <day>?"" with ""1 fix. Later changes need a reopen."" After confirming, the day is approved and locked.
 4. Step 5: AG-C0020 is Damaged in Ahmed Gas Store, and its history shows the day-end fix approved by Owner. The shop chip reads ""Approved · day closed"". Balance Rs 5,430.
-5. GO only if the day is approved and locked.","ADR-17; API_CONTRACT §10.2, §7.13 (costTakenTodayPaisa); UX_ADMIN §4.3, §4.4, §2.1, §3.5; UX_MOBILE §8.3","","Delivery costs = Rs 1,860 taken (480 + 400 + 290 + 400 + 290) − Rs 290 returned = Rs 1,570.","","","",""
+5. GO only if the day is approved and locked.","ADR-17; API_CONTRACT §10.2, §7.13 (costTakenTodayPaisa); UX_ADMIN §4.3, §4.4, §2.1, §3.5; UX_MOBILE §8.3","","Delivery costs = Rs 1,860 taken (480 + 400 + 290 + 400 + 290) − Rs 290 returned = Rs 1,570. The cylinder history this step reads (the day-end fix with its day) also has an automated proof: apps/api/test/inc3/gate/refill-and-history-reads.e2e-spec.ts (""RHS-019 …"").","","","",""
 "RHS-020","Rehearsal day (dry run)","Rehearsal step 20 · Next morning: the nightly wallet check is clean, then the final go / no-go","Rehearsal lead; Super admin (Owner); Ops (engineering)","P1","MAN-OPS","3","The night after the rehearsal: the 03:30 Asia/Karachi wallet check has run.","1. Laptop: open Activity and find the System row of the nightly wallet check.
 2. Laptop: open Alerts, then Wallets, Ahmed Gas and Bilal Gas.
 3. Laptop: read every row of Ahmed Gas's wallet history.

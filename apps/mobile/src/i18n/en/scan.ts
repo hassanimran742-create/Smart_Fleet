@@ -96,7 +96,8 @@ export const scan = {
   unsaved: {
     title: '{{count}} scan not saved',
     title_plural: '{{count}} scans not saved',
-    body: "Leave now and they're lost.",
+    body: "Leave now and it's lost.",
+    body_plural: "Leave now and they're lost.",
     leave: 'Leave',
     stay: 'Stay and retry',
   },

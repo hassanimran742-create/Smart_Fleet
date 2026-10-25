@@ -565,14 +565,19 @@ function VisitBody({
         />
       );
     case 'DONE': {
+      // "1 empty · 2 part-filled · 0 full" says what came back: with nothing taken back it would be all zeros.
       const lines = visit
         ? [
             t('driver.visit.done.gave', { given: ltr(String(visit.give.doneCount)), taken: ltr(String(visit.takeBack.count)) }),
-            t('driver.visit.done.states', {
-              empty: ltr(String(visit.takeBack.byState.EMPTY)),
-              part: ltr(String(visit.takeBack.byState.PART_FILLED)),
-              full: ltr(String(visit.takeBack.byState.FULL)),
-            }),
+            ...(visit.takeBack.count > 0
+              ? [
+                  t('driver.visit.done.states', {
+                    empty: ltr(String(visit.takeBack.byState.EMPTY)),
+                    part: ltr(String(visit.takeBack.byState.PART_FILLED)),
+                    full: ltr(String(visit.takeBack.byState.FULL)),
+                  }),
+                ]
+              : []),
           ]
         : undefined;
       return (

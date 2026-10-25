@@ -72,7 +72,8 @@ describeDb('confirmation records: the audit row and no money', () => {
     expect(listed.body.items[0].actor.userId).toBeUndefined();
     const [row] = await auditRows('confirmation.answer', d1.order.id);
     expect(row).toMatchObject({ actorKind: 'CUSTOMER', actorUserId: null, actorLabel: 'link:AG-0001', ip: null, userAgent: null });
-    expect(row.diff).toEqual({ response: 'NO' });
+    // The answer and the order's number (for the Activity line), never the customer's note or phone.
+    expect(row.diff).toEqual({ response: 'NO', no: 'AG-0001' });
     expect(row.requestId).toEqual(expect.any(String));
 
     // Step 4: the answer's UPDATE fails, so no audit row is left either (one transaction).

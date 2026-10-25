@@ -1,3 +1,67 @@
+# Inc 2/3 screens, 2026-10-25
+
+The Increment 2 and 3 screens of the driver app, the shop app and the office website are built on the merged Inc 2/3 server, to the rulebook (UX_PRINCIPLES), by three lanes, and put together at the UI gate. The money model is unchanged: no scan, receive, refill, day-end, customer answer, problem or new screen moves money; only Inc 1's delivery cost, deducted when the order is placed, and its refund on a cancel before delivery has started do. The one-holder rule holds on every screen: a cylinder goes onto a van only from the store (no IN, no OUT). The phone apps update over the air onto the 0.1.0 APK and add no native module: `expo-file-system`, which the day-end sheet uses, is declared in apps/mobile at `~17.0.1`, the version expo 51.0.39 already puts in the APK. Each line below gives what was built or settled and where the docs now say it.
+
+## Driver app (driver lane)
+- R2–R10 and the Inc 3 refill run are built on the §9 and §10 routes: Today, Trip, Load, the visit in four phases (on the way, deliver, take back, done) with the No label sheet and Could not deliver, Unload, Refills, the refill run (pick up, fill, unload), My van and Help. The routes are Home, Trip, Load, Visit, Unload, Refills, RefillRun, Van and Help. (UX_MOBILE §7.2, §8.2 "As built", Appendix A; DRV-009, DRV-017, DRV-025, DRV-031, DRV-034, DRV-036, DRV-045, DRV-046, REF-025, RHS-017)
+- The Inc 1 stop-gaps are gone from the code: the legacy `POST /custody/scan`, the "scanned" tally, the early "Only 0 of 3 scanned. Continue?" and "All delivered?" sheets, Unload as a SCAN_IN scan, the refill steppers and Today built from `GET /trips/mine`. UX_MOBILE §5 now reads "Inc 1 build only". (UX_MOBILE §5)
+- One ScanPanel for the driver's steps, the refill run and the shop's Receive. Its read loop is plain logic in `ui/scan/scanReducer.ts` (DRV-035): a label held in front of the camera is ignored, a "Not saved" label read again is resent with its first scan id, and reads that come during a request wait their turn. Strips name the cylinder ("AG-C0042 · 11.8 kg loaded"). The amber "Not saved: N" row has one Retry, the leave sheet says "2 scans not saved", "Type number" uses the number pad, and the camera stops at the step's count. (UX_MOBILE §7.1 "As built")
+- Unload is passive: the groups list the van's cylinders by number and tick each one the shop scans in, checking every 5 seconds. "Finish trip" before the van is empty shows the catalogue's line ("The store must scan in 5 more from your van."). (UX_MOBILE §7.2 R3, R7; DRV-042)
+- Today's rows name the customers and the cylinders ("Deliver to Sana", "3 cylinders · load at Ahmed Gas Store"); My van lists the numbers on the van. (UX_MOBILE §7.2 R2, R9; DRV-045, DRV-049)
+- Push (R8) is best effort. On the 0.1.0 APK the phone gets no token and Today keeps its 30-second poll; signing out first removes the token, never blocking the sign-out. (UX_MOBILE §7.0, §7.2 R8; DRV-048)
+
+## Shop app (shop lane)
+- Home's rows: the red customer problems row, "Receive from driver" with "3 coming back" (with one van it opens that van's scan), and "Day-end sheet". Each shows only while its feature is on. (UX_MOBILE §7.3 "As built")
+- Receive from driver (the list and the scan), the customer answer card with Send link and "Make a new link?" (its main button is the screen's footer), the delivered and taken-back lines by cylinder number, Customer problems and Edit customer. The order rows show the answer chip under the stage chip. (UX_MOBILE §7.3 S13–S15b; CUSTOMER_PAGE §10; STR-010, STR-011, STR-013, CNF-044, CAS-012, MSG-015 to MSG-020)
+- Refills open a refill detail: one big count, the six-step timeline with "Driver assigned · 9:40 am", the driver with Call, and the red-outline "Cancel refill" before pickup. Day-end shows the date, its chip and three steps; Check and send lists the differences with their fix chips, the row errors, and the confirm "Send day-end for Sun 25 Oct?". (UX_MOBILE §8.1, §8.3 "As built"; REF-026, REF-027, DAY-019, DAY-020, RHS-018)
+- The day-end sheet without a new native module. Until the 0.2.0 APK brings expo-sharing and expo-document-picker, the sheet is saved into a folder the shop picks once and picked from it for the upload ("Pick your sheet": only .xlsx files, today's first, then "Other folder"). Android's folder screen opens at Documents, because Android 11 and later refuse the Download folder. `dayend/sheetFiles.ts` is the only file to swap later. (UX_MOBILE §7.0, §8.3)
+
+## Office website (office lane)
+- Customer problems (`/problems`) with Mark as sorted. The order drawer gets the Customer answer section, with Copy customer link, and the cylinder lines: "Loaded 3 of 5", Delivered and Taken back by number. The Orders board shows the answer chip and "Loading · 3 of 5 loaded". (UX_ADMIN §3.8; CAS-010, CAS-011, CNF-043, MSG-021)
+- "Mark delivered…" v2 names each cylinder in a 640 px dialog. Find cylinder has its page and a search box under the product name in the sidebar. The Activity log has sentences for the Inc 2 rows. (UX_ADMIN §3.8; HLD-007, RHS-019, STR-012)
+- Settings gets the sections Customer messages and Scans. (UX_ADMIN §3.8; CNF-045)
+- Refills are rebuilt with tabs, stage chips with counts, a drawer and Assign driver; they replace the legacy screen, whose "Mark complete" the Inc 3 server refuses with 410. Day-end has its list and its review: approve, send back, reopen, and "Load new version" after a newer upload. Today gets the refill and day-end cards. (UX_ADMIN §4.5; REF-028, DAY-021, DAY-022)
+- The sidebar's Work group adds Customer problems and Day-end, each with its own badge. Day-end hides while day-end is off. The Today badge is unchanged, and in the 200 px sidebar a long label wraps to two lines so its badge stays in sight. The kit adds the `answer`, `dayEnd` and `refillProgress` chips, "Part-filled", FAULTY as "Damaged" everywhere, and `Modal size="lg"`. The Vans page shows the plate words for `VEHICLE_HAS_CYLINDERS`. (UX_ADMIN §1.3, §3.7, §3.8, §4.5; HLD-018)
+
+## Server reads the screens asked for (gate)
+- Each read is additive, so the 0.1.0 apps and the older website ignore it, and none writes or moves money (API_CONTRACT §9.13, §10.5):
+  - `GET /trips/:tripId` `van.cylinders`;
+  - `TripSummary.customerNames` and `.cylinders`;
+  - `GET /inventory/my-vehicle` `cylinders`;
+  - `OrderDto.load` and `.visit`;
+  - the cylinder history's `toState`, `station` and `dayEnd`;
+  - the refill's `assignedAt`;
+  - `DayEndUploadResult.checked`;
+  - the order's number `no` in the audit diffs of `case.resolve`, `confirmation.answer` and `confirmation.new_link` (never the customer's note or phone).
+- `GET /store/incoming` lists only what is coming back. Cylinders out for delivery (loaded for an order still to be delivered, while loading or on the way) aren't listed. `counts.received` counts this return only, never an earlier run or refill of the same van that day. The store can still receive any cylinder from any van. (API_CONTRACT §9.4, §9.12, §9.13; UX_MOBILE §7.3)
+
+## Gate fixes from the shots
+- Shop Home read "3 coming back" for a van still out for delivery, and a second run read "1 of 3 received": fixed by the incoming change above.
+- ScanPanel: once the count is reached, an open typed field folds back to "Type number", so a finished step shows its tick and not an empty field. (UX_MOBILE §7.1)
+- The leave sheet with one scan reads "1 scan not saved" / "Leave now and it's lost." (`scan.unsaved.body_plural` keeps "they're" for two or more). (UX_MOBILE §7.1)
+- Visit done: "1 empty · 1 part-filled · 0 full" shows only when something was taken back. (UX_MOBILE §7.2 R5)
+- Check and send: a cylinder marked Missing reads "You: Missing" with no state, and counts as a Place difference only. The website's day-end review reads the same row "In a different place", not "Place and state differ". (UX_MOBILE §8.3; UX_ADMIN §4.5)
+- Website at 1024 px: in the 200 px sidebar the ellipsis hid the Customer problems badge; labels now wrap to two lines. (UX_ADMIN §3.8)
+
+## Tests
+- REV mobile-ux-05 reads TodayScreen.tsx and TripScreen.tsx. DRV-035's 12 tests run under the API's jest, which also roots `apps/mobile/src/ui/scan`. REV web-ux-04 covers the two new badges.
+- The new e2e suites `test/inc2/gate/order-load-and-visit`, `test/inc2/gate/store-incoming` and `test/inc3/gate/refill-and-history-reads` cover the reads above. driver-views covers Today's names and counts, `van.cylinders` and My van's `cylinders`. CNF-039 expects the diff `{ response, no }`.
+- The phone preview harness (scratchpad) runs the Inc 2/3 screens of both apps on a seeded API, starting with `npm run pilot:setup -- --test`. It captures them at 360×640, the main ones again at font 1.3, and the website's new pages at 1366×768 and 1024×768.
+
+## Test catalogue
+- TEST_CASES.md and .csv are regenerated with the gate's case updates: 566 cases. (TEST_CASES "Summary")
+  - Retired by the Inc 2/3 build, their numbers left unused: DRV-006 (the Inc 1 step screens with the "scanned" tally and the "All delivered?" sheets), DRV-051 (Unload as a scan), DRV-052 (the refill steppers) and DRV-054 (the early "Done loading" sheet). DRV-017, DRV-031, DRV-042 and REF-025 walk the built screens. The IDs published at the merge are now pinned too, so DRV-053 keeps its number.
+  - Updated to the built screens: DRV-042 (Unload lists the cylinders by number and ticks each one), DRV-046 (each step's footer names the next), RHS-009 step 5 ("Type number" after "All 6 loaded"), STR-012 (the history with each state; the Find cylinder box), CNF-034 and CNF-044 (the answer chip under the stage chip), MSG-017 (WhatsApp first in Send link), DAY-019 and DAY-020 (the folder: "Sheet saved in Documents", "Pick your sheet", "Other folder", only .xlsx files), UXQ-007 and UXQ-028 (the Inc 2/3 driver screens).
+  - Notes: DRV-048 needs the 0.2.0 APK for a push token; REF-027 and RHS-019 name the gate suite that proves their server part; DRV-035 is automated.
+- Automated cases with a passing test: Inc 1 255 of 255, Inc 2 121 of 121 (DRV-035 included), Inc 3 43 of 43. REF-027, REF-029 and RHS-019 stay manual cases that also have an automated proof.
+
+## Verification
+- `npx turbo run typecheck`: 9 of 9. `npm test -w @smartfleet/api`: 67 suites and 1,062 tests passed (6 skipped, as before), with the UXQ static rules, REV mobile-ux-05 on the new driver screens and DRV-035's 12 tests. The day-end ZIP-bomb unit test gets its own 30-second limit: deflating about 80 MB passed jest's 5-second default when the DB suites ran beside it.
+- All DB suites (Inc 1, 2 and 3) on a fresh `sf_uigate_test`: 133 suites and 622 tests passed, and the nightly wallet check is clean (WAL-020).
+- Offline exports of the shop and the driver app (`APP_VARIANT`, `EXPO_OFFLINE=1`): 1,256 modules each, exit 0. The website's vite build: exit 0.
+- Phone preview: the real apps on react-native-web against the compiled API, seeded by `npm run pilot:setup -- --test` and the real routes. It took 115 shots at 360×640 and 119 at font 1.3, every section passing. Website: 78 shots at 1366×768 and 1024×768, with no sideways scroll and no console problems. Each new screen was checked against UX_PRINCIPLES §10 as the driver, the shop and the office would use it, and the fixes above came from that check.
+- Nothing ran on a real phone. The camera, Android's folder screen, push, and the WhatsApp and text message hand-offs wait for the device walk (UXQ-007, UXQ-028, DAY-019, MSG-017, DRV-048).
+
 # Merge of the Increment 2 and 3 server into the simple-UX build, 2026-10-24
 
 The Increment 2 and 3 server (the two sections below) is merged into the simple-UX build of Increment 1 on `pilot/happy-path`. The merge changed no behaviour, no screen and no money rule: the delivery cost is deducted when the order is placed and returned only on a cancel before delivery has started, and no scan, refill, day-end, confirmation or case moves money. Each line below says what the merge settled.
