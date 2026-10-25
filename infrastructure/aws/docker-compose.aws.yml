@@ -18,9 +18,14 @@ services:
       - smartfleet
 
   api-prod:
-    image: ${IMAGE_PROD:-public.ecr.aws/smartfleet/api:latest}
+    # The build deploy.sh made and recorded in /srv/smartfleet/images.env (pass it with --env-file).
+    # No registry default: a service never deployed fails to start instead of running a stranger's image.
+    image: ${IMAGE_PROD:-smartfleet-api:not-deployed}
+    pull_policy: never
     container_name: smartfleet-api-prod
     restart: unless-stopped
+    # A deploy's SIGTERM lets requests in flight finish; a money transaction may wait up to 20 s on a row lock.
+    stop_grace_period: 30s
     env_file:
       - /srv/smartfleet/.env.prod
     environment:
@@ -40,9 +45,12 @@ services:
         tag: "api-prod"
 
   api-staging:
-    image: ${IMAGE_STAGING:-public.ecr.aws/smartfleet/api:latest}
+    image: ${IMAGE_STAGING:-smartfleet-api:not-deployed}
+    pull_policy: never
     container_name: smartfleet-api-staging
     restart: unless-stopped
+    # A deploy's SIGTERM lets requests in flight finish; a money transaction may wait up to 20 s on a row lock.
+    stop_grace_period: 30s
     env_file:
       - /srv/smartfleet/.env.staging
     environment:

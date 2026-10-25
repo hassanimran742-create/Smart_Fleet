@@ -6,7 +6,13 @@ builder = "DOCKERFILE"
 dockerfilePath = "apps/api/Dockerfile"
 
 [deploy]
-startCommand = "npx prisma migrate deploy && node dist/main.js"
+# prisma/scripts/migrate.sh is the only path to the database (docs/pilot/DATA_MODEL.md §2.3).
+# It needs a PostGIS Postgres. The boot guards run first: a variable the new API would refuse stops
+# the deployment before the migration, so the previous deployment keeps serving an unchanged
+# database (a build from before Inc 1 has no boot guards, so it skips the check). A deployment that
+# fails after migrating can't be rolled back by Railway alone: the previous code can't read what the
+# migration wrote (forward fix, or restore the database: DATA_MODEL §2.6).
+startCommand = "if [ -f dist/common/bootstrap/boot-preflight.js ]; then node dist/common/bootstrap/boot-preflight.js; fi && sh prisma/scripts/migrate.sh && node dist/main.js"
 healthcheckPath = "/api/v1/health/live"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

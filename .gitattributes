@@ -1,0 +1,6 @@
+# Prisma checksums every migration file: keep them byte-identical (UTF-8, LF) on every OS.
+# Write new ones with `npm run db:new-migration` (apps/api/scripts/new-migration.mjs).
+apps/api/prisma/migrations/**/*.sql text eol=lf
+
+# Shell scripts run in Linux containers and hosts; CRLF breaks them.
+*.sh text eol=lf
