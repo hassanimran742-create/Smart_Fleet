@@ -1,0 +1,253 @@
+/*
+ * Top-ups and the review drawer (website spec W06–W11). Tokens only (src/ui/tokens.css) and logical
+ * properties, so the screens work at 1024×768 and 768×1024 and right-to-left later is a `dir` switch.
+ */
+
+.sf-topups__muted {
+  color: var(--text-muted);
+}
+
+/* Only the bank reference and the transaction ID keep the code font: the office compares them with the bank app. */
+.sf-topups__mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+/* "Ahmed Raza · Easypaisa" wraps to two lines instead of widening the table. */
+.sf-topups__wrap {
+  display: -webkit-box;
+  max-inline-size: 16rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* "Added" with "Asked Rs 10,000" under it when the bank amount differed. */
+.sf-topups__added {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.3;
+}
+
+.sf-topups__asked {
+  font-size: var(--fs-13);
+}
+
+/* ---- Drawer: what the distributor sent beside the bank form (two columns from 600 px) ---- */
+
+.sf-topups__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: start;
+  gap: var(--sp-2) var(--sp-6);
+}
+
+.sf-topups__section {
+  min-inline-size: 0;
+}
+
+.sf-topups__section-title {
+  margin-block-end: var(--sp-3);
+  font-size: var(--fs-16);
+}
+
+/* A decided request's facts have no heading: they start level with the first fact beside them. */
+.sf-topups__decision {
+  padding-block-start: calc(var(--sp-6) + var(--sp-3));
+}
+
+.sf-topups__amount {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-topups__copy-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.sf-topups__proof-button {
+  display: inline-block;
+  padding: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  cursor: zoom-in;
+}
+
+.sf-topups__proof-thumb {
+  display: block;
+  inline-size: 96px;
+  block-size: 96px;
+  object-fit: cover;
+  border-radius: var(--r-md);
+}
+
+.sf-topups__never {
+  margin-block-end: var(--sp-1);
+  font-weight: 600;
+}
+
+.sf-topups__account {
+  margin-block-end: var(--sp-4);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-topups__bank-form {
+  min-inline-size: 0;
+}
+
+/* The check line under both columns: "Amounts match", or one warning. */
+.sf-topups__check {
+  display: grid;
+  gap: var(--sp-2);
+  margin-block: var(--sp-2) var(--sp-4);
+}
+
+.sf-topups__match {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--success-fg);
+  font-weight: 600;
+}
+
+.sf-topups__skeleton {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+/* ---- Reject preview ---- */
+
+.sf-topups__preview {
+  margin-block: var(--sp-2) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.sf-topups__preview-title {
+  margin-block-end: var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-topups__preview-line + .sf-topups__preview-line {
+  margin-block-start: var(--sp-1);
+}
+
+/* ---- Screenshot viewer: fits the window; a click zooms to 2x ---- */
+
+.sf-proof {
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+}
+
+.sf-proof__frame {
+  display: flex;
+  flex-direction: column;
+  inline-size: min(1100px, 100%);
+  max-block-size: 100%;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+
+.sf-proof__frame:focus {
+  outline: none;
+}
+
+.sf-proof__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+  border-block-end: 1px solid var(--border);
+}
+
+.sf-proof__title {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--fs-16);
+}
+
+.sf-proof__hint {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-proof__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 240px;
+  max-block-size: calc(100vh - 140px);
+  overflow: auto;
+  background: var(--surface-2);
+}
+
+.sf-proof__stage.is-zoomed {
+  display: block;
+}
+
+.sf-proof__toggle {
+  display: block;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.sf-proof__stage.is-zoomed .sf-proof__toggle {
+  cursor: zoom-out;
+}
+
+.sf-proof__image {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: calc(100vh - 140px);
+  object-fit: contain;
+}
+
+.sf-proof__stage.is-zoomed .sf-proof__image {
+  max-inline-size: none;
+  max-block-size: none;
+  inline-size: 200%;
+}
+
+.sf-proof__image.is-hidden {
+  visibility: hidden;
+}
+
+.sf-proof__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sf-proof__failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  max-inline-size: 360px;
+  padding: var(--sp-8) var(--sp-4);
+  color: var(--text-muted);
+  text-align: center;
+}

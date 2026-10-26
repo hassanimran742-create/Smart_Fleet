@@ -1,0 +1,72 @@
+/*
+ * Refills (UX_ADMIN §4.1): the page, the drawer and the cylinder list. Tokens only (src/ui/tokens.css)
+ * and logical properties.
+ */
+
+.sf-refills .sf-tabs {
+  overflow-y: hidden;
+}
+
+.sf-refills__filters .sf-search {
+  flex: 1 1 280px;
+  max-inline-size: 420px;
+}
+
+.sf-refills__two-line {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.sf-refills__muted {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-refills__nowrap {
+  white-space: nowrap;
+}
+
+/* "Load more" under a tab's rows, as on the Orders board. */
+.sf-refills__more {
+  display: flex;
+  justify-content: center;
+}
+
+.sf-refill__section {
+  display: grid;
+  gap: var(--sp-3);
+  padding-block-end: var(--sp-4);
+  border-block-end: 1px solid var(--border);
+}
+
+.sf-refill__section-title {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-refill__lines {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-refill__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.sf-refill__owner {
+  margin-block: var(--sp-4);
+}
+
+.sf-refill__skeleton {
+  display: grid;
+  gap: var(--sp-4);
+}

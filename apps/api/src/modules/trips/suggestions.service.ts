@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 
 export type SuggestedTask = {
   kind: 'ORDER' | 'FILLING' | 'TRANSFER';
@@ -31,10 +32,17 @@ export type SuggestedTask = {
  *
  * A real VRP solver (OR-Tools) is the v2 upgrade; this heuristic is
  * good enough for ≤ ~20 simultaneous tasks per driver.
+ *
+ * Transfers are listed only while `features.transfers` is on (API_CONTRACT §3.4): a transfer left open
+ * from before the switch-over must not be offered, because the installed app's transfer screen can't
+ * open one while the module is off.
  */
 @Injectable()
 export class SuggestionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly settings: SettingsService,
+  ) {}
 
   async forDriver(driverId: string, limit = 5): Promise<SuggestedTask[]> {
     const driverRows: { lat: number | null; lng: number | null }[] = await this.prisma.$queryRaw`
@@ -94,6 +102,8 @@ export class SuggestionsService {
 
     // 3) Transfers assigned to me — use whichever store is the *next* stop
     //    (fromStore if we still need to pick up there; otherwise toStore).
+    //    None while the transfers module is switched off.
+    const transfersOn = await this.settings.get('features.transfers');
     const transferRows: Array<{
       id: string;
       from_store_id: string;
@@ -107,7 +117,7 @@ export class SuggestionsService {
       to_lng: number;
       at_from: number;
       on_vehicle: number;
-    }> = await this.prisma.$queryRaw`
+    }> = !transfersOn ? [] : await this.prisma.$queryRaw`
       SELECT t.id AS id,
              t.from_store_id, t.to_store_id,
              fs.name AS from_name, ts.name AS to_name,

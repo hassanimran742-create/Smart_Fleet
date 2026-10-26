@@ -1,0 +1,85 @@
+/*
+ * Find cylinder (UX_ADMIN §3.5): the search box (in the menu or a page header) and the cylinder page.
+ * Tokens only (src/ui/tokens.css) and logical properties.
+ */
+
+.sf-find {
+  min-inline-size: 0;
+}
+
+.sf-find .sf-input-group {
+  inline-size: 100%;
+}
+
+/* In the menu: the box sits on the menu's dark ground, under the product name. */
+.sf-find--nav {
+  padding: var(--sp-3) var(--sp-3) var(--sp-1);
+}
+
+.sf-find--nav .sf-input-group {
+  border-color: var(--nav-muted);
+  background: var(--nav-bg);
+  color: var(--nav-text);
+}
+
+.sf-find--nav .sf-input-group .sf-input {
+  background: transparent;
+  color: var(--on-solid);
+}
+
+.sf-find--nav .sf-input::placeholder {
+  color: var(--nav-muted);
+}
+
+.sf-find--nav .sf-input-group__affix {
+  color: var(--nav-muted);
+}
+
+/* In a page header: a compact box at the end of the title row. */
+.sf-find--page {
+  inline-size: 240px;
+  max-inline-size: 100%;
+}
+
+.sf-cylinder {
+  display: grid;
+  gap: var(--sp-6);
+  max-inline-size: 720px;
+}
+
+.sf-cylinder__now {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sf-cylinder__holder {
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+.sf-cylinder__line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sf-cylinder__muted {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-cylinder__heading {
+  margin-block-end: var(--sp-3);
+  font-size: var(--fs-16);
+}
+
+@media (max-width: 767px) {
+  .sf-find--page {
+    inline-size: 100%;
+  }
+}

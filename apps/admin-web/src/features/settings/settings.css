@@ -1,0 +1,277 @@
+/*
+ * Settings (website spec W38): a local menu at 1024 px and up, a Select below that, rows of label,
+ * description, control and "Changed … by …" (or "Not saved"), and a sticky bar for unsaved changes.
+ * Tokens only and logical properties, so the page works at 1024×768 and 768×1024.
+ */
+
+.sf-settings__layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-6);
+}
+
+.sf-settings__menu ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-settings__menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--control-h);
+  padding-inline: var(--sp-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text);
+  font-weight: 500;
+  text-align: start;
+}
+
+.sf-settings__menu-item:hover {
+  background: var(--neutral-bg);
+}
+
+.sf-settings__menu-item.is-current {
+  background: var(--primary-soft);
+  color: var(--info-fg);
+  font-weight: 600;
+}
+
+/* A section with unsaved changes; the bar below says how many, in words. */
+.sf-settings__menu-dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+}
+
+/* The Select replaces the menu below 1024 px. Doubled with `.sf-field`, so the field's own `display`
+   can't show it next to the menu, whatever order the stylesheets load in. */
+.sf-field.sf-settings__section-select {
+  display: none;
+}
+
+.sf-settings__panel {
+  min-inline-size: 0;
+  padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.sf-settings__panel-title {
+  margin-block-end: var(--sp-4);
+  font-size: var(--fs-16);
+}
+
+.sf-settings__row {
+  position: relative;
+  max-inline-size: 640px;
+  padding-block: var(--sp-4);
+  padding-inline-start: var(--sp-3);
+  border-block-start: 1px solid var(--border);
+}
+
+.sf-settings__row:first-of-type {
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
+/* An edited row not saved yet: a 3 px edge at its start and "Not saved" in the primary colour. */
+.sf-settings__row.is-unsaved::before {
+  content: '';
+  position: absolute;
+  inset-block: var(--sp-3);
+  inset-inline-start: 0;
+  inline-size: 3px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+}
+
+.sf-settings__row:first-of-type.is-unsaved::before {
+  inset-block-start: 0;
+}
+
+.sf-settings__row .sf-field {
+  margin-block-end: var(--sp-1);
+}
+
+.sf-settings__meta {
+  color: var(--text-muted);
+  font-size: var(--fs-12);
+}
+
+.sf-settings__meta.is-unsaved {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.sf-settings__short {
+  max-inline-size: 260px;
+}
+
+.sf-settings__row .sf-money-input,
+.sf-settings__row .sf-input-group {
+  max-inline-size: 260px;
+}
+
+/* "No limit" / "Set a limit", then the amount under them. */
+.sf-settings__limit {
+  display: grid;
+  gap: var(--sp-2);
+  max-inline-size: 420px;
+}
+
+/* [Inc 2] Team phones: one number per line, its remove button beside it, then "+ Add phone". */
+.sf-settings__phones {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-2);
+}
+
+.sf-settings__phone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-inline-size: 100%;
+}
+
+.sf-settings__hours {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sf-settings__hours .sf-input {
+  inline-size: 140px;
+}
+
+.sf-settings__locked {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.sf-settings__locked-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.sf-settings__lock {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.sf-settings__readonly-label {
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-settings__readonly-value {
+  margin-block: var(--sp-1);
+}
+
+.sf-settings__description {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-block-end: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-settings__iban {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sf-settings__mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+/* The save review's warning under a feature being turned on. */
+.sf-settings__turn-on {
+  margin-block-start: var(--sp-2);
+}
+
+/* ---- The sticky bar of unsaved changes ---- */
+
+/* The bar is always laid out (hidden while idle), so it never changes the page's height. */
+.sf-settings {
+  padding-block-end: var(--sp-6);
+}
+
+.sf-settings__bar {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: var(--z-sticky);
+  margin-block-start: var(--sp-6);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.sf-settings__bar.is-idle {
+  visibility: hidden;
+}
+
+.sf-settings__bar-alert {
+  margin-block-end: var(--sp-3);
+}
+
+.sf-settings__bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-block-size: var(--control-h);
+}
+
+.sf-settings__bar-text {
+  font-weight: 600;
+}
+
+.sf-settings__bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 1023px) {
+  .sf-settings__layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-4);
+  }
+
+  .sf-settings__menu {
+    display: none;
+  }
+
+  .sf-field.sf-settings__section-select {
+    display: block;
+    max-inline-size: 360px;
+    margin-block-end: 0;
+  }
+
+  .sf-settings__panel {
+    padding: var(--sp-4);
+  }
+}

@@ -1,4 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { AppError } from '../../common/errors/app-error';
+import { alreadyApplied } from '../../common/idempotency/idempotency';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -8,7 +10,7 @@ export class ClientPortalService {
   // All orders for this client (matched by phone across distributors).
   async myOrders(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
-    if (!user) throw new NotFoundException();
+    if (!user) throw new AppError('NOT_FOUND');
     const clientIds = (await this.prisma.client.findMany({
       where: { phone: user.phone },
       select: { id: true },
@@ -35,7 +37,7 @@ export class ClientPortalService {
   // Active deliveries: not yet confirmed by the client.
   async activeDeliveries(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
-    if (!user) throw new NotFoundException();
+    if (!user) throw new AppError('NOT_FOUND');
     const clientIds = (await this.prisma.client.findMany({
       where: { phone: user.phone },
       select: { id: true },
@@ -77,7 +79,7 @@ export class ClientPortalService {
         },
       },
     });
-    if (!order) throw new NotFoundException();
+    if (!order) throw new AppError('NOT_FOUND');
     await this.assertOwner(order.client.phone, userId);
     return order;
   }
@@ -87,9 +89,9 @@ export class ClientPortalService {
       where: { id: orderId },
       include: { client: true },
     });
-    if (!order) throw new NotFoundException();
+    if (!order) throw new AppError('NOT_FOUND');
     await this.assertOwner(order.client.phone, userId);
-    if (order.clientConfirmedAt) throw new BadRequestException('Already confirmed.');
+    if (order.clientConfirmedAt) return alreadyApplied(order);
     return this.prisma.order.update({
       where: { id: orderId },
       data: { clientConfirmedAt: new Date() },
@@ -101,9 +103,9 @@ export class ClientPortalService {
       where: { id: orderId },
       include: { client: true },
     });
-    if (!order) throw new NotFoundException();
+    if (!order) throw new AppError('NOT_FOUND');
     await this.assertOwner(order.client.phone, userId);
-    if (order.emptiesHandedOverAt) throw new BadRequestException('Already confirmed.');
+    if (order.emptiesHandedOverAt) return alreadyApplied(order);
     return this.prisma.order.update({
       where: { id: orderId },
       data: { emptiesHandedOverAt: new Date() },
@@ -112,6 +114,7 @@ export class ClientPortalService {
 
   private async assertOwner(clientPhone: string, userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
-    if (user?.phone !== clientPhone) throw new ForbiddenException('Not your order.');
+    // Someone else's order doesn't exist for this caller (API_CONTRACT §3.2).
+    if (user?.phone !== clientPhone) throw new AppError('NOT_FOUND');
   }
 }

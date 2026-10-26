@@ -1,47 +1,57 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import {
+  formatDayLabel,
+  formatWhen,
+  type FormatWhenKey,
+  type TimeInput,
+  type WhenTranslate,
+} from '@smartfleet/shared-utils';
+import { en } from './en';
 
-const resources = {
-  en: {
-    translation: {
-      welcome: 'Welcome',
-      phone: 'Phone',
-      sendOtp: 'Send OTP',
-      verify: 'Verify',
-      otp: 'OTP code',
-      orders: 'Orders',
-      newOrder: 'New order',
-      trips: 'Trips',
-      scan: 'Scan',
-      logout: 'Sign out',
-    },
-  },
-  ur: {
-    translation: {
-      welcome: 'خوش آمدید',
-      phone: 'فون',
-      sendOtp: 'OTP بھیجیں',
-      verify: 'تصدیق',
-      otp: 'OTP کوڈ',
-      orders: 'آرڈرز',
-      newOrder: 'نیا آرڈر',
-      trips: 'سفر',
-      scan: 'اسکین',
-      logout: 'سائن آؤٹ',
-    },
-  },
-};
+/** English only for the pilot (DECISIONS ADR-18). Urdu is added later as another resource. */
+export const DEFAULT_LANGUAGE = 'en';
+export const SUPPORTED_LANGUAGES = ['en'] as const;
+export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
-i18n.use(initReactI18next).init({
+export const resources = { en: { translation: en } };
+
+void i18n.use(initReactI18next).init({
   resources,
-  lng: 'en',
-  fallbackLng: 'en',
-  // Hermes (React Native's JS engine) doesn't include the full Intl.PluralRules
-  // API. Acknowledge the legacy v3 plural-format fallback so i18next stops
-  // warning at runtime. Switch to "v4" + an intl-pluralrules polyfill if you
-  // ever need full CLDR plural categories (rare for en/ur).
+  lng: DEFAULT_LANGUAGE,
+  fallbackLng: DEFAULT_LANGUAGE,
+  supportedLngs: [...SUPPORTED_LANGUAGES],
+  // Hermes (React Native's JS engine) doesn't ship the full Intl.PluralRules API, so plurals use the
+  // v3 `_plural` suffix. Switch to v4 plus an intl-pluralrules polyfill only if Urdu needs more forms.
   compatibilityJSON: 'v3',
   interpolation: { escapeValue: false },
+  returnNull: false,
+  react: { useSuspense: false },
 });
+
+/** The translate function `formatWhen` and `formatDayLabel` take, bound to the app's resources. */
+export const whenTranslate: WhenTranslate = (key: FormatWhenKey, options?: { time: string }): string => {
+  const time = options?.time ?? '';
+  switch (key) {
+    case 'common.when.today':
+      return i18n.t('common.when.today', { time });
+    case 'common.when.yesterday':
+      return i18n.t('common.when.yesterday', { time });
+    case 'common.day.today':
+      return i18n.t('common.day.today');
+    case 'common.day.yesterday':
+      return i18n.t('common.day.yesterday');
+  }
+};
+
+/** "Today, 4:12 pm", "Yesterday, 9:05 am" or "Mon 19 Oct, 4:12 pm" in Asia/Karachi (UX_MOBILE §3.3). */
+export function formatWhenText(at: TimeInput, now: TimeInput = Date.now()): string {
+  return formatWhen(at, now, whenTranslate);
+}
+
+/** A day heading for grouped lists: "Today", "Yesterday" or "Mon 19 Oct", in Asia/Karachi. */
+export function formatDayLabelText(at: TimeInput, now: TimeInput = Date.now()): string {
+  return formatDayLabel(at, now, whenTranslate);
+}
 
 export default i18n;

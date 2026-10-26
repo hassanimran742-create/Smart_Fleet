@@ -1,43 +1,77 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ZonesService } from './zones.service';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
+import type { IdName } from '@smartfleet/shared-types';
+import {
+  createZoneSchema,
+  locationQuoteQuerySchema,
+  updateZoneSchema,
+  zonesQuerySchema,
+  type CreateZoneInput,
+  type UpdateZoneInput,
+} from '@smartfleet/shared-validation';
+import type { UserActor } from '../../common/auth/actor';
+import { CurrentActor, CurrentUser, type AuthContext } from '../../common/decorators/current-user.decorator';
+import { ExactRoles, Roles } from '../../common/decorators/roles.decorator';
+import { ZodQuery } from '../../common/pipes/zod-body.pipe';
+import { UuidParam } from '../orders/support/uuid-param.pipe';
+import { ZoneBody } from './zone-body.pipe';
+import { ZonesService, type ZoneListRow } from './zones.service';
 
+const locateQuerySchema = locationQuoteQuerySchema.pick({ lat: true, lng: true }).merge(zonesQuerySchema);
+type LocateQuery = { lat: number; lng: number; includeArchived?: boolean };
+type ZonesQuery = { includeArchived?: boolean };
+
+/**
+ * Zones (API_CONTRACT §7.2): the office and distributors read; only the office changes them. The
+ * office may include archived zones; a distributor's `includeArchived` is ignored.
+ */
 @Controller('zones')
 export class ZonesController {
   constructor(private readonly zones: ZonesService) {}
 
+  @Roles(UserRole.DISTRIBUTOR)
   @Get('city/:cityId')
-  list(@Param('cityId') cityId: string) {
-    return this.zones.listForCity(cityId);
+  list(
+    @CurrentUser() user: AuthContext,
+    @Param('cityId', new UuidParam()) cityId: string,
+    @Query(new ZodQuery(zonesQuerySchema)) query: ZonesQuery,
+  ): Promise<ZoneListRow[]> {
+    return this.zones.listForCity(cityId, user.role === UserRole.SUPER_ADMIN && query.includeArchived === true);
   }
 
+  /** The zone covering a pin, or an empty answer outside every active zone. */
+  @Roles(UserRole.DISTRIBUTOR)
   @Get('locate')
-  locate(@Query('lat') lat: string, @Query('lng') lng: string) {
-    return this.zones.findContainingPoint(Number(lat), Number(lng));
+  locate(@CurrentUser() user: AuthContext, @Query(new ZodQuery(locateQuerySchema)) query: LocateQuery): Promise<IdName | null> {
+    const includeArchived = user.role === UserRole.SUPER_ADMIN && query.includeArchived === true;
+    return this.zones.findContainingPoint(query.lat, query.lng, undefined, { includeArchived });
   }
 
-  @Roles(UserRole.ADMIN)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Post()
-  create(@Body() body: any) {
-    return this.zones.create(body);
+  create(@CurrentActor() actor: UserActor, @Body(new ZoneBody(createZoneSchema)) body: CreateZoneInput) {
+    return this.zones.create(actor, body);
   }
 
-  @Roles(UserRole.ADMIN)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.zones.update(id, body);
+  update(
+    @CurrentActor() actor: UserActor,
+    @Param('id', new UuidParam()) id: string,
+    @Body(new ZoneBody(updateZoneSchema)) body: UpdateZoneInput,
+  ) {
+    return this.zones.update(actor, id, body);
   }
 
-  @Roles(UserRole.ADMIN)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Delete(':id')
-  archive(@Param('id') id: string) {
-    return this.zones.archive(id);
+  archive(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
+    return this.zones.archive(actor, id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @ExactRoles(UserRole.SUPER_ADMIN)
   @Patch(':id/reactivate')
-  reactivate(@Param('id') id: string) {
-    return this.zones.reactivate(id);
+  reactivate(@CurrentActor() actor: UserActor, @Param('id', new UuidParam()) id: string) {
+    return this.zones.reactivate(actor, id);
   }
 }

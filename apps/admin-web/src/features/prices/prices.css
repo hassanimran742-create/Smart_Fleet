@@ -1,0 +1,62 @@
+/*
+ * Delivery prices and the price drawer (website spec W15–W17). Tokens only (src/ui/tokens.css) and
+ * logical properties, so the screens work at 1024×768 and 768×1024 and right-to-left later is a `dir`
+ * switch.
+ */
+
+.sf-prices__muted {
+  color: var(--text-muted);
+}
+
+/* ---- The distributor chips: name, then a red "1 missing" or a green tick and "All set" ---- */
+
+.sf-prices__switcher {
+  margin-block-end: var(--sp-4);
+}
+
+.sf-prices__switcher--search {
+  max-inline-size: 360px;
+}
+
+.sf-prices__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---- Alerts, filters and grid ---- */
+
+.sf-prices__alert {
+  margin-block-end: var(--sp-4);
+}
+
+.sf-prices__zone {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--sp-2);
+}
+
+.sf-prices__zone-name {
+  font-weight: 600;
+}
+
+/* ---- Drawer ---- */
+
+.sf-prices__drawer-alert {
+  margin-block-end: var(--sp-4);
+}
+
+/* The one-line example under the box: "Any order → Rs 250". */
+.sf-prices__example {
+  margin-block-end: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-prices__note {
+  font-size: var(--fs-13);
+}

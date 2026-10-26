@@ -1,12 +1,31 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  CustodyType,
-  CylinderEventType,
-  CylinderState,
-} from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { CustodyType, CylinderEventType, CylinderState, TripStatus, TripStopStatus, TripStopType, type CylinderEvent } from '@prisma/client';
+import type { CustodyScanInput } from '@smartfleet/shared-validation';
+import type { UserActor } from '../../common/auth/actor';
+import { ownDriverId } from '../../common/auth/own-driver-id';
+import { canActOnTrip, canSeeCylinder, type PolicyCaller } from '../../common/auth/policies';
+import { AppError } from '../../common/errors/app-error';
+import { alreadyApplied, type IdempotentResponse } from '../../common/idempotency/idempotency';
 import { PrismaService } from '../../prisma/prisma.service';
+import { adjustInventoryLots } from './inventory-lots';
+import { ScanService, type DriverScanAction } from './scan.service';
 
-interface ScanInput {
+/** The answer of the legacy scan route; installed apps read `newState` and `toType`. */
+export interface LegacyScanResult {
+  event: CylinderEvent;
+  cylinderId: string;
+  newState: CylinderState;
+  toType: CustodyType;
+  toId: string;
+  /** Present on a repeat of a move already recorded. */
+  alreadyRecorded?: true;
+}
+
+/**
+ * @deprecated The pre-pilot scan input. Only the switched-off transfers module still builds it; the
+ * driver's legacy route uses {@link CustodyService.legacyScan}.
+ */
+export interface ScanInput {
   qrCode: string;
   eventType: CylinderEventType;
   actorUserId: string;
@@ -20,90 +39,120 @@ interface ScanInput {
   transferId?: string;
 }
 
-const ALLOWED_TRANSITIONS: Record<CylinderEventType, Array<[CustodyType, CustodyType]>> = {
-  SCAN_IN:                 [['DISTRIBUTOR', 'STORE'], ['VEHICLE', 'STORE']],
-  SCAN_OUT:                [['STORE', 'VEHICLE']],
-  DELIVERED:               [['VEHICLE', 'CLIENT']],
-  PICKED_UP_EMPTY:         [['CLIENT', 'VEHICLE']],
-  RETURNED_TO_DISTRIBUTOR: [['STORE', 'DISTRIBUTOR']],
-  TRANSFER:                [['STORE', 'STORE']],
-  MARK_FAULTY:             [['STORE', 'STORE'], ['VEHICLE', 'VEHICLE'], ['CLIENT', 'CLIENT'], ['DISTRIBUTOR', 'DISTRIBUTOR']],
-  MARK_LOST:               [['STORE', 'STORE'], ['VEHICLE', 'VEHICLE'], ['CLIENT', 'CLIENT'], ['DISTRIBUTOR', 'DISTRIBUTOR']],
-};
+const OPEN_TRIP: TripStatus[] = [TripStatus.PLANNED, TripStatus.IN_PROGRESS];
 
-const STATE_AFTER: Partial<Record<CylinderEventType, CylinderState>> = {
-  DELIVERED: CylinderState.EMPTY, // becomes empty once installed at client (assumption: cylinder is consumed)
-  PICKED_UP_EMPTY: CylinderState.EMPTY,
-  RETURNED_TO_DISTRIBUTOR: CylinderState.FULL, // refilled at distributor plant
-  MARK_FAULTY: CylinderState.FAULTY,
-  MARK_LOST: CylinderState.LOST,
-};
-
+/**
+ * Cylinder custody (API_CONTRACT §7.7, §9.10). From Inc 2 the installed app's legacy scan route
+ * delegates to the {@link ScanService}: its holder rules, its locks and its answers. Nothing here
+ * moves money.
+ */
 @Injectable()
 export class CustodyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scans: ScanService,
+  ) {}
 
+  /**
+   * Legacy `POST /custody/scan` (DRIVER exact, the installed 0.1.0 app), mapped onto the Inc 2 scan
+   * service (§9.10): SCAN_OUT is a LOAD at the trip's STORE_PICKUP stop (after "Done loading" it gives
+   * 409 SCAN_STOP_CLOSED); DELIVERED is a HANDOVER and PICKED_UP_EMPTY a TAKE_BACK with returnState
+   * EMPTY, at the order's DELIVERY stop on that trip; SCAN_IN is 403 SCAN_USE_STORE_RECEIVE (the store
+   * scans returns in). The body has no scan id, so a repeat is found by the same-move test only (200
+   * `X-Already-Applied` with `alreadyRecorded: true`). Checks before the delegation, in order: the trip
+   * is the caller's (404) and open (409 SCAN_TRIP_CLOSED); the order is on the trip (403).
+   */
+  async legacyScan(actor: UserActor, body: CustodyScanInput): Promise<LegacyScanResult | IdempotentResponse<LegacyScanResult>> {
+    ownDriverId(actor);
+    const trip = canActOnTrip(
+      actor,
+      await this.prisma.trip.findUnique({ where: { id: body.tripId }, select: { id: true, driverId: true, status: true } }),
+    );
+    if (body.eventType === 'SCAN_IN') throw new AppError('SCAN_USE_STORE_RECEIVE');
+    if (!OPEN_TRIP.includes(trip.status)) throw new AppError('SCAN_TRIP_CLOSED');
+    if (body.orderId) {
+      const onTrip = await this.prisma.order.findFirst({ where: { id: body.orderId, tripId: trip.id }, select: { id: true } });
+      if (!onTrip) throw new AppError('ORDER_NOT_ON_YOUR_TRIP');
+    }
+
+    let action: DriverScanAction;
+    let stopId: string;
+    if (body.eventType === 'SCAN_OUT') {
+      action = 'LOAD';
+      const pickup = await this.prisma.tripStop.findFirst({
+        where: { tripId: trip.id, stopType: TripStopType.STORE_PICKUP },
+        orderBy: { seq: 'asc' },
+        select: { id: true },
+      });
+      if (!pickup) throw new AppError('SCAN_EVENT_NOT_ALLOWED');
+      stopId = pickup.id;
+    } else {
+      action = body.eventType === 'DELIVERED' ? 'HANDOVER' : 'TAKE_BACK';
+      // The schema requires orderId for these two.
+      const stops = await this.prisma.tripStop.findMany({
+        where: { tripId: trip.id, orderId: body.orderId as string, stopType: TripStopType.DELIVERY },
+        orderBy: { seq: 'asc' },
+        select: { id: true, status: true },
+      });
+      const stop = stops.find((s) => s.status === TripStopStatus.PENDING || s.status === TripStopStatus.ARRIVED) ?? stops[stops.length - 1];
+      if (!stop) throw new AppError('ORDER_NOT_ON_YOUR_TRIP');
+      stopId = stop.id;
+    }
+
+    const answer = await this.scans.driverScan(actor, {
+      action,
+      tripId: trip.id,
+      stopId,
+      scanId: null,
+      code: body.qrCode,
+      entryMethod: 'QR',
+      returnState: action === 'TAKE_BACK' ? 'EMPTY' : undefined,
+      lat: body.lat,
+      lng: body.lng,
+    });
+    const cylinder = await this.prisma.cylinder.findUniqueOrThrow({
+      where: { id: answer.result.cylinder.id },
+      select: { id: true, state: true, custodyType: true, custodyId: true },
+    });
+    const event = answer.event ?? (await this.prisma.cylinderEvent.findFirstOrThrow({ where: { cylinderId: cylinder.id }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }));
+    const result: LegacyScanResult = {
+      event,
+      cylinderId: cylinder.id,
+      newState: cylinder.state,
+      toType: cylinder.custodyType,
+      toId: cylinder.custodyId,
+    };
+    return answer.kind === 'RECORDED' ? result : alreadyApplied({ ...result, alreadyRecorded: true as const });
+  }
+
+  /** `GET /custody/cylinders/:id/history`: the office or the owning distributor (404 otherwise). */
+  async history(caller: PolicyCaller, cylinderId: string): Promise<CylinderEvent[]> {
+    canSeeCylinder(caller, await this.prisma.cylinder.findUnique({ where: { id: cylinderId }, select: { distributorId: true } }));
+    return this.prisma.cylinderEvent.findMany({
+      where: { cylinderId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  /**
+   * @deprecated The pre-pilot free scan. Only the switched-off transfers module calls it (its writes
+   * answer 403 FEATURE_DISABLED while `features.transfers` is off); no driver route reaches it.
+   */
   async scan(input: ScanInput) {
     return this.prisma.$transaction(async (tx) => {
       const cylinder = await tx.cylinder.findUnique({ where: { qrCode: input.qrCode } });
-      if (!cylinder) throw new NotFoundException(`Cylinder not found: ${input.qrCode}`);
-
-      const fromType = cylinder.custodyType;
-      const fromId = cylinder.custodyId;
-
-      // Resolve the destination automatically using driver / order context, so
-      // the mobile app only has to pass {qrCode, eventType, tripId, orderId}.
-      // Order matters — for events that imply the driver's vehicle, we need
-      // the driver's currentVehicleId, so look the driver up once up front.
-      const driver = await tx.driver.findFirst({
-        where: { userId: input.actorUserId },
-        select: { id: true, currentVehicleId: true, user: { select: { id: true } } },
-      });
-
-      const toType = input.toCustodyType ?? this.inferToType(input.eventType, fromType);
-      const toId =
-        input.toCustodyId ??
-        (await this.resolveToId({
-          tx,
-          eventType: input.eventType,
-          fromType,
-          fromId,
-          cylinder,
-          driver,
-          tripId: input.tripId,
-          orderId: input.orderId,
-        }));
-
-      const allowed = ALLOWED_TRANSITIONS[input.eventType] ?? [];
-      const transitionOk = allowed.some(([f, t]) => f === fromType && t === toType);
-      if (!transitionOk) {
-        throw new BadRequestException(
-          `Illegal transition ${fromType} → ${toType} for event ${input.eventType}. ` +
-          `Cylinder is currently at ${fromType}; this event expects it to start somewhere else.`,
-        );
-      }
-
-      // Enforce distributor-A cannot deliver distributor-B cylinder
-      if (input.eventType === 'DELIVERED' && input.orderId) {
-        const order = await tx.order.findUnique({
-          where: { id: input.orderId },
-          select: { distributorId: true },
-        });
-        if (order && order.distributorId !== cylinder.distributorId) {
-          throw new BadRequestException(
-            'Cylinder owner mismatch — cannot deliver this distributor’s order with another distributor’s cylinder.',
-          );
-        }
-      }
-
+      if (!cylinder) throw new AppError('SCAN_CYLINDER_UNKNOWN');
+      if (!input.toCustodyType || !input.toCustodyId) throw new AppError('SCAN_EVENT_NOT_ALLOWED');
       const event = await tx.cylinderEvent.create({
         data: {
           cylinderId: cylinder.id,
           eventType: input.eventType,
-          fromCustodyType: fromType,
-          fromCustodyId: fromId,
-          toCustodyType: toType,
-          toCustodyId: toId,
+          fromCustodyType: cylinder.custodyType,
+          fromCustodyId: cylinder.custodyId,
+          toCustodyType: input.toCustodyType,
+          toCustodyId: input.toCustodyId,
+          fromState: cylinder.state,
+          toState: cylinder.state,
           actorUserId: input.actorUserId,
           photoUrl: input.photoUrl,
           tripId: input.tripId,
@@ -111,199 +160,17 @@ export class CustodyService {
           transferId: input.transferId,
         },
       });
-
-      if (input.lat != null && input.lng != null) {
-        await tx.$executeRaw`
-          UPDATE cylinder_events
-          SET location = ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)
-          WHERE id = ${event.id}::uuid
-        `;
-      }
-
-      const newState = STATE_AFTER[input.eventType] ?? cylinder.state;
-
       await tx.cylinder.update({
         where: { id: cylinder.id },
-        data: { custodyType: toType, custodyId: toId, state: newState },
+        data: { custodyType: input.toCustodyType, custodyId: input.toCustodyId, lastEventId: event.id },
       });
-
-      // Inventory math
-      await this.adjustInventory(tx, {
+      await adjustInventoryLots(tx, {
         distributorId: cylinder.distributorId,
         cylinderTypeId: cylinder.cylinderTypeId,
-        from: { holderType: fromType, holderId: fromId, state: cylinder.state },
-        to: { holderType: toType, holderId: toId, state: newState },
+        from: { holderType: cylinder.custodyType, holderId: cylinder.custodyId, state: cylinder.state },
+        to: { holderType: input.toCustodyType, holderId: input.toCustodyId, state: cylinder.state },
       });
-
-      return { event, cylinderId: cylinder.id, newState, toType, toId };
-    });
-  }
-
-  private inferToType(eventType: CylinderEventType, from: CustodyType): CustodyType {
-    const map: Record<CylinderEventType, CustodyType> = {
-      SCAN_IN: 'STORE',
-      SCAN_OUT: 'VEHICLE',
-      DELIVERED: 'CLIENT',
-      PICKED_UP_EMPTY: 'VEHICLE',
-      RETURNED_TO_DISTRIBUTOR: 'DISTRIBUTOR',
-      TRANSFER: 'STORE',
-      MARK_FAULTY: from,
-      MARK_LOST: from,
-    };
-    return map[eventType];
-  }
-
-  /**
-   * Resolve the destination custody id for the most common scans without
-   * the mobile app having to pass it. Strategy by event:
-   *
-   *   SCAN_OUT (STORE → VEHICLE)              → driver's currentVehicleId
-   *   DELIVERED (VEHICLE → CLIENT)            → order.clientId
-   *   PICKED_UP_EMPTY (CLIENT → VEHICLE)      → driver's currentVehicleId
-   *   RETURNED_TO_DISTRIBUTOR (STORE → DIST)  → cylinder.distributorId
-   *   SCAN_IN (* → STORE)                     → trip.originStoreId (if any)
-   *   TRANSFER (STORE → STORE)                → caller must pass it
-   *   MARK_FAULTY / MARK_LOST                 → same as fromId
-   *
-   * Throws a clear, operator-actionable error if it can't figure it out.
-   */
-  private async resolveToId(p: {
-    tx: any;
-    eventType: CylinderEventType;
-    fromType: CustodyType;
-    fromId: string;
-    cylinder: { distributorId: string };
-    driver: { id: string; currentVehicleId: string | null } | null;
-    tripId?: string;
-    orderId?: string;
-  }): Promise<string> {
-    const { tx, eventType, fromId, cylinder, driver, tripId, orderId } = p;
-
-    if (eventType === 'MARK_FAULTY' || eventType === 'MARK_LOST') return fromId;
-
-    if (eventType === 'SCAN_OUT' || eventType === 'PICKED_UP_EMPTY') {
-      if (!driver) {
-        throw new BadRequestException('Only drivers can perform vehicle-bound scans.');
-      }
-      if (!driver.currentVehicleId) {
-        throw new BadRequestException(
-          'Driver has no vehicle assigned. Ask admin to assign one in Vehicles → Assign drivers.',
-        );
-      }
-      return driver.currentVehicleId;
-    }
-
-    if (eventType === 'DELIVERED') {
-      if (!orderId) {
-        throw new BadRequestException(
-          'Delivery scan requires an orderId so we know which client receives the cylinder. Open the delivery from My Trips and tap "Mark delivered" instead of opening Scan directly.',
-        );
-      }
-      const order = await tx.order.findUnique({ where: { id: orderId }, select: { clientId: true } });
-      if (!order?.clientId) {
-        throw new BadRequestException('Order has no client — cannot resolve delivery destination.');
-      }
-      return order.clientId;
-    }
-
-    if (eventType === 'RETURNED_TO_DISTRIBUTOR') {
-      // Cylinder always knows its owning distributor.
-      return cylinder.distributorId;
-    }
-
-    if (eventType === 'SCAN_IN') {
-      // Use the trip's origin store, the only deterministic "where" we have
-      // without an explicit picker on the driver app.
-      if (tripId) {
-        const trip = await tx.trip.findUnique({ where: { id: tripId }, select: { originStoreId: true } });
-        if (trip?.originStoreId) return trip.originStoreId;
-      }
-      throw new BadRequestException(
-        'SCAN_IN needs a tripId so we can resolve which store this is coming back to.',
-      );
-    }
-
-    // TRANSFER + anything new — require explicit destination.
-    throw new BadRequestException(
-      `Could not figure out where the cylinder is going for ${eventType}. Pass toCustodyId explicitly.`,
-    );
-  }
-
-  private async adjustInventory(
-    tx: any,
-    p: {
-      distributorId: string;
-      cylinderTypeId: string;
-      from: { holderType: CustodyType; holderId: string; state: CylinderState };
-      to: { holderType: CustodyType; holderId: string; state: CylinderState };
-    },
-  ) {
-    // -1 from origin. Guard against going negative — if the origin lot is
-    // missing or already 0 (e.g. legacy data registered before inventory
-    // seeding), clamp at 0 instead of drifting negative.
-    if (p.from.state !== CylinderState.FAULTY && p.from.state !== CylinderState.LOST) {
-      const existing = await tx.inventoryLot.findUnique({
-        where: {
-          inventory_unique: {
-            holderType: p.from.holderType,
-            holderId: p.from.holderId,
-            distributorId: p.distributorId,
-            cylinderTypeId: p.cylinderTypeId,
-            state: p.from.state,
-          },
-        },
-      });
-      const nextFrom = Math.max(0, (existing?.count ?? 0) - 1);
-      await tx.inventoryLot.upsert({
-        where: {
-          inventory_unique: {
-            holderType: p.from.holderType,
-            holderId: p.from.holderId,
-            distributorId: p.distributorId,
-            cylinderTypeId: p.cylinderTypeId,
-            state: p.from.state,
-          },
-        },
-        update: { count: nextFrom },
-        create: {
-          holderType: p.from.holderType,
-          holderId: p.from.holderId,
-          distributorId: p.distributorId,
-          cylinderTypeId: p.cylinderTypeId,
-          state: p.from.state,
-          count: 0,
-        },
-      });
-    }
-    // +1 to destination
-    if (p.to.state !== CylinderState.FAULTY && p.to.state !== CylinderState.LOST) {
-      await tx.inventoryLot.upsert({
-        where: {
-          inventory_unique: {
-            holderType: p.to.holderType,
-            holderId: p.to.holderId,
-            distributorId: p.distributorId,
-            cylinderTypeId: p.cylinderTypeId,
-            state: p.to.state,
-          },
-        },
-        update: { count: { increment: 1 } },
-        create: {
-          holderType: p.to.holderType,
-          holderId: p.to.holderId,
-          distributorId: p.distributorId,
-          cylinderTypeId: p.cylinderTypeId,
-          state: p.to.state,
-          count: 1,
-        },
-      });
-    }
-  }
-
-  history(cylinderId: string) {
-    return this.prisma.cylinderEvent.findMany({
-      where: { cylinderId },
-      orderBy: { createdAt: 'asc' },
+      return { event, cylinderId: cylinder.id, newState: cylinder.state, toType: input.toCustodyType, toId: input.toCustodyId };
     });
   }
 }

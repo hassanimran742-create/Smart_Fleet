@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CustodyType, CylinderEventType, TransferStatus } from '@prisma/client';
+import { AppError } from '../../common/errors/app-error';
 import { CustodyService } from '../custody/custody.service';
 
 @Injectable()
@@ -17,7 +18,7 @@ export class TransfersService {
         fromStore: true,
         toStore: true,
         vehicle: true,
-        driver: { include: { user: true } },
+        driver: { include: { user: { select: { id: true, name: true, phone: true } } } },
         lines: true,
       },
     });
@@ -77,7 +78,7 @@ export class TransfersService {
         lines: true,
         fromStore: true,
         toStore: true,
-        driver: { include: { user: true } },
+        driver: { include: { user: { select: { id: true, name: true, phone: true } } } },
       },
     });
   }
@@ -131,11 +132,10 @@ export class TransfersService {
     lng?: number;
   }) {
     const t = await this.byId(input.transferId);
-    if (t.driverId !== input.driverId) {
-      throw new BadRequestException('This transfer is not assigned to you.');
-    }
+    // Another driver's transfer doesn't exist for this one (API_CONTRACT §3.2).
+    if (t.driverId !== input.driverId) throw new AppError('NOT_FOUND');
     if (t.status === TransferStatus.CANCELLED || t.status === TransferStatus.COMPLETED) {
-      throw new BadRequestException(`Transfer is already ${t.status}.`);
+      throw new AppError('CONFLICT_STALE_STATE', { currentStatus: t.status });
     }
 
     // Resolve the driver's current vehicle — required to know where cylinders go on pickup.
@@ -144,21 +144,13 @@ export class TransfersService {
       select: { currentVehicleId: true, user: { select: { name: true } } },
     });
     const vehicleId = t.vehicleId ?? driver?.currentVehicleId ?? null;
-    if (!vehicleId) {
-      throw new BadRequestException(
-        'No vehicle linked to this transfer or driver. Ask admin to assign one on the Vehicles page.',
-      );
-    }
+    if (!vehicleId) throw new AppError('ASSIGN_DRIVER_NO_VEHICLE', { driver: driver?.user.name ?? '' });
 
     // Confirm scanned QR is one of this transfer's cylinders.
     const cylinder = await this.prisma.cylinder.findUnique({ where: { qrCode: input.qrCode } });
-    if (!cylinder) throw new NotFoundException(`Cylinder not found for QR: ${input.qrCode}`);
+    if (!cylinder) throw new AppError('SCAN_CYLINDER_UNKNOWN');
     const line = t.lines.find((l) => l.cylinderId === cylinder.id);
-    if (!line) {
-      throw new BadRequestException(
-        'That cylinder is not part of this transfer — double-check the QR or pick the right transfer.',
-      );
-    }
+    if (!line) throw new AppError('SCAN_EVENT_NOT_ALLOWED');
 
     let eventType: CylinderEventType;
     let toCustodyType: CustodyType;
@@ -166,24 +158,20 @@ export class TransfersService {
 
     if (input.phase === 'PICKUP') {
       if (cylinder.custodyType === 'VEHICLE' && cylinder.custodyId === vehicleId) {
-        throw new BadRequestException('Already picked up — scan it at the destination store next.');
+        throw new AppError('CONFLICT_STALE_STATE', { currentStatus: 'ON_VAN' });
       }
       if (cylinder.custodyType !== 'STORE' || cylinder.custodyId !== t.fromStoreId) {
-        throw new BadRequestException(
-          `Cylinder is not at the source store — current custody: ${cylinder.custodyType}.`,
-        );
+        throw new AppError('SCAN_NOT_AT_STORE', { store: t.fromStore.name });
       }
       eventType = CylinderEventType.SCAN_OUT;
       toCustodyType = CustodyType.VEHICLE;
       toCustodyId = vehicleId;
     } else {
       if (cylinder.custodyType === 'STORE' && cylinder.custodyId === t.toStoreId) {
-        throw new BadRequestException('Already delivered to the destination store.');
+        throw new AppError('CONFLICT_STALE_STATE', { currentStatus: 'IN_STORE' });
       }
       if (cylinder.custodyType !== 'VEHICLE' || cylinder.custodyId !== vehicleId) {
-        throw new BadRequestException(
-          `Cylinder is not on your vehicle — pick it up at the source store first.`,
-        );
+        throw new AppError('SCAN_NOT_ON_YOUR_VAN');
       }
       eventType = CylinderEventType.SCAN_IN;
       toCustodyType = CustodyType.STORE;
@@ -228,7 +216,7 @@ export class TransfersService {
       include: {
         fromStore: true,
         toStore: true,
-        driver: { include: { user: true } },
+        driver: { include: { user: { select: { id: true, name: true, phone: true } } } },
         vehicle: true,
         lines: {
           include: {
@@ -239,7 +227,7 @@ export class TransfersService {
         },
       },
     });
-    if (!t) throw new NotFoundException('Transfer not found');
+    if (!t) throw new AppError('NOT_FOUND');
     return t;
   }
 

@@ -1,0 +1,96 @@
+/*
+ * Sign-in (UX_ADMIN §2.10, website spec W01). Tokens only and logical properties. The page has no
+ * shell: the environment strip, then one centred card with the product mark (the sidebar's Cylinder).
+ */
+
+.sf-signin {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100vh;
+  background: var(--bg);
+}
+
+@supports (height: 100dvh) {
+  .sf-signin {
+    min-block-size: 100dvh;
+  }
+}
+
+.sf-signin__main {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: var(--sp-8) var(--sp-4);
+}
+
+.sf-signin__panel {
+  display: grid;
+  gap: var(--sp-4);
+  inline-size: min(420px, 100%);
+}
+
+.sf-signin__card {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.sf-signin__brand {
+  display: grid;
+  place-items: center;
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: var(--r-md);
+  background: var(--primary);
+  color: var(--on-solid);
+}
+
+.sf-signin__title {
+  font-size: var(--fs-20);
+}
+
+.sf-signin__card .sf-field {
+  margin-block-end: 0;
+}
+
+.sf-signin__error-hint {
+  display: block;
+  margin-block-start: 2px;
+  font-weight: 400;
+}
+
+.sf-signin__forgot {
+  margin-block-start: calc(var(--sp-2) * -1);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  text-align: center;
+}
+
+.sf-signin__reveal {
+  min-block-size: calc(var(--control-h) - 10px);
+  padding: 0 var(--sp-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--primary);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-signin__reveal:hover {
+  color: var(--primary-hover);
+}
+
+.sf-signin__submit {
+  inline-size: 100%;
+}
+
+.sf-signin__footer {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  text-align: center;
+}

@@ -21,7 +21,11 @@
     "db:status": "prisma migrate status",
     "db:drift": "prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code",
     "seed": "ts-node prisma/seed.ts",
-    "seed:demo": "ts-node prisma/demo-seed.ts"
+    "seed:demo": "ts-node prisma/demo-seed.ts",
+    "settings:set": "ts-node scripts/set-setting.ts",
+    "pilot:setup": "ts-node scripts/pilot-setup.ts",
+    "pilot:reset": "ts-node scripts/pilot-reset.ts",
+    "users:create-office": "ts-node src/modules/users/cli/create-office-user.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.642.0",
@@ -48,6 +52,7 @@
     "bullmq": "^5.7.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "exceljs": "4.4.0",
     "ioredis": "^5.4.0",
     "multer": "^1.4.5-lts.1",
     "nestjs-zod": "^3.0.0",
@@ -72,6 +77,7 @@
     "@types/passport-jwt": "^4.0.1",
     "jest": "^29.7.0",
     "prisma": "5.22.0",
+    "socket.io-client": "^4.7.5",
     "supertest": "^7.0.0",
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.1",
@@ -86,6 +92,11 @@
       "ts"
     ],
     "rootDir": ".",
+    "roots": [
+      "<rootDir>",
+      "<rootDir>/../../packages",
+      "<rootDir>/../mobile/src/ui/scan"
+    ],
     "testRegex": ".*\\.(spec|test)\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"

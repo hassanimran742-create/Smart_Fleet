@@ -1,19 +1,26 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { TransfersService } from './transfers.service';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { TransferStatus, UserRole } from '@prisma/client';
+import { AuthContext, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { AppError } from '../../common/errors/app-error';
+import { Feature } from '../../common/features/feature';
+import { TransfersService } from './transfers.service';
 
+/**
+ * Store-to-store transfers: switched off for the pilot (ADR-04, `features.transfers`), because they
+ * are a second scan path outside the holder rules. While off, writes get 403 FEATURE_DISABLED and
+ * lists `[]` with `X-Feature-Disabled: transfers`; the installed driver app polls `/transfers/mine`.
+ */
+@Feature('transfers')
 @Controller('transfers')
 export class TransfersController {
   constructor(private readonly transfers: TransfersService) {}
 
-  // Driver app: list scheduled transfers assigned to me. Must be declared
-  // before the @Get() admin list so the route order isn't ambiguous.
+  // Driver app: scheduled transfers assigned to me. Declared before `:id` so the routes don't clash.
   @Get('mine')
   @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   mine(@CurrentUser() user: AuthContext) {
-    if (!user.driverId) throw new BadRequestException('Not signed in as a driver');
+    if (!user.driverId) return [];
     return this.transfers.listForDriver(user.driverId);
   }
 
@@ -23,21 +30,20 @@ export class TransfersController {
     return this.transfers.stockSummary(storeId);
   }
 
-  // Driver and admin both need full detail. Auth-wise we just require the
-  // driver to be the assigned driver — handled inline.
+  // A driver sees only a transfer assigned to them (another one is 404, API_CONTRACT §3.2).
   @Get(':id')
   @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.DISPATCHER, UserRole.STORE_KEEPER)
   async byId(@CurrentUser() user: AuthContext, @Param('id') id: string) {
     const t = await this.transfers.byId(id);
-    if (user.role === 'DRIVER' && t.driverId !== user.driverId) {
-      throw new BadRequestException('This transfer is not assigned to you.');
-    }
+    if (user.role === UserRole.DRIVER && t.driverId !== user.driverId) throw new AppError('NOT_FOUND');
     return t;
   }
 
   @Get(':id/progress')
   @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.DISPATCHER)
-  progress(@Param('id') id: string) {
+  async progress(@CurrentUser() user: AuthContext, @Param('id') id: string) {
+    const t = await this.transfers.byId(id);
+    if (user.role === UserRole.DRIVER && t.driverId !== user.driverId) throw new AppError('NOT_FOUND');
     return this.transfers.progress(id);
   }
 
@@ -49,7 +55,19 @@ export class TransfersController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.DISPATCHER, UserRole.STORE_KEEPER)
-  create(@CurrentUser() user: AuthContext, @Body() body: any) {
+  create(
+    @CurrentUser() user: AuthContext,
+    @Body()
+    body: {
+      fromStoreId: string;
+      toStoreId: string;
+      cylinderIds: string[];
+      vehicleId?: string;
+      driverId?: string;
+      scheduledFor?: string;
+      notes?: string;
+    },
+  ) {
     return this.transfers.create({ ...body, requestedBy: user.userId });
   }
 
@@ -59,9 +77,7 @@ export class TransfersController {
     return this.transfers.setStatus(id, status);
   }
 
-  // Driver-app scan endpoint. The mobile screen passes the phase
-  // (PICKUP / DROPOFF) and the scanned QR code; the service figures out
-  // the rest (source/destination custody, allowed transition, status advance).
+  // Driver-app scan: the phase (PICKUP / DROPOFF) and the scanned QR; the service derives the rest.
   @Post(':id/scan')
   @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   scan(
@@ -69,7 +85,7 @@ export class TransfersController {
     @Param('id') id: string,
     @Body() body: { qrCode: string; phase: 'PICKUP' | 'DROPOFF'; lat?: number; lng?: number },
   ) {
-    if (!user.driverId) throw new BadRequestException('Only drivers can scan transfer cylinders.');
+    if (!user.driverId) throw new AppError('PERMISSION_DENIED');
     return this.transfers.scanForDriver({
       transferId: id,
       qrCode: body.qrCode,

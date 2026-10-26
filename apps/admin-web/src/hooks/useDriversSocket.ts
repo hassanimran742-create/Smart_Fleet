@@ -1,19 +1,21 @@
-import { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
+import { refreshSession } from '../api/client';
 import { useAuthStore } from '../store/auth';
+import { openDriversSocket, type DriverLocation } from './driversSocketSession';
 
-export interface DriverLocation {
-  driverId: string;
-  name?: string;
-  lat: number;
-  lng: number;
-  at: string;
-}
+export type { DriverLocation } from './driversSocketSession';
 
+/**
+ * Live driver positions for the office (API_CONTRACT §7.14): one `/drivers` socket per access token.
+ * When the server refuses or drops it for an expired token or an ended session, the session gets a fresh
+ * token at once; the new token re-runs this effect, which connects again (driversSocketSession.ts).
+ */
 export function useDriversSocket() {
   const token = useAuthStore((s) => s.token);
   const [drivers, setDrivers] = useState<Record<string, DriverLocation>>({});
   const [connected, setConnected] = useState(false);
+  const refusals = useRef({ count: 0 });
 
   useEffect(() => {
     if (!token) return;
@@ -21,29 +23,15 @@ export function useDriversSocket() {
     const apiHost =
       import.meta.env.VITE_API_ORIGIN ??
       window.location.origin.replace(/:\d+$/, ':3000');
-    const socket: Socket = io(`${apiHost}/drivers`, {
-      transports: ['websocket'],
-      auth: { token },
+    return openDriversSocket({
+      token,
+      connect: (auth) => io(`${apiHost}/drivers`, { transports: ['websocket'], auth: { token: auth } }),
+      refresh: refreshSession,
+      refusals: refusals.current,
+      onConnected: setConnected,
+      onSnapshot: setDrivers,
+      onLocation: (location) => setDrivers((current) => ({ ...current, [location.driverId]: location })),
     });
-
-    socket.on('connect', () => setConnected(true));
-    socket.on('disconnect', () => setConnected(false));
-
-    socket.on('drivers:snapshot', (rows: any[]) => {
-      const next: Record<string, DriverLocation> = {};
-      for (const r of rows) {
-        next[r.id] = { driverId: r.id, name: r.name, lat: r.lat, lng: r.lng, at: r.updated_at };
-      }
-      setDrivers(next);
-    });
-
-    socket.on('driver:location', (msg: DriverLocation) => {
-      setDrivers((d) => ({ ...d, [msg.driverId]: msg }));
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   }, [token]);
 
   return { drivers, connected };

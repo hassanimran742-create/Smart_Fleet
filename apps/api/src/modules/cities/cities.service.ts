@@ -1,6 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable } from '@nestjs/common';
+import { AppError } from '../../common/errors/app-error';
 import { PK_CITIES, findCity } from '../../data/pk-locations';
+import { PrismaService } from '../../prisma/prisma.service';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class CitiesService {
@@ -22,16 +25,18 @@ export class CitiesService {
   }
 
   async byId(id: string) {
-    const city = await this.prisma.city.findUnique({ where: { id } });
-    if (!city) throw new NotFoundException();
+    const city = UUID.test(id) ? await this.prisma.city.findUnique({ where: { id } }) : null;
+    if (!city) throw new AppError('NOT_FOUND');
     return city;
   }
 
+  /** The reference areas of a city, by its id or its name; [] for a city the list doesn't know. */
   async areasForCity(cityIdOrName: string) {
     let cityName = cityIdOrName;
-    const city = await this.prisma.city.findUnique({ where: { id: cityIdOrName } });
-    if (city) cityName = city.name;
-
+    if (UUID.test(cityIdOrName)) {
+      const city = await this.prisma.city.findUnique({ where: { id: cityIdOrName } });
+      if (city) cityName = city.name;
+    }
     const ref = findCity(cityName);
     if (!ref) return [];
     return ref.areas;

@@ -1,0 +1,39 @@
+/*
+ * Customer problems (UX_ADMIN §3.3). Tokens only (src/ui/tokens.css) and logical properties, so the page
+ * works at 1024×768 and a right-to-left language later is a `dir` switch.
+ */
+
+.sf-problems__two-line {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.sf-problems__order {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.sf-problems__order:hover {
+  text-decoration: underline;
+}
+
+.sf-problems__muted {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+/* The customer's note in quotes, 2 lines at most. */
+.sf-problems__note {
+  display: -webkit-box;
+  max-inline-size: 36ch;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.sf-problems__dialog {
+  display: grid;
+  gap: var(--sp-3);
+}

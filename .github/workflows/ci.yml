@@ -82,6 +82,9 @@ jobs:
       - name: Unit tests
         working-directory: apps/api
         run: npm test -- --passWithNoTests
+      - name: DB tests (PostGIS and Redis services)
+        working-directory: apps/api
+        run: npm run test:e2e -- --passWithNoTests
 
   admin-web:
     name: Admin web — typecheck + build

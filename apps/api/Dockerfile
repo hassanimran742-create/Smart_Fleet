@@ -27,6 +27,8 @@ COPY --from=build /workspace/packages ./packages
 COPY --from=build /workspace/apps/api/dist ./dist
 COPY --from=build /workspace/apps/api/prisma ./prisma
 COPY --from=build /workspace/apps/api/package.json ./package.json
+# The pilot setup and reset CLIs run from dist (`node dist/modules/pilot-setup/cli/pilot-setup.js`); the
+# setup file is mounted, never baked in (-v /srv/smartfleet/pilot:/pilot; infrastructure/aws/README.md).
 # The commit this image was built from (deploy.sh: --build-arg GIT_COMMIT_SHA=<sha>). GET /api/v1/health
 # reports it as `version`, so a deploy can check that the build it made is the one answering. Last, so a
 # new commit rebuilds no other layer. Without the argument (Railway), it stays empty.

@@ -1,59 +1,81 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { SendOtpDto } from './dto/send-otp.dto';
-import { RefreshDto, VerifyOtpDto } from './dto/verify-otp.dto';
-import { LoginPasswordDto } from './dto/login-password.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
+import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import type { LoginResponse } from '@smartfleet/shared-types';
+import { normalizePkPhone } from '@smartfleet/shared-utils';
+import {
+  changePasswordSchema,
+  loginSchema,
+  refreshSchema,
+  type ChangePasswordInput,
+  type LoginInput,
+} from '@smartfleet/shared-validation';
+import { AuthContext, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
-import { OtpPurpose } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ZodBody } from '../../common/pipes/zod-body.pipe';
+import { RateLimit } from '../../common/rate-limit/rate-limit';
+import { AuthService } from './auth.service';
+
+/** The phone a sign-in counts against (API_CONTRACT §3.6): normalised; not a Pakistani mobile → none. */
+function loginPhoneOf(req: { body?: { phone?: unknown } }): string | null {
+  const phone = req.body?.phone;
+  return typeof phone === 'string' ? normalizePkPhone(phone) : null;
+}
+
+/**
+ * The refresh token of a `POST /auth/refresh` body. Any non-empty text goes on to the token check
+ * (a malformed token is 401 AUTH_REFRESH_INVALID, §7.1); a missing one is 400 VALIDATION_FAILED.
+ */
+function refreshTokenOf(body: unknown): string {
+  const token = (body as { refreshToken?: unknown } | null | undefined)?.refreshToken;
+  if (typeof token === 'string' && token.trim().length > 0) return token.trim();
+  return new ZodBody(refreshSchema).transform(body).refreshToken;
+}
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService, private readonly prisma: PrismaService) {}
+  constructor(private readonly auth: AuthService) {}
 
+  /** Code sign-in is off for the pilot (ADR-03): always 403 AUTH_OTP_DISABLED; no code, no user. */
   @Public()
   @Post('otp/send')
-  send(@Body() dto: SendOtpDto) {
-    return this.auth.sendOtp(dto.phone, dto.purpose as OtpPurpose);
+  sendOtp(): never {
+    return this.auth.otpDisabled();
   }
 
   @Public()
   @Post('otp/verify')
-  verify(@Body() dto: VerifyOtpDto) {
-    return this.auth.verifyOtp(dto.phone, dto.code);
+  verifyOtp(): never {
+    return this.auth.otpDisabled();
   }
 
-  // Password login — only available for admin-side roles.
-  // CLIENT users still authenticate via OTP — they're end customers.
+  /** Every attempt counts toward both limits, whatever its result (§3.6). */
   @Public()
   @Post('login')
-  loginPassword(@Body() dto: LoginPasswordDto) {
-    return this.auth.loginWithPassword(dto.phone, dto.password);
-  }
-
-  // Authenticated self-change. Requires the current password.
-  @Post('change-password')
-  changePassword(
-    @CurrentUser() user: AuthContext,
-    @Body() dto: ChangePasswordDto,
-  ) {
-    return this.auth.changeOwnPassword(user.userId, dto.currentPassword, dto.newPassword);
+  @HttpCode(200)
+  @RateLimit('auth.login.phone', 5, 600, loginPhoneOf)
+  @RateLimit('auth.login.ip', 30, 600, 'ip')
+  login(@Body(new ZodBody(loginSchema)) body: LoginInput): Promise<LoginResponse> {
+    return this.auth.login(body);
   }
 
   @Public()
   @Post('refresh')
-  refresh(@Body() dto: RefreshDto) {
-    return this.auth.refresh(dto.refreshToken);
+  @HttpCode(200)
+  @RateLimit('auth.refresh.ip', 30, 60, 'ip')
+  refresh(@Body() body: unknown): Promise<LoginResponse> {
+    return this.auth.refresh(refreshTokenOf(body));
   }
 
-  // Useful for the client to confirm what role / claims are in its token.
+  @Post('change-password')
+  @HttpCode(200)
+  changePassword(
+    @CurrentUser() user: AuthContext,
+    @Body(new ZodBody(changePasswordSchema)) body: ChangePasswordInput,
+  ): Promise<LoginResponse> {
+    return this.auth.changePassword(user.userId, body);
+  }
+
   @Get('me')
   me(@CurrentUser() user: AuthContext) {
-    return this.prisma.user.findUnique({
-      where: { id: user.userId },
-      select: { id: true, phone: true, email: true, name: true, role: true, status: true },
-    });
+    return this.auth.me(user.userId);
   }
 }

@@ -1,4 +1,11 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { confirmOutsideReact } from '../ui/ConfirmDialog';
+import { Modal as UiModal } from '../ui/Modal';
+
+/**
+ * @deprecated Shims for the legacy screens (UX_ADMIN §1.1). New screens use `Modal`, `Drawer` and
+ * `useConfirm()` from src/ui. Delete this file when no legacy screen imports it.
+ */
 
 interface Props {
   title: string;
@@ -8,37 +15,41 @@ interface Props {
   width?: number;
 }
 
+/**
+ * The old modal's props, drawn by the new Modal (focus trap, Esc, labelled by its title, a bottom
+ * sheet on phones). The content keeps the old look through the `.legacy-old` style scope (styles.css).
+ */
 export function Modal({ title, open, onClose, children, width = 520 }: Props) {
-  if (!open) return null;
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'white', borderRadius: 8, width, maxWidth: '92vw', maxHeight: '90vh',
-          overflow: 'auto', padding: 24, boxShadow: '0 12px 40px rgba(0,0,0,.2)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <button
-            onClick={onClose}
-            style={{ background: 'transparent', border: 0, fontSize: 22, cursor: 'pointer', color: '#888' }}
-          >×</button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <UiModal open={open} title={title} onClose={onClose} width={width}>
+      <div className="legacy legacy-old legacy--modal">{children}</div>
+    </UiModal>
   );
 }
 
+/**
+ * @deprecated A blocking yes/no for old call sites written as `if (confirmDialog('…')) doIt()`, which
+ * need an answer at once, so it stays the browser's own dialog. When touching a legacy screen, switch
+ * to `const { ok } = await confirm({...})` from `useConfirm()`, or {@link confirmDialogAsync}.
+ */
 export function confirmDialog(message: string): boolean {
   // eslint-disable-next-line no-alert
   return window.confirm(message);
+}
+
+/**
+ * The same question in the app's ConfirmDialog ("Go back" has the focus). For a legacy screen moving
+ * off `window.confirm`: `if (!(await confirmDialogAsync(text, label))) return;`.
+ */
+export async function confirmDialogAsync(
+  message: string,
+  confirmLabel: string,
+  options: { danger?: boolean } = {},
+): Promise<boolean> {
+  const { ok } = await confirmOutsideReact({
+    title: message,
+    confirmLabel,
+    tone: options.danger ? 'danger' : 'default',
+  });
+  return ok;
 }

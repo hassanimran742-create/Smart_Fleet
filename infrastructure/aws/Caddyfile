@@ -2,7 +2,18 @@
 	email admin@smart-fleet.com
 }
 
-api.smart-fleet.com {
+# The hosts the apps call: eas.json and the website build use https://api.smartfleetpk.com (prod)
+# and https://staging.smartfleetpk.com (staging). From Inc 2 the same hosts serve the customer's
+# delivery link page at /c/<token> (CUSTOMER_PAGE §4-§5; PUBLIC_LINK_BASE_URL is the API host until a
+# short link domain is chosen).
+#
+# The link page sends its own security headers (Referrer-Policy no-referrer, X-Content-Type-Options,
+# X-Robots-Tag and a CSP with frame-ancestors 'none'), so the site-wide headers below skip /c/* rather
+# than override or duplicate them; HSTS applies everywhere. The access log replaces a link's token with
+# [token] and drops the Referer header, so tokens never reach the logs (CUSTOMER_PAGE §5, §12). The
+# pattern takes /c/ and /C/ and every form of the token the page accepts (capitals, separators): Express
+# routes ignore letter case, so each opens the page. RE2 and JavaScript read it the same way.
+api.smartfleetpk.com {
 	reverse_proxy api-prod:3001 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
@@ -13,18 +24,25 @@ api.smart-fleet.com {
 
 	log {
 		output stdout
-		format json
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "^/[cC]/+[^/?]+" "/c/[token]"
+				request>headers>Referer delete
+			}
+		}
 	}
 
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	@notLinkPage not path /c /c/*
+	header @notLinkPage {
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 }
 
-staging.smart-fleet.com {
+staging.smartfleetpk.com {
 	reverse_proxy api-staging:3002 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
@@ -35,16 +53,57 @@ staging.smart-fleet.com {
 
 	log {
 		output stdout
-		format json
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "^/[cC]/+[^/?]+" "/c/[token]"
+				request>headers>Referer delete
+			}
+		}
 	}
 
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	@notLinkPage not path /c /c/*
+	header @notLinkPage {
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 }
+
+# When a short link domain is chosen (CUSTOMER_PAGE §5), it serves only the link page and a robots.txt
+# that disallows everything; set PUBLIC_LINK_BASE_URL to it. Uncomment and replace the host:
+#
+# REPLACE_SHORT_LINK_HOST {
+# 	@linkPage path /c /c/*
+# 	handle @linkPage {
+# 		reverse_proxy api-prod:3001 {
+# 			header_up X-Real-IP {remote_host}
+# 			header_up X-Forwarded-For {remote_host}
+# 			header_up X-Forwarded-Proto {scheme}
+# 		}
+# 	}
+# 	handle /robots.txt {
+# 		respond "User-agent: *
+# Disallow: /
+# " 200
+# 	}
+# 	handle {
+# 		respond "Not found" 404
+# 	}
+# 	encode zstd gzip
+# 	log {
+# 		output stdout
+# 		format filter {
+# 			wrap json
+# 			fields {
+# 				request>uri regexp "^/[cC]/+[^/?]+" "/c/[token]"
+# 				request>headers>Referer delete
+# 			}
+# 		}
+# 	}
+# 	header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+# }
 
 :80 {
 	respond /health 200

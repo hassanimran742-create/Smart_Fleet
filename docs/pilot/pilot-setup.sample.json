@@ -1,0 +1,98 @@
+{
+  "description": "Sample pilot setup file: the standard test data of TEST_CASES.md (pilot/test.json is the same data). Load it on a test server with: npm run pilot:setup -- --file docs/pilot/pilot-setup.sample.json --test. Every section and key is described in API_CONTRACT 10.3; the file is checked with shared-validation pilotSetupFileSchema. Opening balances need --test.",
+  "city": { "name": "Lahore", "countryCode": "PK" },
+  "zones": [
+    {
+      "name": "North",
+      "active": true,
+      "shape": { "type": "MultiPolygon", "coordinates": [[[[74.2, 31.5], [74.25, 31.5], [74.25, 31.55], [74.2, 31.55], [74.2, 31.5]]]] }
+    },
+    {
+      "name": "South",
+      "active": true,
+      "shape": { "type": "MultiPolygon", "coordinates": [[[[74.25, 31.5], [74.3, 31.5], [74.3, 31.55], [74.25, 31.55], [74.25, 31.5]]]] }
+    },
+    {
+      "name": "East",
+      "active": true,
+      "shape": { "type": "MultiPolygon", "coordinates": [[[[74.3, 31.5], [74.35, 31.5], [74.35, 31.55], [74.3, 31.55], [74.3, 31.5]]]] }
+    }
+  ],
+  "officeUsers": [
+    { "name": "Owner", "phone": "0333 1000001" },
+    { "name": "Ops", "phone": "0333 1000002" }
+  ],
+  "cylinderTypes": [
+    { "code": "STD_6KG", "name": "6 kg", "weightKg": 6, "capacityUnits": 1 },
+    { "code": "STD_11_8KG", "name": "11.8 kg", "weightKg": 11.8, "capacityUnits": 1 },
+    { "code": "STD_15KG", "name": "15 kg", "weightKg": 15, "capacityUnits": 2 },
+    { "code": "STD_45_4KG", "name": "45.4 kg", "weightKg": 45.4, "capacityUnits": 4 }
+  ],
+  "distributors": [
+    {
+      "code": "AG",
+      "businessName": "Ahmed Gas",
+      "phone": "0321 1234567",
+      "store": { "name": "Ahmed Gas Store", "address": "12 Main Boulevard, North, Lahore", "lat": 31.52, "lng": 74.22 }
+    },
+    {
+      "code": "BG",
+      "businessName": "Bilal Gas",
+      "phone": "0322 7654321",
+      "store": { "name": "Bilal Gas's store", "address": "4 Canal Road, South, Lahore", "lat": 31.52, "lng": 74.28 }
+    }
+  ],
+  "prices": [
+    {
+      "distributor": "AG",
+      "zone": "North",
+      "basePaisa": 25000,
+      "sizes": [
+        { "cylinderType": "STD_6KG", "perCylinderPaisa": 3000 },
+        { "cylinderType": "STD_11_8KG", "perCylinderPaisa": 4000 },
+        { "cylinderType": "STD_15KG", "perCylinderPaisa": 8000 },
+        { "cylinderType": "STD_45_4KG", "perCylinderPaisa": 15000 }
+      ]
+    },
+    { "distributor": "AG", "zone": "South", "basePaisa": 40000 },
+    { "distributor": "BG", "zone": "South", "basePaisa": 30000 }
+  ],
+  "drivers": [
+    {
+      "name": "Kashif",
+      "phone": "0345 1000001",
+      "licenceNo": "LHR-DL-1001",
+      "van": { "plateNo": "LEA-101", "capacityUnits": 40, "homeZone": "North" }
+    },
+    {
+      "name": "Imran",
+      "phone": "0345 1000002",
+      "licenceNo": "LHR-DL-1002",
+      "van": { "plateNo": "LEB-202", "capacityUnits": 40, "homeZone": "South" }
+    }
+  ],
+  "stations": [
+    { "name": "Lahore Filling Station", "address": "Ring Road, Lahore", "lat": 31.545, "lng": 74.26, "active": true }
+  ],
+  "settings": {
+    "topup.account": {
+      "accountTitle": "Smart Fleet (Pvt) Ltd",
+      "bankName": "Test Bank",
+      "iban": "PK00TEST0000000000000000",
+      "accountNumber": "0000000000"
+    }
+  },
+  "stock": [
+    { "distributor": "AG", "cylinderType": "STD_11_8KG", "count": 20, "state": "FULL" },
+    { "distributor": "AG", "cylinderType": "STD_15KG", "count": 10, "state": "FULL" },
+    { "distributor": "AG", "cylinderType": "STD_45_4KG", "count": 5, "state": "FULL" }
+  ],
+  "customers": [
+    { "distributor": "AG", "name": "Sana", "phone": "0300 1234567", "address": { "label": "Sana's house", "lat": 31.53, "lng": 74.23 } },
+    { "distributor": "AG", "name": "Usman", "phone": "+923217654321", "address": { "label": "Usman's house", "lat": 31.53, "lng": 74.27 } },
+    { "distributor": "BG", "name": "Hina", "phone": "0300 9876543", "address": { "label": "Hina's house", "lat": 31.51, "lng": 74.28 } }
+  ],
+  "openingBalances": [
+    { "distributor": "AG", "amountPaisa": 500000, "note": "Standard test data: Ahmed Gas starts with Rs 5,000" }
+  ]
+}

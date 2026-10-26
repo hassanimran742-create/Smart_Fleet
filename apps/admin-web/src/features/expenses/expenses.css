@@ -1,0 +1,281 @@
+/*
+ * The Expenses page (UX_ADMIN §2.7, website spec W33–W37). Tokens only (src/ui/tokens.css) and logical
+ * properties, so the page works at 1024×768 and 768×1024 and a right-to-left language later is a `dir`
+ * switch.
+ */
+
+/* Two rows of filters: the date chips, then Type, Van, Driver and "Show removed". */
+.sf-expenses__filters {
+  display: grid;
+  gap: var(--sp-2);
+  margin-block-end: var(--sp-4);
+}
+
+.sf-expenses__filters .sf-filter-bar {
+  margin: 0;
+}
+
+.sf-expenses__filters .sf-field {
+  min-inline-size: 150px;
+}
+
+.sf-expenses__pick {
+  flex: 0 1 220px;
+  min-inline-size: 180px;
+}
+
+.sf-expenses__section {
+  margin-block-end: var(--sp-6);
+}
+
+.sf-expenses__section-title {
+  margin-block-end: var(--sp-3);
+  font-size: var(--fs-16);
+}
+
+.sf-expenses__note {
+  margin-block-end: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+/* Totals: one card per type, the fuel-log card, the grand total. */
+.sf-expenses__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--sp-3);
+  margin-block-end: var(--sp-3);
+}
+
+.sf-expenses__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sf-expenses__card-title {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-expenses__card-meta {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-expenses__card--fuel {
+  border-style: dashed;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.sf-expenses__card--fuel .sf-money {
+  color: var(--text-muted);
+}
+
+.sf-expenses__card--total {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.sf-expenses__include {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  margin-block-end: var(--sp-4);
+}
+
+.sf-expenses__include-hint {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+/* The list: a removed expense is struck through, beside its "Removed" chip. */
+.sf-expenses__struck {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.sf-expenses__date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+
+.sf-expenses__note-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.sf-expenses__note-cell {
+  display: block;
+  max-inline-size: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A receipt is attached: a paperclip after the note. */
+.sf-expenses__clip {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.sf-expenses__muted {
+  color: var(--text-muted);
+}
+
+/* The add / edit drawer */
+.sf-expenses__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.sf-expenses__amount .sf-input-group {
+  max-inline-size: 240px;
+}
+
+.sf-expenses__form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.sf-expenses__receipt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.sf-expenses__receipt-preview {
+  inline-size: 96px;
+  block-size: 96px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  object-fit: cover;
+}
+
+.sf-expenses__file-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The types drawer */
+.sf-expenses__types {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-expenses__types-heading {
+  margin-block: var(--sp-4) var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.sf-expenses__type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  min-block-size: var(--row-h);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.sf-expenses__type.is-highlighted {
+  border-color: var(--warning-fg);
+  background: var(--warning-bg);
+}
+
+.sf-expenses__type-main {
+  display: flex;
+  flex: 1 1 140px;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.sf-expenses__type-name {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.sf-expenses__type-meta {
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-expenses__type-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-inline-start: auto;
+}
+
+.sf-expenses__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+
+.sf-expenses__inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.sf-expenses__inline-form .sf-field {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
+.sf-expenses__inline-actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding-block-start: 26px;
+}
+
+.sf-expenses__add-type {
+  margin-block: var(--sp-3) 0;
+}
+
+@media (max-width: 767.98px) {
+  .sf-expenses__form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

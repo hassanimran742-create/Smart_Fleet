@@ -1,0 +1,1324 @@
+// Smart_Fleet Prisma schema
+// PostgreSQL 16 + PostGIS 3.4. Spatial columns use Unsupported("geometry(...,4326)").
+// Spatial queries go through PrismaService.$queryRaw.
+//
+// Changes ship only as migrations made with `npm run db:new-migration -- <name>`
+// (docs/pilot/DATA_MODEL.md §2). Never `prisma db push` or `prisma db pull`.
+// New columns stay nullable or defaulted (expand, then contract one release later),
+// so the raw INSERTs on geometry tables keep working (DATA_MODEL §6).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis, uuidOssp(map: "uuid-ossp"), pgcrypto]
+}
+
+// ---------- ENUMS ----------
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  DISPATCHER
+  STORE_KEEPER
+  DISTRIBUTOR
+  DRIVER
+  CLIENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum OtpPurpose {
+  LOGIN
+  RESET
+}
+
+enum CylinderState {
+  FULL
+  EMPTY
+  FAULTY
+  LOST
+}
+
+enum CustodyType {
+  DISTRIBUTOR
+  STORE
+  VEHICLE
+  CLIENT
+}
+
+enum CylinderEventType {
+  SCAN_IN
+  SCAN_OUT
+  DELIVERED
+  PICKED_UP_EMPTY
+  RETURNED_TO_DISTRIBUTOR
+  TRANSFER
+  MARK_FAULTY
+  MARK_LOST
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum DriverAvailability {
+  AVAILABLE
+  ON_LEAVE
+  OFF_DUTY
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  FAILED
+}
+
+// Legacy mirror for old app builds: PAID_VIA_LEDGER while Order.feeStatus is DEDUCTED, UNPAID otherwise.
+enum OrderPaymentStatus {
+  UNPAID
+  PAID_VIA_LEDGER
+  PAID_DIRECT
+}
+
+// The money state of an order. The cost is deducted when the order is placed and
+// returned once, only on a cancel before delivery has started.
+enum OrderFeeStatus {
+  NONE // no cost taken: legacy order, or a cost of 0
+  DEDUCTED
+  REVERSED
+}
+
+enum FeeStrategy {
+  DISTRIBUTOR_ZONE // pilot: the distributor's price for the customer's zone
+  LEGACY_ZONE_PAIR // old orders priced by PricingRule
+}
+
+enum DeliveryMethod {
+  DRIVER_TAP // Inc 1: the driver taps Delivered
+  SCANNED // Inc 2: the hand-over scans
+  MANUAL // the office, with a reason
+}
+
+enum TripStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+}
+
+enum TripStopType {
+  STORE_PICKUP
+  DELIVERY
+  RETURN_DROPOFF
+}
+
+enum TripStopStatus {
+  PENDING
+  ARRIVED
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum TransferStatus {
+  REQUESTED
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentProviderName {
+  JAZZCASH
+  EASYPAISA
+  BANK_MANUAL
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  REJECTED // the super admin said no (legacy BANK_MANUAL FAILED rows are relabelled in inc1b)
+}
+
+enum PayerChannel {
+  EASYPAISA_APP
+  BANK_APP
+  OTHER
+}
+
+// Signed ledger rows. Opening balances and corrections are ADJUSTMENT with a reason_code.
+enum LedgerEntryType {
+  CREDIT_TOPUP
+  DEBIT_ORDER
+  ADJUSTMENT
+  CREDIT_ORDER_REVERSAL // the delivery cost returned on a cancel before delivery started
+  DEBIT_REFILL // reserved for refill.deliveryCost; never written while it is off
+}
+
+enum DistributorStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum ReconciliationStatus {
+  PENDING
+  VERIFIED
+  FLAGGED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum AuditActorKind {
+  USER
+  SYSTEM // jobs, CLIs and migrations; actor_label says which
+  CUSTOMER // the confirmation link (Inc 2)
+}
+
+enum StoredFilePurpose {
+  TOPUP_PROOF
+  EXPENSE_RECEIPT
+  DAY_END_SHEET
+  DAY_END_UPLOAD
+  OTHER
+}
+
+// ---------- USERS / AUTH ----------
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @unique
+  email        String?    @unique
+  name         String
+  role         UserRole
+  status       UserStatus @default(PENDING)
+  cnic         String?
+  profilePictureUrl String? @map("profile_picture_url")
+  cnicEncrypted Bytes?    @map("cnic_encrypted")
+  cnicIndex    String?    @map("cnic_index") @db.Char(64)
+  passwordHash String?    @map("password_hash")
+  /// Sent as the `tv` token claim; bumped on suspend, archive, role change and password reset.
+  tokenVersion Int        @default(0) @map("token_version")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  distributorProfile Distributor?
+  driverProfile      Driver?
+  clientProfile      Client?
+  refreshTokens      RefreshToken[]
+  cylinderEvents     CylinderEvent[]  @relation("ActorEvents")
+  auditLogs          AuditLog[]
+  reconciliations    Reconciliation[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id         String     @id @default(uuid()) @db.Uuid
+  phone      String
+  codeHash   String     @map("code_hash")
+  purpose    OtpPurpose
+  expiresAt  DateTime   @map("expires_at")
+  consumedAt DateTime?  @map("consumed_at")
+  attempts   Int        @default(0)
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@index([phone, createdAt])
+  @@map("otp_codes")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  parentId  String?   @map("parent_id") @db.Uuid
+  revokedAt DateTime? @map("revoked_at")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------- ROLE PROFILES ----------
+
+model Distributor {
+  id                  String            @id @default(uuid()) @db.Uuid
+  userId              String            @unique @map("user_id") @db.Uuid
+  businessName        String            @map("business_name")
+  /// Short code for human numbers (order AG-0142, top-up AG-T031): ^[A-Z][A-Z0-9]{1,5}$, set by the
+  /// super admin, locked after the first order. Old rows were backfilled D01, D02... (inc1a).
+  code                String            @unique
+  /// The distributor's one store; every trip and refill starts there.
+  homeStoreId         String            @unique @map("home_store_id") @db.Uuid
+  /// THE wallet balance (no holds, no split). The ledger sum always equals it.
+  advanceBalancePaisa BigInt            @default(0) @map("advance_balance_paisa")
+  status              DistributorStatus @default(PENDING)
+  /// Human-number counters, allocated inside the creating transaction (UPDATE ... RETURNING).
+  nextOrderNo         Int               @default(1) @map("next_order_no")
+  nextTopupNo         Int               @default(1) @map("next_topup_no")
+  nextRefillNo        Int               @default(1) @map("next_refill_no") // Inc 3
+  nextCylinderNo      Int               @default(1) @map("next_cylinder_no") // Inc 2
+  /// The Idempotency-Key of POST /distributors: a retry returns this distributor (API_CONTRACT §4.2).
+  clientRequestId     String?           @unique @map("client_request_id") @db.Uuid
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  user          User                   @relation(fields: [userId], references: [id])
+  homeStore     Store                  @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
+  clients       Client[]
+  cylinders     Cylinder[]
+  orders        Order[]
+  ledgerEntries LedgerEntry[]
+  payments      Payment[]
+  fillingOrders FillingOrder[]
+  zonePrices    DistributorZonePrice[]
+  files         StoredFile[]
+
+  @@map("distributors")
+}
+
+model Driver {
+  id                       String    @id @default(uuid()) @db.Uuid
+  userId                   String    @unique @map("user_id") @db.Uuid
+  licenceNo                String    @unique @map("licence_no")
+  currentVehicleId         String?   @unique @map("current_vehicle_id") @db.Uuid
+  currentZoneId            String?   @map("current_zone_id") @db.Uuid
+  currentLocation          Unsupported("geometry(Point,4326)")? @map("current_location")
+  currentLocationUpdatedAt DateTime? @map("current_location_updated_at")
+  isOnline                 Boolean   @default(false) @map("is_online")
+  availability             DriverAvailability @default(AVAILABLE)
+  leaveStart               DateTime? @map("leave_start")
+  leaveEnd                 DateTime? @map("leave_end")
+  leaveReason              String?   @map("leave_reason")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  user           User    @relation(fields: [userId], references: [id])
+  currentVehicle Vehicle? @relation("DriverCurrentVehicle", fields: [currentVehicleId], references: [id])
+  currentZone    Zone?    @relation(fields: [currentZoneId], references: [id])
+  trips          Trip[]
+  reconciliations Reconciliation[]
+  shifts         DriverShift[]
+  fuelRefills    FuelRefill[]
+  fillingOrders  FillingOrder[]
+  transfers      Transfer[]     @relation("TransferDriver")
+  expenses       Expense[]
+
+  @@index([isOnline])
+  @@index([availability])
+  @@map("drivers")
+}
+
+model DriverShift {
+  id        String    @id @default(uuid()) @db.Uuid
+  driverId  String    @map("driver_id") @db.Uuid
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@index([driverId, startedAt])
+  @@map("driver_shifts")
+}
+
+// ---------- GEOGRAPHY ----------
+
+model City {
+  id          String @id @default(uuid()) @db.Uuid
+  name        String
+  countryCode String @default("PK") @map("country_code")
+
+  zones        Zone[]
+  pricingRules PricingRule[]
+
+  @@map("cities")
+}
+
+model Zone {
+  id        String @id @default(uuid()) @db.Uuid
+  cityId    String @map("city_id") @db.Uuid
+  name      String
+  polygon   Unsupported("geometry(MultiPolygon,4326)")
+  centroid  Unsupported("geometry(Point,4326)")?
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  city     City      @relation(fields: [cityId], references: [id])
+  stores   Store[]
+  vehicles Vehicle[]
+  drivers  Driver[]
+  ordersAsDest      Order[]       @relation("OrderDestZone")
+  pricingAsOrigin   PricingRule[] @relation("PricingOrigin")
+  pricingAsDest     PricingRule[] @relation("PricingDest")
+  zonePrices        DistributorZonePrice[]
+  clientAddresses   ClientAddress[]
+
+  @@index([polygon], type: Gist)
+  @@index([cityId, isActive])
+  @@map("zones")
+}
+
+model Store {
+  id        String  @id @default(uuid()) @db.Uuid
+  name      String
+  zoneId    String  @map("zone_id") @db.Uuid
+  address   String
+  location  Unsupported("geometry(Point,4326)")
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  zone           Zone           @relation(fields: [zoneId], references: [id])
+  /// The one distributor whose store this is (Distributor.homeStoreId is unique).
+  distributor    Distributor?
+  ordersAsOrigin Order[]        @relation("OrderOriginStore")
+  trips          Trip[]
+  tripStops      TripStop[]
+  transfersFrom  Transfer[]     @relation("TransferFromStore")
+  transfersTo    Transfer[]     @relation("TransferToStore")
+  fillingPickups FillingOrder[]
+
+  @@index([location], type: Gist)
+  @@map("stores")
+}
+
+// ---------- VEHICLES ----------
+
+model Vehicle {
+  id                String        @id @default(uuid()) @db.Uuid
+  plateNo           String        @unique @map("plate_no")
+  capacityUnits     Int           @map("capacity_units")
+  homeZoneId        String        @map("home_zone_id") @db.Uuid
+  status            VehicleStatus @default(ACTIVE)
+  currentOdometerKm Int           @default(0) @map("current_odometer_km")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  homeZone        Zone           @relation(fields: [homeZoneId], references: [id])
+  currentDriver   Driver?        @relation("DriverCurrentVehicle")
+  trips           Trip[]
+  transfers       Transfer[]
+  fuelRefills     FuelRefill[]
+  fillingOrders   FillingOrder[]
+  expenses        Expense[]
+
+  @@map("vehicles")
+}
+
+// ---------- CLIENTS ----------
+
+model Client {
+  id               String   @id @default(uuid()) @db.Uuid
+  distributorId    String   @map("distributor_id") @db.Uuid
+  userId           String?  @unique @map("user_id") @db.Uuid
+  name             String
+  phone            String
+  address          String?
+  area             String?
+  city             String?
+  creditLimitPaisa BigInt   @default(0) @map("credit_limit_paisa")
+  priority         Int      @default(3)
+  notes            String?
+  /// The Idempotency-Key of POST /clients: a retry returns this customer (API_CONTRACT §4.2).
+  clientRequestId  String?  @map("client_request_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  distributor Distributor      @relation(fields: [distributorId], references: [id])
+  user        User?            @relation(fields: [userId], references: [id])
+  addresses   ClientAddress[]
+  orders      Order[]
+
+  @@unique([distributorId, clientRequestId])
+  /// One customer per phone number within a distributor (inc1b; POST /clients checks it first).
+  @@unique([distributorId, phone])
+  @@index([distributorId])
+  @@map("clients")
+}
+
+model ClientAddress {
+  id        String   @id @default(uuid()) @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  label     String
+  location  Unsupported("geometry(Point,4326)")
+  /// The zone that covered the pin when it was saved (NULL = outside every active zone), kept for the
+  /// record; lists, quotes and orders re-check the pin live against the active zones.
+  zoneId    String?  @map("zone_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id])
+  zone   Zone?  @relation(fields: [zoneId], references: [id])
+
+  @@index([clientId])
+  @@map("client_addresses")
+}
+
+// ---------- CYLINDERS ----------
+
+model CylinderType {
+  id            String @id @default(uuid()) @db.Uuid
+  code          String @unique
+  name          String
+  weightKg      Decimal @map("weight_kg") @db.Decimal(6, 2)
+  capacityUnits Int     @map("capacity_units")
+
+  cylinders  Cylinder[]
+  orderLines OrderLine[]
+  pricingRules PricingRule[]
+  fillingOrders FillingOrder[]
+  zonePriceSizes DistributorZonePriceSize[]
+
+  @@map("cylinder_types")
+}
+
+model Cylinder {
+  id             String        @id @default(uuid()) @db.Uuid
+  serial         String        @unique
+  qrCode         String        @unique @map("qr_code")
+  distributorId  String        @map("distributor_id") @db.Uuid
+  cylinderTypeId String        @map("cylinder_type_id") @db.Uuid
+  state          CylinderState @default(EMPTY)
+  custodyType    CustodyType   @map("custody_type")
+  custodyId      String        @map("custody_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  distributor  Distributor     @relation(fields: [distributorId], references: [id])
+  cylinderType CylinderType    @relation(fields: [cylinderTypeId], references: [id])
+  events       CylinderEvent[]
+  transferLines TransferLine[]
+
+  @@index([distributorId, cylinderTypeId, state, custodyType])
+  @@map("cylinders")
+}
+
+model CylinderEvent {
+  id              String              @id @default(uuid()) @db.Uuid
+  cylinderId      String              @map("cylinder_id") @db.Uuid
+  eventType       CylinderEventType   @map("event_type")
+  fromCustodyType CustodyType?        @map("from_custody_type")
+  fromCustodyId   String?             @map("from_custody_id") @db.Uuid
+  toCustodyType   CustodyType?        @map("to_custody_type")
+  toCustodyId     String?             @map("to_custody_id") @db.Uuid
+  actorUserId     String              @map("actor_user_id") @db.Uuid
+  photoUrl        String?             @map("photo_url")
+  location        Unsupported("geometry(Point,4326)")?
+  tripId          String?             @map("trip_id") @db.Uuid
+  orderId         String?             @map("order_id") @db.Uuid
+  transferId      String?             @map("transfer_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  cylinder Cylinder @relation(fields: [cylinderId], references: [id])
+  actor    User     @relation("ActorEvents", fields: [actorUserId], references: [id])
+
+  @@index([cylinderId, createdAt])
+  @@map("cylinder_events")
+}
+
+// ---------- INVENTORY ----------
+
+model InventoryLot {
+  id             String        @id @default(uuid()) @db.Uuid
+  holderType     CustodyType   @map("holder_type")
+  holderId       String        @map("holder_id") @db.Uuid
+  distributorId  String        @map("distributor_id") @db.Uuid
+  cylinderTypeId String        @map("cylinder_type_id") @db.Uuid
+  state          CylinderState
+  count          Int           @default(0)
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@unique([holderType, holderId, distributorId, cylinderTypeId, state], name: "inventory_unique")
+  @@map("inventory_lots")
+}
+
+// ---------- TRANSFERS ----------
+
+model Transfer {
+  id            String         @id @default(uuid()) @db.Uuid
+  fromStoreId   String         @map("from_store_id") @db.Uuid
+  toStoreId     String         @map("to_store_id") @db.Uuid
+  vehicleId     String?        @map("vehicle_id") @db.Uuid
+  driverId      String?        @map("driver_id") @db.Uuid
+  scheduledFor  DateTime?      @map("scheduled_for")
+  notes         String?
+  status        TransferStatus @default(REQUESTED)
+  requestedBy   String         @map("requested_by") @db.Uuid
+  createdAt     DateTime       @default(now()) @map("created_at")
+  completedAt   DateTime?      @map("completed_at")
+
+  fromStore Store           @relation("TransferFromStore", fields: [fromStoreId], references: [id])
+  toStore   Store           @relation("TransferToStore", fields: [toStoreId], references: [id])
+  vehicle   Vehicle?        @relation(fields: [vehicleId], references: [id])
+  driver    Driver?         @relation("TransferDriver", fields: [driverId], references: [id])
+  lines     TransferLine[]
+
+  @@index([driverId, status])
+  @@index([scheduledFor])
+  @@map("transfers")
+}
+
+model TransferLine {
+  id         String @id @default(uuid()) @db.Uuid
+  transferId String @map("transfer_id") @db.Uuid
+  cylinderId String @map("cylinder_id") @db.Uuid
+
+  transfer Transfer @relation(fields: [transferId], references: [id])
+  cylinder Cylinder @relation(fields: [cylinderId], references: [id])
+
+  @@unique([transferId, cylinderId])
+  @@map("transfer_lines")
+}
+
+// ---------- PRICING ----------
+
+// Legacy zone-pair pricing (FeeStrategy.LEGACY_ZONE_PAIR). Frozen: read for old orders only.
+model PricingRule {
+  id              String   @id @default(uuid()) @db.Uuid
+  cityId          String   @map("city_id") @db.Uuid
+  originZoneId    String   @map("origin_zone_id") @db.Uuid
+  destZoneId      String   @map("dest_zone_id") @db.Uuid
+  cylinderTypeId  String   @map("cylinder_type_id") @db.Uuid
+  basePaisa       BigInt   @map("base_paisa")
+  perUnitPaisa    BigInt   @map("per_unit_paisa")
+  effectiveFrom   DateTime @map("effective_from")
+  effectiveUntil  DateTime? @map("effective_until")
+
+  city         City         @relation(fields: [cityId], references: [id])
+  originZone   Zone         @relation("PricingOrigin", fields: [originZoneId], references: [id])
+  destZone     Zone         @relation("PricingDest", fields: [destZoneId], references: [id])
+  cylinderType CylinderType @relation(fields: [cylinderTypeId], references: [id])
+
+  @@unique([cityId, originZoneId, destZoneId, cylinderTypeId, effectiveFrom], name: "pricing_unique_active")
+  @@map("pricing_rules")
+}
+
+// The delivery price: one current row per distributor per zone, edited in place
+// (every edit writes a before/after audit row). Cost = base + Σ(per-size amount × full cylinders).
+// Orders keep their own copy of the cost, so there is no foreign key from orders to this table.
+model DistributorZonePrice {
+  id              String   @id @default(uuid()) @db.Uuid
+  distributorId   String   @map("distributor_id") @db.Uuid
+  zoneId          String   @map("zone_id") @db.Uuid
+  /// Charged once per order.
+  basePaisa       BigInt   @map("base_paisa")
+  note            String?
+  updatedByUserId String?  @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  distributor Distributor                @relation(fields: [distributorId], references: [id])
+  zone        Zone                       @relation(fields: [zoneId], references: [id])
+  sizes       DistributorZonePriceSize[]
+
+  @@unique([distributorId, zoneId])
+  @@index([zoneId])
+  @@map("distributor_zone_prices")
+}
+
+// Optional per-size amounts. A size with no row costs 0 per cylinder.
+model DistributorZonePriceSize {
+  id               String @id @default(uuid()) @db.Uuid
+  priceId          String @map("price_id") @db.Uuid
+  cylinderTypeId   String @map("cylinder_type_id") @db.Uuid
+  perCylinderPaisa BigInt @map("per_cylinder_paisa")
+
+  price        DistributorZonePrice @relation(fields: [priceId], references: [id], onDelete: Cascade)
+  cylinderType CylinderType         @relation(fields: [cylinderTypeId], references: [id])
+
+  @@unique([priceId, cylinderTypeId])
+  @@map("distributor_zone_price_sizes")
+}
+
+// ---------- ORDERS / TRIPS ----------
+
+model Order {
+  id                   String              @id @default(uuid()) @db.Uuid
+  distributorId        String              @map("distributor_id") @db.Uuid
+  clientId             String              @map("client_id") @db.Uuid
+  deliveryAddress      Unsupported("geometry(Point,4326)") @map("delivery_address")
+  deliveryAddressLabel String              @map("delivery_address_label")
+  destZoneId           String              @map("dest_zone_id") @db.Uuid
+  originStoreId        String?             @map("origin_store_id") @db.Uuid
+  /// Human number per distributor, shown as AG-0142 (from Distributor.nextOrderNo).
+  orderNo              Int                 @map("order_no")
+  /// The Idempotency-Key of "Place order": a retry returns the first order.
+  clientRequestId      String?             @map("client_request_id") @db.Uuid
+  status               OrderStatus         @default(PENDING)
+  /// Legacy mirror for old app builds; read feeStatus.
+  paymentStatus        OrderPaymentStatus  @default(UNPAID) @map("payment_status")
+  /// The cost deducted from the wallet when the order was placed (0 when nothing was taken).
+  deliveryFeePaisa     BigInt              @default(0) @map("delivery_fee_paisa")
+  feeStatus            OrderFeeStatus      @default(NONE) @map("fee_status")
+  feeStrategy          FeeStrategy?        @map("fee_strategy")
+  feeBasePaisa         BigInt?             @map("fee_base_paisa")
+  feeQuotedAt          DateTime?           @map("fee_quoted_at")
+  /// {zoneId, zoneName, priceId, priceUpdatedAt}: display only; the amount columns are authoritative.
+  feeDetails           Json?               @map("fee_details")
+  scheduledWindowStart DateTime?           @map("scheduled_window_start")
+  scheduledWindowEnd   DateTime?           @map("scheduled_window_end")
+  tripId               String?             @map("trip_id") @db.Uuid
+  assignedAt           DateTime?           @map("assigned_at")
+  /// The first load scan on the order's trip: the refund cut-off (orders.deliveryStartedAt).
+  loadStartedAt        DateTime?           @map("load_started_at")
+  onTheWayAt           DateTime?           @map("on_the_way_at")
+  /// Written once.
+  deliveredAt          DateTime?           @map("delivered_at")
+  deliveredByUserId    String?             @map("delivered_by_user_id") @db.Uuid
+  deliveryMethod       DeliveryMethod?     @map("delivery_method")
+  manualDeliveryReason String?             @map("manual_delivery_reason")
+  /// The free-text cancel note; the stable code is cancelReasonCode.
+  cancellationReason    String?             @map("cancellation_reason")
+  cancelledAt          DateTime?           @map("cancelled_at")
+  cancelledByUserId    String?             @map("cancelled_by_user_id") @db.Uuid
+  cancelReasonCode     String?             @map("cancel_reason_code") // OrderCancelReason
+  failedAt             DateTime?           @map("failed_at")
+  failureReasonCode    String?             @map("failure_reason_code") // DeliveryFailureReason
+  failureNote          String?             @map("failure_note")
+  clientConfirmedAt     DateTime?           @map("client_confirmed_at")
+  emptiesHandedOverAt   DateTime?           @map("empties_handed_over_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  distributor Distributor   @relation(fields: [distributorId], references: [id])
+  client      Client        @relation(fields: [clientId], references: [id])
+  destZone    Zone          @relation("OrderDestZone", fields: [destZoneId], references: [id])
+  originStore Store?        @relation("OrderOriginStore", fields: [originStoreId], references: [id])
+  trip        Trip?         @relation(fields: [tripId], references: [id])
+  lines       OrderLine[]
+  stops       TripStop[]
+  ledger      LedgerEntry[]
+
+  @@unique([distributorId, orderNo])
+  @@unique([distributorId, clientRequestId])
+  @@index([distributorId, status])
+  @@index([distributorId, createdAt])
+  @@index([status, createdAt])
+  @@index([status, deliveredAt])
+  @@index([tripId])
+  @@map("orders")
+}
+
+model OrderLine {
+  id                  String  @id @default(uuid()) @db.Uuid
+  orderId             String  @map("order_id") @db.Uuid
+  cylinderTypeId      String  @map("cylinder_type_id") @db.Uuid
+  fullCount           Int     @map("full_count")
+  expectedReturnCount Int     @default(0) @map("expected_return_count")
+  /// Copy of the size's amount at placement (0 when the size has no amount).
+  feePerCylinderPaisa BigInt? @map("fee_per_cylinder_paisa")
+  feePaisa            BigInt? @map("fee_paisa")
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  cylinderType CylinderType @relation(fields: [cylinderTypeId], references: [id])
+
+  @@index([orderId])
+  @@map("order_lines")
+}
+
+model Trip {
+  id            String     @id @default(uuid()) @db.Uuid
+  driverId      String     @map("driver_id") @db.Uuid
+  vehicleId     String     @map("vehicle_id") @db.Uuid
+  originStoreId String     @map("origin_store_id") @db.Uuid
+  status        TripStatus @default(PLANNED)
+  plannedAt     DateTime   @default(now()) @map("planned_at")
+  startedAt     DateTime?  @map("started_at")
+  completedAt   DateTime?  @map("completed_at")
+
+  driver      Driver     @relation(fields: [driverId], references: [id])
+  vehicle     Vehicle    @relation(fields: [vehicleId], references: [id])
+  originStore Store      @relation(fields: [originStoreId], references: [id])
+  orders      Order[]
+  stops       TripStop[]
+
+  @@index([driverId, status])
+  @@map("trips")
+}
+
+model TripStop {
+  id          String         @id @default(uuid()) @db.Uuid
+  tripId      String         @map("trip_id") @db.Uuid
+  orderId     String?        @map("order_id") @db.Uuid
+  /// The store of a STORE_PICKUP or RETURN_DROPOFF stop.
+  storeId     String?        @map("store_id") @db.Uuid
+  seq         Int
+  stopType    TripStopType   @map("stop_type")
+  status      TripStopStatus @default(PENDING)
+  location    Unsupported("geometry(Point,4326)")
+  etaAt       DateTime?      @map("eta_at")
+  arrivedAt   DateTime?      @map("arrived_at")
+  departedAt  DateTime?      @map("departed_at")
+  completedAt DateTime?      @map("completed_at")
+  cancelledAt DateTime?      @map("cancelled_at")
+  notes       String?
+
+  trip  Trip   @relation(fields: [tripId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+  store Store? @relation(fields: [storeId], references: [id])
+
+  @@unique([tripId, seq])
+  @@index([orderId])
+  @@map("trip_stops")
+}
+
+// ---------- PAYMENTS / LEDGER ----------
+
+// A top-up request. Manual bank top-ups are approved once, against the company bank app.
+model Payment {
+  id               String              @id @default(uuid()) @db.Uuid
+  distributorId    String              @map("distributor_id") @db.Uuid
+  /// Human number per distributor, shown as AG-T031 (from Distributor.nextTopupNo).
+  requestNo        Int                 @map("request_no")
+  /// The Idempotency-Key of the request: a retry returns the first payment.
+  clientRequestId  String?             @map("client_request_id") @db.Uuid
+  amountPaisa      BigInt              @map("amount_paisa")
+  provider         PaymentProviderName
+  /// The gateway's transaction id (Easypaisa later). NULL for BANK_MANUAL: no '' placeholders.
+  providerTxnId    String?             @map("provider_txn_id")
+  status           PaymentStatus       @default(PENDING)
+  payerName        String?             @map("payer_name")
+  payerChannel     PayerChannel?       @map("payer_channel")
+  /// As the distributor typed it; informational, not unique.
+  transactionId    String?             @map("transaction_id")
+  /// Legacy slip URL of old rows; new screenshots use proofFileId.
+  proofUrl         String?             @map("proof_url")
+  proofFileId      String?             @map("proof_file_id") @db.Uuid
+  /// As the super admin typed it from the company bank app.
+  bankReference    String?             @map("bank_reference")
+  /// Upper-case A-Z0-9 only, set on approval. Unique: one bank payment approves one top-up, ever.
+  bankReferenceKey String?             @unique @map("bank_reference_key")
+  /// The amount credited.
+  bankAmountPaisa  BigInt?             @map("bank_amount_paisa")
+  bankReceivedAt   DateTime?           @map("bank_received_at")
+  rejectReasonCode String?             @map("reject_reason_code") // TopupRejectReason
+  rejectNote       String?             @map("reject_note")
+  /// Who reviewed the request (approve or reject); completedAt is when.
+  verifiedByUserId String?             @map("verified_by_user_id") @db.Uuid
+  createdAt        DateTime            @default(now()) @map("created_at")
+  completedAt      DateTime?           @map("completed_at")
+
+  distributor   Distributor   @relation(fields: [distributorId], references: [id])
+  proofFile     StoredFile?   @relation(fields: [proofFileId], references: [id], onDelete: Restrict)
+  ledgerEntries LedgerEntry[]
+
+  @@unique([provider, providerTxnId])
+  @@unique([distributorId, requestNo])
+  @@unique([distributorId, clientRequestId])
+  @@index([distributorId, createdAt])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+// Append-only. The sum of a distributor's rows equals Distributor.advanceBalancePaisa.
+model LedgerEntry {
+  id                String          @id @default(uuid()) @db.Uuid
+  distributorId     String          @map("distributor_id") @db.Uuid
+  entryType         LedgerEntryType @map("entry_type")
+  /// Signed: + money in, - money out.
+  amountPaisa       BigInt          @map("amount_paisa")
+  /// The balance after this row.
+  balanceAfterPaisa BigInt          @map("balance_after_paisa")
+  /// Exactly-once key: topup:<paymentId>, order:<id>:debit, order:<id>:reversal, adjust:<Idempotency-Key>,
+  /// opening:<distributorId>, legacy:<id>.
+  idempotencyKey    String          @unique @map("idempotency_key")
+  paymentId         String?         @map("payment_id") @db.Uuid
+  orderId           String?         @map("order_id") @db.Uuid
+  /// Links old refill debits (legacy ADJUSTMENT rows).
+  fillingOrderId    String?         @map("filling_order_id") @db.Uuid
+  /// CorrectionReason for ADJUSTMENT rows (OPENING_BALANCE for opening entries).
+  reasonCode        String?         @map("reason_code")
+  note              String?
+  /// NULL = a system job.
+  createdByUserId   String?         @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  distributor  Distributor   @relation(fields: [distributorId], references: [id])
+  payment      Payment?      @relation(fields: [paymentId], references: [id])
+  order        Order?        @relation(fields: [orderId], references: [id])
+  fillingOrder FillingOrder? @relation(fields: [fillingOrderId], references: [id], onDelete: Restrict)
+
+  @@index([distributorId, createdAt])
+  @@index([orderId])
+  @@index([fillingOrderId])
+  @@map("ledger_entries")
+}
+
+// ---------- RECONCILIATION ----------
+
+model Reconciliation {
+  id                  String               @id @default(uuid()) @db.Uuid
+  driverId            String               @map("driver_id") @db.Uuid
+  forDate             DateTime             @map("for_date") @db.Date
+  expectedCashPaisa   BigInt               @map("expected_cash_paisa")
+  submittedCashPaisa  BigInt               @map("submitted_cash_paisa")
+  cylindersDelivered  Int                  @map("cylinders_delivered")
+  cylindersReturned   Int                  @map("cylinders_returned")
+  status              ReconciliationStatus @default(PENDING)
+  verifiedByUserId    String?              @map("verified_by_user_id") @db.Uuid
+  note                String?
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  driver       Driver @relation(fields: [driverId], references: [id])
+  verifiedBy   User?  @relation(fields: [verifiedByUserId], references: [id])
+
+  @@unique([driverId, forDate])
+  @@map("reconciliations")
+}
+
+// ---------- SUPPORT / AUDIT ----------
+
+model SupportTicket {
+  id              String        @id @default(uuid()) @db.Uuid
+  subjectType     String        @map("subject_type")
+  subjectId       String?       @map("subject_id") @db.Uuid
+  reporterUserId  String        @map("reporter_user_id") @db.Uuid
+  assigneeUserId  String?       @map("assignee_user_id") @db.Uuid
+  status          TicketStatus  @default(OPEN)
+  priority        Int           @default(3)
+  subject         String
+  body            String
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([status, priority])
+  @@map("support_tickets")
+}
+
+model AuditLog {
+  id            String         @id @default(uuid()) @db.Uuid
+  actorKind     AuditActorKind @default(USER) @map("actor_kind")
+  /// Set exactly when actorKind is USER (CHECK audit_logs_actor_chk).
+  actorUserId   String?        @map("actor_user_id") @db.Uuid
+  /// For SYSTEM and CUSTOMER actors: job:wallet-check, migration:inc1a, cli:settings, link:AG-0142.
+  actorLabel    String?        @map("actor_label")
+  /// Stable action code (API_CONTRACT Appendix B), e.g. topup.approve, wallet.correction.
+  action        String
+  resourceType  String         @map("resource_type")
+  resourceId    String?        @map("resource_id") @db.Uuid
+  distributorId String?        @map("distributor_id") @db.Uuid
+  reason        String?
+  diff          Json?
+  ip            String?
+  userAgent     String?        @map("user_agent")
+  requestId     String?        @map("request_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([resourceType, resourceId])
+  @@index([distributorId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ---------- ALERTS ----------
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum AlertType {
+  DISPATCH_NO_CANDIDATE
+  LOW_STOCK
+  ORDER_STUCK_PENDING
+  DRIVER_OFFLINE_WHILE_ON_TRIP
+  PAYMENT_FAILED
+  RECONCILIATION_MISMATCH
+  CYLINDER_LOST
+  DISTRIBUTOR_BALANCE_LOW
+  DISTRIBUTOR_CREDIT_OVER
+  STORE_STOCK_LOW
+  SPECIAL_CLIENT
+  OTHER
+  WALLET_CHECK_MISMATCH // nightly check: ledger sum <> balance, or balance < 0
+}
+
+// User-defined alert rules. Evaluated lazily when the admin opens the
+// alerts page (no separate worker needed for the v1 set). `threshold`
+// is interpreted per `ruleKind`:
+//   DISTRIBUTOR_BALANCE_LOW  → paisa (raise when advance balance falls below)
+//   DISTRIBUTOR_CREDIT_OVER  → paisa (raise when negative balance exceeds)
+//   STORE_STOCK_LOW          → cylinder count (raise when full count below)
+//   SPECIAL_CLIENT           → unused; resourceId points at the Client.
+enum AlertRuleKind {
+  DISTRIBUTOR_BALANCE_LOW
+  DISTRIBUTOR_CREDIT_OVER
+  STORE_STOCK_LOW
+  SPECIAL_CLIENT
+}
+
+model AlertRule {
+  id            String        @id @default(uuid()) @db.Uuid
+  name          String
+  ruleKind      AlertRuleKind @map("rule_kind")
+  threshold     BigInt        @default(0)
+  resourceId    String?       @map("resource_id") @db.Uuid
+  cylinderTypeId String?      @map("cylinder_type_id") @db.Uuid
+  severity      AlertSeverity @default(WARNING)
+  isActive      Boolean       @default(true) @map("is_active")
+  notes         String?
+  createdBy     String        @map("created_by") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  lastTriggeredAt DateTime?   @map("last_triggered_at")
+
+  @@index([isActive, ruleKind])
+  @@map("alert_rules")
+}
+
+model Alert {
+  id           String        @id @default(uuid()) @db.Uuid
+  alertType    AlertType     @map("alert_type")
+  severity     AlertSeverity @default(WARNING)
+  status       AlertStatus   @default(OPEN)
+  title        String
+  body         String
+  resourceType String?       @map("resource_type")
+  resourceId   String?       @map("resource_id") @db.Uuid
+  context      Json?
+  acknowledgedAt DateTime?   @map("acknowledged_at")
+  resolvedAt   DateTime?     @map("resolved_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([status, severity, createdAt])
+  @@map("alerts")
+}
+
+// ---------- PUSH TOKENS ----------
+
+model ExpoPushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("expo_push_tokens")
+}
+
+// ---------- ACCESSORIES (pipes, connectors, regulators, etc.) ----------
+
+enum AccessoryCategory {
+  PIPE
+  CONNECTOR
+  REGULATOR
+  VALVE
+  BURNER
+  HOSE
+  ADAPTER
+  VAPORISER
+  OTHER
+}
+
+enum AccessoryMovementReason {
+  RECEIPT
+  SALE
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+  DAMAGE_LOSS
+}
+
+model Accessory {
+  id                String            @id @default(uuid()) @db.Uuid
+  code              String            @unique
+  name              String
+  category          AccessoryCategory
+  unit              String
+  defaultPricePaisa BigInt            @default(0) @map("default_price_paisa")
+  isActive          Boolean           @default(true) @map("is_active")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  stock     AccessoryStock[]
+  movements AccessoryMovement[]
+
+  @@map("accessories")
+}
+
+model AccessoryStock {
+  id             String   @id @default(uuid()) @db.Uuid
+  storeId        String   @map("store_id") @db.Uuid
+  accessoryId    String   @map("accessory_id") @db.Uuid
+  quantity       Int      @default(0)
+  unitPricePaisa BigInt?  @map("unit_price_paisa")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  accessory Accessory @relation(fields: [accessoryId], references: [id])
+
+  @@unique([storeId, accessoryId])
+  @@index([storeId])
+  @@map("accessory_stock")
+}
+
+model AccessoryMovement {
+  id          String                  @id @default(uuid()) @db.Uuid
+  storeId     String                  @map("store_id") @db.Uuid
+  accessoryId String                  @map("accessory_id") @db.Uuid
+  delta       Int
+  reason      AccessoryMovementReason
+  note        String?
+  actorUserId String                  @map("actor_user_id") @db.Uuid
+  createdAt   DateTime                @default(now()) @map("created_at")
+
+  accessory Accessory @relation(fields: [accessoryId], references: [id])
+
+  @@index([storeId, createdAt])
+  @@index([accessoryId, createdAt])
+  @@map("accessory_movements")
+}
+
+// ---------- FILLING STATIONS + FILLING ORDERS ----------
+
+model FillingStation {
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String
+  address               String
+  location              Unsupported("geometry(Point,4326)")
+  pricePerCylinderPaisa BigInt   @default(0) @map("price_per_cylinder_paisa")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  fillingOrders FillingOrder[]
+
+  @@map("filling_stations")
+}
+
+enum FillingOrderStatus {
+  PENDING
+  ASSIGNED
+  EMPTIES_PICKED
+  AT_STATION
+  FILLED
+  RETURNED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum FillingServiceType {
+  OUR_SERVICE
+  DIY
+}
+
+model FillingOrder {
+  id                    String             @id @default(uuid()) @db.Uuid
+  distributorId         String             @map("distributor_id") @db.Uuid
+  fillingStationId      String?            @map("filling_station_id") @db.Uuid
+  cylinderTypeId        String             @map("cylinder_type_id") @db.Uuid
+  serviceType           FillingServiceType @default(OUR_SERVICE) @map("service_type")
+  ownStationName        String?            @map("own_station_name")
+  ownStationAddress     String?            @map("own_station_address")
+  ownStationNotes       String?            @map("own_station_notes")
+  requestedCount        Int                @map("requested_count")
+  pickedUpEmptyCount    Int?               @map("picked_up_empty_count")
+  filledCount           Int?               @map("filled_count")
+  pricePerCylinderPaisa BigInt             @map("price_per_cylinder_paisa")
+  totalCostPaisa        BigInt             @default(0) @map("total_cost_paisa")
+  status                FillingOrderStatus @default(PENDING)
+  assignedDriverId      String?            @map("assigned_driver_id") @db.Uuid
+  assignedVehicleId     String?            @map("assigned_vehicle_id") @db.Uuid
+  pickupStoreId         String?            @map("pickup_store_id") @db.Uuid
+  cancellationReason    String?            @map("cancellation_reason")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+  completedAt           DateTime?          @map("completed_at")
+
+  distributor     Distributor     @relation(fields: [distributorId], references: [id])
+  fillingStation  FillingStation? @relation(fields: [fillingStationId], references: [id])
+  cylinderType    CylinderType    @relation(fields: [cylinderTypeId], references: [id])
+  assignedDriver  Driver?         @relation(fields: [assignedDriverId], references: [id])
+  assignedVehicle Vehicle?        @relation(fields: [assignedVehicleId], references: [id])
+  pickupStore     Store?          @relation(fields: [pickupStoreId], references: [id])
+  ledgerEntries   LedgerEntry[]
+
+  @@index([assignedDriverId, status])
+  @@index([status, createdAt])
+  @@map("filling_orders")
+}
+
+// ---------- FUEL REFILLS ----------
+
+// ---------- EXPENSES (super-admin only) ----------
+
+// Legacy fixed categories; old rows were mapped to expense types (archived LEGACY_* types for
+// categories with no seeded type). Dropped after the pilot.
+enum ExpenseCategory {
+  FOOD
+  UTILITIES
+  LABOUR
+  FUEL
+  MAINTENANCE
+  RENT
+  OFFICE
+  TRAVEL
+  EQUIPMENT
+  OTHER
+}
+
+// Expenses never touch wallets or the ledger. Removing one is a logged void, never a hard delete.
+model Expense {
+  id               String           @id @default(uuid()) @db.Uuid
+  /// Legacy; read typeId. Dropped after the pilot.
+  category         ExpenseCategory?
+  typeId           String           @map("type_id") @db.Uuid
+  /// The expense's note (UI label "Note").
+  description      String
+  amountPaisa      BigInt           @map("amount_paisa")
+  expenseDate      DateTime         @map("expense_date") @db.Date
+  vehicleId        String?          @map("vehicle_id") @db.Uuid
+  driverId         String?          @map("driver_id") @db.Uuid
+  receiptFileId    String?          @map("receipt_file_id") @db.Uuid
+  /// The Idempotency-Key of the create.
+  clientRequestId  String?          @unique @map("client_request_id") @db.Uuid
+  /// Legacy: kept, never written (receipts are receiptFileId).
+  receiptUrl       String?          @map("receipt_url")
+  recordedByUserId String           @map("recorded_by_user_id") @db.Uuid
+  /// Legacy: kept, never written.
+  vendor           String?
+  /// Legacy: kept, never written (the note is description).
+  notes            String?
+  voidedAt         DateTime?        @map("voided_at")
+  voidedByUserId   String?          @map("voided_by_user_id") @db.Uuid
+  voidReason       String?          @map("void_reason")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  type        ExpenseType  @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  driver      Driver?      @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  receiptFile StoredFile?  @relation(fields: [receiptFileId], references: [id], onDelete: Restrict)
+
+  @@index([expenseDate])
+  @@index([category, expenseDate])
+  @@index([typeId, expenseDate])
+  @@index([vehicleId, expenseDate])
+  @@index([driverId, expenseDate])
+  @@map("expenses")
+}
+
+// Managed by the super admin: add, rename, archive. Seeded types have a stable code.
+model ExpenseType {
+  id              String    @id @default(uuid()) @db.Uuid
+  /// PETROL, MAINTENANCE, REPAIRS, TYRES, TOLL_PARKING, OTHER, LEGACY_<category>; NULL for custom
+  /// types. Never changes.
+  code            String?   @unique
+  /// Shown as typed; renaming is allowed.
+  name            String
+  /// lower(trim(name)) with inner spaces collapsed: case-insensitive uniqueness.
+  nameKey         String    @unique @map("name_key")
+  /// PETROL and OTHER: can't be archived.
+  isSystem        Boolean   @default(false) @map("is_system")
+  sortOrder       Int       @default(100) @map("sort_order")
+  archivedAt      DateTime? @map("archived_at")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  expenses Expense[]
+
+  @@map("expense_types")
+}
+
+// ---------- SETTINGS ----------
+
+// The code holds every key with a typed default (settings registry); a row overrides it.
+model AppSetting {
+  key             String
+  /// "global"; "distributor:<uuid>" later.
+  scope           String   @default("global")
+  value           Json
+  updatedByUserId String?  @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@id([key, scope])
+  @@map("app_settings")
+}
+
+// ---------- FILES ----------
+
+// Written by FilesService.upload. The bucket is private; reads use signed URLs.
+model StoredFile {
+  id               String            @id @default(uuid()) @db.Uuid
+  /// uploads/yyyy-mm-dd/<uuid>.<ext>
+  storageKey       String            @unique @map("storage_key")
+  purpose          StoredFilePurpose
+  mimeType         String            @map("mime_type")
+  sizeBytes        Int               @map("size_bytes")
+  sha256           String            @db.Char(64)
+  originalName     String?           @map("original_name")
+  uploadedByUserId String            @map("uploaded_by_user_id") @db.Uuid
+  distributorId    String?           @map("distributor_id") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  distributor Distributor? @relation(fields: [distributorId], references: [id])
+  payments    Payment[]
+  expenses    Expense[]
+
+  @@index([uploadedByUserId, sha256])
+  @@index([distributorId, purpose, createdAt])
+  @@map("stored_files")
+}
+
+model FuelRefill {
+  id          String   @id @default(uuid()) @db.Uuid
+  vehicleId   String   @map("vehicle_id") @db.Uuid
+  driverId    String   @map("driver_id") @db.Uuid
+  litres      Decimal  @db.Decimal(8, 2)
+  costPaisa   BigInt   @map("cost_paisa")
+  odometerKm  Int      @map("odometer_km")
+  fuelStation String?  @map("fuel_station")
+  receiptUrl  String?  @map("receipt_url")
+  notes       String?
+  refillAt    DateTime @default(now()) @map("refill_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  driver  Driver  @relation(fields: [driverId], references: [id])
+
+  @@index([vehicleId, refillAt])
+  @@index([driverId, refillAt])
+  @@map("fuel_refills")
+}

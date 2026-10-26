@@ -2,8 +2,11 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { AccessoriesService } from './accessories.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, AuthContext } from '../../common/decorators/current-user.decorator';
+import { Feature } from '../../common/features/feature';
 import { UserRole } from '@prisma/client';
 
+/** Accessories: switched off for the pilot (ADR-04, `features.accessories`). */
+@Feature('accessories')
 @Controller('accessories')
 export class AccessoriesController {
   constructor(private readonly accessories: AccessoriesService) {}
