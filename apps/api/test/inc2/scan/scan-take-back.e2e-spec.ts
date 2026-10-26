@@ -11,7 +11,7 @@ import { buildWorld, messageOf, type Line, type PlacedOrder, type Trip, type Wor
 
 jest.setTimeout(180_000);
 
-/** X1 with its expected returns: 2 × 11.8 kg and 1 × 45.4 kg back (still Rs 480). */
+/** X1 with its expected returns: 2 × 11.8 kg and 1 × 45.4 kg back (still Rs 250). */
 const X1_BACK: Line[] = [
   { size: '11.8', full: 2, back: 2 },
   { size: '45.4', full: 1, back: 1 },
@@ -38,7 +38,7 @@ describeDb('inc2 scan: take back at the customer', () => {
   async function atSana(): Promise<{ x1: PlacedOrder; t1: Trip; sana: string }> {
     for (const n of [11, 12, 32]) await w.withCustomer(n, 'C1');
     const x1 = await w.placeOrder(X1_BACK);
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     const t1 = await w.assign(x1, w.std.DR1);
     await w.load(w.std.DR1, t1, [1, 2, 31]);
     await w.doneLoading(w.std.DR1, t1);

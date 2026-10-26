@@ -1,6 +1,6 @@
 # Smart Fleet pilot test cases
 
-**Date:** 2026-10-25 · **Cases:** 604 (P1 275 · P2 296 · P3 33) · **Branch:** `pilot/happy-path`
+**Date:** 2026-10-26 · **Cases:** 607 (P1 278 · P2 296 · P3 33) · **Branch:** `pilot/happy-path`
 
 These cases test the whole Smart Fleet pilot as the docs in this folder describe it, Increments 1 to 3: money and expenses, orders and drivers, the one-holder rule, customer confirmation, refills, day-end, setup, quality and migrations, and the rehearsal day.
 
@@ -15,7 +15,7 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [SEC · Security and roles](#sec--security-and-roles) (38)
   - [WAL · Wallet and history](#wal--wallet-and-history) (26)
   - [TOP · Manual bank top-ups](#top--manual-bank-top-ups) (31)
-  - [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) (19)
+  - [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) (20)
   - [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) (29)
   - [CUS · Customers and zones](#cus--customers-and-zones) (14)
   - [ORD · Order lifecycle](#ord--order-lifecycle) (21)
@@ -30,9 +30,9 @@ These cases test the whole Smart Fleet pilot as the docs in this folder describe
   - [MSG · Messaging](#msg--messaging) (23)
   - [REF · Refills](#ref--refills) (34)
   - [DAY · Day-end Excel](#day--day-end-excel) (27)
-  - [SET · Pilot setup and reset](#set--pilot-setup-and-reset) (13)
+  - [SET · Pilot setup and reset](#set--pilot-setup-and-reset) (14)
   - [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) (34)
-  - [MIG · Migrations and data safety](#mig--migrations-and-data-safety) (20)
+  - [MIG · Migrations and data safety](#mig--migrations-and-data-safety) (21)
   - [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) (20)
 - [Traceability](#traceability)
 - [Spec questions and how they were settled](#spec-questions-and-how-they-were-settled)
@@ -154,7 +154,7 @@ The "Test file" of an automated case lists the files whose test names start with
 **Test names start with the case ID**, so a failing test points straight at its case here and in the CSV:
 
 ```ts
-it('FEE-009 X3: the distributor cancels before the first load scan and gets Rs 480 back', async () => {
+it('FEE-009 X3: the distributor cancels before the first load scan and gets Rs 250 back', async () => {
   // …
 });
 ```
@@ -189,12 +189,14 @@ All in one city, Lahore: **North**, **South** and **East**, plus a point **Outsi
 
 ### Delivery prices
 
-| Distributor | Zone | Base per order | 6 kg | 11.8 kg | 15 kg | 45.4 kg |
-|---|---|---|---|---|---|---|
-| Ahmed Gas | North | Rs 250 | Rs 30 | Rs 40 | Rs 80 | Rs 150 |
-| Ahmed Gas | South | Rs 400 (flat) | Rs 0 | Rs 0 | Rs 0 | Rs 0 |
-| Ahmed Gas | East | No price set (for the block cases) | | | | |
-| Bilal Gas | South | Rs 300 (flat) | Rs 0 | Rs 0 | Rs 0 | Rs 0 |
+One delivery cost per order, set per distributor and zone, whatever cylinders the order holds (owner decision 2026-10-26). There are no per-size amounts.
+
+| Distributor | Zone | Delivery cost per order |
+|---|---|---|
+| Ahmed Gas | North | Rs 250 |
+| Ahmed Gas | South | Rs 400 |
+| Ahmed Gas | East | No price set (for the block cases) |
+| Bilal Gas | South | Rs 300 |
 
 ### Customers
 
@@ -231,7 +233,7 @@ Title "Smart Fleet (Pvt) Ltd", IBAN PK00TEST0000000000000000.
 
 | Name | What it is | Areas |
 |---|---|---|
-| Y1 | Ahmed Gas orders 1 × 11.8 kg for Usman (South, flat Rs 400) | DRV, HLD, STR |
+| Y1 | Ahmed Gas orders 1 × 11.8 kg for Usman (South, Rs 400) | DRV, HLD, STR |
 | F1 | Sana already holds AG-C0011, AG-C0012 and AG-C0032 from an earlier run (seeded, no money) | DRV, HLD, STR |
 | BG-C0001 to BG-C0003 | Bilal Gas's own cylinders | DRV, HLD, STR, DAY, SEC |
 | D1 | The delivered X1 order the confirmation cases start from | CNF, CAS, MSG |
@@ -243,15 +245,15 @@ Fixtures that mark a cylinder damaged (FAULTY) or lost (LOST) set the state dire
 
 | Example | What happens | Delivery cost | Ahmed Gas balance |
 |---|---|---|---|
-| X1 | Ahmed Gas orders 2 × 11.8 kg + 1 × 45.4 kg for Sana (North) | Rs 250 + 2 × Rs 40 + Rs 150 = **Rs 480** | Rs 5,000 → Rs 4,520 |
-| X2 | Ahmed Gas orders 3 × 15 kg for Usman (South) | Flat **Rs 400** | after X1: Rs 4,520 → Rs 4,120 |
-| X3 | X1 is cancelled **before** the first load scan | Rs 480 returned, exactly once | back to Rs 5,000 |
-| X3, late | X1 is cancelled **after** the first load scan | Nothing returned | stays Rs 4,520 |
-| X4 | The balance is exactly Rs 480 and Ahmed Gas places X1 | Rs 480 | Rs 480 → Rs 0 |
-| X4, short | The balance is Rs 479 | Refused: 409 WALLET_INSUFFICIENT_BALANCE, short by Rs 1; nothing is created or deducted | stays Rs 479 |
-| Y1 | Ahmed Gas orders 1 × 11.8 kg for Usman (South) | Flat **Rs 400** | |
+| X1 | Ahmed Gas orders 2 × 11.8 kg + 1 × 45.4 kg for Sana (North) | **Rs 250** | Rs 5,000 → Rs 4,750 |
+| X2 | Ahmed Gas orders 3 × 15 kg for Usman (South) | **Rs 400** | after X1: Rs 4,750 → Rs 4,350 |
+| X3 | X1 is cancelled **before** the first load scan | Rs 250 returned, exactly once | back to Rs 5,000 |
+| X3, late | X1 is cancelled **after** the first load scan | Nothing returned | stays Rs 4,750 |
+| X4 | The balance is exactly Rs 250 and Ahmed Gas places X1 | Rs 250 | Rs 250 → Rs 0 |
+| X4, short | The balance is Rs 249 | Refused: 409 WALLET_INSUFFICIENT_BALANCE, short by Rs 1; nothing is created or deducted | stays Rs 249 |
+| Y1 | Ahmed Gas orders 1 × 11.8 kg for Usman (South) | **Rs 400** | |
 
-Other totals the cases use: X1 + Y1 leaves Rs 4,120; X1 + X2 + Y1 leaves Rs 3,720; five X1 orders leave Rs 2,600; a quote for 10 × 15 kg in North is Rs 250 + 10 × Rs 80 = Rs 1,050. The rehearsal day ends at Rs 5,430, with Rs 1,570 of delivery costs taken.
+Other totals the cases use: X1 + Y1 leaves Rs 4,350; X1 + X2 + Y1 leaves Rs 3,950; five X1 orders leave Rs 3,750; a quote for 10 × 15 kg in North is Rs 250, the same as X1. The rehearsal day ends at Rs 5,700, with Rs 1,300 of delivery costs taken.
 
 Money moves only four ways: an approved top-up, the delivery cost taken when an order is placed, its return on a cancel before delivery has started, and an office correction for a genuine mistake. There are no holds, no charge on delivery, no refund once delivery has started, no refill money and no refund for a customer's "Not received". The cases that touch these prove they are off.
 
@@ -265,7 +267,7 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [SEC · Security and roles](#sec--security-and-roles) | 38 | 29 | 9 | 0 | 36 | 1 | 1 |
 | [WAL · Wallet and history](#wal--wallet-and-history) | 26 | 13 | 11 | 2 | 26 | 0 | 0 |
 | [TOP · Manual bank top-ups](#top--manual-bank-top-ups) | 31 | 17 | 13 | 1 | 31 | 0 | 0 |
-| [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) | 19 | 12 | 6 | 1 | 19 | 0 | 0 |
+| [PRC · Delivery prices and quotes](#prc--delivery-prices-and-quotes) | 20 | 14 | 5 | 1 | 20 | 0 | 0 |
 | [FEE · Delivery cost on orders](#fee--delivery-cost-on-orders) | 29 | 19 | 9 | 1 | 27 | 1 | 1 |
 | [CUS · Customers and zones](#cus--customers-and-zones) | 14 | 4 | 10 | 0 | 13 | 1 | 0 |
 | [ORD · Order lifecycle](#ord--order-lifecycle) | 21 | 6 | 14 | 1 | 21 | 0 | 0 |
@@ -280,33 +282,33 @@ Money moves only four ways: an approved top-up, the delivery cost taken when an 
 | [MSG · Messaging](#msg--messaging) | 23 | 2 | 21 | 0 | 0 | 23 | 0 |
 | [REF · Refills](#ref--refills) | 34 | 15 | 19 | 0 | 12 | 0 | 22 |
 | [DAY · Day-end Excel](#day--day-end-excel) | 27 | 15 | 10 | 2 | 0 | 0 | 27 |
-| [SET · Pilot setup and reset](#set--pilot-setup-and-reset) | 13 | 10 | 2 | 1 | 2 | 0 | 11 |
+| [SET · Pilot setup and reset](#set--pilot-setup-and-reset) | 14 | 10 | 3 | 1 | 2 | 0 | 12 |
 | [UXQ · UI and UX quality](#uxq--ui-and-ux-quality) | 34 | 1 | 26 | 7 | 30 | 3 | 1 |
-| [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 20 | 18 | 2 | 0 | 18 | 1 | 1 |
+| [MIG · Migrations and data safety](#mig--migrations-and-data-safety) | 21 | 19 | 2 | 0 | 19 | 1 | 1 |
 | [RHS · Rehearsal day (dry run)](#rhs--rehearsal-day-dry-run) | 20 | 20 | 0 | 0 | 0 | 0 | 20 |
-| **Total** | **604** | **275** | **296** | **33** | **333** | **179** | **92** |
+| **Total** | **607** | **278** | **296** | **33** | **335** | **179** | **93** |
 
 ### Cases by type
 
 | Type | Who runs it | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
 | AUTO-UNIT | Developers and CI: a pure function, or a service with mocks | 74 | 19 | 42 | 13 |
-| AUTO-API | Developers and CI: HTTP against a real test database | 382 | 220 | 154 | 8 |
+| AUTO-API | Developers and CI: HTTP against a real test database | 385 | 223 | 154 | 8 |
 | MAN-SHOP | A tester with the shop app on a phone | 60 | 14 | 42 | 4 |
 | MAN-DRIVER | A tester with the driver app on a phone | 22 | 5 | 14 | 3 |
 | MAN-WEB | An office user on the website | 47 | 7 | 35 | 5 |
 | MAN-PAGE | A tester playing the customer, in a phone browser | 8 | 1 | 7 | 0 |
 | MAN-OPS | Engineering or operations: bank app, command line, server or database | 11 | 9 | 2 | 0 |
-| **Total** |  | **604** | **275** | **296** | **33** |
+| **Total** |  | **607** | **278** | **296** | **33** |
 
 ### Cases by increment
 
 | Increment | What it covers | Cases | P1 | P2 | P3 |
 |---|---|---:|---:|---:|---:|
-| Inc 1 | Foundations, money and expenses | 333 | 155 | 160 | 18 |
+| Inc 1 | Foundations, money and expenses | 335 | 158 | 159 | 18 |
 | Inc 2 | Driver flow on scans, store receive and customer confirmation | 179 | 66 | 102 | 11 |
-| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 92 | 54 | 34 | 4 |
-| **Total** |  | **604** | **275** | **296** | **33** |
+| Inc 3 | Refills on scans, day-end, pilot setup and the rehearsal day | 93 | 54 | 35 | 4 |
+| **Total** |  | **607** | **278** | **296** | **33** |
 
 ## FND · Platform foundations
 
@@ -359,7 +361,7 @@ Expect:
 - Step 2: 200 with the updated row: value 5, updatedBy SA1 ("Owner"), updatedAt set.
 - Step 3: orders.maxCylindersPerOrder is 5.
 - Step 4: 400 ORDER_TOO_MANY_CYLINDERS with message "Too many cylinders. An order can have at most 5." No order is created and DA's balance is still Rs 5,000 (GET /wallet balancePaisa "500000").
-- Step 5: 200 with quote.totalPaisa "45000" (Rs 250 + 5 × Rs 40 = Rs 450) and wallet.enough true.
+- Step 5: 200 with quote.totalPaisa "25000" (Rs 250, whatever the cylinders) and wallet.enough true.
 - Step 6: one setting.update row with actor { kind: USER, userId: SA1, name: "Owner" }, resourceType setting, reason "Rehearsal limit test", diff { key: "orders.maxCylindersPerOrder", from: 30, to: 5 } (resource_id is a UUID column, so the key is in the diff), and the requestId noted in step 2.
 - Step 7: the value is 30 again, and a second setting.update row records the change from 5 to 30.
 
@@ -528,7 +530,7 @@ Before: Unit tests for toUserMessage (apps/mobile/src/api/errors.ts) and message
 
 Steps:
 
-1. Call each with code WALLET_INSUFFICIENT_BALANCE and details { requiredPaisa: "48000", balancePaisa: "47900", shortByPaisa: "100" } (example X4 with Rs 479).
+1. Call each with code WALLET_INSUFFICIENT_BALANCE and details { requiredPaisa: "25000", balancePaisa: "24900", shortByPaisa: "100" } (example X4 with Rs 249).
 2. Call with TOPUP_AMOUNT_TOO_SMALL and details { minPaisa: "50000", maxPaisa: "5000000" }.
 3. Call with AUTH_WRONG_APP and details { role: "DRIVER", app: "Smart Fleet Driver app" }.
 4. Call with an unknown code SOMETHING_NEW and the server message "Server says hi."
@@ -536,7 +538,7 @@ Steps:
 
 Expect:
 
-- Step 1: "Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue."
+- Step 1: "Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue."
 - Step 2: "The minimum top-up is Rs 500."
 - Step 3: "This account is for the Smart Fleet Driver app."
 - Step 4: "Server says hi."
@@ -615,8 +617,8 @@ Steps:
 
 Expect:
 
-- Step 1: 201. fee.totalPaisa is "48000", and the legacy mirror fields are deliveryFeePaisa "48000" and paymentStatus "PAID_VIA_LEDGER". One DEBIT_ORDER ledger row of −48000. Balance Rs 4,520 ("452000"). (Example X1.)
-- Step 2: /ledger/balance is { balancePaisa: "452000", pendingTopupPaisa: "0" }. The other five are bare JSON arrays, not { items, nextCursor }; /orders includes the new order.
+- Step 1: 201. fee.totalPaisa is "25000", and the legacy mirror fields are deliveryFeePaisa "25000" and paymentStatus "PAID_VIA_LEDGER". One DEBIT_ORDER ledger row of −25000. Balance Rs 4,750 ("475000"). (Example X1.)
+- Step 2: /ledger/balance is { balancePaisa: "475000", pendingTopupPaisa: "0" }. The other five are bare JSON arrays, not { items, nextCursor }; /orders includes the new order.
 - Step 3: /trips/mine and /filling-orders/driver/mine are arrays. /transfers/mine answers 200 [] with the header X-Feature-Disabled: transfers.
 
 Spec: ADR-04; ADR-06; ADR-08; API_CONTRACT §1.3, §3.4, §4 (missing key allowed), §7.6, §7.8, Appendix A · Test file: `apps/api/test/foundation/compat-health-status.e2e-spec.ts`
@@ -772,7 +774,7 @@ Note: Opening the drawer again makes a fresh link; only an old copied link shoul
 
 **P2** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
 
-Before: DA balance set to exactly Rs 479 (SA1 took Rs 4,521 from Rs 5,000 with a TAKE correction, reason OTHER, note "Set up example X4"). DA's prices are set in North.
+Before: DA balance set to exactly Rs 249 (SA1 took Rs 4,751 from Rs 5,000 with a TAKE correction, reason OTHER, note "Set up example X4"). DA's prices are set in North.
 
 Steps:
 
@@ -783,9 +785,9 @@ Steps:
 
 Expect:
 
-- Step 1: 409 WALLET_INSUFFICIENT_BALANCE with details { requiredPaisa: "48000", balancePaisa: "47900", shortByPaisa: "100" } and message "Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue." No order and no ledger row; balance Rs 479.
-- Step 2: balance Rs 480.
-- Step 3: 201, a new order (not a replay). One DEBIT_ORDER of −48000. Balance Rs 0.
+- Step 1: 409 WALLET_INSUFFICIENT_BALANCE with details { requiredPaisa: "25000", balancePaisa: "24900", shortByPaisa: "100" } and message "Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue." No order and no ledger row; balance Rs 249.
+- Step 2: balance Rs 250.
+- Step 3: 201, a new order (not a replay). One DEBIT_ORDER of −25000. Balance Rs 0.
 - Step 4: 200 with Idempotent-Replay: true and the same order. Balance still Rs 0.
 
 Spec: ADR-06; API_CONTRACT §2.1, §4 (rule 2), §5.4 (debit), §7.6; DATA_MODEL §3.6 (Place an order), §7 · Test file: `apps/api/test/foundation/idempotency.e2e-spec.ts`
@@ -796,7 +798,7 @@ Note: The shop app keeps the same key after "Add money" (UX_MOBILE §3.1), so a 
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
 
-Before: DA placed X1 with Idempotency-Key K1 (balance Rs 4,520). DA sent a Rs 5,000 top-up request with key K2 (payer "Ahmed Gas", Bank app). SA1 added a Petrol expense of Rs 1,500 for van LEA-101 with key K4.
+Before: DA placed X1 with Idempotency-Key K1 (balance Rs 4,750). DA sent a Rs 5,000 top-up request with key K2 (payer "Ahmed Gas", Bank app). SA1 added a Petrol expense of Rs 1,500 for van LEA-101 with key K4.
 
 Steps:
 
@@ -811,7 +813,7 @@ Expect:
 
 - Steps 1–4: 409 IDEMPOTENCY_CONFLICT "This was already sent with different details. Start again."
 - Step 5: 400 VALIDATION_FAILED with details.fields[0] { path: 'Idempotency-Key', code: 'INVALID_ID' }; nothing is created.
-- Step 6: balance still Rs 4,520 (no Rs 400 for X2). Still one order for K1, with its first lines (2 × 11.8 kg + 1 × 45.4 kg, cost Rs 480). One top-up request of Rs 5,000. One expense of Rs 1,500, and no ledger row from it.
+- Step 6: balance still Rs 4,750 (no Rs 400 for X2). Still one order for K1, with its first lines (2 × 11.8 kg + 1 × 45.4 kg, cost Rs 250). One top-up request of Rs 5,000. One expense of Rs 1,500, and no ledger row from it.
 
 Spec: API_CONTRACT §2.3 (IDEMPOTENCY_CONFLICT), §4 (rule 2), §7.6, §7.9, §7.12 · Test file: `apps/api/test/foundation/idempotency.e2e-spec.ts`
 
@@ -830,7 +832,7 @@ Steps:
 Expect:
 
 - In every run one response is 201 and the other is 200 with Idempotent-Replay: true, both with the same order id. Never a 500, and never two orders.
-- Each run adds exactly one DEBIT_ORDER of −48000. After 10 runs the balance is Rs 200 (Rs 5,000 − 10 × Rs 480).
+- Each run adds exactly one DEBIT_ORDER of −25000. After 10 runs the balance is Rs 2,500 (Rs 5,000 − 10 × Rs 250).
 - verify reports ok: the ledger sum equals the balance.
 
 Spec: ADR-06; API_CONTRACT §4 (rules 1, 2), §5.4, §8.6 (Orders and the wallet); DATA_MODEL §3.6, §7 · Test file: `apps/api/test/foundation/idempotency.e2e-spec.ts`
@@ -841,7 +843,7 @@ Note: The unique key orders_distributor_id_client_request_id_key decides the rac
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA, DB)
 
-Before: DA placed X1 with key K1 (balance Rs 4,520). DB has Rs 500 from an approved top-up (BG-T001). DB's price in South is Rs 300, flat.
+Before: DA placed X1 with key K1 (balance Rs 4,750). DB has Rs 500 from an approved top-up (BG-T001). DB's price in South is Rs 300.
 
 Steps:
 
@@ -853,7 +855,7 @@ Expect:
 
 - Step 1: 404 CLIENT_NOT_FOUND "We couldn't find this customer." No Idempotent-Replay header, and nothing from DA's order in the body.
 - Step 2: 201, a new order for DB (number starting BG-), cost Rs 300. DB balance Rs 200.
-- Step 3: 200 with Idempotent-Replay: true and DA's first order (number starting AG-). DA balance still Rs 4,520.
+- Step 3: 200 with Idempotent-Replay: true and DA's first order (number starting AG-). DA balance still Rs 4,750.
 
 Spec: ADR-02; API_CONTRACT §3.2, §4 (rule 2), §7.6 (rule 2); DATA_MODEL §3.2 (unique per distributor), §7 · Test file: `apps/api/test/foundation/idempotency.e2e-spec.ts`
 
@@ -1182,7 +1184,7 @@ Steps:
 Expect:
 
 - Step 1: the order is still waiting when the shutdown starts.
-- Step 2: the order answers 201 and is committed: one order, DA's balance Rs 4,520; the shutdown then completes.
+- Step 2: the order answers 201 and is committed: one order, DA's balance Rs 4,750; the shutdown then completes.
 
 Spec: API_CONTRACT §4 (state changes are atomic; a retry uses the same key) · Test file: `apps/api/test/review/robustness-ops/graceful-shutdown.e2e-spec.ts`
 
@@ -1610,7 +1612,7 @@ Note: The 60-second cache is from §3.3.
 
 **P1** · AUTO-API · Inc 1 · Role: SUPER_ADMIN (SA1)
 
-Before: X1 placed by DA (balance Rs 4,520) and assigned to DR1 (trip planned). AG-C0001 is full at Ahmed Gas Store.
+Before: X1 placed by DA (balance Rs 4,750) and assigned to DR1 (trip planned). AG-C0001 is full at Ahmed Gas Store.
 
 Steps:
 
@@ -1622,7 +1624,7 @@ Expect:
 
 - Steps 1–2: 403 PERMISSION_DENIED "Your account can't do this." for every call.
 - Step 3: 400 ORDER_USE_MANUAL_DELIVERY, message: Use "Mark delivered by office" for this.
-- Nothing changed: DA balance Rs 4,520; no new order, top-up request, customer or refill; AG-C0001 still in the store; X1 still assigned and not delivered; DR1's location unchanged.
+- Nothing changed: DA balance Rs 4,750; no new order, top-up request, customer or refill; AG-C0001 still in the store; X1 still assigned and not delivered; DR1's location unchanged.
 
 Spec: ADR-02; API_CONTRACT §3.1 (@ExactRoles), §7.2, §7.3 (GET /distributor/home), §7.4, §7.6 (status table), §7.7 (POST /custody/scan), §7.8, §7.9, §7.11 · Test file: `apps/api/test/security/roles.e2e-spec.ts`
 
@@ -1632,7 +1634,7 @@ Note: Routes the office may also use (cancel, fail) let SA1 through by design an
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA), DRIVER (DR1)
 
-Before: X1 placed by DA (balance Rs 4,520) and still waiting for a driver. DA has a top-up request AG-T001 being checked.
+Before: X1 placed by DA (balance Rs 4,750) and still waiting for a driver. DA has a top-up request AG-T001 being checked.
 
 Steps:
 
@@ -1642,7 +1644,7 @@ Steps:
 Expect:
 
 - Every call: 403 PERMISSION_DENIED "Your account can't do this."
-- Nothing changed: AG-T001 still being checked; DA balance Rs 4,520; no correction or expense row; the setting still 30; X1 still waiting for a driver.
+- Nothing changed: AG-T001 still being checked; DA balance Rs 4,750; no correction or expense row; the setting still 30; X1 still waiting for a driver.
 
 Spec: ADR-02; ADR-04 (reports office only); API_CONTRACT §3.1, §7.2, §7.6, §7.8, §7.9, §7.12, §7.13, §8.6 (Access: a DISTRIBUTOR can't call /custody/scan) · Test file: `apps/api/test/security/roles.e2e-spec.ts`
 
@@ -1672,7 +1674,7 @@ Spec: ADR-02; ADR-07; API_CONTRACT §3.2 (canSeeOrder), §7.6 (GET /orders/:id, 
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA)
 
-Before: DB has top-up BG-T001 (Rs 500, approved) and order BG-0001 (Rs 300); DB balance Rs 200. DA balance Rs 4,520 after X1.
+Before: DB has top-up BG-T001 (Rs 500, approved) and order BG-0001 (Rs 300); DB balance Rs 200. DA balance Rs 4,750 after X1.
 
 Steps:
 
@@ -1682,7 +1684,7 @@ Steps:
 
 Expect:
 
-- Step 1: DA's own data only: balancePaisa "452000", and the statement and ledger list hold only DA's rows. The distributorId parameter is ignored.
+- Step 1: DA's own data only: balancePaisa "475000", and the statement and ledger list hold only DA's rows. The distributorId parameter is ignored.
 - Step 2: BG-T001 → 404 NOT_FOUND. /payments/mine lists only AG-T… requests.
 - Step 3: 403 PERMISSION_DENIED (an office route).
 
@@ -2378,7 +2380,7 @@ Steps:
 
 Expect:
 
-- Step 1, newest first: CORRECTION amountPaisa '-10000' balanceAfterPaisa '690000' reasonCode 'SYSTEM_ERROR' subject null; DELIVERY_COST_RETURNED '48000' '700000' subject {type 'ORDER', shortCode = X1's AG-0nnn, clientName 'Sana'}; DELIVERY_COST '-48000' '652000' subject the same order; TOPUP_ADDED '200000' '700000' subject {type 'TOPUP', shortCode 'AG-T001', clientName null}; LEGACY '-5000' '500000' reasonCode null; OPENING_BALANCE '505000' '505000'.
+- Step 1, newest first: CORRECTION amountPaisa '-10000' balanceAfterPaisa '690000' reasonCode 'SYSTEM_ERROR' subject null; DELIVERY_COST_RETURNED '25000' '700000' subject {type 'ORDER', shortCode = X1's AG-0nnn, clientName 'Sana'}; DELIVERY_COST '-25000' '675000' subject the same order; TOPUP_ADDED '200000' '700000' subject {type 'TOPUP', shortCode 'AG-T001', clientName null}; LEGACY '-5000' '500000' reasonCode null; OPENING_BALANCE '505000' '505000'.
 - Step 1: no item carries 'note', 'by' or subject.bankReference in the distributor view. No item has kind REFILL_DELIVERY_COST.
 - Step 2: only the DELIVERY_COST row is returned.
 - Step 3: the same rows, the correction carries note 'Duplicate test correction' and by {name: 'Owner'}, and the TOPUP_ADDED subject carries bankReference = the bank reference typed when AG-T001 was approved.
@@ -2406,8 +2408,8 @@ Steps:
 Expect:
 
 - The title is 'History'. The summary at the top shows 'Balance' 'Rs 6,900' and no 'Being checked' line.
-- Rows are grouped by day ('Today' first), newest first. Each row's title is the kind, its grey line the number and the customer, and the signed amount with its time is on the right: 'Office correction' with 'Mistake fixed' and '−Rs 100' (the office note is not shown); 'Refund' with 'AG-0nnn · Sana' and '+Rs 480' in green; 'Delivery cost' with 'AG-0nnn · Sana' and '−Rs 480'; 'Top-up' with 'AG-T001' and '+Rs 2,000'; 'Older entry' with '−Rs 50'; 'Opening balance' with '+Rs 5,050'. No row shows 'Balance after'.
-- Step 3: the Refund row opens that order, which reads 'Cancelled' with the cost chip 'Rs 480 returned'.
+- Rows are grouped by day ('Today' first), newest first. Each row's title is the kind, its grey line the number and the customer, and the signed amount with its time is on the right: 'Office correction' with 'Mistake fixed' and '−Rs 100' (the office note is not shown); 'Refund' with 'AG-0nnn · Sana' and '+Rs 250' in green; 'Delivery cost' with 'AG-0nnn · Sana' and '−Rs 250'; 'Top-up' with 'AG-T001' and '+Rs 2,000'; 'Older entry' with '−Rs 50'; 'Opening balance' with '+Rs 5,050'. No row shows 'Balance after'.
+- Step 3: the Refund row opens that order, which reads 'Cancelled' with the cost chip 'Rs 250 returned'.
 - Step 4: 'Top-ups' lists every request as a row titled 'Top-up' with 'AG-T00n · \<the name on the account>' and the amount on the right: 'Rs 2,000' with the chip 'Added' and 'Rs 1,000' with the chip 'Not added', although the rejected request never appears under 'All'.
 - Step 5: 'Delivery costs' lists exactly the 'Refund' and 'Delivery cost' rows for Sana.
 - No code (DEBIT_ORDER, SYSTEM_ERROR), UUID or 'Rs.' appears anywhere.
@@ -2488,7 +2490,7 @@ Expect:
 
 - Step 1: header 'Wallets' with 'Prepaid balances for delivery costs.'; Ahmed Gas shows Balance 'Rs 6,900' and To check 'Rs 2,000 · 1 top-up' (a link to the top-ups waiting); Bilal Gas shows 'Rs 0' with the red chip 'Low' (below the Rs 1,000 low-balance warning).
 - Step 2: the back link '← Wallets' and the title 'Ahmed Gas wallet'; one balance card with 'Balance' 'Rs 6,900', the link 'Rs 2,000 in top-ups to check' and the green chip 'History adds up'; buttons 'Record correction…' and 'Download statement'.
-- Step 3: the rows are grouped by day; 'What happened' reads 'Top-up · AG-T001 · ref \<bank reference>', 'Delivery cost · AG-0nnn · Sana', 'Delivery cost returned · AG-0nnn (cancelled before delivery started)', 'Correction: System error — Duplicate test correction', 'Opening balance' and 'Older entry'. Change is signed ('+Rs 2,000', '−Rs 480'); 'By' shows 'Owner' on the correction. The 'Returned costs' chip leaves only the returned row.
+- Step 3: the rows are grouped by day; 'What happened' reads 'Top-up · AG-T001 · ref \<bank reference>', 'Delivery cost · AG-0nnn · Sana', 'Delivery cost returned · AG-0nnn (cancelled before delivery started)', 'Correction: System error — Duplicate test correction', 'Opening balance' and 'Older entry'. Change is signed ('+Rs 2,000', '−Rs 250'); 'By' shows 'Owner' on the correction. The 'Returned costs' chip leaves only the returned row.
 - Step 4: a red banner reads "History is Rs 120 off. Tell the tech team before any correction." 'Record correction…' is disabled with 'Fix the history first.' shown beside it. Opening the page raises no WALLET_CHECK_MISMATCH alert (only the nightly job raises one).
 - Step 5: the green chip 'History adds up' is back and 'Record correction…' is enabled again.
 - Step 6: an amber banner reads "Balance is below zero. Record a correction to bring it to Rs 0." (not the red mismatch banner), and 'Record correction…' is enabled.
@@ -2669,20 +2671,20 @@ Expect:
 
 Spec: ADR-06; ADR-21; API_CONTRACT §5.4 (verify), §8.5, §8.6 (shared rules); DATA_MODEL §3.1, §3.6 (Nightly wallet check) · Test file: `apps/api/test/money/wallet-check.e2e-spec.ts`
 
-### WAL-017 · An order and a correction racing for the last Rs 480: exactly one wins
+### WAL-017 · An order and a correction racing for the last Rs 250: exactly one wins
 
 **P1** · AUTO-API · Inc 1 · Role: Developer (API test) as DA and SA1
 
-Before: Standard test data. DA balance exactly Rs 480 (set with corrections).
+Before: Standard test data. DA balance exactly Rs 250 (set with corrections).
 
 Steps:
 
-1. At the same moment, DA POSTs X1 (POST /orders, new Idempotency-Key) and SA1 POSTs a TAKE correction of 48000 on DA (reasonCode OTHER, note 'Race test correction').
-2. Reset DA to Rs 480 and repeat 20 times.
+1. At the same moment, DA POSTs X1 (POST /orders, new Idempotency-Key) and SA1 POSTs a TAKE correction of 25000 on DA (reasonCode OTHER, note 'Race test correction').
+2. Reset DA to Rs 250 and repeat 20 times.
 
 Expect:
 
-- Every round exactly one call succeeds: either the order is 201 and the correction is 409 WALLET_ADJUST_EXCEEDS_BALANCE {balancePaisa: '0'}, or the correction is 201 and the order is 409 WALLET_INSUFFICIENT_BALANCE {requiredPaisa: '48000', balancePaisa: '0', shortByPaisa: '48000'} with no order row created.
+- Every round exactly one call succeeds: either the order is 201 and the correction is 409 WALLET_ADJUST_EXCEEDS_BALANCE {balancePaisa: '0'}, or the correction is 201 and the order is 409 WALLET_INSUFFICIENT_BALANCE {requiredPaisa: '25000', balancePaisa: '0', shortByPaisa: '25000'} with no order row created.
 - DA ends every round at Rs 0, never below. The ledger sum equals the balance.
 
 Spec: ADR-06; ADR-10; API_CONTRACT §4.1, §4.4, §5.4, §7.6, §7.8; DATA_MODEL §3.6 · Test file: `apps/api/test/money/wallet-corrections.e2e-spec.ts`
@@ -2691,7 +2693,7 @@ Spec: ADR-06; ADR-10; API_CONTRACT §4.1, §4.4, §5.4, §7.6, §7.8; DATA_MODEL
 
 **P1** · AUTO-API · Inc 1 · Role: Developer (API test)
 
-Before: Standard test data. DA Rs 5,000. Before the burst: DA places 5 orders shaped like X1 (balance Rs 2,600) and sends 3 top-up requests of Rs 1,000.
+Before: Standard test data. DA Rs 5,000. Before the burst: DA places 5 orders shaped like X1 (balance Rs 3,750) and sends 3 top-up requests of Rs 1,000.
 
 Steps:
 
@@ -2724,10 +2726,10 @@ Steps:
 
 Expect:
 
-- Step 1: every \*Paisa field is a JSON string of digits ('452000'); signed amounts carry a leading minus ('-48000'); none is a JSON number; null appears only where allowed (capPaisa, creditedPaisa).
+- Step 1: every \*Paisa field is a JSON string of digits ('475000'); signed amounts carry a leading minus ('-25000'); none is a JSON number; null appears only where allowed (capPaisa, creditedPaisa).
 - Step 2: both are accepted (201) and stored as 200000 and 300000 paisa.
 - Step 3: each is refused with 400 VALIDATION_FAILED on 'amountPaisa' and nothing is saved.
-- Step 4: /ledger/balance returns {balancePaisa: '452000', pendingTopupPaisa: '500000'} as strings; /ledger/me is a bare array of at most 100 of DA's own rows.
+- Step 4: /ledger/balance returns {balancePaisa: '475000', pendingTopupPaisa: '500000'} as strings; /ledger/me is a bare array of at most 100 of DA's own rows.
 
 Spec: API_CONTRACT §1.1, §1.3, §7.8, Appendix A; DATA_MODEL §1; README (Conventions) · Test file: `apps/api/test/money/money-rules.spec.ts, apps/api/test/money/wallet-routes.e2e-spec.ts`
 
@@ -3590,13 +3592,13 @@ Note: Regression case for review finding mobile-ux-02 (CHANGELOG, "Review fixes,
 
 ## PRC · Delivery prices and quotes
 
-Delivery prices per distributor and zone (flat or by size), quotes, and the blocks for a zone with no price or a pin outside every zone. 19 cases: P1 12 · P2 6 · P3 1.
+Delivery costs per distributor and zone (one amount per order, whatever the cylinders), quotes, and the blocks for a zone with no price or a pin outside every zone. 20 cases: P1 14 · P2 5 · P3 1.
 
 ### PRC-001 · Office price grid shows each distributor's price per active zone and the coverage
 
 **P2** · AUTO-API · Inc 1 · Role: Super admin SA1 (API)
 
-Before: Standard test data: DA priced in North (base Rs 250; 6 kg Rs 30, 11.8 kg Rs 40, 15 kg Rs 80, 45.4 kg Rs 150) and South (base Rs 400, sizes 0), East not priced; DB priced only in South (Rs 300 flat).
+Before: Standard test data: DA priced in North (Rs 250) and South (Rs 400), East not priced; DB priced only in South (Rs 300).
 
 Steps:
 
@@ -3606,13 +3608,13 @@ Steps:
 
 Expect:
 
-- Step 1: distributor {businessName 'Ahmed Gas', code 'AG', store {name 'Ahmed Gas Store', zone {name 'North'}}}; sizes list 6 kg, 11.8 kg, 15 kg, 45.4 kg; North price {basePaisa '25000', sizes '3000', '4000', '8000', '15000', updatedAt, updatedBy {name}}; South price {basePaisa '40000'} with no non-zero size; East price null; coverage {priced: 2, total: 3}.
+- Step 1: distributor {businessName 'Ahmed Gas', code 'AG', store {name 'Ahmed Gas Store', zone {name 'North'}}}; North price {basePaisa '25000', updatedAt, updatedBy {name}}; South price {basePaisa '40000'}; East price null; coverage {priced: 2, total: 3}. No price has a per-size amount.
 - Step 2: South {basePaisa '30000'}; North and East null; coverage {priced: 1, total: 3}.
 - Step 3: coverage total counts active zones only (2); East is listed with isActive false.
 
-Spec: ADR-08; API_CONTRACT §7.5 (GET /pricing/prices); UX_ADMIN §2.3; DATA_MODEL §3.3 (DistributorZonePrice) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); API_CONTRACT §7.5 (GET /pricing/prices); UX_ADMIN §2.3; DATA_MODEL §3.3 (DistributorZonePrice) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
-### PRC-002 · Setting a price saves base and size amounts in one go, applies to new orders at once, and is audited
+### PRC-002 · Setting a price saves one cost per order, applies to new orders at once, and is audited
 
 **P1** · AUTO-API · Inc 1 · Role: Super admin SA1 (API)
 
@@ -3620,27 +3622,27 @@ Before: Standard test data. DA has no East price.
 
 Steps:
 
-1. As SA1, PUT /pricing/prices/\<DA id>/\<East id> {basePaisa: 20000, sizes: [{cylinderTypeId: \<11.8 kg>, perCylinderPaisa: 5000}], note: 'Pilot price East'}.
+1. As SA1, PUT /pricing/prices/\<DA id>/\<East id> {basePaisa: 20000, note: 'Pilot price East'}.
 2. Send step 1's PUT again, unchanged.
 3. As DA, GET /pricing/quote at an East pin, and POST /orders/quote for C1 with deliveryLocation at that East pin and 2 x 11.8 kg.
-4. As SA1, PUT the East price again with {basePaisa: 22000} and no sizes.
+4. As SA1, PUT the East price again with {basePaisa: 22000}.
 5. Read the audit rows, then restore: DELETE the East price {reason: 'restore test data'}.
 
 Expect:
 
-- Step 1: 200 with the zone's grid row { zone: { name 'East', isActive true, cityName 'Lahore' }, price: { basePaisa '20000', sizes: 11.8 kg '5000' and every other active size '0', updatedAt, updatedBy { name 'Owner' } } }; the grid shows East base '20000', 11.8 kg '5000', every other size '0'; coverage priced 3.
+- Step 1: 200 with the zone's grid row { zone: { name 'East', isActive true, cityName 'Lahore' }, price: { basePaisa '20000', updatedAt, updatedBy { name 'Owner' } } } and no per-size amount; the grid shows East '20000'; coverage priced 3.
 - Step 2: 200 with the same row; nothing changes and no second price.set row is written.
-- Step 3: the quote is priced at once: base Rs 200 plus 2 x Rs 50 = totalPaisa '30000'.
-- Step 4: the size rows are replaced, so 11.8 kg is now 0; an East quote for 2 x 11.8 kg is '22000'.
-- Step 5: two price.set audit rows: the first with before null and after {base 20000, 11.8 kg 5000}, the second with that as before and {base 22000, no sizes} as after; actor SA1.
+- Step 3: the quote is priced at once: totalPaisa '20000', whatever the cylinders.
+- Step 4: an East quote for 2 x 11.8 kg is now '22000'.
+- Step 5: two price.set audit rows: the first with before null and after {base 20000}, the second with that as before and {base 22000} as after; actor SA1.
 
-Spec: ADR-08; API_CONTRACT §5.6, §7.5 (PUT), Appendix B; DATA_MODEL §3.3 · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); API_CONTRACT §5.6, §7.5 (PUT), Appendix B; DATA_MODEL §3.3 · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
-### PRC-003 · A flat price (all size amounts 0) costs the base whatever the cylinders (X2)
+### PRC-003 · A zone's price is the cost whatever the cylinders (X2 in South)
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA (API)
 
-Before: Standard test data. DA Rs 5,000. DA's South price is Rs 400 with every size at 0. C2 'Usman' lives in South.
+Before: Standard test data. DA Rs 5,000. DA's South price is Rs 400. C2 'Usman' lives in South.
 
 Steps:
 
@@ -3650,11 +3652,11 @@ Steps:
 
 Expect:
 
-- Step 1: quote {zone South, basePaisa '40000', lines [{sizeLabel '15 kg', count 3, perCylinderPaisa '0', subtotalPaisa '0'}], totalPaisa '40000'}.
+- Step 1: quote {zone South, basePaisa '40000', totalPaisa '40000'}, with no per-size amounts.
 - Step 2: totalPaisa '40000' as well.
-- Step 3: 201 with fee.totalPaisa '40000'; DA balance Rs 4,600; one DEBIT_ORDER of -40000; the order line stores feePerCylinderPaisa 0 and feePaisa 0.
+- Step 3: 201 with fee.totalPaisa '40000'; DA balance Rs 4,600; one DEBIT_ORDER of -40000; no per-size amount is stored on the order or its lines.
 
-Spec: ADR-08; API_CONTRACT §5.6, §7.5, §7.6, §8.6; DATA_MODEL §3.2 (OrderLine), §3.6 · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); API_CONTRACT §5.6, §7.5, §7.6, §8.6; DATA_MODEL §3.6 · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
 ### PRC-004 · Invalid price saves are refused and change nothing: negative, paisa, fractions, too large, archived zone
 
@@ -3665,20 +3667,20 @@ Before: Standard test data. DA has no East price. A test zone 'West Test' exists
 Steps:
 
 1. As SA1, PUT /pricing/prices/\<DA id>/\<East id> with basePaisa -10000; then 25050 (Rs 250.50); then 250.5; then 'abc'; then '99999999999999999999' (20 digits); then 10000100 (Rs 100,001).
-2. PUT with basePaisa 20000 and sizes [{cylinderTypeId: \<11.8 kg>, perCylinderPaisa: -100}]; then with basePaisa 20000 and sizes [{cylinderTypeId: \<11.8 kg>, perCylinderPaisa: 10000100}].
+2. PUT with an empty body {} (no basePaisa).
 3. PUT /pricing/prices/\<DA id>/\<West Test id> with basePaisa 20000.
 4. PUT DA's South price with basePaisa 10000000 (Rs 100,000), then put it back to basePaisa 40000.
 5. GET /pricing/prices/\<DA id> and read the audit log.
 
 Expect:
 
-- Negative, Rs 250.50, Rs 100,001 and both bad size amounts: 400 PRICE_INVALID 'Enter whole rupees, from Rs 0 to Rs 100,000.'
-- 250.5, 'abc' and the 20-digit value: 400 PRICE_INVALID, never a 500.
+- Negative, Rs 250.50 and Rs 100,001: 400 PRICE_INVALID 'Enter whole rupees, from Rs 0 to Rs 100,000.'
+- 250.5, 'abc' and the 20-digit value: 400 PRICE_INVALID, never a 500. Step 2's empty body: 400 VALIDATION_FAILED with basePaisa REQUIRED.
 - Archived zone: 409 ZONE_ARCHIVED 'This zone is archived.'
 - Step 4: 200 both times (Rs 100,000 is the maximum, inclusive); South is back at Rs 400.
 - East still has no price, coverage is unchanged, and no price.set audit row was written for East.
 
-Spec: ADR-08; API_CONTRACT §1.1, §2.2, §2.3 (Pricing), §7.5 (PUT); DATA_MODEL §3.4 (dzp_base_chk, dzps_amount_chk) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
+Spec: ADR-08; API_CONTRACT §1.1, §2.2, §2.3 (Pricing), §7.5 (PUT); DATA_MODEL §3.4 (dzp_base_chk) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
 ### PRC-005 · Removing a price needs a reason and blocks that zone again, but placed orders keep their cost
 
@@ -3709,14 +3711,14 @@ Before: Standard test data. DA has no East price.
 
 Steps:
 
-1. At the same moment, SA1 PUTs East {basePaisa: 20000, sizes: [11.8 kg: 5000]} and SA2 PUTs East {basePaisa: 21000, sizes: [15 kg: 9000]}.
-2. Read the distributor_zone_prices and size rows for (DA, East). DELETE the price with a reason. Repeat 20 times.
+1. At the same moment, SA1 PUTs East {basePaisa: 20000} and SA2 PUTs East {basePaisa: 21000}.
+2. Read the distributor_zone_prices row for (DA, East). DELETE the price with a reason. Repeat 20 times.
 
 Expect:
 
 - Exactly one price row for (DA, East) every round.
 - Each call either succeeds (200) or gets 409 CONFLICT_STALE_STATE 'This changed while you were looking. Refresh and try again.'; never a 500.
-- The stored base and size rows match one of the two bodies completely, never a mix; one price.set audit row per successful save.
+- The stored price is one of the two amounts (20000 or 21000), with no per-size amount; one price.set audit row per successful save.
 
 Spec: ADR-08; API_CONTRACT §4.1, §7.5; DATA_MODEL §7 (distributor_zone_prices key) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
@@ -3742,7 +3744,7 @@ Expect:
 
 Spec: ADR-02; ADR-08; API_CONTRACT §3.1, §3.2, §7.5 · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
-### PRC-008 · Location quote answers 200 for every pin: priced, flat, price not set, outside
+### PRC-008 · Location quote answers 200 for every pin: priced, price not set, outside
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA (API)
 
@@ -3755,8 +3757,8 @@ Steps:
 
 Expect:
 
-- North: 200 {serviceable true, zone {name 'North'}, price {basePaisa '25000', sizes with all four active sizes: '3000', '4000', '8000', '15000'}, blockCode null}.
-- South: 200, price basePaisa '40000' with every size '0', blockCode null.
+- North: 200 {serviceable true, zone {name 'North'}, price {basePaisa '25000'}, blockCode null}, with no per-size amounts.
+- South: 200, price basePaisa '40000', blockCode null.
 - East: 200 {serviceable false, zone {name 'East'}, price null, blockCode 'PRICING_PRICE_NOT_SET'}.
 - Outside: 200 {serviceable false, zone null, price null, blockCode 'PRICING_ZONE_NOT_COVERED'}.
 - Border pin: the same zone every time (border points count; the smaller zone wins, then created_at, then id).
@@ -3777,7 +3779,7 @@ Steps:
 2. POST /clients {name: 'Test Out', phone: '0300 7654322', address at the Outside point}.
 3. POST /clients/\<C1 id>/addresses {label: 'Shop, East', lat, lng in East}.
 4. POST /clients {name: 'Test NoPin', phone: '0300 7654323'} with no address.
-5. As SA1, set DA's East price to base Rs 200. As DA, repeat step 1 with a new key. Then remove the East price with a reason.
+5. As SA1, set DA's East price to Rs 200. As DA, repeat step 1 with a new key. Then remove the East price with a reason.
 
 Expect:
 
@@ -3789,7 +3791,7 @@ Expect:
 
 Spec: ADR-08; API_CONTRACT §2.3 (Pricing), §7.4 (rule 3), §7.5, §8.6; owner decision 2026-10-21 (missing price blocks) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
-### PRC-010 · Order quote gives the X1 breakdown and whether the wallet is enough, and changes nothing
+### PRC-010 · Order quote gives X1's cost and whether the wallet is enough, and changes nothing
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA (API)
 
@@ -3799,15 +3801,15 @@ Steps:
 
 1. As DA, POST /orders/quote for C1 with 2 x 11.8 kg and 1 x 45.4 kg (X1).
 2. POST /orders/quote for C1 with 10 x 15 kg.
-3. Set DA to Rs 479 with a correction. Quote X1 again.
+3. Set DA to Rs 249 with a correction. Quote X1 again.
 4. Quote with lines: [] (no cylinders); then with two lines, 16 x 11.8 kg and 15 x 15 kg (31 cylinders, each line inside the 1-100 body limit).
 5. Count orders, ledger rows, audit rows and DA's next_order_no.
 
 Expect:
 
-- Step 1: 200 {quote: {strategy 'DISTRIBUTOR_ZONE', zone {name 'North'}, basePaisa '25000', lines [{sizeLabel '11.8 kg', count 2, perCylinderPaisa '4000', subtotalPaisa '8000'}, {sizeLabel '45.4 kg', count 1, perCylinderPaisa '15000', subtotalPaisa '15000'}], totalPaisa '48000'}, wallet: {balancePaisa '500000', enough true, shortByPaisa '0'}}.
-- Step 2: totalPaisa '105000' (Rs 250 + 10 x Rs 80).
-- Step 3: wallet {balancePaisa '47900', enough false, shortByPaisa '100'}.
+- Step 1: 200 {quote: {strategy 'DISTRIBUTOR_ZONE', zone {name 'North'}, basePaisa '25000', totalPaisa '25000'}, wallet: {balancePaisa '500000', enough true, shortByPaisa '0'}}; the quote has no per-size amounts.
+- Step 2: totalPaisa '25000' as well: the cost doesn't depend on the cylinders.
+- Step 3: wallet {balancePaisa '24900', enough false, shortByPaisa '100'}.
 - Step 4: the empty list gives 400 ORDER_LINES_INVALID; the 31-cylinder quote gives 400 ORDER_TOO_MANY_CYLINDERS with details.max 30 and 'Too many cylinders. An order can have at most 30.'
 - Step 5: no order, ledger or audit row was created by any quote; next_order_no is unchanged.
 
@@ -3835,7 +3837,7 @@ Expect:
 
 Spec: ADR-08; API_CONTRACT §2.3, §7.6 (rule 4), §8.6; DATA_MODEL §3.6 (Place an order, step 1) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
-### PRC-012 · Fee strategy: base once per order plus each size amount times its full cylinders
+### PRC-012 · Fee strategy: one amount per order, whatever the cylinders
 
 **P1** · AUTO-UNIT · Inc 1 · Role: Developer (unit test)
 
@@ -3843,38 +3845,38 @@ Before: DISTRIBUTOR_ZONE strategy with a mocked price lookup.
 
 Steps:
 
-1. Quote X1 against the North price (base 25000; 6 kg 3000, 11.8 kg 4000, 15 kg 8000, 45.4 kg 15000).
-2. Quote 10 x 15 kg against North.
-3. Quote X2 (3 x 15 kg) against the South price (base 40000, no size rows).
-4. Quote 1 x 11.8 kg against a price whose 11.8 kg row is missing; and anything against base 0 with no size rows.
+1. Quote X1 against the North price (25000).
+2. Quote 10 x 15 kg, and 1 x 6 kg, against North.
+3. Quote X2 (3 x 15 kg) against the South price (40000).
+4. Quote anything against a price of 0.
 
 Expect:
 
-- X1 = 48000: the base is added once, not once per line (a per-line base would give 73000).
-- 10 x 15 kg = 105000.
+- X1 = 25000: the amount is added once per order, not once per line (a per-line amount would give 50000).
+- 10 x 15 kg = 25000 and 1 x 6 kg = 25000.
 - X2 = 40000.
-- A missing size row counts as 0 (base only); base 0 with no sizes = 0.
-- Each returned line carries count, perCylinderPaisa and subtotalPaisa; all money values are BigInt.
+- A price of 0 gives 0.
+- The result carries the total and no per-size amounts; all money values are BigInt.
 
-Spec: ADR-08; ADR-20; API_CONTRACT §5.6 (DISTRIBUTOR_ZONE); DATA_MODEL §3.6 (step 2), §3.7 (pricing.service.ts:77) · Test file: `apps/api/test/orders/pricing-strategy.spec.ts`
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); ADR-20; API_CONTRACT §5.6 (DISTRIBUTOR_ZONE); DATA_MODEL §3.6 (step 2), §3.7 (pricing.service.ts:77) · Test file: `apps/api/test/orders/pricing-strategy.spec.ts`
 
 ### PRC-013 · A price change after placement never changes a placed order's cost or refund
 
 **P1** · AUTO-API · Inc 1 · Role: Super admin SA1 and distributor DA (API)
 
-Before: Standard test data. DA placed X1 (Rs 480); balance Rs 4,520; X1 not loaded.
+Before: Standard test data. DA placed X1 (Rs 250); balance Rs 4,750; X1 not loaded.
 
 Steps:
 
-1. As SA1, PUT DA's North price {basePaisa: 30000, sizes: 6 kg 3000, 11.8 kg 5000, 15 kg 8000, 45.4 kg 15000}.
+1. As SA1, PUT DA's North price {basePaisa: 30000}.
 2. As DA, GET /orders/\<X1 id>, and quote a new order shaped like X1.
-3. As DA, cancel X1 {reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '48000'}.
+3. As DA, cancel X1 {reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '25000'}.
 4. Restore the North price.
 
 Expect:
 
-- Step 2: X1 still has fee.totalPaisa '48000' with breakdown base '25000', 11.8 kg '4000' and 45.4 kg '15000'; the new quote is '55000' (Rs 300 + 2 x Rs 50 + Rs 150).
-- Step 3: refundedPaisa '48000' (the stored cost, not today's price); balance back to Rs 5,000.
+- Step 2: X1 still has fee.totalPaisa '25000'; the new quote is '30000' (Rs 300).
+- Step 3: refundedPaisa '25000' (the stored cost, not today's price); balance back to Rs 5,000.
 
 Spec: ADR-07; ADR-08; API_CONTRACT §7.5 (PUT: placed orders keep their copy), §7.6; DATA_MODEL §3.2 (Order fee copy), §3.3 · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
@@ -3886,17 +3888,17 @@ Before: Standard test data. DA Rs 5,000.
 
 Steps:
 
-1. As DA, quote X1 (Rs 480).
-2. As SA1, change DA's North base to Rs 300 (sizes unchanged).
-3. As DA, POST /orders for X1 with quotedTotalPaisa '48000'.
-4. As DA, POST /orders for X1 with quotedTotalPaisa '53000' and a new Idempotency-Key.
+1. As DA, quote X1 (Rs 250).
+2. As SA1, change DA's North price to Rs 300.
+3. As DA, POST /orders for X1 with quotedTotalPaisa '25000'.
+4. As DA, POST /orders for X1 with quotedTotalPaisa '30000' and a new Idempotency-Key.
 5. As DA, POST /orders for X1 with no quotedTotalPaisa (the old app body). Restore the North price.
 
 Expect:
 
-- Step 3: 409 PRICING_QUOTE_CHANGED, details {totalPaisa: '53000', quote}, message 'The delivery cost is now Rs 530. Check it and place the order again.'; no order and no deduction.
-- Step 4: 201 with fee.totalPaisa '53000'; balance Rs 4,470.
-- Step 5: 201 at the current price (Rs 530); balance Rs 3,940.
+- Step 3: 409 PRICING_QUOTE_CHANGED, details {totalPaisa: '30000', quote}, message 'The delivery cost is now Rs 300. Check it and place the order again.'; no order and no deduction.
+- Step 4: 201 with fee.totalPaisa '30000'; balance Rs 4,700.
+- Step 5: 201 at the current price (Rs 300); balance Rs 4,400.
 
 Spec: ADR-08; API_CONTRACT §2.3, §7.6 (rule 5), Appendix A · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
@@ -3909,15 +3911,15 @@ Before: DA signed in, balance Rs 5,000. Standard North price.
 Steps:
 
 1. Start a new order for Sana: 2 x 11.8 kg and 1 x 45.4 kg. Go to 'Check and place' and read the cost.
-2. Ask SA1 to change Ahmed Gas's North base to Rs 300.
-3. Tap 'Place order · pay Rs 480'.
+2. Ask SA1 to change Ahmed Gas's North price to Rs 300.
+3. Tap 'Place order · pay Rs 250'.
 4. Read the screen, then tap the main button again. Afterwards ask SA1 to restore the price.
 
 Expect:
 
-- Step 1: 'Delivery cost' 'Rs 480' with 'Rs 250 + 2 × Rs 40 + 1 × Rs 150' under it.
-- Step 3: just above the button, 'The delivery cost is now Rs 530. Check it, then tap again.'; the total 'Rs 530' with 'Rs 300 + 2 × Rs 40 + 1 × Rs 150'; the button 'Place order · pay Rs 530'; the balance is still Rs 5,000.
-- Step 4: the order is placed with the message 'Order placed · Rs 530 paid'; the balance is Rs 4,470.
+- Step 1: 'Delivery cost' 'Rs 250', with no breakdown line under it.
+- Step 3: just above the button, 'The delivery cost is now Rs 300. Check it, then tap again.'; the total 'Rs 300'; the button 'Place order · pay Rs 300'; the balance is still Rs 5,000.
+- Step 4: the order is placed with the message 'Order placed · Rs 300 paid'; the balance is Rs 4,700.
 
 Spec: ADR-08; UX_MOBILE S9 (Submit); API_CONTRACT §7.6 (rule 5)
 
@@ -3931,17 +3933,17 @@ Steps:
 
 1. Open 'Delivery prices' and choose Ahmed Gas.
 2. Read the grid.
-3. Click 'Set price' on East. Press 'Save price' with the base blank. Type base 200, open '+ Add per-cylinder amounts' and type 11.8 kg 50, leaving the other sizes blank. Read the example and the note. Type '250.5' in the base field, then set it back to 200. Click 'Save price'.
+3. Click 'Set price' on East. Press 'Save price' with the field blank. Type 200 in 'Delivery cost per order'. Read the example and the note. Type '250.5', then set it back to 200. Click 'Save price'.
 4. Open East again and click 'Remove price…'. Give the reason 'Restore test data' and confirm.
 
 Expect:
 
 - Step 1: the subtitle 'What a distributor pays per order, by customer zone.'; the distributor chips Ahmed Gas '1 missing' and Bilal Gas '2 missing' (red); the alert '1 zone has no price. Customers there are blocked.' with the chip 'Missing (1)'.
-- Step 2: the columns Zone · Base per order · Per cylinder · Status · Action: North 'Rs 250' with '6 kg Rs 30 · 11.8 kg Rs 40 · 15 kg Rs 80 · 45.4 kg Rs 150' and 'Set'; South 'Rs 400' with '—' and 'Set'; East 'Not set' in red with 'Set price'.
-- Step 3: the drawer 'Ahmed Gas · Zone East' with the subtitle 'Lahore'; the blank base shows 'Type the base per order.'; once 200 is typed, the example '2 × 11.8 kg: Rs 200 + 2 × Rs 50 = Rs 300' and the note 'New orders use this price. Placed orders don't change.'; '250.5' stays in the box with 'Whole rupees only'; after saving, the toast 'Price saved for Zone East.', East shows 'Set' and the chip turns 'All set'.
+- Step 2: the columns Zone · Delivery cost per order · Status · Action: North 'Rs 250' and 'Set'; South 'Rs 400' and 'Set'; East 'Not set' in red with 'Set price'. There is no per-cylinder column.
+- Step 3: the drawer 'Ahmed Gas · Zone East' with the subtitle 'Lahore' and one field, 'Delivery cost per order'; the blank field shows 'Type the delivery cost.'; once 200 is typed, the example 'Any order → Rs 200' and the note 'New orders use this cost. Placed orders don't change.'; '250.5' stays in the box with 'Whole rupees only'; after saving, the toast 'Price saved for Zone East.', East shows 'Set' and the chip turns 'All set'.
 - Step 4: the dialog 'Remove the price for Zone East?' says 'Customers in East will be blocked until a new price is set.' and needs a reason under 'Why?'; the toast 'Price removed for Zone East.'; East shows 'Not set' again.
 
-Spec: ADR-08; UX_ADMIN §1.5 (MoneyInput), §2.3, §2.12; API_CONTRACT §7.5
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); UX_ADMIN §1.5 (MoneyInput), §2.3, §2.12; API_CONTRACT §7.5
 
 ### PRC-017 · The old zone-pair pricing routes are office only and never change a quote
 
@@ -3961,35 +3963,13 @@ Expect:
 - Step 1: 403 PERMISSION_DENIED for every call.
 - Step 2: 200 with the legacy shape.
 - Step 3: 201 with today's legacy shape, and the rule is stored in pricing_rules; no distributor_zone_prices row changes.
-- Step 4: quote.totalPaisa is still "48000" (Rs 480): quotes use only the distributor-zone price.
+- Step 4: quote.totalPaisa is still "25000" (Rs 250): quotes use only the distributor-zone price.
 
 Spec: ADR-08; API_CONTRACT §5.1 (pricing_rules frozen), §5.6 (DISTRIBUTOR_ZONE), §7.2 (GET /pricing/city/:cityId, POST /pricing/rules: office; legacy and frozen); DATA_MODEL §3.7 (PricingRule frozen) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
 
 Note: 'Frozen' means kept, and writable by the office through the legacy routes, but never read by quotes, orders or fees; the table goes after the pilot (API_CONTRACT §5.1, §7.2).
 
-### PRC-018 · A delivery price is read with its per-size amounts in one statement, exactly as stored
-
-**P2** · AUTO-API · Inc 1 · Role: SUPER_ADMIN (SA1), DISTRIBUTOR (DA)
-
-Before: Standard test data. DA has a price in North (base and per-size amounts), a flat price in South and no price in East.
-
-Steps:
-
-1. As SA1, PUT /pricing/prices/\<DA>/\<North> { basePaisa: "26000", note: "Ring road surcharge", sizes: 11.8 kg "4500", 15 kg "8000" }.
-2. Read DA's price in North, South and East through the lookup that quotes and orders use (ZonePriceLookup.priceFor), and the same rows through Prisma.
-3. As DA, POST /orders/quote for X1 (2 × 11.8 kg, 1 × 45.4 kg).
-
-Expect:
-
-- Step 2: each read equals the stored row: North with base Rs 260, the note, its editor SA1 and the two size amounts; South with no size rows; East null.
-- Step 3: quote.totalPaisa "35000" (Rs 260 + 2 × Rs 45 + Rs 0).
-- The lookup reads the price and its sizes in one SQL statement, so a price edit committing during the read never gives one version's base with another version's amounts.
-
-Spec: ADR-08; API_CONTRACT §4, §5.6, §7.5 (PUT /pricing/prices, POST /orders/quote) · Test file: `apps/api/test/orders/review-fixes.e2e-spec.ts`
-
-Note: Regression case for review finding money-data-04 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-04 …". A unit test checks that the lookup sends one statement (apps/api/test/orders/review-fixes.spec.ts). Confirming test: apps/api/test/review/money-data/price-torn-read.e2e-spec.ts.
-
-### PRC-019 · The price drawer shows no example until a base per order is typed, and never 'costs Rs 0' for a blank base
+### PRC-019 · The price drawer shows its example only once a cost is typed, and never 'Rs 0' for a blank field
 
 **P3** · AUTO-UNIT · Inc 1 · Role: DEVELOPER
 
@@ -3997,25 +3977,73 @@ Before: Unit test of priceExample (apps/admin-web/src/features/prices/example.ts
 
 Steps:
 
-1. Ask for the example with no base yet.
-2. Ask with a typed base of Rs 250 (no sizes priced; 11.8 kg priced; 6 kg and 11.8 kg priced), and with Rs 0 typed on purpose (no sizes priced; 6 kg priced).
+1. Ask for the example with nothing typed.
+2. Ask with Rs 250 typed, and with Rs 0 typed on purpose.
 3. Read what the drawer passes and shows.
 
 Expect:
 
 - Step 1: no example.
-- Step 2: 'Every order: Rs 250'; '2 × 11.8 kg: Rs 250 + 2 × Rs 40 = Rs 330' (11.8 kg is used whenever it has an amount); a typed Rs 0 reads 'Every order: Rs 0', or '2 × 6 kg: 2 × Rs 30 = Rs 60' with 6 kg priced (Rs 0 is a real price).
-- Step 3: the drawer passes the base only when it is an amount and shows no example otherwise; the old "Type the base per order to see an example." hint is gone.
+- Step 2: 'Any order → Rs 250'; a typed Rs 0 reads 'Any order → Rs 0' (Rs 0 is a real price).
+- Step 3: the drawer passes the cost only when it is an amount and shows no example otherwise; it has one field, 'Delivery cost per order', and no per-cylinder amounts.
 
-Spec: UX_ADMIN §2.3 (Price drawer: example) · Test file: `apps/api/test/unit/ui/admin-web-badges-prices.spec.ts`
+Spec: UX_ADMIN §2.3 (Price drawer: example); owner decision 2026-10-26 (one delivery cost per order) · Test file: `apps/api/test/unit/ui/admin-web-badges-prices.spec.ts`
 
 Note: Regression case for review finding web-ux-07 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV web-ux-07 …".
+
+### PRC-020 · The delivery cost is the same whatever cylinders the order holds
+
+**P1** · AUTO-API · Inc 1 · Role: Distributor DA (API)
+
+Before: Standard test data. DA Rs 5,000. C1 'Sana' in North (Rs 250) and C2 'Usman' in South (Rs 400).
+
+Steps:
+
+1. As DA, POST /orders/quote for C1 with X1 (2 x 11.8 kg + 1 x 45.4 kg), then with 1 x 6 kg, then with 10 x 15 kg, then with 30 cylinders (20 x 11.8 kg + 10 x 15 kg).
+2. POST /orders/quote for C2 with X2 (3 x 15 kg), then with Y1 (1 x 11.8 kg).
+3. As DA, place X1 for C1 and Y1 for C2, each with its quote's totalPaisa as quotedTotalPaisa.
+4. GET both orders and GET /wallet/statement.
+
+Expect:
+
+- Step 1: every quote has totalPaisa '25000' (Rs 250).
+- Step 2: both quotes have totalPaisa '40000' (Rs 400).
+- Step 3: X1 costs Rs 250 (balance Rs 5,000 → Rs 4,750) and Y1 Rs 400 (Rs 4,750 → Rs 4,350); one DEBIT_ORDER each, of -25000 and -40000.
+- Step 4: each order's fee.totalPaisa is its zone's price ('25000' and '40000'); no quote, order or statement row has a per-size amount.
+
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); API_CONTRACT §5.6 (DISTRIBUTOR_ZONE), §7.5 (POST /orders/quote), §7.6 (POST /orders); DATA_MODEL §3.6 (Place an order) · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
+
+Note: The owner decision of 2026-10-26 ("We are managing deliveries not cylinder pricing. Only delivery costs."): one cost per order, set per distributor and zone. It replaces the base per order plus an amount per cylinder size. Not automated yet.
+
+### PRC-021 · A price is one amount: no per-size amount is stored, sent or shown
+
+**P1** · AUTO-API · Inc 1 · Role: Super admin SA1 and distributor DA (API)
+
+Before: Standard test data. DA Rs 5,000. DA has no East price.
+
+Steps:
+
+1. As SA1, PUT /pricing/prices/\<DA id>/\<East id> {basePaisa: 20000, note: 'One amount'}. Then PUT it again with a leftover sizes list [{cylinderTypeId: \<11.8 kg>, perCylinderPaisa: 5000}], as an old screen would.
+2. As SA1, GET /pricing/prices/\<DA id>. As DA, GET /pricing/quote at an East pin, POST /orders/quote for C1 at that pin with 2 x 11.8 kg, place that order, and GET it.
+3. Read the database rows of East's price and of the order and its lines.
+4. Restore: as DA, cancel the order before loading; as SA1, DELETE the East price {reason: 'restore test data'}.
+
+Expect:
+
+- Step 1: the first PUT answers 200 with price {basePaisa '20000', updatedAt, updatedBy {name 'Owner'}}; the second gives 400 VALIDATION_FAILED with fields [{path: 'sizes', code: 'NOT_ALLOWED'}], and East stays Rs 200.
+- Step 2: the grid, the location quote, the order quote and the order carry the one amount '20000' (the order's fee.totalPaisa '20000'), and none of them has a per-size amount: no sizes amounts, perCylinderPaisa or subtotalPaisa.
+- Step 3: East's price is one row with base 20000 and no per-size rows; the order stores its total 20000 and no amount per line or per size.
+- Step 4: the cancel returns Rs 200 (balance back to Rs 5,000); East has no price again.
+
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); API_CONTRACT §7.5 (PriceView, DeliveryQuote, PUT /pricing/prices), §7.6; DATA_MODEL §3.2, §3.3 · Test file: `apps/api/test/orders/pricing.e2e-spec.ts`
+
+Note: Not automated yet.
 
 ## FEE · Delivery cost on orders
 
 The delivery cost taken when an order is placed, the balance boundary, retries, cancels with and without a refund, the refund cut-off setting, and proof that nothing else moves money. 29 cases: P1 19 · P2 9 · P3 1.
 
-### FEE-001 · Placing X1 deducts Rs 480 in the same transaction that creates the order
+### FEE-001 · Placing X1 deducts Rs 250 in the same transaction that creates the order
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA (API)
 
@@ -4023,15 +4051,15 @@ Before: Standard test data. DA Rs 5,000. C1 'Sana' with a North address. Setting
 
 Steps:
 
-1. As DA, POST /orders with a new Idempotency-Key: {clientId: C1, addressId: \<C1 North>, deliveryLabel: 'House 1, North', lines: [{11.8 kg, fullCount 2, expectedReturnCount 2}, {45.4 kg, fullCount 1, expectedReturnCount 1}], quotedTotalPaisa: '48000'}.
+1. As DA, POST /orders with a new Idempotency-Key: {clientId: C1, addressId: \<C1 North>, deliveryLabel: 'House 1, North', lines: [{11.8 kg, fullCount 2, expectedReturnCount 2}, {45.4 kg, fullCount 1, expectedReturnCount 1}], quotedTotalPaisa: '25000'}.
 2. As DA, GET /wallet and GET /wallet/statement.
 3. Read the orders, order_lines, ledger_entries and audit_logs rows.
 
 Expect:
 
-- Step 1: 201 OrderDto {shortCode like 'AG-0001', status 'PENDING', stage 'NEEDS_DRIVER', fee {totalPaisa '48000', status 'DEDUCTED', breakdown {basePaisa '25000', lines 11.8 kg 2 x '4000' = '8000' and 45.4 kg 1 x '15000' = '15000'}}, cancel {allowed true, refundPaisa '48000', noRefundReason null}, deliveryFeePaisa '48000', paymentStatus 'PAID_VIA_LEDGER', originStore 'Ahmed Gas Store'}.
-- Step 2: balance '452000' (Rs 4,520); newest statement item DELIVERY_COST '-48000' with balanceAfterPaisa '452000'.
-- Step 3: fee_status DEDUCTED, fee_strategy DISTRIBUTOR_ZONE, fee_base_paisa 25000, fee_details naming zone North; lines store 4000/8000 and 15000/15000; one DEBIT_ORDER -48000 with key 'order:\<id>:debit'; one order.create audit row (actor DA). No dispatch job was queued (auto-assign off).
+- Step 1: 201 OrderDto {shortCode like 'AG-0001', status 'PENDING', stage 'NEEDS_DRIVER', fee {totalPaisa '25000', status 'DEDUCTED'} with no per-size amounts, cancel {allowed true, refundPaisa '25000', noRefundReason null}, deliveryFeePaisa '25000', paymentStatus 'PAID_VIA_LEDGER', originStore 'Ahmed Gas Store'}.
+- Step 2: balance '475000' (Rs 4,750); newest statement item DELIVERY_COST '-25000' with balanceAfterPaisa '475000'.
+- Step 3: fee_status DEDUCTED, fee_strategy DISTRIBUTOR_ZONE, fee_base_paisa 25000, fee_details naming zone North; no per-size amount is stored on the order or its lines; one DEBIT_ORDER -25000 with key 'order:\<id>:debit'; one order.create audit row (actor DA). No dispatch job was queued (auto-assign off).
 
 Spec: ADR-06; ADR-08; ADR-12; API_CONTRACT §1.4, §4.2, §5.4 (debit), §5.5 (onCreated), §7.6 (POST /orders), §8.1, Appendix B; DATA_MODEL §3.2, §3.6 (Place an order) · Test file: `apps/api/test/money/wallet-routes.e2e-spec.ts, apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4039,20 +4067,20 @@ Spec: ADR-06; ADR-08; ADR-12; API_CONTRACT §1.4, §4.2, §5.4 (debit), §5.5 (o
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA (API); SA1 sets up the balance
 
-Before: Standard test data. SA1 brings DA to exactly Rs 480 with a correction (TAKE Rs 4,520, reasonCode OTHER, note 'X4 setup exact').
+Before: Standard test data. SA1 brings DA to exactly Rs 250 with a correction (TAKE Rs 4,750, reasonCode OTHER, note 'X4 setup exact').
 
 Steps:
 
 1. As DA, place X1 with key K1.
-2. As SA1, ADD Rs 479 to DA (reasonCode OTHER, note 'X4 setup one short'). Note DA's next_order_no.
+2. As SA1, ADD Rs 249 to DA (reasonCode OTHER, note 'X4 setup one short'). Note DA's next_order_no.
 3. As DA, place X1 with key K2.
 4. Read orders, order_lines, ledger_entries, audit_logs and next_order_no.
 
 Expect:
 
 - Step 1: 201; balance '0'; the DEBIT_ORDER row has balance_after 0.
-- Step 3: 409 WALLET_INSUFFICIENT_BALANCE, details {requiredPaisa '48000', balancePaisa '47900', shortByPaisa '100'}, message 'Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue.'
-- Step 4: after K2 there is no new order, order line, ledger row or order.create audit row; next_order_no is unchanged; the balance is still Rs 479.
+- Step 3: 409 WALLET_INSUFFICIENT_BALANCE, details {requiredPaisa '25000', balancePaisa '24900', shortByPaisa '100'}, message 'Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue.'
+- Step 4: after K2 there is no new order, order line, ledger row or order.create audit row; next_order_no is unchanged; the balance is still Rs 249.
 
 Spec: ADR-06; API_CONTRACT §2.1, §2.3, §5.4, §7.6 (rule 6), §8.6; DATA_MODEL §3.6 (Place an order, step 5) · Test file: `apps/api/test/money/wallet-corrections.e2e-spec.ts, apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4060,7 +4088,7 @@ Spec: ADR-06; API_CONTRACT §2.1, §2.3, §5.4, §7.6 (rule 6), §8.6; DATA_MODE
 
 **P2** · AUTO-API · Inc 1 · Role: Distributor DA (API); SA1 sets the price
 
-Before: Standard test data. DA Rs 5,000. SA1 sets DA's South price to base 0 with no size amounts.
+Before: Standard test data. DA Rs 5,000. SA1 sets DA's South price to Rs 0.
 
 Steps:
 
@@ -4120,10 +4148,10 @@ Steps:
 
 Expect:
 
-- Step 1: 201; balance Rs 4,520.
-- Step 2: 200 with Idempotent-Replay: true and the same order id and shortCode; balance still Rs 4,520.
+- Step 1: 201; balance Rs 4,750.
+- Step 2: 200 with Idempotent-Replay: true and the same order id and shortCode; balance still Rs 4,750.
 - Step 3: 409 IDEMPOTENCY_CONFLICT; no new order.
-- Step 4: one 201 and one 200 replay; balance Rs 4,040.
+- Step 4: one 201 and one 200 replay; balance Rs 4,500.
 - Step 5: one order per key, one DEBIT_ORDER per order (keys 'order:\<id>:debit'), one audit row per order. next_order_no went up by exactly 2 and the two order numbers are consecutive: the replays and the refused conflict used no number.
 
 Spec: API_CONTRACT §1.2, §4.2, §7.6, §8.6; DATA_MODEL §3.6 (retry), §7 · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
@@ -4132,17 +4160,17 @@ Spec: API_CONTRACT §1.2, §4.2, §7.6, §8.6; DATA_MODEL §3.6 (retry), §7 · 
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA (API)
 
-Before: Standard test data. SA1 sets DA to exactly Rs 480.
+Before: Standard test data. SA1 sets DA to exactly Rs 250.
 
 Steps:
 
-1. As DA, send two X1 orders with different keys at the same moment. Reset to Rs 480 and repeat 20 times.
-2. Set DA to Rs 960 and send two X1 orders at once.
+1. As DA, send two X1 orders with different keys at the same moment. Reset to Rs 250 and repeat 20 times.
+2. Set DA to Rs 500 and send two X1 orders at once.
 3. Set DA to Rs 2,000 and send ten X2 orders (Rs 400 each) at once.
 
 Expect:
 
-- Step 1: every round one 201 and one 409 WALLET_INSUFFICIENT_BALANCE {requiredPaisa '48000', balancePaisa '0', shortByPaisa '48000'}; balance Rs 0; one order and one DEBIT_ORDER.
+- Step 1: every round one 201 and one 409 WALLET_INSUFFICIENT_BALANCE {requiredPaisa '25000', balancePaisa '0', shortByPaisa '25000'}; balance Rs 0; one order and one DEBIT_ORDER.
 - Step 2: both 201; balance Rs 0.
 - Step 3: exactly 5 orders placed and 5 refused; balance Rs 0.
 - The balance never goes below 0 and always equals the ledger sum.
@@ -4160,17 +4188,17 @@ Steps:
 1. On Home tap 'New order'. Search 'Sana' and tap her row (it opens the next step).
 2. Every count starts at 0. Set 11.8 kg to 2 and 45.4 kg to 1 with the + buttons. Look at the footer. Tap Next.
 3. Read the 'Check and place' screen.
-4. Tap 'Place order · pay Rs 480'.
+4. Tap 'Place order · pay Rs 250'.
 5. Go to Home, then History.
 6. Ask SA1 to set 'When delivery counts as started' to 'Driver assigned' on the website. Start a new order for Sana as in steps 1 and 2, and open 'Check and place'. Go back without placing it, and ask SA1 to set the setting back to 'First load scan at the store'.
 
 Expect:
 
 - Step 1: Sana's row shows '0300 1234567 · Model Town' with no zone chip; tapping it opens 'Cylinders to deliver' for her.
-- Step 2: every count starts at 0; 'Take back' follows Deliver to 2 and 1; the footer reads 'Delivery cost about Rs 480'.
-- Step 3: 'Sana · 0300 1234567'; her address with no zone; '2 × 11.8 kg · take back 2' and '1 × 45.4 kg · take back 1'; 'Delivery cost' 'Rs 480' with 'Rs 250 + 2 × Rs 40 + 1 × Rs 150'; 'Balance now Rs 5,000' and 'After this order Rs 4,520'; and the line 'Refund only if cancelled before loading.'
-- Step 4: the button shows 'Placing order…', then the order screen opens with 'Order placed · Rs 480 paid' and 'The office will assign a driver.'; the cost chip reads 'Rs 480 paid'.
-- Step 5: Home shows 'Rs 4,520'. History's top row is 'Delivery cost' with 'AG-0nnn · Sana' and '−Rs 480', with no 'Balance after'.
+- Step 2: every count starts at 0; 'Take back' follows Deliver to 2 and 1; the footer reads 'Delivery cost Rs 250'.
+- Step 3: 'Sana · 0300 1234567'; her address with no zone; '2 × 11.8 kg · take back 2' and '1 × 45.4 kg · take back 1'; 'Delivery cost' 'Rs 250', with no breakdown line; 'Balance now Rs 5,000' and 'After this order Rs 4,750'; and the line 'Refund only if cancelled before loading.'
+- Step 4: the button shows 'Placing order…', then the order screen opens with 'Order placed · Rs 250 paid' and 'The office will assign a driver.'; the cost chip reads 'Rs 250 paid'.
+- Step 5: Home shows 'Rs 4,750'. History's top row is 'Delivery cost' with 'AG-0nnn · Sana' and '−Rs 250', with no 'Balance after'.
 - Step 6: at once (this step reads the app config fresh), the line reads 'Refund only if cancelled before a driver is assigned.'
 
 Spec: ADR-06; ADR-07; UX_MOBILE §0, §3.4 (fee), S9, S10, S11; API_CONTRACT §7.5, §7.6
@@ -4179,41 +4207,41 @@ Spec: ADR-06; ADR-07; UX_MOBILE §0, §3.4 (fee), S9, S10, S11; API_CONTRACT §7
 
 **P2** · MAN-SHOP · Inc 1 · Role: Distributor DA (shop app)
 
-Before: DA signed in. SA1 sets DA's balance to Rs 300.
+Before: DA signed in. SA1 sets DA's balance to Rs 300 and, for steps 1 to 3, Ahmed Gas's North price to Rs 1,050.
 
 Steps:
 
 1. Start a new order for Sana with 10 × 15 kg. Go to 'Check and place'.
 2. Read the screen and the bottom button. Tap the bottom button.
 3. Read the amount on 'How much do you want to add?'. Go back.
-4. Ask SA1 to set DA to Rs 479. Make an order like X1 (2 × 11.8 kg, 1 × 45.4 kg) and tap the bottom button.
+4. Ask SA1 to set the North price back to Rs 250 and DA to Rs 249. Make an order like X1 (2 × 11.8 kg, 1 × 45.4 kg) and tap the bottom button.
 
 Expect:
 
 - Step 2: just above the button, the red line 'You need Rs 1,050. You have Rs 300.'; the bottom button is 'Add money' (there is no Place button).
 - Step 3: 'Other amount' is chosen with Rs 800 filled in (Rs 750 short, rounded up to the next Rs 100, and above the Rs 500 minimum).
-- Step 4: the line reads 'You need Rs 480. You have Rs 479.' and Add money opens with 'Other amount' Rs 500 (the minimum).
+- Step 4: the line reads 'You need Rs 250. You have Rs 249.' and Add money opens with 'Other amount' Rs 500 (the minimum).
 - No order is created; the balance is unchanged.
 
 Spec: ADR-06; UX_MOBILE §3.2 (errorAction), S3 (Prefill), S9 (footer lines); API_CONTRACT §7.5 (wallet.enough), §7.6
 
-### FEE-009 · X3: the distributor cancels before the first load scan and gets Rs 480 back
+### FEE-009 · X3: the distributor cancels before the first load scan and gets Rs 250 back
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA (API)
 
-Before: Standard test data. DA placed X1 (balance Rs 4,520). SA1 assigned DR1 (van LEA-101); nothing loaded.
+Before: Standard test data. DA placed X1 (balance Rs 4,750). SA1 assigned DR1 (van LEA-101); nothing loaded.
 
 Steps:
 
 1. As DA, GET /orders/\<X1 id>.
-2. As DA, POST /orders/\<X1 id>/cancel with a new Idempotency-Key and {reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '48000'}.
+2. As DA, POST /orders/\<X1 id>/cancel with a new Idempotency-Key and {reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '25000'}.
 3. Read DA's wallet, ledger rows, the trip and stop, and the audit log.
 
 Expect:
 
-- Step 1: cancel {allowed true, refundPaisa '48000', noRefundReason null}; allowedActions contains 'CANCEL'.
-- Step 2: 200 {order: {status 'CANCELLED', stage 'CANCELLED', fee {status 'REVERSED', totalPaisa '48000'}, paymentStatus 'UNPAID', cancelReasonCode 'CUSTOMER_CANCELLED'}, refundedPaisa '48000'}.
-- Step 3: balance Rs 5,000; one CREDIT_ORDER_REVERSAL +48000 with key 'order:\<id>:reversal' and balance_after 500000; the delivery stop is CANCELLED and the trip ABORTED (no other open order, no load scan); one order.cancel audit row (actor DA, reason CUSTOMER_CANCELLED) with {refunded: true, refundPaisa: '48000', startedRule: 'FIRST_LOAD_SCAN'}.
+- Step 1: cancel {allowed true, refundPaisa '25000', noRefundReason null}; allowedActions contains 'CANCEL'.
+- Step 2: 200 {order: {status 'CANCELLED', stage 'CANCELLED', fee {status 'REVERSED', totalPaisa '25000'}, paymentStatus 'UNPAID', cancelReasonCode 'CUSTOMER_CANCELLED'}, refundedPaisa '25000'}.
+- Step 3: balance Rs 5,000; one CREDIT_ORDER_REVERSAL +25000 with key 'order:\<id>:reversal' and balance_after 500000; the delivery stop is CANCELLED and the trip ABORTED (no other open order, no load scan); one order.cancel audit row (actor DA, reason CUSTOMER_CANCELLED) with {refunded: true, refundPaisa: '25000', startedRule: 'FIRST_LOAD_SCAN'}.
 
 Spec: ADR-07; API_CONTRACT §4.2, §5.4 (reverse), §5.5, §7.6 (cancel), §8.1, §8.3, Appendix B; DATA_MODEL §3.6 (Cancel) · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4232,7 +4260,7 @@ Steps:
 
 Expect:
 
-- Step 1: the repeats return 200 with X-Already-Applied: true and the cancelled order; the balance stays Rs 5,000 (never Rs 5,480).
+- Step 1: the repeats return 200 with X-Already-Applied: true and the cancelled order; the balance stays Rs 5,000 (never Rs 5,250).
 - Steps 2 and 3: one cancel takes effect and the other gets 200 with X-Already-Applied: true; the balance is back to Rs 5,000 each time.
 - Step 4: exactly one reversal row and one order.cancel audit row per order.
 
@@ -4263,7 +4291,7 @@ Spec: ADR-02; ADR-07; API_CONTRACT §3.1, §7.6 (cancel), §8.1, Appendix B · T
 
 **P1** · AUTO-API · Inc 1 · Role: Developer (API test) as DB, DR1, DA
 
-Before: Standard test data. DA placed X1 (balance Rs 4,520), assigned to DR1, nothing loaded.
+Before: Standard test data. DA placed X1 (balance Rs 4,750), assigned to DR1, nothing loaded.
 
 Steps:
 
@@ -4276,7 +4304,7 @@ Expect:
 - Step 1: 404 NOT_FOUND for both (no hint that the order exists).
 - Step 2: 403 PERMISSION_DENIED.
 - Step 3: 400 VALIDATION_FAILED for both.
-- X1 is still active with fee status DEDUCTED; balance Rs 4,520; no reversal row; no order.cancel audit row.
+- X1 is still active with fee status DEDUCTED; balance Rs 4,750; no reversal row; no order.cancel audit row.
 
 Spec: ADR-02; API_CONTRACT §1.5, §3.1, §3.2 (canSeeOrder), §7.6 · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4284,7 +4312,7 @@ Spec: ADR-02; API_CONTRACT §1.5, §3.1, §3.2 (canSeeOrder), §7.6 · Test file
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA and driver DR1 (API)
 
-Before: Standard test data. DA placed X1 (balance Rs 4,520), assigned to DR1 (trip T, van LEA-101). orders.deliveryStartedAt = FIRST_LOAD_SCAN.
+Before: Standard test data. DA placed X1 (balance Rs 4,750), assigned to DR1 (trip T, van LEA-101). orders.deliveryStartedAt = FIRST_LOAD_SCAN.
 
 Steps:
 
@@ -4296,7 +4324,7 @@ Expect:
 
 - Step 1: the scan is recorded; X1 gets loadStartedAt and stage 'LOADING'.
 - Step 2: for both callers cancel {allowed true, refundPaisa '0', noRefundReason 'DELIVERY_STARTED'}.
-- Step 3: 200 with refundedPaisa '0'; the order is CANCELLED with fee status still 'DEDUCTED'; balance stays Rs 4,520; no reversal row; the order.cancel audit row has {refunded false, refundPaisa '0', startedRule 'FIRST_LOAD_SCAN'}; the trip is not aborted (it has a load scan) and AG-C0005 stays on the van.
+- Step 3: 200 with refundedPaisa '0'; the order is CANCELLED with fee status still 'DEDUCTED'; balance stays Rs 4,750; no reversal row; the order.cancel audit row has {refunded false, refundPaisa '0', startedRule 'FIRST_LOAD_SCAN'}; the trip is not aborted (it has a load scan) and AG-C0005 stays on the van.
 
 Spec: ADR-07; API_CONTRACT §5.5, §7.6, §7.7 (SCAN_OUT stamps load_started_at), §8.1, §8.6; DATA_MODEL §3.6 (first load scan) · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4304,12 +4332,12 @@ Spec: ADR-07; API_CONTRACT §5.5, §7.6, §7.7 (SCAN_OUT stamps load_started_at)
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA and driver DR1 (API)
 
-Before: Standard test data. DA placed two orders like X1, O1 (assigned to DR1) and O2 (assigned to DR2), nothing loaded. DA's screen showed a refund of Rs 480 for both.
+Before: Standard test data. DA placed two orders like X1, O1 (assigned to DR1) and O2 (assigned to DR2), nothing loaded. DA's screen showed a refund of Rs 250 for both.
 
 Steps:
 
 1. As DR1, load-scan one cylinder on O1's trip.
-2. As DA, cancel O1 with confirmRefundPaisa '48000'.
+2. As DA, cancel O1 with confirmRefundPaisa '25000'.
 3. As DA, cancel O1 with confirmRefundPaisa '0'.
 4. As DA, cancel O2 (not loaded) with confirmRefundPaisa '0'.
 
@@ -4317,7 +4345,7 @@ Expect:
 
 - Step 2: 409 ORDER_CANCEL_TERMS_CHANGED, details {refundPaisa '0'}, message 'Delivery has just started. The refund is now Rs 0.'; O1 is not cancelled and the balance is unchanged.
 - Step 3: 200 with refundedPaisa '0'.
-- Step 4: 409 ORDER_CANCEL_TERMS_CHANGED {refundPaisa '48000'}; O2 is not cancelled.
+- Step 4: 409 ORDER_CANCEL_TERMS_CHANGED {refundPaisa '25000'}; O2 is not cancelled.
 
 Spec: ADR-07; API_CONTRACT §2.3, §5.5 (cancelTerms), §7.6 (cancel step 3), §8.6 · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4334,7 +4362,7 @@ Steps:
 
 Expect:
 
-- Every round ends one of two ways: (a) refundedPaisa '48000', the scan refused with a coded 409 (for example SCAN_TRIP_CLOSED) and the cylinder still in the store; or (b) the scan recorded, loadStartedAt set and refundedPaisa '0'.
+- Every round ends one of two ways: (a) refundedPaisa '25000', the scan refused with a coded 409 (for example SCAN_TRIP_CLOSED) and the cylinder still in the store; or (b) the scan recorded, loadStartedAt set and refundedPaisa '0'.
 - Never a refund together with a recorded load. At most one reversal per order. The ledger sum equals the balance.
 
 Spec: ADR-07; API_CONTRACT §4.1, §7.6, §7.7, §8.6; DATA_MODEL §3.6 (the cancel and the scan lock the same rows) · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
@@ -4343,7 +4371,7 @@ Spec: ADR-07; API_CONTRACT §4.1, §7.6, §7.7, §8.6; DATA_MODEL §3.6 (the can
 
 **P1** · AUTO-API · Inc 1 · Role: Distributor DA, SA1 and driver DR1 (API)
 
-Before: Standard test data. DA placed X1 and X2 (balance Rs 4,120: 5,000 - 480 - 400). X1 is assigned to DR1 (trip T); DR1 load-scanned AG-C0005 and AG-C0006 (11.8 kg) and AG-C0031 (45.4 kg). X2 is assigned to DR2; DR2 load-scanned AG-C0021 and then marked X2 could not deliver (FAILED).
+Before: Standard test data. DA placed X1 and X2 (balance Rs 4,350: 5,000 - 250 - 400). X1 is assigned to DR1 (trip T); DR1 load-scanned AG-C0005 and AG-C0006 (11.8 kg) and AG-C0031 (45.4 kg). X2 is assigned to DR2; DR2 load-scanned AG-C0021 and then marked X2 could not deliver (FAILED).
 
 Steps:
 
@@ -4355,7 +4383,7 @@ Expect:
 
 - Step 2: 409 ORDER_HANDOVER_STARTED 'Cylinders were already handed over. Call the office.' for both; cancel.allowed is false and allowedActions has no 'CANCEL'.
 - Step 3: 409 ORDER_NOT_CANCELLABLE 'This order is already finished.' for X1 (details.currentStatus 'DELIVERED') and for X2 (details.currentStatus 'FAILED').
-- Balance stays Rs 4,120 throughout; no reversal row and no order.cancel audit row for X1 or X2.
+- Balance stays Rs 4,350 throughout; no reversal row and no order.cancel audit row for X1 or X2.
 
 Spec: ADR-07; API_CONTRACT §1.6, §2.3, §5.5 (handoverStarted), §7.6, §8.1 · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4374,7 +4402,7 @@ Steps:
 
 Expect:
 
-- Step 2: the title 'Cancel order AG-0nnn?'; 'Back to your wallet' with 'Rs 480' large; 'Why?' above the reasons 'Customer cancelled', 'Wrong order', 'Duplicate order', 'Out of stock' and 'Other'; the button 'Cancel · get Rs 480 back' and an outlined 'Keep order'. After confirming: the toast 'Order cancelled · Rs 480 returned'; the status 'Cancelled' with the cost chip 'Rs 480 returned'; the balance rises by Rs 480 once.
+- Step 2: the title 'Cancel order AG-0nnn?'; 'Back to your wallet' with 'Rs 250' large; 'Why?' above the reasons 'Customer cancelled', 'Wrong order', 'Duplicate order', 'Out of stock' and 'Other'; the button 'Cancel · get Rs 250 back' and an outlined 'Keep order'. After confirming: the toast 'Order cancelled · Rs 250 returned'; the status 'Cancelled' with the cost chip 'Rs 250 returned'; the balance rises by Rs 250 once.
 - Step 4: 'Cancel without refund?' with 'Delivery has started.' and 'Not returned' 'Rs 400'; the red 'Cancel without refund' and an outlined 'Keep order'. With 'Other' and no note, pressing the confirm shows the note's error and sends nothing. After confirming: 'Order cancelled · no refund'; the cost chip stays 'Rs 400 paid' with 'No refund. Delivery had started.'; the balance does not change.
 
 Spec: ADR-07; UX_MOBILE §2.2 (ConfirmSheet, double-tap guard), §3.4 (fee), S10, S11; API_CONTRACT §1.5, §7.6
@@ -4393,8 +4421,8 @@ Steps:
 
 Expect:
 
-- Step 1: the fee chip 'Rs 480 paid' and the rows 'Base Rs 250', '11.8 kg 2 × Rs 40' and '45.4 kg 1 × Rs 150' (no formula sentence); the timeline 'Placed · Rs 480 taken from wallet' and 'Driver assigned (by Owner)'; the footer has 'Cancel order…' at the start and no More menu; 'Could not deliver…' is not offered.
-- Step 2: 'Rs 480 goes back to Ahmed Gas's wallet.' with the button 'Cancel and return Rs 480'; with no note it shows 'Write a note of at least 5 characters.'. Afterwards the outcome line 'Rs 480 returned to the wallet · \<the reason>' sits at the top of the drawer, the chip reads 'Rs 480 returned', the timeline ends 'Cancelled · Rs 480 returned', and Activity shows 'Cancelled AG-0nnn · Rs 480 returned'.
+- Step 1: the fee chip 'Rs 250 paid' and no breakdown rows (one cost per order); the timeline 'Placed · Rs 250 taken from wallet' and 'Driver assigned (by Owner)'; the footer has 'Cancel order…' at the start and no More menu; 'Could not deliver…' is not offered.
+- Step 2: 'Rs 250 goes back to Ahmed Gas's wallet.' with the button 'Cancel and return Rs 250'; with no note it shows 'Write a note of at least 5 characters.'. Afterwards the outcome line 'Rs 250 returned to the wallet · \<the reason>' sits at the top of the drawer, the chip reads 'Rs 250 returned', the timeline ends 'Cancelled · Rs 250 returned', and Activity shows 'Cancelled AG-0nnn · Rs 250 returned'.
 - Step 3: X2's drawer starts with 'Cancelling now returns nothing: delivery has started.' and offers 'Could not deliver…' in the footer; the dialog says 'Delivery has started. Cancelling now returns nothing.' with 'Cancel without refund'; X2's timeline shows 'Loading started'.
 
 Spec: ADR-07; UX_ADMIN §1.5 (FeeChip), §2.5 (Order drawer, Cancel order, Could not deliver), §2.9, §2.12; API_CONTRACT §7.6
@@ -4403,7 +4431,7 @@ Spec: ADR-07; UX_ADMIN §1.5 (FeeChip), §2.5 (Order drawer, Cancel order, Could
 
 **P1** · AUTO-API · Inc 1 · Role: SA1, drivers DR1 and DR2 (API)
 
-Before: Standard test data. DA placed X1 and X2 (balance Rs 4,120: 5,000 - 480 - 400).
+Before: Standard test data. DA placed X1 and X2 (balance Rs 4,350: 5,000 - 250 - 400).
 
 Steps:
 
@@ -4417,7 +4445,7 @@ Expect:
 - Step 1: order.assign and order.reassign audit rows; the old trip and stop are closed.
 - Step 2: X1 is DELIVERED with deliveryMethod 'DRIVER_TAP'; the repeat returns 200 with X-Already-Applied: true.
 - Step 3: a 9-character reason gives 400 VALIDATION_FAILED; the valid one makes X2 DELIVERED with deliveryMethod 'MANUAL' and an order.manual_delivery audit row.
-- Step 4: balance Rs 4,120 after every step; the only ledger rows are the two DEBIT_ORDER rows; both orders keep fee status 'DEDUCTED' and fee chips 'Rs 480 paid' and 'Rs 400 paid'.
+- Step 4: balance Rs 4,350 after every step; the only ledger rows are the two DEBIT_ORDER rows; both orders keep fee status 'DEDUCTED' and fee chips 'Rs 250 paid' and 'Rs 400 paid'.
 
 Spec: ADR-07 (nothing at the door moves money); ADR-12; API_CONTRACT §5.5, §7.6 (status table, assign-driver, manual-delivery), §8.1, §8.6 · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4425,7 +4453,7 @@ Spec: ADR-07 (nothing at the door moves money); ADR-12; API_CONTRACT §5.5, §7.
 
 **P1** · AUTO-API · Inc 1 · Role: Driver DR1, DR2 and SA1 (API)
 
-Before: Standard test data. DA placed X1 (balance Rs 4,520) assigned to DR1 (trip T), and X2 (balance Rs 4,120) assigned to DR2.
+Before: Standard test data. DA placed X1 (balance Rs 4,750) assigned to DR1 (trip T), and X2 (balance Rs 4,350) assigned to DR2.
 
 Steps:
 
@@ -4441,7 +4469,7 @@ Expect:
 - Step 3: 404 NOT_FOUND (DR2 isn't the driver of X1's trip); X1 unchanged.
 - Step 4: 200; X1 FAILED, stage 'NOT_DELIVERED', failureReasonCode 'CUSTOMER_REFUSED', its stop FAILED, an order.fail audit row; the cancel gets 409 ORDER_NOT_CANCELLABLE.
 - Step 5: no note gives 400 VALIDATION_FAILED; with the note 200 and X2 FAILED.
-- Balance stays Rs 4,120; no CREDIT_ORDER_REVERSAL; both orders keep fee status 'DEDUCTED'.
+- Balance stays Rs 4,350; no CREDIT_ORDER_REVERSAL; both orders keep fee status 'DEDUCTED'.
 
 Spec: ADR-07; API_CONTRACT §1.5 (DeliveryFailureReason), §7.6 (fail), §8.1, §8.6; UX_MOBILE §5 (Could not deliver) · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4464,7 +4492,7 @@ Steps:
 
 Expect:
 
-- Scenarios 1, 2 and 3: GET shows refundPaisa '48000'; the cancel returns '48000' and writes one CREDIT_ORDER_REVERSAL (a trip start, IN_TRANSIT or arriving at the store never counts).
+- Scenarios 1, 2 and 3: GET shows refundPaisa '25000'; the cancel returns '25000' and writes one CREDIT_ORDER_REVERSAL (a trip start, IN_TRANSIT or arriving at the store never counts).
 - Scenarios 4, 5 and 6: GET shows refundPaisa '0' with noRefundReason 'DELIVERY_STARTED'; the cancel returns '0' and writes no reversal.
 - Every order.cancel audit row has startedRule 'FIRST_LOAD_SCAN'. The ledger sum equals the balance at the end.
 
@@ -4487,8 +4515,8 @@ Steps:
 Expect:
 
 - Step 1: 400 SETTING_INVALID_VALUE; the setting is unchanged.
-- A: refund Rs 480. B: refund Rs 0 with noRefundReason 'DELIVERY_STARTED'.
-- C: refund Rs 480 (loading alone doesn't count under LEFT_STORE). D: 409 ORDER_NOT_STARTED_USE_CANCEL. E: refund Rs 0.
+- A: refund Rs 250. B: refund Rs 0 with noRefundReason 'DELIVERY_STARTED'.
+- C: refund Rs 250 (loading alone doesn't count under LEFT_STORE). D: 409 ORDER_NOT_STARTED_USE_CANCEL. E: refund Rs 0.
 - Step 4: refund Rs 0; the audit row shows startedRule 'DRIVER_ASSIGNED' (the rule is read when cancelling).
 - Each change writes setting.update {key, from, to} with the reason; /app/config orders.deliveryStartedAt shows the current value.
 
@@ -4520,7 +4548,7 @@ Spec: ADR-07; API_CONTRACT §5.4 (reverse), §5.5, §8.1 (orders before the swit
 
 **P2** · AUTO-API · Inc 1 · Role: Super admin SA1 (API)
 
-Before: Fresh test DB, business day Thu 22 Oct (Asia/Karachi, cut-off 03:00). Today: X1 placed at 10:00 (Rs 480), X2 placed at 11:00 (Rs 400), X1 cancelled before loading at 12:00 (Rs 480 returned), top-ups approved for Rs 5,000 and Rs 2,000. Seeded: one DEBIT_ORDER of Rs 400 at 02:30 on 22 Oct (still business day 21 Oct), and a Rs 1,000 top-up approved at 02:30 on 22 Oct (business day 21 Oct).
+Before: Fresh test DB, business day Thu 22 Oct (Asia/Karachi, cut-off 03:00). Today: X1 placed at 10:00 (Rs 250), X2 placed at 11:00 (Rs 400), X1 cancelled before loading at 12:00 (Rs 250 returned), top-ups approved for Rs 5,000 and Rs 2,000. Seeded: one DEBIT_ORDER of Rs 400 at 02:30 on 22 Oct (still business day 21 Oct), and a Rs 1,000 top-up approved at 02:30 on 22 Oct (business day 21 Oct).
 
 Steps:
 
@@ -4529,7 +4557,7 @@ Steps:
 
 Expect:
 
-- Step 1: orders.costTakenTodayPaisa '40000' (480 + 400 - 480; the 02:30 row belongs to 21 Oct); topups.approvedToday {count 2, totalPaisa '700000'} (the 02:30 approval belongs to 21 Oct).
+- Step 1: orders.costTakenTodayPaisa '40000' (250 + 400 - 250; the 02:30 row belongs to 21 Oct); topups.approvedToday {count 2, totalPaisa '700000'} (the 02:30 approval belongs to 21 Oct).
 - Step 2: approvedToday {count 2, totalPaisa '700000'}.
 
 Spec: ADR-21; API_CONTRACT §1.1 (business day), §7.9, §7.13 (admin summary); UX_ADMIN §2.1 · Test file: `apps/api/test/money/topup-review.e2e-spec.ts, apps/api/test/orders/fees.e2e-spec.ts`
@@ -4540,7 +4568,7 @@ Note: The Today page wording ('Delivery costs taken Rs 400') is checked manually
 
 **P3** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas); SUPER_ADMIN (Owner) for the price
 
-Before: Owner has set Ahmed Gas's South price to base Rs 0 with no per-cylinder amounts. Shop app signed in as Ahmed Gas, balance Rs 5,000.
+Before: Owner has set Ahmed Gas's South price to Rs 0. Shop app signed in as Ahmed Gas, balance Rs 5,000.
 
 Steps:
 
@@ -4551,7 +4579,7 @@ Steps:
 
 Expect:
 
-- Step 1: the cylinders step shows no "Delivery cost about …" line; Check and place shows "No delivery cost" with no wallet lines and no refund line; the button reads "Place order", not "Place order · pay Rs 0".
+- Step 1: the cylinders step shows no "Delivery cost …" line; Check and place shows "No delivery cost" with no wallet lines and no refund line; the button reads "Place order", not "Place order · pay Rs 0".
 - Step 2: the order opens with the chip "No delivery cost"; the balance stays Rs 5,000.
 - Step 3: the sheet "Cancel order AG-…?" with the button "Cancel order" and no refund wording. After confirming, the balance is still Rs 5,000.
 
@@ -4563,7 +4591,7 @@ Note: Moved out of FEE-003, which now checks only the server side.
 
 **P2** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA), DRIVER (DR1)
 
-Before: Inc 1 build. Standard test data. For each round, a fresh X1 (Rs 480) is assigned to DR1 and AG-C0005 has been load-scanned on its trip, so delivery has started. Run 20 rounds.
+Before: Inc 1 build. Standard test data. For each round, a fresh X1 (Rs 250) is assigned to DR1 and AG-C0005 has been load-scanned on its trip, so delivery has started. Run 20 rounds.
 
 Steps:
 
@@ -4574,7 +4602,7 @@ Expect:
 
 - Exactly one call succeeds. A cancel that loses gets 409 ORDER_NOT_CANCELLABLE with details.currentStatus 'FAILED'; a fail that loses gets 409 ORDER_INVALID_TRANSITION with details { from: 'CANCELLED', to: 'FAILED', currentStatus: 'CANCELLED' }.
 - The order ends CANCELLED (refundedPaisa "0") or FAILED, never both, with exactly one order.cancel or one order.fail audit row.
-- No CREDIT_ORDER_REVERSAL row in any round. DA's balance goes down by Rs 480 per round (the placement) and by nothing else.
+- No CREDIT_ORDER_REVERSAL row in any round. DA's balance goes down by Rs 250 per round (the placement) and by nothing else.
 
 Spec: ADR-07; API_CONTRACT §4 (rules 1 and 3), §7.6 (cancel, fail), §8.1 · Test file: `apps/api/test/orders/fees.e2e-spec.ts`
 
@@ -4582,7 +4610,7 @@ Spec: ADR-07; API_CONTRACT §4 (rules 1 and 3), §7.6 (cancel, fail), §8.1 · T
 
 **P1** · AUTO-API · Inc 2 · Role: Driver DR1 and distributor DA (API, Inc 2 build)
 
-Before: Inc 2 build. DA placed X1 (balance Rs 4,520; take back 2 x 11.8 kg and 1 x 45.4 kg) assigned to DR1 (trip T). confirmation.enabled false. Fixture (seeded, no money): Sana already holds AG-C0011 (11.8 kg) from an earlier finished run.
+Before: Inc 2 build. DA placed X1 (balance Rs 4,750; take back 2 x 11.8 kg and 1 x 45.4 kg) assigned to DR1 (trip T). confirmation.enabled false. Fixture (seeded, no money): Sana already holds AG-C0011 (11.8 kg) from an earlier finished run.
 
 Steps:
 
@@ -4596,7 +4624,7 @@ Expect:
 - Step 1: 201 RECORDED; load_started_at is stamped on X1.
 - Step 2: cancel {allowed true, refundPaisa '0', noRefundReason 'DELIVERY_STARTED'}.
 - Step 3: the finish gets 409 TAKE_BACK_SHORT {expected 3, taken 1}.
-- Step 4: X1 is DELIVERED with deliveryMethod 'SCANNED'. Balance stays Rs 4,520; no ledger row besides X1's DEBIT_ORDER; fee status 'DEDUCTED'.
+- Step 4: X1 is DELIVERED with deliveryMethod 'SCANNED'. Balance stays Rs 4,750; no ledger row besides X1's DEBIT_ORDER; fee status 'DEDUCTED'.
 
 Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §5.5, §9.2, §9.3 (finish: no money), §9.8, §9.11 · Test file: `apps/api/test/inc2/scan/stop-finish.e2e-spec.ts`
 
@@ -4630,7 +4658,7 @@ Before: Standard test data with cylinders. DA Rs 5,000. orders.deliveryStartedAt
 
 Steps:
 
-1. As DA, place X1 (Rs 480). As SA1, assign DR1.
+1. As DA, place X1 (Rs 250). As SA1, assign DR1.
 2. As DR1, PATCH /trips/stops/\<X1's delivery stop>/arrive. Nothing is loaded.
 3. As SA1, POST /orders/\<X1>/assign-driver { driverId: DR2 }.
 4. As SA1, GET /orders/\<X1>.
@@ -4640,11 +4668,11 @@ Expect:
 
 - Step 3: 200 with reassignedFromTripId = DR1's trip.
 - Step 4: cancel is { allowed: true, refundPaisa: "0", noRefundReason: "DELIVERY_STARTED" } and allowedActions includes MARK_FAILED: the first arrival at any of X1's delivery stops counts, on any trip.
-- Step 5: 200 with status FAILED. No CREDIT_ORDER_REVERSAL row exists for X1 and DA's balance stays Rs 4,520.
+- Step 5: 200 with status FAILED. No CREDIT_ORDER_REVERSAL row exists for X1 and DA's balance stays Rs 4,750.
 
 Spec: ADR-07; API_CONTRACT §5.5 (OrderForPolicy, isDeliveryStarted), §7.6 (assign-driver rule 4, POST /orders/:id/fail), §1.6 (MARK_FAILED) · Test file: `apps/api/test/orders/review-fixes.e2e-spec.ts`
 
-Note: Regression case for review finding money-data-01 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-01 …". Before the fix the arrival on the old trip was forgotten: a cancel then refunded Rs 480, and MARK_FAILED was refused with ORDER_NOT_STARTED_USE_CANCEL. Confirming test: apps/api/test/review/money-data/refund-after-reassign.e2e-spec.ts.
+Note: Regression case for review finding money-data-01 (CHANGELOG, "Review fixes, 2026-10-23"); its tests are named "REV money-data-01 …". Before the fix the arrival on the old trip was forgotten: a cancel then refunded Rs 250, and MARK_FAILED was refused with ORDER_NOT_STARTED_USE_CANCEL. Confirming test: apps/api/test/review/money-data/refund-after-reassign.e2e-spec.ts.
 
 ## CUS · Customers and zones
 
@@ -4654,7 +4682,7 @@ Adding customers with a phone number and a map pin, zone lookup, duplicates, edi
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA)
 
-Before: Standard test data, except that C1 "Sana" does not exist yet. DA token (X-App-Variant: distributor). DA's North price: base Rs 250; per cylinder 6 kg Rs 30, 11.8 kg Rs 40, 15 kg Rs 80, 45.4 kg Rs 150.
+Before: Standard test data, except that C1 "Sana" does not exist yet. DA token (X-App-Variant: distributor). DA's North price: Rs 250 per order.
 
 Steps:
 
@@ -4666,7 +4694,7 @@ Expect:
 
 - Step 1 returns 201. client.name is "Sana" and client.phone is "+923001234567".
 - address.label is "House 14, Street 5" and address.zone.name is "North".
-- price.zone.name is "North" and price.basePaisa is "25000". price.sizes lists every active size as digit strings: 6 kg "3000", 11.8 kg "4000", 15 kg "8000", 45.4 kg "15000".
+- price.zone.name is "North" and price.basePaisa is "25000", with no per-size amounts.
 - Step 2 returns a bare JSON array (not { items }). Sana's row has addresses[0].zone.name "North" and addresses[0].priceStatus "SET".
 - client_addresses.zone_id is North's zone id.
 - No audit_logs row is written for the new customer or its address.
@@ -4677,7 +4705,7 @@ Spec: ADR-08; API_CONTRACT §7.4, §7.5 (PriceView), §1.1, §1.3; DATA_MODEL §
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA, DB)
 
-Before: Standard test data: Sana (C1) exists for DA with phone +923001234567. DA and DB tokens. DB's South price is Rs 300 flat.
+Before: Standard test data: Sana (C1) exists for DA with phone +923001234567. DA and DB tokens. DB's South price is Rs 300.
 
 Steps:
 
@@ -4766,7 +4794,7 @@ Expect:
 - Step 2 returns 200 with zone null and blockCode "PRICING_ZONE_NOT_COVERED".
 - Step 3 returns 422 PRICING_ZONE_NOT_COVERED with the message "This location is outside our delivery area." Nothing is written (it's a quote).
 - Step 4 shows Sana's address with zone null and priceStatus "OUTSIDE".
-- After reactivating, the quote returns 200 with quote.zone.name "North" and quote.totalPaisa "48000" (Rs 250 + 2 × Rs 40 + Rs 150 = Rs 480).
+- After reactivating, the quote returns 200 with quote.zone.name "North" and quote.totalPaisa "25000" (Rs 250, whatever the cylinders).
 
 Spec: ADR-08; API_CONTRACT §5.6, §7.4 (priceStatus), §7.5 (orders/quote), §7.2 (zones archive and reactivate); DATA_MODEL §3.2 (ClientAddress.zoneId: the order re-checks), §6 (6) · Test file: `apps/api/test/orders/customers.e2e-spec.ts`
 
@@ -4788,9 +4816,9 @@ Steps:
 
 Expect:
 
-- Step 1 returns 201 with ok: true, zone.name "South", price.basePaisa "40000" and every size "0".
-- Step 2 returns 200 with quote.zone.name "South" and quote.totalPaisa "40000" (Rs 400, flat).
-- Step 3 returns 200 with quote.zone.name "North" and quote.totalPaisa "48000" (Rs 480).
+- Step 1 returns 201 with ok: true, zone.name "South", price.basePaisa "40000".
+- Step 2 returns 200 with quote.zone.name "South" and quote.totalPaisa "40000" (Rs 400).
+- Step 3 returns 200 with quote.zone.name "North" and quote.totalPaisa "25000" (Rs 250).
 - Step 4 returns 422 PRICING_PRICE_NOT_SET with details.zoneName "East".
 - Step 5 lists exactly two addresses: the North one and the South one.
 
@@ -4818,11 +4846,11 @@ Steps:
 Expect:
 
 - While loading, the line says 'Checking delivery area…'.
-- North: 'Delivery cost Rs 250 per order' with a tick, and '+ Rs 30 to Rs 150 per cylinder' under it. 'Save customer' can be tapped.
-- South: 'Delivery cost Rs 400 per order' with no second line.
+- North: 'Delivery cost Rs 250' with a tick and no second line. 'Save customer' can be tapped.
+- South: 'Delivery cost Rs 400' with no second line.
 - East: 'No delivery price here yet.' with a 'Call office' button that opens the phone dialler with the office number. 'Save customer' is greyed out.
 - Outside: 'Outside our delivery area. Move the pin.' 'Save customer' is greyed out.
-- Offline: the 'No connection' banner, and under the map 'Couldn't check this spot.' with 'Try again' (no pop-up box); after the retry the line shows 'Delivery cost Rs 400 per order' again.
+- Offline: the 'No connection' banner, and under the map 'Couldn't check this spot.' with 'Try again' (no pop-up box); after the retry the line shows 'Delivery cost Rs 400' again.
 - After saving in South, the message 'Customer saved' shows for a few seconds.
 - No screen shows 'zone', 'client', 'admin', 'Rs.', a code such as PRICING_PRICE_NOT_SET, or a long ID.
 
@@ -5025,28 +5053,28 @@ Before: Standard test data. DA's balance Rs 5,000. dispatch.autoAssign.enabled =
 Steps:
 
 1. As DA, POST /orders/quote { clientId: Sana, addressId: the North address, deliveryLabel: "House 14, Street 5", lines: [{ 11.8 kg, fullCount 2, expectedReturnCount 2 }, { 45.4 kg, fullCount 1, expectedReturnCount 1 }] }.
-2. As DA, POST /orders with a new Idempotency-Key, the same body and quotedTotalPaisa "48000".
+2. As DA, POST /orders with a new Idempotency-Key, the same body and quotedTotalPaisa "25000".
 3. As DA, GET /orders/{id}.
 4. As SA1, GET /audit-logs?action=order.create&resourceId={id}.
 
 Expect:
 
-- Step 1: 200 with quote.zone North, quote.basePaisa "25000", quote.totalPaisa "48000", and lines 11.8 kg count 2 × "4000" = "8000" and 45.4 kg count 1 × "15000" = "15000".
+- Step 1: 200 with quote.zone North, quote.basePaisa "25000", quote.totalPaisa "25000", with no per-size amounts.
 - Step 2: 201 with status PENDING, stage NEEDS_DRIVER and shortCode "AG-" plus 4 digits matching orderNo.
 - lines: 11.8 kg fullCount 2, expectedReturnCount 2, sizeLabel "11.8 kg"; 45.4 kg fullCount 1, expectedReturnCount 1, sizeLabel "45.4 kg".
-- fee.totalPaisa "48000", fee.status DEDUCTED, fee.breakdown.basePaisa "25000" with both line subtotals; destZone North; originStore is Ahmed Gas Store; trip null; assignedAt null.
-- Legacy mirrors for old apps: deliveryFeePaisa "48000" and paymentStatus "PAID_VIA_LEDGER".
+- fee.totalPaisa "25000", fee.status DEDUCTED, with no per-size amounts; destZone North; originStore is Ahmed Gas Store; trip null; assignedAt null.
+- Legacy mirrors for old apps: deliveryFeePaisa "25000" and paymentStatus "PAID_VIA_LEDGER".
 - Step 3 returns the same values. Step 4 returns exactly one order.create row with actor DA's user and distributorId DA.
 
 Spec: ADR-01, ADR-06, ADR-08; API_CONTRACT §7.5 (POST /orders/quote), §7.6 (POST /orders), §8.1, §1.4, Appendix B; DATA_MODEL §3.6 (Place an order) · Test file: `apps/api/test/orders/orders.e2e-spec.ts`
 
-Note: The deduction (Rs 5,000 to Rs 4,520) and the DEBIT_ORDER row are asserted in the money cases; this case checks the order only.
+Note: The deduction (Rs 5,000 to Rs 4,750) and the DEBIT_ORDER row are asserted in the money cases; this case checks the order only.
 
 ### ORD-002 · Order lines need at least one full cylinder, one line per size, and at most orders.maxCylindersPerOrder cylinders (default 30)
 
 **P2** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA), SUPER_ADMIN (SA1)
 
-Before: Standard test data. orders.maxCylindersPerOrder = 30 (the default). Usman (C2) is in South (Rs 400 flat). DA and SA1 tokens.
+Before: Standard test data. orders.maxCylindersPerOrder = 30 (the default). Usman (C2) is in South (Rs 400). DA and SA1 tokens.
 
 Steps:
 
@@ -5063,7 +5091,7 @@ Steps:
 Expect:
 
 - Steps 1-3: 400 ORDER_LINES_INVALID with the message "Add at least one full cylinder, one line per size."
-- Step 4: 200 with quote.totalPaisa "40000" (South is flat).
+- Step 4: 200 with quote.totalPaisa "40000" (South's Rs 400, whatever the cylinders).
 - Step 5: 400 ORDER_TOO_MANY_CYLINDERS with details.max 30 and the message "Too many cylinders. An order can have at most 30."
 - Step 6: 400 ORDER_TOO_MANY_CYLINDERS. No order is created, no order number is used and no ledger row is written.
 - Step 7: 200 for both (31 is now allowed, in one line too), and GET /app/config shows orders.maxCylindersPerOrder 40.
@@ -5074,7 +5102,7 @@ Spec: API_CONTRACT §7.6 (body, rule 3), §7.5 (quote uses the create validation
 
 Note: The body schema runs first: no lines, a fullCount below 1 or a repeated size is ORDER_LINES_INVALID (API_CONTRACT §7.6, §2.2). A single line may carry up to the setting (the body allows 1-100 per line).
 
-### ORD-003 · Check and place screen for X1 shows the customer, cylinders, cost breakdown, wallet and refund rule, and re-quotes when the address changes
+### ORD-003 · Check and place screen for X1 shows the customer, cylinders, cost, wallet and refund rule, and re-quotes when the address changes
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas)
 
@@ -5090,14 +5118,14 @@ Steps:
 
 Expect:
 
-- Step 2: every count starts at 0 (when Sana has an earlier order, the chip "Same as last time" offers to fill its sizes and counts); Take back follows Deliver (2 and 1), and the footer says "Delivery cost about Rs 480".
+- Step 2: every count starts at 0 (when Sana has an earlier order, the chip "Same as last time" offers to fill its sizes and counts); Take back follows Deliver (2 and 1), and the footer says "Delivery cost Rs 250".
 - Step 3: "Sana · 0300 1234567"; "House 14, Street 5" with "Change" (no zone); "2 × 11.8 kg · take back 2" and "1 × 45.4 kg · take back 1".
-- "Delivery cost" "Rs 480" with "Rs 250 + 2 × Rs 40 + 1 × Rs 150" under it. Sizes that weren't ordered aren't listed.
-- "Balance now Rs 5,000" and "After this order Rs 4,520".
+- "Delivery cost" "Rs 250", with no breakdown line under it. Sizes that weren't ordered aren't listed.
+- "Balance now Rs 5,000" and "After this order Rs 4,750".
 - The line "Refund only if cancelled before loading."
-- The button reads "Place order · pay Rs 480".
+- The button reads "Place order · pay Rs 250".
 - Step 4: the sheet "Deliver to" lists the addresses with a tick on the current one. After the pick: "Shop, Main Market", "Delivery cost" "Rs 400", "After this order Rs 4,600" and the button "Place order · pay Rs 400". No zone shows.
-- Step 5: the screen goes back to Rs 480. Back goes one step at a time, then asks "Leave without saving?". No order is placed.
+- Step 5: the screen goes back to Rs 250. Back goes one step at a time, then asks "Leave without saving?". No order is placed.
 
 Spec: ADR-06, ADR-07, ADR-08; UX_MOBILE S9 (steps 1-3, refund rule, address PickerSheet), §2.2 (screen rules), §3.7; API_CONTRACT §7.5 (POST /orders/quote)
 
@@ -5107,7 +5135,7 @@ Note: With the setting changed to "Driver assigned" or "Van leaves the store", t
 
 **P1** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas)
 
-Before: Shop app signed in as Ahmed Gas. Usman (South, Rs 400 flat) exists. Note how many orders My orders → Active shows. Note the balance on Home. A developer is on hand for step 6.
+Before: Shop app signed in as Ahmed Gas. Usman (South, Rs 400) exists. Note how many orders My orders → Active shows. Note the balance on Home. A developer is on hand for step 6.
 
 Steps:
 
@@ -5138,7 +5166,7 @@ Note: Step 7 checks the wallet rows. Cancelling before a driver is assigned retu
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (Ahmed Gas, Bilal Gas)
 
-Before: Ahmed Gas has at least one order waiting for a driver, one with a driver assigned, one delivered, and one X1 order (Rs 480) that was cancelled before loading started (as in money example X3). Earlier cases in this set leave such orders; otherwise ask the test lead to set them up. Bilal Gas has no orders yet. You have both logins.
+Before: Ahmed Gas has at least one order waiting for a driver, one with a driver assigned, one delivered, and one X1 order (Rs 250) that was cancelled before loading started (as in money example X3). Earlier cases in this set leave such orders; otherwise ask the test lead to set them up. Bilal Gas has no orders yet. You have both logins.
 
 Steps:
 
@@ -5151,7 +5179,7 @@ Expect:
 
 - Active shows "Active (n)", where n is the number of rows. Each row has the customer's name as the title, the grey line "2 × 11.8 kg · AG-0007", the time on the right (for example "4:12 pm") and one chip under the grey line.
 - The chips: "Waiting for driver" (amber, with the clock), "Driver assigned", "Loading" or "On the way". Active rows have no cost chip.
-- Done shows "Delivered" rows (green) and "Cancelled" rows (grey). The X1 order cancelled before loading shows the cost chip "Rs 480 returned"; a cancelled order whose cost was kept shows "No refund".
+- Done shows "Delivered" rows (green) and "Cancelled" rows (grey). The X1 order cancelled before loading shows the cost chip "Rs 250 returned"; a cancelled order whose cost was kept shows "No refund".
 - No row shows PENDING, PAID_VIA_LEDGER, a long ID or "Rs.".
 - Bilal Gas: Active says "No active orders." with the floating "+ New order"; Done says "No finished orders yet." No Ahmed Gas order appears.
 
@@ -5176,8 +5204,8 @@ Steps:
 Expect:
 
 - The header reads "Order AG-…" (the order's number).
-- The timeline: "Placed · Rs 480 paid" and "Driver assigned", each with a time, then "Loading", "On the way" and "Delivered" still to come.
-- One facts card: "Sana · 0300 1234567" with a call button and her address; "Kashif · Van LEA-101"; "Deliver 2 × 11.8 kg · take back 2" and "Deliver 1 × 45.4 kg · take back 1"; and "Delivery cost" with the chip "Rs 480 paid" and "Rs 250 + 2 × Rs 40 + 1 × Rs 150".
+- The timeline: "Placed · Rs 250 paid" and "Driver assigned", each with a time, then "Loading", "On the way" and "Delivered" still to come.
+- One facts card: "Sana · 0300 1234567" with a call button and her address; "Kashif · Van LEA-101"; "Deliver 2 × 11.8 kg · take back 2" and "Deliver 1 × 45.4 kg · take back 1"; and "Delivery cost" with the chip "Rs 250 paid" and no breakdown line.
 - "Call driver" is the button at the bottom; it opens the dialler with Kashif's number. "Cancel order" is a red-outlined button at the end of the content, never at the bottom.
 - Offline: the screen keeps the saved order, stamped "Saved …", under the one banner "No connection" with "Try again" (or "Nothing saved yet." if nothing was saved). Back online, it refreshes.
 
@@ -5229,7 +5257,7 @@ Expect:
 - Step 1: the header says "Orders" with "Updated …" and no subtitle. The tabs are: Needs a driver · In progress · Done today · Cancelled or not delivered · All, with counts.
 - Step 2: X2's row: the order number AG-… with "Placed … min ago" under it; Usman with "South" muted under his name ("South · Ahmed Gas" while more than one distributor is listed and no distributor filter is on); "3 × 15 kg"; the fee chip "Rs 400 paid"; and an "Assign driver" button. "Needs a driver" has no Status column.
 - Step 3: each search finds X1.
-- Step 4: the drawer "Order AG-…" with the stage "Driver assigned" and "Ahmed Gas · placed …"; Sana with a phone link, the address and "Zone North"; the cylinders; the Delivery cost rows "Base Rs 250", "11.8 kg 2 × Rs 40" and "45.4 kg 1 × Rs 150"; the "Driver" section with "Kashif · LEA-101" and "Starts at Ahmed Gas Store"; a timeline with "Placed · Rs 480 taken from wallet" and "Driver assigned (by Owner)"; and "Activity (n)", which opens on a click.
+- Step 4: the drawer "Order AG-…" with the stage "Driver assigned" and "Ahmed Gas · placed …"; Sana with a phone link, the address and "Zone North"; the cylinders; the Delivery cost chip "Rs 250 paid" with no breakdown rows; the "Driver" section with "Kashif · LEA-101" and "Starts at Ahmed Gas Store"; a timeline with "Placed · Rs 250 taken from wallet" and "Driver assigned (by Owner)"; and "Activity (n)", which opens on a click.
 - Nowhere: PENDING, ASSIGNED, PAID_VIA_LEDGER, a UUID, "Rs." or "on hold".
 
 Spec: UX_ADMIN §2.5 (board, stages, drawer), §1.5 (FeeChip, StatusChip), rules on every screen; API_CONTRACT §7.6 (GET /orders/board), §1.4
@@ -5366,7 +5394,7 @@ Expect:
 
 Spec: ADR-07; UX_ADMIN §2.5 (Cancel order…, Mark delivered…), §1.5 (ConfirmDialog, Toast), §2.9; API_CONTRACT §7.6 (cancel, manual-delivery), Appendix B
 
-Note: O2's Rs 480 is not returned (it was delivered), so Ahmed Gas's test balance goes down by Rs 480.
+Note: O2's Rs 250 is not returned (it was delivered), so Ahmed Gas's test balance goes down by Rs 250.
 
 ### ORD-014 · Delivered guard: only the trip's driver, only with matching scans, and only once, even with two taps at once
 
@@ -5441,7 +5469,7 @@ Steps:
 Expect:
 
 - Step 1: 201 with phone "+923221112223" (creditLimitRs, priority and city are ignored); the address call returns 201 with zone North.
-- Step 2: 201 with status PENDING, deliveryFeePaisa "33000" (Rs 250 + 2 × Rs 40) as a digit string, and paymentStatus "PAID_VIA_LEDGER".
+- Step 2: 201 with status PENDING, deliveryFeePaisa "25000" (Rs 250) as a digit string, and paymentStatus "PAID_VIA_LEDGER".
 - Step 3: 422 with code and error both "PRICING_PRICE_NOT_SET" and one plain-English message string (the old app shows message).
 - Step 4: both answers are bare JSON arrays.
 
@@ -5500,11 +5528,11 @@ Before: Standard test data. DA Rs 5,000. dispatch.autoAssign.enabled is set to t
 
 Steps:
 
-1. As DA, place X1 (Rs 480).
+1. As DA, place X1 (Rs 250).
 
 Expect:
 
-- Step 1: 201 within 5 seconds (the answer waits at most 1.5 seconds for the enqueue); one dispatch job was asked for, for this order; DA's balance is Rs 4,520, the cost taken once.
+- Step 1: 201 within 5 seconds (the answer waits at most 1.5 seconds for the enqueue); one dispatch job was asked for, for this order; DA's balance is Rs 4,750, the cost taken once.
 
 Spec: API_CONTRACT §2.2 (Redis being down never fails a request), §7.6 (POST /orders rule 7) · Test file: `apps/api/test/orders/review-fixes.e2e-spec.ts`
 
@@ -5548,7 +5576,7 @@ Steps:
 Expect:
 
 - Step 2: every count is 0; the footer says "Add at least 1 cylinder." and "Next" is disabled; the chip "Same as last time" shows.
-- Step 3: the sizes, counts and take-back of Sana's last order fill in (11.8 kg 2, take back 2; 45.4 kg 1, take back 1), the chip hides, and the footer shows "Delivery cost about Rs 480".
+- Step 3: the sizes, counts and take-back of Sana's last order fill in (11.8 kg 2, take back 2; 45.4 kg 1, take back 1), the chip hides, and the footer shows "Delivery cost Rs 250".
 - Step 4: every count is 0 and there is no "Same as last time" chip.
 - Nothing is filled in without a tap.
 
@@ -5638,7 +5666,7 @@ Note: The body of PATCH /drivers/:id/availability isn't in the docs; use the exi
 
 **P1** · AUTO-API · Inc 1 · Role: SUPER_ADMIN (SA1), DRIVER (DR1, DR2)
 
-Before: X1 (Rs 480; DA balance Rs 4,520) is assigned to DR1 on trip T1 (PLANNED); nothing is loaded. AG-C0001 is full at Ahmed Gas Store. Tokens for SA1, DR1, DR2 and DA.
+Before: X1 (Rs 250; DA balance Rs 4,750) is assigned to DR1 on trip T1 (PLANNED); nothing is loaded. AG-C0001 is full at Ahmed Gas Store. Tokens for SA1, DR1, DR2 and DA.
 
 Steps:
 
@@ -5656,7 +5684,7 @@ Expect:
 - Step 3: T1 isn't an active trip for DR1; GET /orders/{X1} gives 404 NOT_FOUND; the PATCH gives 404 NOT_FOUND (the same as his GET); the scan gives 409 SCAN_TRIP_CLOSED and AG-C0001 stays in Ahmed Gas Store.
 - Step 4: T2 is listed.
 - Step 5: one order.reassign row by SA1 with the reason, from T1 to T2.
-- Step 6: balance still Rs 4,520: a reassignment moves no money.
+- Step 6: balance still Rs 4,750: a reassignment moves no money.
 
 Spec: ADR-12; API_CONTRACT §7.6 (assign-driver rules 4-5, PATCH status), §8.1, §8.3, §3.2 (canSeeOrder); UX_ADMIN §2.9 (order.reassign sentence) · Test file: `apps/api/test/orders/assignment.e2e-spec.ts`
 
@@ -5845,9 +5873,9 @@ Steps:
 
 Expect:
 
-- Step 1: the SCAN_IN gives 403 SCAN_USE_STORE_RECEIVE and the store's receive gives 201. X1 stays ASSIGNED with loadStartedAt null and a Rs 480 refund on offer, and allowedActions includes REASSIGN.
+- Step 1: the SCAN_IN gives 403 SCAN_USE_STORE_RECEIVE and the store's receive gives 201. X1 stays ASSIGNED with loadStartedAt null and a Rs 250 refund on offer, and allowedActions includes REASSIGN.
 - Step 2: 200 with reassignedFromTripId T; T is ABORTED and X1 is on DR2's trip.
-- Step 3: the cancel refunds Rs 480 and the trip is ABORTED.
+- Step 3: the cancel refunds Rs 250 and the trip is ABORTED.
 - Step 4: REASSIGN is not offered (MANUAL_DELIVERY is), and assign-driver gives 409 ASSIGN_ORDER_LOADED; the order keeps its trip.
 - Step 5: loadStartedAt is still null, REASSIGN is not offered, and assign-driver gives 409 ASSIGN_ORDER_LOADED: REASSIGN is offered exactly when rule 4 accepts the change.
 
@@ -6322,7 +6350,7 @@ Spec: ADR-02; UX_ADMIN §2.10 (login, role gate, EnvBadge), §1.3 (title); API_C
 
 **P2** · AUTO-API · Inc 1 · Role: SUPER_ADMIN (SA1)
 
-Before: Fixture for today's business day (Asia/Karachi, 03:00 cut-off): DA placed X1 (Rs 480) and later cancelled it before loading; DA placed X2 (Rs 400) at 09:00 and O3 (3 × 15 kg for Usman, Rs 400) at 10:00, both waiting for a driver; one DA top-up request is waiting; a new distributor City Gas (CG) is waiting to start; DR1 is on duty and DR2 is off duty. DA has no price in East; DB has no price in North or East. SA1 token.
+Before: Fixture for today's business day (Asia/Karachi, 03:00 cut-off): DA placed X1 (Rs 250) and later cancelled it before loading; DA placed X2 (Rs 400) at 09:00 and O3 (3 × 15 kg for Usman, Rs 400) at 10:00, both waiting for a driver; one DA top-up request is waiting; a new distributor City Gas (CG) is waiting to start; DR1 is on duty and DR2 is off duty. DA has no price in East; DB has no price in North or East. SA1 token.
 
 Steps:
 
@@ -6332,7 +6360,7 @@ Expect:
 
 - orders.needsDriver = 2 (X2 and O3), and oldestNeedsDriverAt is X2's placed time (09:00).
 - orders.placedToday = 3 and orders.deliveredToday = 0.
-- orders.costTakenTodayPaisa = "80000": deductions Rs 480 + Rs 400 + Rs 400, minus the Rs 480 returned.
+- orders.costTakenTodayPaisa = "80000": deductions Rs 250 + Rs 400 + Rs 400, minus the Rs 250 returned.
 - topups.toCheck = 1.
 - prices.missing is exactly Ahmed Gas (zones 1) and Bilal Gas (zones 2), sorted by name; City Gas (waiting to start, no prices) is not listed.
 - distributors.waitingToStart = [City Gas]; drivers = { onDuty: 1, total: 2 }.
@@ -6883,7 +6911,7 @@ The driver's runs: the Inc 1 stop-gaps, then load, deliver, take back, could not
 
 **P1** · AUTO-API · Inc 1 · Role: DISTRIBUTOR (DA), SUPER_ADMIN (SA1), DRIVER (DR1)
 
-Before: Inc 1 build. Standard test data. X1 placed by DA (Rs 480 deducted, balance Rs 4,520) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, store stop at Ahmed Gas Store. AG-C0001 is full in Ahmed Gas Store.
+Before: Inc 1 build. Standard test data. X1 placed by DA (Rs 250 deducted, balance Rs 4,750) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, store stop at Ahmed Gas Store. AG-C0001 is full in Ahmed Gas Store.
 
 Steps:
 
@@ -6931,7 +6959,7 @@ Note: RETURNED_TO_DISTRIBUTOR is the event that used to launder Empty into Full 
 
 **P1** · AUTO-API · Inc 1 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 1 build. Standard test data. X1 placed (balance Rs 4,520) and assigned to DR1: trip T1 on LEA-101, PLANNED. After the assignment the fixture moves DR1 onto LEB-202 (DR2 is not used in this case), to prove the trip's van is used.
+Before: Inc 1 build. Standard test data. X1 placed (balance Rs 4,750) and assigned to DR1: trip T1 on LEA-101, PLANNED. After the assignment the fixture moves DR1 onto LEB-202 (DR2 is not used in this case), to prove the trip's van is used.
 
 Steps:
 
@@ -6947,7 +6975,7 @@ Expect:
 - Step 2: loadStartedAt is set, stage LOADING, cancel.refundPaisa "0" and cancel.noRefundReason DELIVERY_STARTED.
 - Step 3: T1 is IN_PROGRESS (the first load scan starts the trip).
 - Step 4: 200 with X-Already-Applied: true and the body { event, cylinderId, newState, toType, toId, alreadyRecorded: true }.
-- Exactly one SCAN_OUT event (actor DR1, trip T1). DA balance is still Rs 4,520: a load scan moves no money.
+- Exactly one SCAN_OUT event (actor DR1, trip T1). DA balance is still Rs 4,750: a load scan moves no money.
 
 Spec: ADR-07; ADR-13; API_CONTRACT §5.5, §7.7, §8.3; DATA_MODEL §3.6 (first load scan) · Test file: `apps/api/test/orders/driver-scans.e2e-spec.ts`
 
@@ -6985,7 +7013,7 @@ Note: BG-C0001 is placed in Ahmed Gas Store by the fixture so only the owner rul
 
 **P1** · AUTO-API · Inc 1 · Role: DRIVER (DR2 Imran), SUPER_ADMIN (SA1), DISTRIBUTOR (DA)
 
-Before: Inc 1 build. Standard test data. Trip T1 (X1) for DR1; DR1 has loaded AG-C0001 with the legacy SCAN_OUT, so delivery has started. DA balance Rs 4,520.
+Before: Inc 1 build. Standard test data. Trip T1 (X1) for DR1; DR1 has loaded AG-C0001 with the legacy SCAN_OUT, so delivery has started. DA balance Rs 4,750.
 
 Steps:
 
@@ -7001,7 +7029,7 @@ Expect:
 - Step 2: 404 NOT_FOUND.
 - Step 3: 400 ORDER_USE_MANUAL_DELIVERY (the office uses "Mark delivered by office").
 - Step 4: 403 PERMISSION_DENIED: could-not-deliver is for the trip's driver or the office, never the shop.
-- X1 is neither DELIVERED nor FAILED. Balance Rs 4,520. No order.fail row.
+- X1 is neither DELIVERED nor FAILED. Balance Rs 4,750. No order.fail row.
 
 Spec: ADR-02; API_CONTRACT §3.1, §3.2, §7.6 (fail, PATCH status), §8.6 · Test file: `apps/api/test/orders/driver-scans.e2e-spec.ts`
 
@@ -7009,7 +7037,7 @@ Spec: ADR-02; API_CONTRACT §3.1, §3.2, §7.6 (fail, PATCH status), §8.6 · Te
 
 **P1** · AUTO-API · Inc 1 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 1 build. Standard test data. X1 placed (balance Rs 4,520) and assigned to DR1 (trip T1). DR1 has loaded AG-C0001 with the legacy SCAN_OUT, so delivery has started.
+Before: Inc 1 build. Standard test data. X1 placed (balance Rs 4,750) and assigned to DR1 (trip T1). DR1 has loaded AG-C0001 with the legacy SCAN_OUT, so delivery has started.
 
 Steps:
 
@@ -7025,7 +7053,7 @@ Expect:
 - Steps 1-3: 400 VALIDATION_FAILED each; X1 is unchanged.
 - Step 4: 200; X1 status FAILED, failedAt set, failureReasonCode CUSTOMER_NOT_HOME, stage NOT_DELIVERED; the delivery stop is FAILED.
 - Step 5: 200 with header X-Already-Applied: true; nothing else changes.
-- DA balance is still Rs 4,520. X1 has only its DEBIT_ORDER row (−Rs 480); no reversal row was written.
+- DA balance is still Rs 4,750. X1 has only its DEBIT_ORDER row (−Rs 250); no reversal row was written.
 - Exactly one order.fail audit row, actor DR1, with the reason.
 - AG-C0001 is still on van LEA-101.
 
@@ -7037,7 +7065,7 @@ Note: The trip's driver needs a 3-300 character note for OTHER (API_CONTRACT §7
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on trip T1 for DR1; AG-C0001, AG-C0002 and AG-C0031 loaded and "Done loading" finished. At Sana's stop DR1 has handed over AG-C0001 (HANDOVER scan).
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on trip T1 for DR1; AG-C0001, AG-C0002 and AG-C0031 loaded and "Done loading" finished. At Sana's stop DR1 has handed over AG-C0001 (HANDOVER scan).
 
 Steps:
 
@@ -7047,7 +7075,7 @@ Steps:
 Expect:
 
 - Step 1: 409 ORDER_HANDOVER_STARTED ("Cylinders were already handed over. Call the office.").
-- X1 is still IN_TRANSIT (not FAILED). AG-C0001 is still with Sana. Balance Rs 4,520.
+- X1 is still IN_TRANSIT (not FAILED). AG-C0001 is still with Sana. Balance Rs 4,750.
 
 Spec: ADR-07; API_CONTRACT §5.5 (handoverStarted), §7.6 (fail), §9.8 · Test file: `apps/api/test/inc2/scan/scan-handover.e2e-spec.ts`
 
@@ -7081,7 +7109,7 @@ Note: The reason words are listed in UX_MOBILE §5 (Could not deliver).
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 480 deducted, balance Rs 4,520) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana".
+Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 250 deducted, balance Rs 4,750) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana".
 
 Steps:
 
@@ -7098,7 +7126,7 @@ Expect:
 - stop.progress: line 11.8 kg needed 2 done 1, line 45.4 kg needed 1 done 0, doneCount 1, neededCount 3, complete false.
 - Step 3: T1 is IN_PROGRESS (the first scan starts the trip).
 - Step 4: X1 loadStartedAt is set and stage is LOADING.
-- Step 5: event SCAN_OUT, actor DR1, trip T1, the store stop, source SCAN, from Ahmed Gas Store to LEA-101, state FULL to FULL. DA balance still Rs 4,520.
+- Step 5: event SCAN_OUT, actor DR1, trip T1, the store stop, source SCAN, from Ahmed Gas Store to LEA-101, state FULL to FULL. DA balance still Rs 4,750.
 
 Spec: ADR-13; API_CONTRACT §9.2 (LOAD), §9.3 (StopProgress, ScanResult); DATA_MODEL §4.5 · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
@@ -7106,7 +7134,7 @@ Spec: ADR-13; API_CONTRACT §9.2 (LOAD), §9.3 (StopProgress, ScanResult); DATA_
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 480 deducted, balance Rs 4,520) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". Fixture: AG-C0011 is with Sana from an earlier delivery. Order Y1 (DA, 1 × 11.8 kg for Usman, South flat Rs 400) is on DR2's trip T2 and AG-C0003 is loaded on van LEB-202. Fixture: BG-C0003 (11.8 kg, owned by DB) is in Bilal Gas's store.
+Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 250 deducted, balance Rs 4,750) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". Fixture: AG-C0011 is with Sana from an earlier delivery. Order Y1 (DA, 1 × 11.8 kg for Usman, South Rs 400) is on DR2's trip T2 and AG-C0003 is loaded on van LEB-202. Fixture: BG-C0003 (11.8 kg, owned by DB) is in Bilal Gas's store.
 
 Steps:
 
@@ -7130,7 +7158,7 @@ Note: BG-C0003 covers the §9.11 line 'Loading at another store gives 409' liter
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 480 deducted, balance Rs 4,520) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". Fixture, all in Ahmed Gas Store: AG-C0020 Empty, AG-C0019 Part-filled, AG-C0018 marked damaged (FAULTY), AG-C0017 marked LOST.
+Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 250 deducted, balance Rs 4,750) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". Fixture, all in Ahmed Gas Store: AG-C0020 Empty, AG-C0019 Part-filled, AG-C0018 marked damaged (FAULTY), AG-C0017 marked LOST.
 
 Steps:
 
@@ -7144,7 +7172,7 @@ Expect:
 
 - Steps 1-2: 409 SCAN_NOT_FULL ("This cylinder isn't full. Load only full cylinders.").
 - Steps 3-4: 409 SCAN_CYLINDER_BLOCKED ("Marked damaged or lost. Put it aside. Call office.").
-- All four stay in Ahmed Gas Store with their states unchanged. No event written. X1 loadStartedAt is still empty, so a cancel would still return Rs 480.
+- All four stay in Ahmed Gas Store with their states unchanged. No event written. X1 loadStartedAt is still empty, so a cancel would still return Rs 250.
 
 Spec: ADR-13; API_CONTRACT §2.3, §9.2 (common step 9, LOAD) · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
 
@@ -7152,7 +7180,7 @@ Spec: ADR-13; API_CONTRACT §2.3, §9.2 (common step 9, LOAD) · Test file: `app
 
 **P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif), DISTRIBUTOR (DA)
 
-Before: Inc 2 build. Standard test data. X1 (Rs 480) and X2 (3 × 15 kg for Usman, flat Rs 400) placed (balance Rs 4,120) and both assigned to DR1 before any load: trip T1 has the store stop, Sana's stop and Usman's stop.
+Before: Inc 2 build. Standard test data. X1 (Rs 250) and X2 (3 × 15 kg for Usman, Rs 400) placed (balance Rs 4,350) and both assigned to DR1 before any load: trip T1 has the store stop, Sana's stop and Usman's stop.
 
 Steps:
 
@@ -7164,7 +7192,7 @@ Steps:
 
 Expect:
 
-- Step 1: 200, refundedPaisa "40000"; balance Rs 4,520. T1 stays open because X1 is still open.
+- Step 1: 200, refundedPaisa "40000"; balance Rs 4,750. T1 stays open because X1 is still open.
 - Step 2: 409 SCAN_LOAD_NOT_NEEDED ("This size isn't needed on this trip any more."): the cancelled X2 isn't counted.
 - Step 3: 201 each; progress 11.8 kg 2 of 2; neededCount 3.
 - Step 4: 409 SCAN_LOAD_NOT_NEEDED; AG-C0003 stays in Ahmed Gas Store.
@@ -7176,7 +7204,7 @@ Spec: ADR-07; ADR-13; API_CONTRACT §7.6 (cancel), §9.2 (LOAD: size still neede
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif), DISTRIBUTOR (DA)
 
-Before: Inc 2 build. Standard test data, orders.deliveryStartedAt = FIRST_LOAD_SCAN. X1 and X2 placed (balance Rs 4,120) and both on DR1's trip T1. Nothing loaded.
+Before: Inc 2 build. Standard test data, orders.deliveryStartedAt = FIRST_LOAD_SCAN. X1 and X2 placed (balance Rs 4,350) and both on DR1's trip T1. Nothing loaded.
 
 Steps:
 
@@ -7189,7 +7217,7 @@ Expect:
 
 - Step 2: X2 loadStartedAt is set; cancel.allowed true, cancel.refundPaisa "0", cancel.noRefundReason DELIVERY_STARTED.
 - Step 3: 200, refundedPaisa "0"; X2 is CANCELLED and its stop is CANCELLED; T1 continues.
-- DA balance stays Rs 4,120. No CREDIT_ORDER_REVERSAL row exists for X2.
+- DA balance stays Rs 4,350. No CREDIT_ORDER_REVERSAL row exists for X2.
 - One order.cancel audit row with refunded false, refundPaisa "0", startedRule FIRST_LOAD_SCAN.
 
 Spec: ADR-07; API_CONTRACT §5.5, §7.6 (cancel), §9.2 (LOAD), §9.11; DATA_MODEL §3.6 · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
@@ -7200,7 +7228,7 @@ Note: Reuses X3: a cancel after the first load scan returns nothing.
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif), DISTRIBUTOR (DA)
 
-Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 480 deducted, balance Rs 4,520) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". Run the case 20 times on fresh data.
+Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 250 deducted, balance Rs 4,750) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". Run the case 20 times on fresh data.
 
 Steps:
 
@@ -7210,9 +7238,9 @@ Steps:
 
 Expect:
 
-- Either (A) the cancel wins: refundedPaisa "48000", balance Rs 5,000, one CREDIT_ORDER_REVERSAL row, the load is refused with 409 SCAN_TRIP_CLOSED (the cancel aborted the trip before the load read it) and AG-C0001 stays in Ahmed Gas Store;
-- or (B) the load wins: AG-C0001 is on LEA-101, X1 loadStartedAt is set, the cancel returns refundedPaisa "0", balance stays Rs 4,520, no reversal row, and AG-C0001 stays on the van as spare.
-- Never a Rs 480 refund together with AG-C0001 on the van.
+- Either (A) the cancel wins: refundedPaisa "25000", balance Rs 5,000, one CREDIT_ORDER_REVERSAL row, the load is refused with 409 SCAN_TRIP_CLOSED (the cancel aborted the trip before the load read it) and AG-C0001 stays in Ahmed Gas Store;
+- or (B) the load wins: AG-C0001 is on LEA-101, X1 loadStartedAt is set, the cancel returns refundedPaisa "0", balance stays Rs 4,750, no reversal row, and AG-C0001 stays on the van as spare.
+- Never a Rs 250 refund together with AG-C0001 on the van.
 - The wallet integrity check is ok in every run (ledger sum equals the balance).
 
 Spec: ADR-07; ADR-13; API_CONTRACT §4, §7.6 (cancel), §8.6, §9.8; DATA_MODEL §3.6 (first load scan) · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
@@ -7221,7 +7249,7 @@ Spec: ADR-07; ADR-13; API_CONTRACT §4, §7.6 (cancel), §8.6, §9.8; DATA_MODEL
 
 **P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 480 deducted, balance Rs 4,520) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". AG-C0001 and AG-C0002 are loaded on T1.
+Before: Inc 2 build. Standard test data. X1 placed by DA (2 × 11.8 kg + 1 × 45.4 kg for Sana; Rs 250 deducted, balance Rs 4,750) and assigned by SA1 to DR1 Kashif: trip T1 on van LEA-101, PLANNED, with stops "Load at Ahmed Gas Store" and "Deliver to Sana". AG-C0001 and AG-C0002 are loaded on T1.
 
 Steps:
 
@@ -7234,7 +7262,7 @@ Expect:
 
 - Step 1: 409 LOAD_INCOMPLETE, details { total: 3, done: 2, lines }, message "Load every cylinder first: 2 of 3 loaded so far."
 - Step 2: the load is 201; the finish is 200.
-- Step 3: X1 is IN_TRANSIT with onTheWayAt set and stage ON_THE_WAY. The store stop is DONE with departedAt set. Balance still Rs 4,520.
+- Step 3: X1 is IN_TRANSIT with onTheWayAt set and stage ON_THE_WAY. The store stop is DONE with departedAt set. Balance still Rs 4,750.
 - Step 4: 200 with X-Already-Applied: true and { order: null, nextStopId }.
 
 Spec: API_CONTRACT §1.4 (OrderStage), §2.3 (LOAD_INCOMPLETE), §9.3 (stop finish), §9.8 · Test file: `apps/api/test/inc2/scan/scan-load.e2e-spec.ts`
@@ -7271,7 +7299,7 @@ Note: The second deliberate scan uses a new scanId; HLD-008 checks the server si
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0).
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0).
 
 Steps:
 
@@ -7285,7 +7313,7 @@ Expect:
 - progress.give: 11.8 kg needed 2 done 1, doneCount 1, neededCount 3, complete false.
 - Step 2: the stop is ARRIVED with arrivedAt set by this first scan; one stop_cylinders row GIVEN for AG-C0001 on order X1.
 - Step 3: give complete true, doneCount 3 of 3, canFinish true, blockers [].
-- Each hand-over event is DELIVERED, actor DR1, order X1, from LEA-101 to Sana. Balance still Rs 4,520.
+- Each hand-over event is DELIVERED, actor DR1, order X1, from LEA-101 to Sana. Balance still Rs 4,750.
 
 Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.3 (StopProgress); DATA_MODEL §4.3 (stop_cylinders), §4.5 · Test file: `apps/api/test/inc2/scan/scan-handover.e2e-spec.ts`
 
@@ -7293,7 +7321,7 @@ Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.3 (StopProgress); DATA_MODEL §
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. On DR1's trip T1: X1 for Sana (Rs 480), X2 for Usman (3 × 15 kg, Rs 400) and Y1 for Usman (1 × 11.8 kg, South flat Rs 400). Balance Rs 3,720 (5,000 − 480 − 400 − 400). Loaded and "Done loading" finished: AG-C0001 to AG-C0003 (11.8 kg), AG-C0031 (45.4 kg), AG-C0021 to AG-C0023 (15 kg).
+Before: Inc 2 build. Standard test data. On DR1's trip T1: X1 for Sana (Rs 250), X2 for Usman (3 × 15 kg, Rs 400) and Y1 for Usman (1 × 11.8 kg, South Rs 400). Balance Rs 3,950 (5,000 − 250 − 400 − 400). Loaded and "Done loading" finished: AG-C0001 to AG-C0003 (11.8 kg), AG-C0031 (45.4 kg), AG-C0021 to AG-C0023 (15 kg).
 
 Steps:
 
@@ -7311,13 +7339,13 @@ Expect:
 
 Spec: ADR-13; API_CONTRACT §2.3, §9.2 (HANDOVER), §9.3 · Test file: `apps/api/test/inc2/scan/scan-handover.e2e-spec.ts`
 
-Note: Y1 is an extra worked example: South is a flat Rs 400, so 1 × 11.8 kg costs Rs 400.
+Note: Y1 is an extra worked example: South costs Rs 400 per order, so 1 × 11.8 kg costs Rs 400.
 
 ### DRV-020 · Two hand-overs at the same moment can't exceed the order's count
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 for Sana and Y1 for Usman (1 × 11.8 kg, Rs 400) on DR1's trip T1; balance Rs 4,120. Loaded: AG-C0001 to AG-C0003 and AG-C0031. At Sana's stop AG-C0001 is already handed over. Run 20 times on fresh data.
+Before: Inc 2 build. Standard test data. X1 for Sana and Y1 for Usman (1 × 11.8 kg, Rs 400) on DR1's trip T1; balance Rs 4,350. Loaded: AG-C0001 to AG-C0003 and AG-C0031. At Sana's stop AG-C0001 is already handed over. Run 20 times on fresh data.
 
 Steps:
 
@@ -7336,7 +7364,7 @@ Spec: ADR-13; API_CONTRACT §4, §9.2 (row lock), §9.11 (Two parallel hand-over
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). At Sana's stop AG-C0001 and AG-C0002 are handed over; AG-C0031 is not.
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). At Sana's stop AG-C0001 and AG-C0002 are handed over; AG-C0031 is not.
 
 Steps:
 
@@ -7354,7 +7382,7 @@ Spec: ADR-13; API_CONTRACT §9.3 (DELIVERY finish), §9.11 (A stop can't finish 
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). All 3 cylinders handed over at Sana's stop. confirmation.enabled = false (default).
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). All 3 cylinders handed over at Sana's stop. confirmation.enabled = false (default).
 
 Steps:
 
@@ -7366,7 +7394,7 @@ Expect:
 
 - Step 1: 200 { order, nextStopId: null }; order status DELIVERED, deliveryMethod SCANNED, deliveredAt set, stage DELIVERED. The stop is DONE.
 - Step 2: 200 with header X-Already-Applied: true; deliveredAt unchanged.
-- Step 3: balance Rs 4,520; integrity ok. X1 has only its DEBIT_ORDER row (−Rs 480). No delivery_confirmations row exists (the setting is off).
+- Step 3: balance Rs 4,750; integrity ok. X1 has only its DEBIT_ORDER row (−Rs 250). No delivery_confirmations row exists (the setting is off).
 
 Spec: ADR-07; ADR-15; API_CONTRACT §4 (pattern 3), §9.3 (DELIVERY finish), §9.8; DATA_MODEL §4.5 (stop finish) · Test file: `apps/api/test/inc2/scan/stop-finish.e2e-spec.ts`
 
@@ -7374,7 +7402,7 @@ Spec: ADR-07; ADR-15; API_CONTRACT §4 (pattern 3), §9.3 (DELIVERY finish), §9
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). Calls are sent with X-App-Variant: driver and X-App-Version: 0.1.0 (app.minVersion.driver still 0.0.0). Nothing handed over yet.
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). Calls are sent with X-App-Variant: driver and X-App-Version: 0.1.0 (app.minVersion.driver still 0.0.0). Nothing handed over yet.
 
 Steps:
 
@@ -7385,7 +7413,7 @@ Steps:
 Expect:
 
 - Step 1: 409 DELIVERY_SCANS_INCOMPLETE; X1 is not delivered.
-- Step 2: 200; X1 DELIVERED with deliveryMethod SCANNED. No ledger row; balance Rs 4,520.
+- Step 2: 200; X1 DELIVERED with deliveryMethod SCANNED. No ledger row; balance Rs 4,750.
 - Step 3: 409 TRIP_VAN_NOT_EMPTY with details.count 1; T1 stays IN_PROGRESS.
 
 Spec: API_CONTRACT §9.3 (trip finish), §9.10, Appendix A (Inc 2 column) · Test file: `apps/api/test/inc2/scan/legacy-and-assign.e2e-spec.ts`
@@ -7394,7 +7422,7 @@ Spec: API_CONTRACT §9.3 (trip finish), §9.10, Appendix A (Inc 2 column) · Tes
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). Calls use POST /custody/scan with X-App-Version 0.1.0. Fixture: AG-C0011 (11.8 kg) is with Sana from an earlier delivery.
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1 (van LEA-101). AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) are loaded and "Done loading" is finished. X1 expects no returns (expectedReturnCount 0). Calls use POST /custody/scan with X-App-Version 0.1.0. Fixture: AG-C0011 (11.8 kg) is with Sana from an earlier delivery.
 
 Steps:
 
@@ -7438,7 +7466,7 @@ Spec: ADR-13; UX_MOBILE §3.2 (errorAction), §7.1 (feedback), §7.2 (R5 Visit p
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 480; balance Rs 4,520), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop. Fixture: AG-C0012 is marked damaged (FAULTY).
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 250; balance Rs 4,750), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop. Fixture: AG-C0012 is marked damaged (FAULTY).
 
 Steps:
 
@@ -7461,7 +7489,7 @@ Spec: ADR-13; API_CONTRACT §9.2 (common step 9, TAKE_BACK), §9.3 (StopProgress
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 480; balance Rs 4,520), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop.
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 250; balance Rs 4,750), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop.
 
 Steps:
 
@@ -7485,7 +7513,7 @@ Note: This closes the same-cylinder swap loophole the owner raised.
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 480; balance Rs 4,520), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop. Fixture: AG-C0014 is with Usman (C2). AG-C0005 is in Ahmed Gas Store.
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 250; balance Rs 4,750), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop. Fixture: AG-C0014 is with Usman (C2). AG-C0005 is in Ahmed Gas Store.
 
 Steps:
 
@@ -7506,7 +7534,7 @@ Note: A real cylinder whose records are wrong goes to the office; an unlabelled 
 
 **P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 480; balance Rs 4,520), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop. All 3 cylinders handed over. Only AG-C0011 taken back (Empty).
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 250; balance Rs 4,750), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop. All 3 cylinders handed over. Only AG-C0011 taken back (Empty).
 
 Steps:
 
@@ -7522,7 +7550,7 @@ Expect:
 - Step 2: 400 VALIDATION_FAILED (OTHER needs a note of 3–300 characters).
 - Step 3: 200; X1 DELIVERED (SCANNED); the stop is DONE.
 - Step 4: 409 SCAN_STOP_CLOSED ("This step is already done."); AG-C0012 stays with Sana.
-- Balance still Rs 4,520: a short return moves no money.
+- Balance still Rs 4,750: a short return moves no money.
 
 Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §2.3 (TAKE_BACK_SHORT, SCAN_STOP_CLOSED), §9.2, §9.3 (DELIVERY finish) · Test file: `apps/api/test/inc2/scan/stop-finish.e2e-spec.ts`
 
@@ -7530,7 +7558,7 @@ Spec: ADR-07; ADR-13; API_CONTRACT §1.5 (TakeBackShortReason), §2.3 (TAKE_BACK
 
 **P2** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 480; balance Rs 4,520), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop.
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana already holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg) from an earlier finished run. X1 placed with expected returns 2 × 11.8 kg and 1 × 45.4 kg (cost still Rs 250; balance Rs 4,750), on DR1's trip T1 (LEA-101). AG-C0001, AG-C0002 and AG-C0031 loaded, "Done loading" finished; DR1 is at Sana's stop.
 
 Steps:
 
@@ -7730,7 +7758,7 @@ Spec: API_CONTRACT §9.2 (common step 2), §9.3 (201 new, 200 replay); DATA_MODE
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif), DISTRIBUTOR (DA)
 
-Before: Inc 2 build. Standard test data, trip.allowFinishWithLeftovers = false. Fixture F1: Sana holds AG-C0011. X1 (expected return 1 × 11.8 kg) and X2 on DR1's trip T1 (balance Rs 4,120). All loaded; Sana's visit is finished with AG-C0011 taken back as Empty; Usman's visit is still open.
+Before: Inc 2 build. Standard test data, trip.allowFinishWithLeftovers = false. Fixture F1: Sana holds AG-C0011. X1 (expected return 1 × 11.8 kg) and X2 on DR1's trip T1 (balance Rs 4,350). All loaded; Sana's visit is finished with AG-C0011 taken back as Empty; Usman's visit is still open.
 
 Steps:
 
@@ -7743,7 +7771,7 @@ Expect:
 
 - Step 1: 409 TRIP_STOPS_OPEN ("Finish every stop first.").
 - Step 2: 409 TRIP_VAN_NOT_EMPTY, details { count: 1, cylinders: [{ shortCode: "AG-C0011", sizeLabel: "11.8 kg", state: "EMPTY", came: "TAKEN_BACK" }], leftoversAllowed: false }. T1 stays IN_PROGRESS.
-- Step 3: the store scan is 201; the finish is 200 and T1 is COMPLETED. Balance still Rs 4,120.
+- Step 3: the store scan is 201; the finish is 200 and T1 is COMPLETED. Balance still Rs 4,350.
 - Step 4: 200 with X-Already-Applied: true; T1 stays COMPLETED.
 
 Spec: ADR-13; API_CONTRACT §2.3, §9.3 (trip finish), §9.8 (Trip), §9.11 (A run can't finish with the van not empty) · Test file: `apps/api/test/inc2/scan/trip-finish.e2e-spec.ts`
@@ -7752,7 +7780,7 @@ Spec: ADR-13; API_CONTRACT §2.3, §9.3 (trip finish), §9.8 (Trip), §9.11 (A r
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN (SA1), DRIVER (DR1 Kashif), DISTRIBUTOR (DA)
 
-Before: Inc 2 build. Standard test data. X1 on DR1's trip T1; all 3 loaded; X1 marked could not deliver (CUSTOMER_NOT_HOME), so AG-C0001, AG-C0002 and AG-C0031 are still on LEA-101. Balance Rs 4,520.
+Before: Inc 2 build. Standard test data. X1 on DR1's trip T1; all 3 loaded; X1 marked could not deliver (CUSTOMER_NOT_HOME), so AG-C0001, AG-C0002 and AG-C0031 are still on LEA-101. Balance Rs 4,750.
 
 Steps:
 
@@ -7772,7 +7800,7 @@ Expect:
 - Step 4: 400 VALIDATION_FAILED (the reason needs 5-300 characters).
 - Step 5: 200; T1 COMPLETED with leftoverReason saved.
 - Step 6: exactly one open VAN_NOT_EMPTY alert for LEA-101, with context count 3 and the reason.
-- Step 7: each receive is 201 (a van on a completed trip counts as "any van"); the cylinders are Full in Ahmed Gas Store. Balance still Rs 4,520.
+- Step 7: each receive is 201 (a van on a completed trip counts as "any van"); the cylinders are Full in Ahmed Gas Store. Balance still Rs 4,750.
 
 Spec: ADR-07; API_CONTRACT §6 (trip.allowFinishWithLeftovers), §9.2 (STORE_RECEIVE), §9.3 (trip finish); DATA_MODEL §4.2 (Trip.leftoverReason); Appendix B (setting.update) · Test file: `apps/api/test/inc2/scan/trip-finish.e2e-spec.ts`
 
@@ -7800,7 +7828,7 @@ Spec: ADR-13; API_CONTRACT §2.3, §7.2 (PATCH /drivers/:id/vehicle audited), §
 
 **P1** · AUTO-API · Inc 2 · Role: SUPER_ADMIN (SA1)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1; AG-C0001 loaded on LEA-101.
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1; AG-C0001 loaded on LEA-101.
 
 Steps:
 
@@ -7869,7 +7897,7 @@ Spec: ADR-21; API_CONTRACT §8.5 (cron timeZone), §9.9 (day-cutoff-van-check) �
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN (SA1), DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 on DR1's trip T1 (PLANNED, nothing loaded). X2 and Y1 (1 × 11.8 kg for Usman, Rs 400) placed; balance Rs 3,720.
+Before: Inc 2 build. Standard test data. X1 on DR1's trip T1 (PLANNED, nothing loaded). X2 and Y1 (1 × 11.8 kg for Usman, Rs 400) placed; balance Rs 3,950.
 
 Steps:
 
@@ -8243,7 +8271,7 @@ Spec: ADR-13; API_CONTRACT §9.2 (HANDOVER), §9.11 (A hand-over of a cylinder n
 
 **P1** · AUTO-API · Inc 2 · Role: SUPER_ADMIN (SA1)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1. AG-C0001 and AG-C0031 were loaded by scan (on LEA-101). AG-C0002 went on the van without a scan, so it is still recorded in Ahmed Gas Store. Fixture (seeded, no money): Sana holds AG-C0011 from an earlier run.
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1. AG-C0001 and AG-C0031 were loaded by scan (on LEA-101). AG-C0002 went on the van without a scan, so it is still recorded in Ahmed Gas Store. Fixture (seeded, no money): Sana holds AG-C0011 from an earlier run.
 
 Steps:
 
@@ -8256,7 +8284,7 @@ Expect:
 - Step 1: 200; X1 is DELIVERED with deliveryMethod MANUAL and manualDeliveryReason saved.
 - All three cylinders are with Sana. AG-C0001 and AG-C0031 moved from LEA-101; AG-C0002 moved from Ahmed Gas Store. Each event is DELIVERED with source MANUAL, actor SA1 and the reason. AG-C0011 is on LEA-101 as Empty, with a PICKED_UP_EMPTY event (source MANUAL, trip T1, actor SA1) and a TAKEN_BACK stop row.
 - Step 2: 200 with header X-Already-Applied: true; no second set of events.
-- Balance still Rs 4,520; no ledger row for this step.
+- Balance still Rs 4,750; no ledger row for this step.
 - One order.manual_delivery audit row with the reason and the codes, and exactly four custody.manual_event rows, one per cylinder moved (three delivered, one taken back).
 
 Spec: ADR-13; API_CONTRACT §4 (pattern 3), §7.6 (manual-delivery), §9.2 (OFFICE_MANUAL_DELIVERY), §9.5; DATA_MODEL §4.4 (cylinder_events_reason_chk); Appendix B · Test file: `apps/api/test/inc2/gate/forgotten-in-run-end.e2e-spec.ts, apps/api/test/inc2/scan/manual-delivery.e2e-spec.ts`
@@ -8400,7 +8428,7 @@ Spec: ADR-13 (row lock); API_CONTRACT §4, §9.2 (common step 3); DATA_MODEL §4
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data, trip.allowFinishWithLeftovers = true. Day 1: X1 on DR1's trip T1; AG-C0001, AG-C0002 and AG-C0031 loaded; X1 marked could not deliver; T1 finished with a leftover reason, so the three are still on LEA-101. Day 2: a new order shaped like X1 for Sana (X1c, Rs 480) assigned to DR1: trip T3 on LEA-101.
+Before: Inc 2 build. Standard test data, trip.allowFinishWithLeftovers = true. Day 1: X1 on DR1's trip T1; AG-C0001, AG-C0002 and AG-C0031 loaded; X1 marked could not deliver; T1 finished with a leftover reason, so the three are still on LEA-101. Day 2: a new order shaped like X1 for Sana (X1c, Rs 250) assigned to DR1: trip T3 on LEA-101.
 
 Steps:
 
@@ -8422,7 +8450,7 @@ Spec: ADR-13 (only cylinders loaded on this run); API_CONTRACT §9.2 (HANDOVER: 
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif), DISTRIBUTOR (DA), DRIVER (DR2 Imran)
 
-Before: Inc 2 build. Standard test data. Fixture F1: Sana holds AG-C0011. X1 for Sana (expected return 1 × 11.8 kg) and Y1 for Usman (1 × 11.8 kg, Rs 400) on DR1's trip T1; balance Rs 4,120. AG-C0001 to AG-C0003 and AG-C0031 loaded; "Done loading" finished.
+Before: Inc 2 build. Standard test data. Fixture F1: Sana holds AG-C0011. X1 for Sana (expected return 1 × 11.8 kg) and Y1 for Usman (1 × 11.8 kg, Rs 400) on DR1's trip T1; balance Rs 4,350. AG-C0001 to AG-C0003 and AG-C0031 loaded; "Done loading" finished.
 
 Steps:
 
@@ -8451,7 +8479,7 @@ Steps:
 
 1. As DR1, LOAD AG-C0001 on T1. As DA, GET /cylinders/AG-C0001/history.
 2. DR1 delivers X1 (AG-C0001, AG-C0002, AG-C0031) and finishes the run. As DA, GET /cylinders/AG-C0001/history.
-3. A new order for Sana (1 × 11.8 kg, expected return 1; North: 250 + 40 = Rs 290) is assigned to DR2 (trip T2, LEB-202). DR2 loads AG-C0004 and, at Sana's stop, takes back AG-C0001 as Empty.
+3. A new order for Sana (1 × 11.8 kg, expected return 1; North: Rs 250) is assigned to DR2 (trip T2, LEB-202). DR2 loads AG-C0004 and, at Sana's stop, takes back AG-C0001 as Empty.
 4. As DA, GET /cylinders/AG-C0001/history.
 5. As DA, receive AG-C0001 into the store, then GET /cylinders/AG-C0001/history.
 
@@ -8735,7 +8763,7 @@ The shop scans in what drivers bring back, into its own store. 13 cases: P1 7 ·
 
 **P1** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DA Ahmed Gas)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,520) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). At Sana's stop DR1 took back AG-C0011 as Empty, so it is on LEA-101. Note GET /store/stock before the step.
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,750) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). At Sana's stop DR1 took back AG-C0011 as Empty, so it is on LEA-101. Note GET /store/stock before the step.
 
 Steps:
 
@@ -8747,7 +8775,7 @@ Expect:
 
 - Step 1: 201, result RECORDED; holder { type: STORE, label: "Ahmed Gas Store" }; state EMPTY (unchanged); fromVan { plateNo: "LEA-101", driver: { name: "Kashif" } }; receivedToday { count: 1, bySize: 11.8 kg 1 }.
 - Step 2: stock shows one more 11.8 kg Empty than before; incoming no longer lists AG-C0011.
-- Step 3: event SCAN_IN, actor DA (DISTRIBUTOR), from LEA-101 to Ahmed Gas Store, source SCAN. Balance still Rs 4,520.
+- Step 3: event SCAN_IN, actor DA (DISTRIBUTOR), from LEA-101 to Ahmed Gas Store, source SCAN. Balance still Rs 4,750.
 
 Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE), §9.4 (POST /store/scans, GET /store/stock, GET /store/incoming) · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
@@ -8755,7 +8783,7 @@ Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE), §9.4 (POST /store/scans, GET 
 
 **P1** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DA Ahmed Gas)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,520) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). X1 expected 2 × 11.8 kg and 1 × 45.4 kg back. DR1 took back AG-C0011 Part-filled, AG-C0012 Empty and AG-C0032 Full; all three are on LEA-101. Fixture: AG-C0013 (11.8 kg), marked damaged (FAULTY), was also taken back from Sana by DR1 with returnState EMPTY and is on LEA-101.
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,750) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). X1 expected 2 × 11.8 kg and 1 × 45.4 kg back. DR1 took back AG-C0011 Part-filled, AG-C0012 Empty and AG-C0032 Full; all three are on LEA-101. Fixture: AG-C0013 (11.8 kg), marked damaged (FAULTY), was also taken back from Sana by DR1 with returnState EMPTY and is on LEA-101.
 
 Steps:
 
@@ -8777,7 +8805,7 @@ Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE: state unchanged; LOAD: FULL), �
 
 **P1** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DA Ahmed Gas)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,520) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0011 (Empty) and AG-C0032 (Full) were taken back and are on LEA-101. DA is signed in on two phones (two tokens).
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,750) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0011 (Empty) and AG-C0032 (Full) were taken back and are on LEA-101. DA is signed in on two phones (two tokens).
 
 Steps:
 
@@ -8801,7 +8829,7 @@ Spec: ADR-13 (row lock); API_CONTRACT §4, §9.2 (common steps 2, 6 and 8, STORE
 
 **P1** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DA Ahmed Gas)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,520) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0012 is still with Sana (not taken back).
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,750) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0012 is still with Sana (not taken back).
 
 Steps:
 
@@ -8821,7 +8849,7 @@ Spec: ADR-13; API_CONTRACT §2.3, §9.2 (STORE_RECEIVE) · Test file: `apps/api/
 
 **P1** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DB Bilal Gas)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,520) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0011 was taken back and is on LEA-101.
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,750) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0011 was taken back and is on LEA-101.
 
 Steps:
 
@@ -8843,7 +8871,7 @@ Spec: ADR-01; ADR-02; API_CONTRACT §3.2, §9.2 (STORE_RECEIVE owner = caller, t
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER (DR1 Kashif), SUPER_ADMIN (SA1)
 
-Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,520) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0011 was taken back and is on LEA-101.
+Before: Inc 2 build. Standard test data. Fixture F1 (seeded, no money): Sana holds AG-C0011, AG-C0012 (11.8 kg) and AG-C0032 (45.4 kg). X1 (balance Rs 4,750) on DR1's trip T1 (LEA-101) was delivered (AG-C0001, AG-C0002, AG-C0031). AG-C0011 was taken back and is on LEA-101.
 
 Steps:
 
@@ -8885,7 +8913,7 @@ Note: With one store per distributor, returns go into the owner's one store, the
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DA Ahmed Gas)
 
-Before: Inc 2 build. Standard test data. Fixture F1: Sana holds AG-C0011. On DR1's trip T1: X1 for Sana (expected return 1 × 11.8 kg), X2 for Usman and Y1 for Usman (1 × 11.8 kg, Rs 400); balance Rs 3,720. All loaded (AG-C0001 to AG-C0003, AG-C0031, AG-C0021 to AG-C0023). Then: X1 delivered with AG-C0011 taken back Empty; X2 marked could not deliver; Y1 cancelled by DA after loading.
+Before: Inc 2 build. Standard test data. Fixture F1: Sana holds AG-C0011. On DR1's trip T1: X1 for Sana (expected return 1 × 11.8 kg), X2 for Usman and Y1 for Usman (1 × 11.8 kg, Rs 400); balance Rs 3,950. All loaded (AG-C0001 to AG-C0003, AG-C0031, AG-C0021 to AG-C0023). Then: X1 delivered with AG-C0011 taken back Empty; X2 marked could not deliver; Y1 cancelled by DA after loading.
 
 Steps:
 
@@ -8898,7 +8926,7 @@ Expect:
 - Step 1: one van: vehicle LEA-101, driver Kashif, trip T1 IN_PROGRESS, counts { total: 5, received: 0, bySize: 11.8 kg 2, 15 kg 3 }.
 - AG-C0011: state EMPTY, came TAKEN_BACK, from { clientName: "Sana", orderShortCode: \<X1 number> }. AG-C0021 to AG-C0023: state FULL, came NOT_DELIVERED. AG-C0003: state FULL, came SPARE (its order was cancelled after loading).
 - Step 2: counts.received 2; only the three 15 kg are left in the list.
-- Step 3: balance still Rs 3,720: Y1's cancel after loading returned nothing.
+- Step 3: balance still Rs 3,950: Y1's cancel after loading returned nothing.
 
 Spec: ADR-07; ADR-13; API_CONTRACT §9.3 (trip finish "came"), §9.4 (GET /store/incoming), §9.8 (Cancelled after loading) · Test file: `apps/api/test/inc2/scan/store-receive.e2e-spec.ts`
 
@@ -8908,7 +8936,7 @@ Note: The "from" value for NOT_DELIVERED and SPARE cylinders is not stated (it m
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR (DA Ahmed Gas), DRIVER (DR1 Kashif)
 
-Before: Inc 2 build. Standard test data. X1 (balance Rs 4,520) on DR1's trip T1; AG-C0001 and AG-C0002 loaded on LEA-101.
+Before: Inc 2 build. Standard test data. X1 (balance Rs 4,750) on DR1's trip T1; AG-C0001 and AG-C0002 loaded on LEA-101.
 
 Steps:
 
@@ -9016,7 +9044,7 @@ Expect:
 
 - Step 2: "Delivered" shows one line per size: "2 × 11.8 kg" and "1 × 45.4 kg".
 - "Taken back" shows one line per state with the numbers: "Empty · AG-C0011" and "Full · AG-C0032", plus "Empty · No label · 1 × 11.8 kg".
-- The cost line reads "Delivery cost Rs 480 · paid when the order was placed". No other money line appears.
+- The cost line reads "Delivery cost Rs 250 · paid when the order was placed". No other money line appears.
 
 Spec: ADR-07; ADR-13; UX_MOBILE §7.3 (S14 Order detail additions)
 
@@ -9028,7 +9056,7 @@ The one-time customer link: issuing it, the page and its states, answers, securi
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER DR1 Kashif (API)
 
-Before: confirmation.enabled = false (the default). Fresh test DB with the standard data. X1 placed by DA for C1 Sana (2 × 11.8 kg + 1 × 45.4 kg, take back 0); Rs 480 deducted, DA balance Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101). DR1 loaded AG-C0001, AG-C0002 and AG-C0031, finished loading, and scanned HANDOVER for all three at Sana's stop. A spy wraps the MessagingProvider.
+Before: confirmation.enabled = false (the default). Fresh test DB with the standard data. X1 placed by DA for C1 Sana (2 × 11.8 kg + 1 × 45.4 kg, take back 0); Rs 250 deducted, DA balance Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101). DR1 loaded AG-C0001, AG-C0002 and AG-C0031, finished loading, and scanned HANDOVER for all three at Sana's stop. A spy wraps the MessagingProvider.
 
 Steps:
 
@@ -9042,7 +9070,7 @@ Expect:
 - Step 1 answers 200 with { order, nextStopId }: the order is DELIVERED with deliveryMethod 'SCANNED' and the stop is DONE.
 - No delivery_confirmations row and no outbound_messages row exist for the order.
 - MessagingProvider.send was never called.
-- DA balance is still Rs 4,520 ('452000' paisa); the finish wrote no ledger row.
+- DA balance is still Rs 4,750 ('475000' paisa); the finish wrote no ledger row.
 - The finish response contains no '/c/' link.
 - In GET /orders?tab=done the order's confirmation field is null.
 
@@ -9080,7 +9108,7 @@ Spec: ADR-15; API_CONTRACT §2.3, §3.4, §6, §9.7; CUSTOMER_PAGE §10, §11 ·
 
 **P2** · AUTO-API · Inc 2 · Role: DRIVER DR1 Kashif (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has NOT finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written).
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has NOT finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written).
 
 Steps:
 
@@ -9104,7 +9132,7 @@ Note: Take back 0 keeps finishing the visit simple; the two unlabelled rows are 
 
 **P2** · AUTO-API · Inc 2 · Role: DRIVER DR1 Kashif (API); Developer
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). After the finish there is one PENDING confirmation and one SMS outbound_messages row.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). After the finish there is one PENDING confirmation and one SMS outbound_messages row.
 
 Steps:
 
@@ -9127,7 +9155,7 @@ Note: The replay answer follows API_CONTRACT §4 rule 3 (repeat of a finished ac
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN SA1 Owner (API)
 
-Before: confirmation.enabled = true. X1 placed by DA for C1 Sana (take back 0); Rs 480 deducted, DA balance Rs 4,520. Assigned to DR1 Kashif; AG-C0001, AG-C0002 and AG-C0031 loaded on van LEA-101. The driver could not scan at the door.
+Before: confirmation.enabled = true. X1 placed by DA for C1 Sana (take back 0); Rs 250 deducted, DA balance Rs 4,750. Assigned to DR1 Kashif; AG-C0001, AG-C0002 and AG-C0031 loaded on van LEA-101. The driver could not scan at the door.
 
 Steps:
 
@@ -9137,7 +9165,7 @@ Steps:
 
 Expect:
 
-- The order is DELIVERED with deliveryMethod 'MANUAL'; no ledger row; DA balance still Rs 4,520.
+- The order is DELIVERED with deliveryMethod 'MANUAL'; no ledger row; DA balance still Rs 4,750.
 - One PENDING confirmation with snapshot.delivered [{ '11.8 kg', 2 }, { '45.4 kg', 1 }] and snapshot.takenBack [].
 - One SMS row with key 'confirm:\<orderId>:v1:sms'.
 - The page shows "None" in the "Taken back" row of its summary table.
@@ -9148,7 +9176,7 @@ Spec: ADR-15; CUSTOMER_PAGE §1, §3, §6; API_CONTRACT §9.5, §9.8 · Test fil
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA (API)
 
-Before: confirmation.enabled = true. Order X1 (DA for C1 Sana) is assigned to DR1 but not delivered (status ASSIGNED). Order X2 (DA for C2 Usman, 3 × 15 kg, flat Rs 400) was loaded and then marked could-not-deliver (status FAILED).
+Before: confirmation.enabled = true. Order X1 (DA for C1 Sana) is assigned to DR1 but not delivered (status ASSIGNED). Order X2 (DA for C2 Usman, 3 × 15 kg, Rs 400) was loaded and then marked could-not-deliver (status FAILED).
 
 Steps:
 
@@ -9168,7 +9196,7 @@ Spec: CUSTOMER_PAGE §10; API_CONTRACT §2.3, §9.7 · Test file: `apps/api/test
 
 **P2** · MAN-PAGE · Inc 2 · Role: Customer (public link, no login)
 
-Before: Customer confirmation is switched on (website: Settings → Customer messages). Order D1 was placed in the shop app by Ahmed Gas for Sana (X1: 2 × 11.8 kg and 1 × 45.4 kg, take back 2 × 11.8 kg). Rs 480 was paid from the wallet, so the balance went from Rs 5,000 to Rs 4,520. The office assigned Kashif (van LEA-101). Kashif loaded AG-C0001, AG-C0002 and AG-C0031, handed all three to Sana, took back 2 cylinders with no label (1 Empty, 1 Part-filled) and finished the visit. Write down D1's order number (for example AG-0001) and its delivery time from the shop app. Ahmed Gas sent the link to Sana's WhatsApp from the shop app. This is the test server.
+Before: Customer confirmation is switched on (website: Settings → Customer messages). Order D1 was placed in the shop app by Ahmed Gas for Sana (X1: 2 × 11.8 kg and 1 × 45.4 kg, take back 2 × 11.8 kg). Rs 250 was paid from the wallet, so the balance went from Rs 5,000 to Rs 4,750. The office assigned Kashif (van LEA-101). Kashif loaded AG-C0001, AG-C0002 and AG-C0031, handed all three to Sana, took back 2 cylinders with no label (1 Empty, 1 Part-filled) and finished the visit. Write down D1's order number (for example AG-0001) and its delivery time from the shop app. Ahmed Gas sent the link to Sana's WhatsApp from the shop app. This is the test server.
 
 Steps:
 
@@ -9269,7 +9297,7 @@ Spec: CUSTOMER_PAGE §6, §12, §13 · Test file: `apps/api/test/inc2/confirm/pa
 
 **P1** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). C1's address label is 'House 14, Street 5'. DA's login phone is +923211234567 (shown as 0321 1234567), so the shop's number on the page can't be mistaken for Sana's.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). C1's address label is 'House 14, Street 5'. DA's login phone is +923211234567 (shown as 0321 1234567), so the shop's number on the page can't be mistaken for Sana's.
 
 Steps:
 
@@ -9292,7 +9320,7 @@ Spec: ADR-15; CUSTOMER_PAGE §3, §6, §12 · Test file: `apps/api/test/inc2/con
 
 **P1** · AUTO-API · Inc 2 · Role: Customer; link-preview bots (public)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1's confirmation is PENDING.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1's confirmation is PENDING.
 
 Steps:
 
@@ -9314,7 +9342,7 @@ Spec: ADR-15; CUSTOMER_PAGE §2, §4, §13; API_CONTRACT §9.11 · Test file: `a
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. As in the standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER], mock provider), but with four delivered X1 orders for C1: D1 to D4, each with a PENDING link (tokens T1 to T4 derived in the test).
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. As in the standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER], mock provider), but with four delivered X1 orders for C1: D1 to D4, each with a PENDING link (tokens T1 to T4 derived in the test).
 
 Steps:
 
@@ -9339,7 +9367,7 @@ Spec: ADR-15; CUSTOMER_PAGE §4, §6, §7; API_CONTRACT §9.7, §9.8 · Test fil
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1's confirmation is PENDING.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1's confirmation is PENDING.
 
 Steps:
 
@@ -9365,7 +9393,7 @@ Note: Its test posts more often than the per-link limit of CNF-026 allows, so it
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with five delivered X1 orders for C1 (D1 to D5), each with a PENDING link.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with five delivered X1 orders for C1 (D1 to D5), each with a PENDING link.
 
 Steps:
 
@@ -9389,7 +9417,7 @@ Spec: CUSTOMER_PAGE §4; DATA_MODEL §4.3 · Test file: `apps/api/test/inc2/conf
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 was answered YES at time T1 (one confirmation.answer audit row).
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 was answered YES at time T1 (one confirmation.answer audit row).
 
 Steps:
 
@@ -9408,7 +9436,7 @@ Spec: CUSTOMER_PAGE §4, §7 · Test file: `apps/api/test/inc2/confirm/confirm-p
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 was answered YES at T1 = Thu 22 Oct, 4:20 pm (Pakistan time).
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 was answered YES at T1 = Thu 22 Oct, 4:20 pm (Pakistan time).
 
 Steps:
 
@@ -9428,7 +9456,7 @@ Spec: CUSTOMER_PAGE §4, §6; API_CONTRACT §2.3 (CONFIRM_ALREADY_ANSWERED), §9
 
 **P1** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (caseOnAnswers [NO, OTHER]) with two delivered X1 orders for C1: D1 and D2, both PENDING.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (caseOnAnswers [NO, OTHER]) with two delivered X1 orders for C1: D1 and D2, both PENDING.
 
 Steps:
 
@@ -9451,7 +9479,7 @@ Note: Its test posts more often than the per-link limit of CNF-026 allows, so it
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, linkTtlHours 72, with six delivered X1 orders for C1 and their links: A answered YES; B PENDING with expires_at moved to 1 second from now; C PENDING with expires_at = now (job not run); D EXPIRED by the job; E with status set to CANCELLED in the database (no API makes it, see notes); F answered YES with expires_at in the past.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, linkTtlHours 72, with six delivered X1 orders for C1 and their links: A answered YES; B PENDING with expires_at moved to 1 second from now; C PENDING with expires_at = now (job not run); D EXPIRED by the job; E with status set to CANCELLED in the database (no API makes it, see notes); F answered YES with expires_at in the past.
 
 Steps:
 
@@ -9478,7 +9506,7 @@ Note: CANCELLED is reserved (API_CONTRACT §9.8): no pilot route writes it, so E
 
 **P2** · AUTO-API · Inc 2 · Role: System (confirmation-expiry job)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three confirmations for DA: P1 PENDING, expired 1 minute ago; P2 PENDING, expires in 1 hour; A1 ANSWERED NO with expires_at in the past. Note DA's balance and ledger row count N.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three confirmations for DA: P1 PENDING, expired 1 minute ago; P2 PENDING, expires in 1 hour; A1 ANSWERED NO with expires_at in the past. Note DA's balance and ledger row count N.
 
 Steps:
 
@@ -9504,7 +9532,7 @@ Note: An "expired" link is made by moving delivered_at back together with expire
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN SA1 Owner (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (linkTtlHours 72). D1 is already delivered with expiresAt E1.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (linkTtlHours 72). D1 is already delivered with expiresAt E1.
 
 Steps:
 
@@ -9532,7 +9560,7 @@ Note: An "expired" link is made by moving delivered_at back together with expire
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA (API); Customer
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING with link L1 (tokenVersion 1) and expiresAt E. A second delivered order D2 is PENDING for the race step.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING with link L1 (tokenVersion 1) and expiresAt E. A second delivered order D2 is PENDING for the race step.
 
 Steps:
 
@@ -9557,7 +9585,7 @@ Spec: CUSTOMER_PAGE §2, §10; API_CONTRACT §9.7, Appendix B · Test file: `app
 
 **P1** · AUTO-API · Inc 2 · Role: Customer; anyone guessing links (public)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING with token T; T0 is an older token for D1 from before a new link. support.phone is set in Settings. A query spy counts database queries.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING with token T; T0 is an older token for D1 from before a new link. support.phone is set in Settings. A query spy counts database queries.
 
 Steps:
 
@@ -9582,7 +9610,7 @@ Spec: CUSTOMER_PAGE §2, §4, §5, §6, §13; API_CONTRACT §2.1 · Test file: `
 
 **P3** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). The test re-issues D1's token until it contains at least one '0' and one '1'.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). The test re-issues D1's token until it contains at least one '0' and one '1'.
 
 Steps:
 
@@ -9628,7 +9656,7 @@ Note: The token rules are also unit-tested in apps/api/test/inc2/db/inc2-contrac
 
 **P2** · AUTO-API · Inc 2 · Role: Customer; anyone guessing links (public)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). The app runs with trust proxy 1, so the X-Forwarded-For header sets the client IP. Redis is running. Enough fresh PENDING links exist for step 3.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). The app runs with trust proxy 1, so the X-Forwarded-For header sets the client IP. Redis is running. Enough fresh PENDING links exist for step 3.
 
 Steps:
 
@@ -9657,7 +9685,7 @@ Spec: CUSTOMER_PAGE §5, §6; API_CONTRACT §3.6 · Test file: `apps/api/test/in
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). Extra links prepared for each state (answered, expired, cancelled in the DB) and a way to force a 500.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). Extra links prepared for each state (answered, expired, cancelled in the DB) and a way to force a 500.
 
 Steps:
 
@@ -9680,7 +9708,7 @@ Spec: CUSTOMER_PAGE §4, §5, §12 · Test file: `apps/api/test/inc2/confirm/con
 
 **P1** · AUTO-API · Inc 2 · Role: Developer (API test)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has not finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). Capture stdout logs, global-filter error bodies, Sentry events (test transport) and mock-provider log lines.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has not finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). Capture stdout logs, global-filter error bodies, Sentry events (test transport) and mock-provider log lines.
 
 Steps:
 
@@ -9703,7 +9731,7 @@ Note: The test checks Sentry through initSentry's beforeSend and beforeBreadcrum
 
 **P2** · MAN-OPS · Inc 2 · Role: Ops (server)
 
-Before: Staging server with Caddy in front of the API. A delivered order with a pending link (as D1). Ops can read the Caddy access log. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Staging server with Caddy in front of the API. A delivered order with a pending link (as D1). Ops can read the Caddy access log. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -9746,7 +9774,7 @@ Note: "Unset means mock" follows the default in CUSTOMER_PAGE §11.
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, but before delivery DA's business name is changed to the 20-character 'Ahmed Gas Lahore Ltd', and the order delivers all three stocked sizes (1 × 11.8 kg AG-C0001, 1 × 15 kg AG-C0021, 1 × 45.4 kg AG-C0031; cost Rs 250 + 40 + 80 + 150 = Rs 520) with four unlabelled take-back rows (11.8 kg Empty, 11.8 kg Part-filled, 15 kg Full, 45.4 kg Empty), the largest likely page.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, but before delivery DA's business name is changed to the 20-character 'Ahmed Gas Lahore Ltd', and the order delivers all three stocked sizes (1 × 11.8 kg AG-C0001, 1 × 15 kg AG-C0021, 1 × 45.4 kg AG-C0031; cost Rs 250) with four unlabelled take-back rows (11.8 kg Empty, 11.8 kg Part-filled, 15 kg Full, 45.4 kg Empty), the largest likely page.
 
 Steps:
 
@@ -9768,7 +9796,7 @@ Spec: CUSTOMER_PAGE §6 (low-end budget), §13 · Test file: `apps/api/test/inc2
 
 **P2** · MAN-PAGE · Inc 2 · Role: Customer (public link, no login)
 
-Before: A cheap Android Go phone (or any phone about 320 pixels wide) with Chrome. Mobile network set to 2G only (Settings → SIM / Mobile network → Preferred network type → 2G), Wi-Fi off. Two delivered orders like D1 with fresh links sent to this phone on WhatsApp. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: A cheap Android Go phone (or any phone about 320 pixels wide) with Chrome. Mobile network set to 2G only (Settings → SIM / Mobile network → Preferred network type → 2G), Wi-Fi off. Two delivered orders like D1 with fresh links sent to this phone on WhatsApp. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -9795,7 +9823,7 @@ Note: The page loads no image file and stays under 12 KB with its inline icons (
 
 **P2** · MAN-PAGE · Inc 2 · Role: Customer (public link, no login)
 
-Before: Five delivered orders like D1, each with a fresh link. Phones: Opera Mini (extreme data saving), UC Browser, a KaiOS 2.5 keypad phone, an Android 5 phone opening the link inside an app, an iPhone with Safari; one Android phone with TalkBack on. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Five delivered orders like D1, each with a fresh link. Phones: Opera Mini (extreme data saving), UC Browser, a KaiOS 2.5 keypad phone, an Android 5 phone opening the link inside an app, an iPhone with Safari; one Android phone with TalkBack on. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -9820,7 +9848,7 @@ Spec: CUSTOMER_PAGE §6 (accessibility, low-end budget)
 
 **P2** · MAN-PAGE · Inc 2 · Role: Customer; DISTRIBUTOR DA (shop app)
 
-Before: Customer confirmation is switched on (website: Settings → Customer messages). Order D1 was placed in the shop app by Ahmed Gas for Sana (X1: 2 × 11.8 kg and 1 × 45.4 kg, take back 2 × 11.8 kg). Rs 480 was paid from the wallet, so the balance went from Rs 5,000 to Rs 4,520. The office assigned Kashif (van LEA-101). Kashif loaded AG-C0001, AG-C0002 and AG-C0031, handed all three to Sana, took back 2 cylinders with no label (1 Empty, 1 Part-filled) and finished the visit. Write down D1's order number (for example AG-0001) and its delivery time from the shop app. Ahmed Gas has sent the link to Sana on WhatsApp. Note the balance on the shop app Home (Rs 4,520 if D1 is the only order since the opening balance).
+Before: Customer confirmation is switched on (website: Settings → Customer messages). Order D1 was placed in the shop app by Ahmed Gas for Sana (X1: 2 × 11.8 kg and 1 × 45.4 kg, take back 2 × 11.8 kg). Rs 250 was paid from the wallet, so the balance went from Rs 5,000 to Rs 4,750. The office assigned Kashif (van LEA-101). Kashif loaded AG-C0001, AG-C0002 and AG-C0031, handed all three to Sana, took back 2 cylinders with no label (1 Empty, 1 Part-filled) and finished the visit. Write down D1's order number (for example AG-0001) and its delivery time from the shop app. Ahmed Gas has sent the link to Sana on WhatsApp. Note the balance on the shop app Home (Rs 4,750 if D1 is the only order since the opening balance).
 
 Steps:
 
@@ -9837,7 +9865,7 @@ Expect:
 - Step 3: the second tap shows "Thank you!" again.
 - Step 4: the card shows the green chip "Customer: all received" with the answer time; no comment; no money line.
 - Step 5: the order row shows the chip "Customer: all received" under "Delivered".
-- The Home balance is the same as before; D1 still says "Delivery cost Rs 480 · paid when the order was placed".
+- The Home balance is the same as before; D1 still says "Delivery cost Rs 250 · paid when the order was placed".
 
 Spec: ADR-07, ADR-15; CUSTOMER_PAGE §6, §10, §13 (end to end); UX_MOBILE §3.4, §7.3
 
@@ -9845,7 +9873,7 @@ Spec: ADR-07, ADR-15; CUSTOMER_PAGE §6, §10, §13 (end to end); UX_MOBILE §3.
 
 **P2** · MAN-PAGE · Inc 2 · Role: Customer (public link, no login)
 
-Before: A delivered order like D1 with a fresh link on Sana's phone. Customer confirmation is on. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: A delivered order like D1 with a fresh link on Sana's phone. Customer confirmation is on. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -9872,7 +9900,7 @@ Note: The answer tones follow settled point G07-23, which the lead kept on 2026-
 
 **P2** · MAN-PAGE · Inc 2 · Role: Customer (two phones)
 
-Before: A delivered order like D1 with a fresh link. Sana forwarded the link to her son's phone. Both phones have the main page open. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: A delivered order like D1 with a fresh link. Sana forwarded the link to her son's phone. Both phones have the main page open. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -9894,7 +9922,7 @@ Spec: CUSTOMER_PAGE §3 (the link can be forwarded), §4, §6
 
 **P1** · AUTO-API · Inc 2 · Role: Customer; DISTRIBUTOR DA; System
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, but caseOnAnswers [NO, OTHER, PARTLY]. From the opening Rs 5,000, DA placed five X1 orders for C1 (5 × Rs 480 = Rs 2,400), so the balance is Rs 2,600; all five are delivered (D1 to D5). Note DA's ledger row count N.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, but caseOnAnswers [NO, OTHER, PARTLY]. From the opening Rs 5,000, DA placed five X1 orders for C1 (5 × Rs 250 = Rs 1,250), so the balance is Rs 3,750; all five are delivered (D1 to D5). Note DA's ledger row count N.
 
 Steps:
 
@@ -9905,9 +9933,9 @@ Steps:
 
 Expect:
 
-- DA's balance stays Rs 2,600 ('260000' paisa) after every step.
+- DA's balance stays Rs 3,750 ('375000' paisa) after every step.
 - DA still has N ledger rows: no DEBIT_ORDER, CREDIT_ORDER_REVERSAL or ADJUSTMENT row was added.
-- Every one of D1-D5 keeps fee.status 'DEDUCTED' and fee.totalPaisa '48000'.
+- Every one of D1-D5 keeps fee.status 'DEDUCTED' and fee.totalPaisa '25000'.
 - GET /wallet/statement as DA is unchanged.
 - The wallet check reports ok: true.
 
@@ -9935,7 +9963,7 @@ Spec: ADR-15; CUSTOMER_PAGE §7; API_CONTRACT §5.1, §5.9 · Test file: `apps/a
 
 **P2** · AUTO-API · Inc 2 · Role: Customer; SUPER_ADMIN SA1 (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 (AG-0001) is PENDING.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 (AG-0001) is PENDING.
 
 Steps:
 
@@ -9958,7 +9986,7 @@ Note: The website's Activity sentence for this row ("Customer answered “Not re
 
 **P1** · AUTO-API · Inc 2 · Role: DRIVER DR1 Kashif (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has not finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written).
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has not finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written).
 
 Steps:
 
@@ -9978,7 +10006,7 @@ Spec: ADR-02, ADR-15; CUSTOMER_PAGE §10; API_CONTRACT §3.2, §9.3, §9.7, §9.
 
 **P1** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DB Bilal Gas (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). DB "Bilal Gas" (balance Rs 0) is signed in.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). DB "Bilal Gas" (balance Rs 0) is signed in.
 
 Steps:
 
@@ -9997,7 +10025,7 @@ Spec: ADR-02; API_CONTRACT §3.2, §9.7; CUSTOMER_PAGE §10 · Test file: `apps/
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA; SUPER_ADMIN SA1 (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). messaging.allowlist ['+923001234567'], so the SMS row is SKIPPED with MOCK_PROVIDER. Nobody has shared yet.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). messaging.allowlist ['+923001234567'], so the SMS row is SKIPPED with MOCK_PROVIDER. Nobody has shared yet.
 
 Steps:
 
@@ -10019,7 +10047,7 @@ Spec: CUSTOMER_PAGE §10; API_CONTRACT §3.5, §9.7 · Test file: `apps/api/test
 
 **P2** · MAN-WEB · Inc 2 · Role: SUPER_ADMIN SA1 Owner (website)
 
-Before: Customer confirmation is on. Six orders like D1 were delivered today: one waiting, one answered "All received", one "Partly received", one "Not received" (note "Nothing came"), one "Other problem" (note "Leak at valve"), and one whose link expired (ops moved its expiry into the past). An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Customer confirmation is on. Six orders like D1 were delivered today: one waiting, one answered "All received", one "Partly received", one "Not received" (note "Nothing came"), one "Other problem" (note "Leak at valve"), and one whose link expired (ops moved its expiry into the past). An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10032,7 +10060,7 @@ Expect:
 - Step 2: chips: amber "Waiting for customer" (with the clock); green "Customer: all received"; amber "Customer: partly received" (with the warning icon); red "Customer: not received"; amber "Customer sent a note" (with the warning icon); grey "No answer".
 - Every stage chip still says "Delivered".
 - Step 3: the drawer shows the red chip, the answer time, the comment in quotes "Nothing came", and the link status (for example "Answered 11:20").
-- Delivery cost: the fee chip and the rows "Base Rs 250", "11.8 kg 2 × Rs 40" and "45.4 kg 1 × Rs 150", unchanged by the answer.
+- Delivery cost: the fee chip "Rs 250 paid" and no breakdown rows, unchanged by the answer.
 - No raw words (NO, ANSWERED, PENDING, SKIPPED) and no IDs anywhere.
 
 Spec: ADR-15; UX_ADMIN §2.5, §3.1, §3.2; CUSTOMER_PAGE §10
@@ -10043,7 +10071,7 @@ Note: The answer tones follow settled point G07-23, which the lead kept on 2026-
 
 **P2** · MAN-SHOP · Inc 2 · Role: DISTRIBUTOR DA (shop app)
 
-Before: Customer confirmation is on. A delivered order like D1 for Sana; Sana answered "Not received" with the note "Nothing came". Note the Home balance before Sana answered. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Customer confirmation is on. A delivered order like D1 for Sana; Sana answered "Not received" with the note "Nothing came". Note the Home balance before Sana answered. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10056,7 +10084,7 @@ Expect:
 - Step 2: the card shows the red chip "Customer: not received" with the answer time, the note in quotes "Nothing came", and "The office will look into it." while the problem is open.
 - No send buttons, no "Make a new link" and no money line in the card.
 - Step 3: the order row shows the chip "Customer: not received" under "Delivered".
-- The Home balance is unchanged; the order still says "Delivery cost Rs 480 · paid when the order was placed".
+- The Home balance is unchanged; the order still says "Delivery cost Rs 250 · paid when the order was placed".
 
 Spec: ADR-07, ADR-15; CUSTOMER_PAGE §10; UX_MOBILE §3.4, §7.3
 
@@ -10094,7 +10122,7 @@ Note: The Activity sentences use the setting labels of UX_ADMIN §3.6 (§2.9). T
 
 **P3** · AUTO-API · Inc 2 · Role: Customer (public link, no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING. The test makes ConfirmationsService.record throw once (a database error).
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING. The test makes ConfirmationsService.record throw once (a database error).
 
 Steps:
 
@@ -10205,7 +10233,7 @@ Customer problems opened by answers, and how the office closes them. 13 cases: P
 
 **P2** · AUTO-API · Inc 2 · Role: Customer; SUPER_ADMIN SA1; DISTRIBUTOR DA (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with default caseOnAnswers [NO, OTHER] and four delivered X1 orders for C1: D1 (AG-0001) to D4 (AG-0004), each PENDING.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with default caseOnAnswers [NO, OTHER] and four delivered X1 orders for C1: D1 (AG-0001) to D4 (AG-0004), each PENDING.
 
 Steps:
 
@@ -10227,7 +10255,7 @@ Spec: ADR-15; CUSTOMER_PAGE §1, §7; API_CONTRACT §9.6, §9.11; DATA_MODEL §4
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN SA1 Owner (API); Customer
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with a supply of fresh PENDING links for C1. D0 was answered PARTLY earlier, under the default setting, and has no case.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with a supply of fresh PENDING links for C1. D0 was answered PARTLY earlier, under the default setting, and has no case.
 
 Steps:
 
@@ -10254,7 +10282,7 @@ Note: confirmation.caseOnAnswers is read when an answer is recorded (CUSTOMER_PA
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link); Developer
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with default caseOnAnswers and two delivered X1 orders for C1, D1 and D2, both PENDING.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with default caseOnAnswers and two delivered X1 orders for C1, D1 and D2, both PENDING.
 
 Steps:
 
@@ -10274,7 +10302,7 @@ Spec: CUSTOMER_PAGE §7, §13; API_CONTRACT §9.6, §9.11 · Test file: `apps/ap
 
 **P2** · AUTO-API · Inc 2 · Role: Customer (public link); Developer
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). The test makes alerts.raise throw once.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). The test makes alerts.raise throw once.
 
 Steps:
 
@@ -10296,7 +10324,7 @@ Spec: CUSTOMER_PAGE §7; API_CONTRACT §4 (rule 5); DATA_MODEL §4.5 (customer a
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN SA1 Owner (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER]). Sana answered D1 (AG-0001) "Not received" with the note 'Nothing came', so one OPEN CUSTOMER_PROBLEM case exists. D1 is DA's only order: DA balance Rs 4,520.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER]). Sana answered D1 (AG-0001) "Not received" with the note 'Nothing came', so one OPEN CUSTOMER_PROBLEM case exists. D1 is DA's only order: DA balance Rs 4,750.
 
 Steps:
 
@@ -10316,7 +10344,7 @@ Spec: ADR-15; API_CONTRACT §9.6, Appendix B; CUSTOMER_PAGE §12 · Test file: `
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN SA1 Owner (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three open CUSTOMER_PROBLEM cases (C-A, C-B, C-C).
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three open CUSTOMER_PROBLEM cases (C-A, C-B, C-C).
 
 Steps:
 
@@ -10337,7 +10365,7 @@ Note: The note is trimmed before the length check (API_CONTRACT §9.6), so five 
 
 **P2** · AUTO-API · Inc 2 · Role: SUPER_ADMIN SA1 Owner and SA2 Ops (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with two open CUSTOMER_PROBLEM cases, C-A and C-B.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with two open CUSTOMER_PROBLEM cases, C-A and C-B.
 
 Steps:
 
@@ -10357,11 +10385,11 @@ Spec: API_CONTRACT §2.3, §4, §9.6, Appendix B · Test file: `apps/api/test/in
 
 **P1** · AUTO-API · Inc 2 · Role: SUPER_ADMIN SA1 Owner (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER]). Sana answered D1 (AG-0001) "Not received" with the note 'Nothing came', so one OPEN CUSTOMER_PROBLEM case exists. D1 is DA's only order: DA balance Rs 4,520. Note DA's ledger row count N.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER]). Sana answered D1 (AG-0001) "Not received" with the note 'Nothing came', so one OPEN CUSTOMER_PROBLEM case exists. D1 is DA's only order: DA balance Rs 4,750. Note DA's ledger row count N.
 
 Steps:
 
-1. As SA1, POST /api/v1/alerts/{caseId}/resolve { note: 'Refund the customer', refundPaisa: '48000', amountPaisa: '48000' }.
+1. As SA1, POST /api/v1/alerts/{caseId}/resolve { note: 'Refund the customer', refundPaisa: '25000', amountPaisa: '25000' }.
 2. Try POST /api/v1/alerts/{caseId}/refund and POST /api/v1/alerts/{caseId}/charge.
 3. Read DA's balance, ledger rows and audit rows.
 
@@ -10369,7 +10397,7 @@ Expect:
 
 - Step 1: either 400 VALIDATION_FAILED for the unknown fields, or 200 with them ignored; nothing about money happens either way.
 - Step 2: 404 (no such routes).
-- DA's balance is still Rs 4,520; still N ledger rows; no wallet.correction audit row; D1's fee.status is still 'DEDUCTED'.
+- DA's balance is still Rs 4,750; still N ledger rows; no wallet.correction audit row; D1's fee.status is still 'DEDUCTED'.
 
 Spec: ADR-07, ADR-15; API_CONTRACT §9.6, §9.11; UX_ADMIN §3.3 · Test file: `apps/api/test/inc2/confirm/cases.e2e-spec.ts`
 
@@ -10379,7 +10407,7 @@ Note: Whether unknown body fields are refused or stripped isn't stated.
 
 **P1** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA; DISTRIBUTOR DB; DRIVER DR1; SUPER_ADMIN SA1 (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER]). Sana answered D1 (AG-0001) "Not received" with the note 'Nothing came', so one OPEN CUSTOMER_PROBLEM case exists. D1 is DA's only order: DA balance Rs 4,520. The test also inserts an office-only WALLET_CHECK_MISMATCH alert for DA.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up (confirmation on, caseOnAnswers [NO, OTHER]). Sana answered D1 (AG-0001) "Not received" with the note 'Nothing came', so one OPEN CUSTOMER_PROBLEM case exists. D1 is DA's only order: DA balance Rs 4,750. The test also inserts an office-only WALLET_CHECK_MISMATCH alert for DA.
 
 Steps:
 
@@ -10504,7 +10532,7 @@ The messaging provider (mock for now), test mode, the SMS text, and sharing the 
 
 **P2** · AUTO-API · Inc 2 · Role: System (after-commit send)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has not finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). messaging.allowlist ['+923001234567'] so the mock is reached.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 0, so finishing the visit can't hit TAKE_BACK_SHORT whatever the unlabelled-return rule); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) but has not finished the visit yet. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). messaging.allowlist ['+923001234567'] so the mock is reached.
 
 Steps:
 
@@ -10545,7 +10573,7 @@ Note: The mask format follows today's maskPhone in shared-utils (first 4 charact
 
 **P1** · AUTO-API · Inc 2 · Role: System (after-commit send)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three X1 orders for C1 (D1 to D3) whose cylinders are all handed over but whose visits are not finished yet. The test replaces the provider behind the test-mode wrapper with a spy "real" provider that returns { kind 'SENT', providerMessageId 'spy-1' }. Each order expects no returns (expectedReturnCount 0), so finishing a visit never needs a short-return reason.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three X1 orders for C1 (D1 to D3) whose cylinders are all handed over but whose visits are not finished yet. The test replaces the provider behind the test-mode wrapper with a spy "real" provider that returns { kind 'SENT', providerMessageId 'spy-1' }. Each order expects no returns (expectedReturnCount 0), so finishing a visit never needs a short-return reason.
 
 Steps:
 
@@ -10565,7 +10593,7 @@ Spec: ADR-20; CUSTOMER_PAGE §1, §8, §11; API_CONTRACT §6, §9.11 · Test fil
 
 **P2** · AUTO-API · Inc 2 · Role: System (after-commit send); DISTRIBUTOR DA (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with testMode false and a spy provider; four X1 orders for C1 (D1 to D4) with every cylinder handed over except one on D4. Each order expects no returns (expectedReturnCount 0), so finishing a visit never needs a short-return reason.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with testMode false and a spy provider; four X1 orders for C1 (D1 to D4) with every cylinder handed over except one on D4. Each order expects no returns (expectedReturnCount 0), so finishing a visit never needs a short-return reason.
 
 Steps:
 
@@ -10636,7 +10664,7 @@ Spec: CUSTOMER_PAGE §9 · Test file: `apps/api/test/inc2/confirm/confirm-units.
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA; SUPER_ADMIN SA2 Ops (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING and nobody has shared yet.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING and nobody has shared yet.
 
 Steps:
 
@@ -10660,7 +10688,7 @@ Spec: ADR-15; CUSTOMER_PAGE §8, §9, §10; API_CONTRACT §9.7; DATA_MODEL §4.3
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING at tokenVersion 1.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING at tokenVersion 1.
 
 Steps:
 
@@ -10682,7 +10710,7 @@ Spec: API_CONTRACT §1.2, §4; CUSTOMER_PAGE §2, §10; DATA_MODEL §4.3, §7 ·
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three delivered X1 orders: D1 answered YES; D2 EXPIRED by the job; D3 PENDING.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up with three delivered X1 orders: D1 answered YES; D2 EXPIRED by the job; D3 PENDING.
 
 Steps:
 
@@ -10702,7 +10730,7 @@ Spec: CUSTOMER_PAGE §10; API_CONTRACT §2.3, §9.7 · Test file: `apps/api/test
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING at tokenVersion 1. messaging.allowlist ['+923001234567'] with the mock provider.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING at tokenVersion 1. messaging.allowlist ['+923001234567'] with the mock provider.
 
 Steps:
 
@@ -10722,7 +10750,7 @@ Spec: CUSTOMER_PAGE §2, §8, §10; API_CONTRACT §9.7, Appendix B · Test file:
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA (API)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING for C1 (+923001234567).
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1 is PENDING for C1 (+923001234567).
 
 Steps:
 
@@ -10744,7 +10772,7 @@ Spec: CUSTOMER_PAGE §2, §10; API_CONTRACT §7.4, §9.4, Appendix B; UX_MOBILE 
 
 **P2** · AUTO-API · Inc 2 · Role: DISTRIBUTOR DA (API)
 
-Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, except that before delivery C1's phone is set in the database to the landline '042 35551234' (an old number the migration could not fix; the API itself refuses it). D1 is then delivered.
+Before: Standard D1 set-up = fresh test DB with the standard data; settings confirmation.enabled true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com; every delivered order is an X1 order (DA → C1 Sana, 2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement) delivered by DR1 Kashif with van LEA-101; link tokens are derived in the test with the token helper. Standard D1 set-up, except that before delivery C1's phone is set in the database to the landline '042 35551234' (an old number the migration could not fix; the API itself refuses it). D1 is then delivered.
 
 Steps:
 
@@ -10784,7 +10812,7 @@ Note: normalizePkPhone itself is covered by FND-031. The display and SMS forms a
 
 **P2** · AUTO-API · Inc 2 · Role: Public (no login)
 
-Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 480 deducted, DA balance Rs 5,000 → Rs 4,520. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1's SMS row is SKIPPED.
+Before: Fresh test DB with the standard data. Settings: confirmation.enabled = true, confirmation.linkTtlHours 72, confirmation.caseOnAnswers [NO, OTHER], messaging.testMode true; env MESSAGING_PROVIDER=mock, APP_ENV=test, PUBLIC_LINK_BASE_URL=https://smartfleetpk.com. Order D1 = X1: DA placed 2 × 11.8 kg + 1 × 45.4 kg for C1 Sana (take back 2 × 11.8 kg); Rs 250 deducted, DA balance Rs 5,000 → Rs 4,750. SA1 assigned DR1 Kashif (van LEA-101); DR1 loaded AG-C0001, AG-C0002 (11.8 kg) and AG-C0031 (45.4 kg) at Ahmed Gas Store and finished loading; at Sana's stop DR1 handed over all three, recorded 2 unlabelled 11.8 kg returns (1 EMPTY, 1 PART_FILLED) and finished the visit. D1 is DA's first order, so its number is AG-0001. Its link token T is derived in the test with the token helper (no share row is written). D1's SMS row is SKIPPED.
 
 Steps:
 
@@ -10802,7 +10830,7 @@ Spec: ADR-15, ADR-20; API_CONTRACT §9.7; CUSTOMER_PAGE §8 · Test file: `apps/
 
 **P2** · MAN-SHOP · Inc 2 · Role: DISTRIBUTOR DA (shop app)
 
-Before: Customer confirmation is on. A delivered order like D1 for Sana (0300 1234567), not yet shared. The shop phone has WhatsApp and the Smart Fleet shop app signed in as Ahmed Gas; Sana's phone has WhatsApp. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Customer confirmation is on. A delivered order like D1 for Sana (0300 1234567), not yet shared. The shop phone has WhatsApp and the Smart Fleet shop app signed in as Ahmed Gas; Sana's phone has WhatsApp. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10848,7 +10876,7 @@ Spec: CUSTOMER_PAGE §9, §10; UX_MOBILE §7.3 (S14)
 
 **P2** · MAN-SHOP · Inc 2 · Role: DISTRIBUTOR DA (shop app)
 
-Before: Customer confirmation is on (mock provider, so no text message is sent). A delivered order like D1 for Sana, not yet shared. A second delivered order whose link has expired (ask ops to move its expiry into the past and wait 15 minutes). An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Customer confirmation is on (mock provider, so no text message is sent). A delivered order like D1 for Sana, not yet shared. A second delivered order whose link has expired (ask ops to move its expiry into the past and wait 15 minutes). An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10862,7 +10890,7 @@ Expect:
 - Step 2: the chip "Waiting for customer" and "Link not sent yet · Sana, 0300 1234567".
 - Step 2: the bottom button "Send on WhatsApp" and, in the card, the ghost "Other ways", which opens the sheet "Send link" with WhatsApp, Text message, Other app and Copy message, then, under a line, Make a new link.
 - Step 2: the caption "Link open until \<day and time 3 days after delivery>".
-- No raw words (PENDING, NOT_SENT, SKIPPED, MOCK_PROVIDER) and no money line in the card; the order still says "Delivery cost Rs 480 · paid when the order was placed".
+- No raw words (PENDING, NOT_SENT, SKIPPED, MOCK_PROVIDER) and no money line in the card; the order still says "Delivery cost Rs 250 · paid when the order was placed".
 - Step 3: the expired order shows the chip "No answer" and no send buttons.
 
 Spec: CUSTOMER_PAGE §8, §10; UX_MOBILE §0, §3.4, §7.3 (S14)
@@ -10871,7 +10899,7 @@ Spec: CUSTOMER_PAGE §8, §10; UX_MOBILE §0, §3.4, §7.3 (S14)
 
 **P2** · MAN-SHOP · Inc 2 · Role: DISTRIBUTOR DA (shop app)
 
-Before: A delivered order like D1 for Sana with the card loaded in the shop app. Not yet shared. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: A delivered order like D1 for Sana with the card loaded in the shop app. Not yet shared. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10895,7 +10923,7 @@ Spec: CUSTOMER_PAGE §10; UX_MOBILE §3.1, §3.5
 
 **P2** · MAN-SHOP · Inc 2 · Role: DISTRIBUTOR DA (shop app); Customer
 
-Before: A delivered order like D1 for Sana; its link was sent to her on WhatsApp but not answered. Note "Link open until …" on the card. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: A delivered order like D1 for Sana; its link was sent to her on WhatsApp but not answered. Note "Link open until …" on the card. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10919,7 +10947,7 @@ Spec: CUSTOMER_PAGE §2, §6, §10
 
 **P2** · MAN-SHOP · Inc 2 · Role: DISTRIBUTOR DA (shop app)
 
-Before: Before delivery, ops changed Sana's stored number in the database to the landline 042 35551234. The order (like D1) was then delivered. Customer confirmation is on. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Before delivery, ops changed Sana's stored number in the database to the landline 042 35551234. The order (like D1) was then delivered. Customer confirmation is on. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10941,7 +10969,7 @@ Spec: CUSTOMER_PAGE §1, §10; UX_MOBILE §7.3 (S15b)
 
 **P2** · MAN-WEB · Inc 2 · Role: SUPER_ADMIN SA1 Owner (website); Ops
 
-Before: Customer confirmation is on (mock provider). A delivered order like D1 for Sana, not yet shared. Ops can edit the database. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Customer confirmation is on (mock provider). A delivered order like D1 for Sana, not yet shared. Ops can edit the database. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -10965,7 +10993,7 @@ Spec: CUSTOMER_PAGE §8, §10; UX_ADMIN §1.5 (CopyButton), §3.2
 
 **P2** · MAN-DRIVER · Inc 2 · Role: DRIVER DR1 Kashif (driver app)
 
-Before: Customer confirmation is on. Kashif is at Sana's door on the trip for an order like D1: all three cylinders are handed over and 2 cylinders with no label are taken back (1 Empty, 1 Part-filled), but the visit is not finished yet. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
+Before: Customer confirmation is on. Kashif is at Sana's door on the trip for an order like D1: all three cylinders are handed over and 2 cylinders with no label are taken back (1 Empty, 1 Part-filled), but the visit is not finished yet. An order "like D1" means an X1 order placed by Ahmed Gas for Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 paid from the wallet when placed), delivered by Kashif with van LEA-101, with 2 cylinders with no label taken back (1 Empty, 1 Part-filled).
 
 Steps:
 
@@ -11535,21 +11563,21 @@ Spec: API_CONTRACT §9.2 (steps 2 and 8, STORE_RECEIVE), §9.4, §10.1, §4; DAT
 
 **P1** · AUTO-API · Inc 3 · Role: Driver (Kashif); Distributor (Ahmed Gas)
 
-Before: Inc 3, with orders.deliveryStartedAt = FIRST_LOAD_SCAN. Ahmed Gas placed X1 for C1 Sana (Rs 480, balance Rs 4,520), and the office assigned it to Kashif (trip PLANNED, nothing loaded). Refill R1 (AG-R001, 2 × 11.8 kg, Lahore Filling Station) ASSIGNED to Kashif (van LEA-101), nothing picked up. AG-C0001 EMPTY in the store.
+Before: Inc 3, with orders.deliveryStartedAt = FIRST_LOAD_SCAN. Ahmed Gas placed X1 for C1 Sana (Rs 250, balance Rs 4,750), and the office assigned it to Kashif (trip PLANNED, nothing loaded). Refill R1 (AG-R001, 2 × 11.8 kg, Lahore Filling Station) ASSIGNED to Kashif (van LEA-101), nothing picked up. AG-C0001 EMPTY in the store.
 
 Steps:
 
 1. As DR1, PICKUP AG-C0001 on R1.
 2. As Ahmed Gas, GET /api/v1/orders/\<X1>.
-3. As Ahmed Gas, POST /api/v1/orders/\<X1>/cancel { reasonCode: "CUSTOMER_CANCELLED", confirmRefundPaisa: "48000" } with an Idempotency-Key.
+3. As Ahmed Gas, POST /api/v1/orders/\<X1>/cancel { reasonCode: "CUSTOMER_CANCELLED", confirmRefundPaisa: "25000" } with an Idempotency-Key.
 4. GET /api/v1/wallet. Read the ledger and the audit row.
 5. As SA1, PATCH /api/v1/drivers/\<DR1 id>/vehicle to take Kashif off LEA-101, while only R1's AG-C0001 is on it.
 6. Give Kashif a new order on a trip with LEA-101, deliver it fully, then POST /api/v1/trips/\<that trip>/finish while R1's AG-C0001 is still on LEA-101.
 
 Expect:
 
-- Step 2: loadStartedAt is null and the stage is DRIVER_ASSIGNED. cancel = { allowed: true, refundPaisa: "48000", noRefundReason: null }.
-- Step 3: 200 with refundedPaisa "48000". There is one CREDIT_ORDER_REVERSAL row with key order:\<X1>:reversal, and audit order.cancel with { refunded: true, refundPaisa: "48000", startedRule: "FIRST_LOAD_SCAN" }.
+- Step 2: loadStartedAt is null and the stage is DRIVER_ASSIGNED. cancel = { allowed: true, refundPaisa: "25000", noRefundReason: null }.
+- Step 3: 200 with refundedPaisa "25000". There is one CREDIT_ORDER_REVERSAL row with key order:\<X1>:reversal, and audit order.cancel with { refunded: true, refundPaisa: "25000", startedRule: "FIRST_LOAD_SCAN" }.
 - Step 4: balance back to Rs 5,000 (as in X3). X1's trip is ABORTED (the refill pickup is no load scan on it), and AG-C0001 is still on LEA-101 for R1.
 - Step 5: 409 VEHICLE_HAS_CYLINDERS { count: 1 }: refill cylinders count for the van.
 - Step 6: the finish answers 200: a cylinder on an open refill line doesn't block a delivery trip.
@@ -12490,7 +12518,7 @@ Note: Regression case for review23 finding ux-07 (CHANGELOG, "Inc 2/3 review fix
 
 ## SET · Pilot setup and reset
 
-The pilot setup and reset command line, the office-user command, opening balances and the two-shop leak test. 13 cases: P1 10 · P2 2 · P3 1.
+The pilot setup and reset command line, the office-user command, opening balances and the two-shop leak test. 14 cases: P1 10 · P2 3 · P3 1.
 
 ### SET-001 · The office-user command creates the two named super admins
 
@@ -12607,8 +12635,8 @@ Steps:
 Expect:
 
 - Step 2: Ahmed Gas has code AG and store "Ahmed Gas Store" in zone North; Bilal Gas has code BG and its store in zone South.
-- Step 2: Ahmed Gas prices: North base Rs 250 with 6 kg Rs 30, 11.8 kg Rs 40, 15 kg Rs 80, 45.4 kg Rs 150; South base Rs 400 with every size Rs 0; East no price (coverage 2 of 3).
-- Step 2: Bilal Gas prices: South base Rs 300 flat (coverage 1 of 3).
+- Step 2: Ahmed Gas prices: North Rs 250; South Rs 400; East no price (coverage 2 of 3). No price has a per-size amount.
+- Step 2: Bilal Gas prices: South Rs 300 (coverage 1 of 3).
 - Step 3: account title "Smart Fleet (Pvt) Ltd" and IBAN "PK00TEST0000000000000000".
 - Step 4: each run is refused, naming the row, with STORE_OUTSIDE_ZONES, PRICE_INVALID and DISTRIBUTOR_CODE_INVALID in turn. Nothing is written.
 - Step 5: one distributor.create row per shop and one price.set row per price (3).
@@ -12616,7 +12644,7 @@ Expect:
 
 Spec: ADR-01; ADR-08; ADR-09; ADR-22; API_CONTRACT §10.3, §7.3, §7.5, §7.9, §5.2, Appendix B (distributor.create, price.set) · Test file: `apps/api/test/inc3/setup/pilot-cli.spec.ts, apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
 
-Note: In paisa, the prices are 25000 (with sizes 3000, 4000, 8000, 15000), 40000 and 30000. No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
+Note: In paisa, the prices are 25000, 40000 and 30000. No HTTP: the e2e test runs the CLI entry point against the e2e test database, then checks the result through the API.
 
 ### SET-006 · Setup creates drivers with vans and the test customers
 
@@ -12807,6 +12835,28 @@ Spec: API_CONTRACT §10.3, §10.5 (Pilot setup and reset: exit codes); infrastru
 
 Note: Regression case for review23 finding robustness-jobs-08 (CHANGELOG, "Inc 2/3 review fixes, 2026-10-25"); its tests are named "REV23 robustness-jobs-08 …". Before the fix a run that committed but could not save its labels ended like a failure, and the image had no documented way to read a setup file.
 
+### SET-014 · The setup file takes one delivery cost per price; an older file's per-size amounts are ignored
+
+**P2** · AUTO-API · Inc 3 · Role: Ops (engineering); Super admin (Owner)
+
+Before: An empty, migrated test database and the standard pilot/test.json.
+
+Steps:
+
+1. Run setup with --test on a copy of the file whose North price still lists per-size amounts (a sizes list, as in a file written before 2026-10-26).
+2. As SA1, GET /api/v1/pricing/prices/\<Ahmed Gas> and GET /api/v1/pricing/prices/\<Bilal Gas>.
+3. On a fresh database, run setup with --test on the standard file.
+
+Expect:
+
+- Step 1: setup succeeds and prints "Note: prices[i] AG in North: per-size amounts are ignored; the delivery cost is one amount per order (basePaisa)." (i is the North price's place in the file).
+- Step 2: Ahmed Gas North Rs 250 and South Rs 400 (25000 and 40000), East no price; Bilal Gas South Rs 300 (30000); no price has a per-size amount.
+- Step 3: setup succeeds with no such note, and the prices are the same.
+
+Spec: ADR-08; owner decision 2026-10-26 (one delivery cost per order); API_CONTRACT §10.3 (the setup file: an older file's sizes are ignored with a note), §7.5 · Test file: `apps/api/test/inc3/setup/pilot-setup.e2e-spec.ts`
+
+Note: pilot/test.json, pilot/rehearsal.json and docs/pilot/pilot-setup.sample.json carry one amount per price and no sizes. Not automated yet.
+
 ## UXQ · UI and UX quality
 
 Loading, empty, error and no-signal states, plain words, touch sizes, large text, layouts and keyboard use in all three apps. 34 cases: P1 1 · P2 26 · P3 7.
@@ -12896,7 +12946,7 @@ Note: "Reference: …" with a copy icon shows only when the server answered with
 
 **P2** · MAN-SHOP · Inc 1 · Role: DISTRIBUTOR (DA)
 
-Before: DA's account after examples X1 and X3: X1 (Rs 480) was placed and then cancelled before loading, so the balance is back to Rs 5,000. The phone is set to Pakistan time.
+Before: DA's account after examples X1 and X3: X1 (Rs 250) was placed and then cancelled before loading, so the balance is back to Rs 5,000. The phone is set to Pakistan time.
 
 Steps:
 
@@ -12908,8 +12958,8 @@ Steps:
 Expect:
 
 - Home: balance "Rs 5,000".
-- History: "Delivery cost" with "AG-… · Sana" and "−Rs 480"; "Refund" with "+Rs 480"; no "Balance after". Row times read like "4:12 pm" under day headings ("Today", "Yesterday", "Mon 19 Oct").
-- Order detail: "Cancelled", the cost chip "Rs 480 returned", and under "All steps" the last step "Cancelled · Rs 480 returned".
+- History: "Delivery cost" with "AG-… · Sana" and "−Rs 250"; "Refund" with "+Rs 250"; no "Balance after". Row times read like "4:12 pm" under day headings ("Today", "Yesterday", "Mon 19 Oct").
+- Order detail: "Cancelled", the cost chip "Rs 250 returned", and under "All steps" the last step "Cancelled · Rs 250 returned".
 - Never "Rs.", "PKR", ".00", "On hold", "held" or "charged later".
 - Detail times read like "Today, 4:12 pm", "Yesterday, 9:05 am" or "Mon 19 Oct, 4:12 pm", and no time changes after step 3.
 - Words: "customer" (not client) and "the office" (not admin). No codes like PENDING, PAID_VIA_LEDGER, DEDUCTED, REVERSED or SCAN_OUT, and no long ids; order numbers look like AG-0001.
@@ -12930,7 +12980,7 @@ Steps:
 
 Expect:
 
-- Ahmed Gas's balance is "Rs 5,000"; the order shows the chip "Rs 480 returned"; AG-T001 shows "Rs 5,000". Never "Rs.", ".00" or "on hold".
+- Ahmed Gas's balance is "Rs 5,000"; the order shows the chip "Rs 250 returned"; AG-T001 shows "Rs 5,000". Never "Rs.", ".00" or "on hold".
 - Times read like "22 Oct, 4:12 pm" in Karachi time, five hours ahead of the laptop's UTC clock.
 - No codes like PENDING, PAID_VIA_LEDGER, DEDUCTED or SCAN_OUT, and no long ids. Numbers look like AG-0001 and AG-T001. Status chips show words with an icon.
 - With ?lng=en-XA every visible text is wrapped in ⟦…⟧ and longer. Any text without the brackets is hard-coded, and fails the check.
@@ -12952,7 +13002,7 @@ Steps:
 
 Expect:
 
-- Exactly one main button per screen: in the bottom bar (Home "New order", Add money "Next", New order step 3 "Place order · pay Rs 480", Order detail "Call driver" once a driver is assigned) or floating (Customers and New order step 1 "+ Add customer", My orders "+ New order", Refills "+ New refill"). "Cancel order" is never in the bottom bar.
+- Exactly one main button per screen: in the bottom bar (Home "New order", Add money "Next", New order step 3 "Place order · pay Rs 250", Order detail "Call driver" once a driver is assigned) or floating (Customers and New order step 1 "+ Add customer", My orders "+ New order", Refills "+ New refill"). "Cancel order" is never in the bottom bar.
 - No touch target smaller than 48 dp; list rows at least 64 dp tall.
 - At the largest font: no cut-off or overlapping text, the bottom button stays visible, and nothing scrolls sideways (History's three filters wrap).
 
@@ -13477,7 +13527,7 @@ Steps:
 
 Expect:
 
-- Step 1: the same colour and icon on both surfaces: waiting is amber with the clock ("Waiting for driver" / "Needs a driver"), moving is blue with the action's icon, delivered green, not delivered red and cancelled grey; the cost chips read "Rs 480 paid" and "Rs 480 returned" on both.
+- Step 1: the same colour and icon on both surfaces: waiting is amber with the clock ("Waiting for driver" / "Needs a driver"), moving is blue with the action's icon, delivered green, not delivered red and cancelled grey; the cost chips read "Rs 250 paid" and "Rs 250 returned" on both.
 - Step 2: the top-up reads "Being checked" / "To check" in amber, "Added" / "Approved" in green and "Not added" / "Rejected" in red; the refill reads "Waiting for driver" / "Needs a driver" in amber.
 - Step 3: the driver's steps read To do, Next, In progress, Done, Not delivered (red) and Cancelled (grey), never "Skipped".
 - Step 4: the apps show one banner, "No connection" with "Try again", both offline and while the server is down; the website shows "No connection." with "Try again" offline, and "Not updated since \<time>." while the server is down. Nothing says "No internet".
@@ -13574,7 +13624,7 @@ Note: Regression case for review23 finding ux-11 (CHANGELOG, "Inc 2/3 review fix
 
 ## MIG · Migrations and data safety
 
-The migration baseline, the inc1a and inc1b migrations with their pre-checks and backfills, backups, and test/live separation. 20 cases: P1 18 · P2 2 · P3 0.
+The migration baseline, the inc1a and inc1b migrations with their pre-checks and backfills, backups, and test/live separation. 21 cases: P1 19 · P2 2 · P3 0.
 
 ### MIG-001 · A fresh database migrates from empty to the current schema with no drift
 
@@ -13828,7 +13878,7 @@ Note: The demo seed writes balances directly and adds keyless ledger rows, which
 
 **P1** · MAN-OPS · Inc 1 · Role: OPS
 
-Before: Test server with the standard data after X1 (DA balance Rs 4,520), a few top-ups and a top-up screenshot. Access to the database console (RDS) or to pg_dump and pg_restore.
+Before: Test server with the standard data after X1 (DA balance Rs 4,750), a few top-ups and a top-up screenshot. Access to the database console (RDS) or to pg_dump and pg_restore.
 
 Steps:
 
@@ -13844,7 +13894,7 @@ Expect:
 
 - Step 2: the snapshot finishes, and the time is recorded.
 - Step 4: "Database schema is up to date", and the wallet check returns no rows.
-- Step 5: DA's balance is Rs 4,520 and the counts match. Screenshots still open (they live in the storage bucket, not the database).
+- Step 5: DA's balance is Rs 4,750 and the counts match. Screenshots still open (they live in the storage bucket, not the database).
 - Step 6: the restore time and the data-loss window are recorded and meet the targets: data loss at most 5 minutes with point-in-time recovery (24 hours with daily snapshots only), and the restore within 4 hours.
 - Step 7: versioning is on, with old versions kept 30 days.
 
@@ -14028,6 +14078,32 @@ Spec: DATA_MODEL §1 (rule 6), §2.4, §5.6; API_CONTRACT §8.5 step 10 · Test 
 
 Note: Follow-up of the Inc 2/3 review fixes (CHANGELOG, "Inc 2/3 follow-ups, 2026-10-25"). Made with npm run db:new-migration against HEAD; the inc3 test release now uses its own schema snapshot, so the Inc 3 release cases keep proving what shipped (MIG-001 and the fresh-database suites cover an empty database).
 
+### MIG-021 · After the switch to one cost per order, no per-size amount is left and placed orders keep their cost
+
+**P1** · AUTO-API · Inc 1 · Role: DEVELOPER (CI)
+
+Before: A scratch database migrated to the migration before flat_delivery_cost, with test data: DA's North price is Rs 250 plus Rs 40 per 11.8 kg cylinder, and South Rs 400. O1 (2 × 11.8 kg for Sana, North) was placed under it for Rs 330 and is not loaded; O2, placed the same way, is delivered. DA's balance equals its ledger sum.
+
+Steps:
+
+1. Apply the remaining migrations (npx prisma migrate deploy), which include flat_delivery_cost.
+2. Read DA's price rows, and look for any table or column that still holds a per-size delivery amount.
+3. As DA, GET O1 and O2, and quote X1 for Sana.
+4. As DA, cancel O1 {reasonCode: 'CUSTOMER_CANCELLED'}.
+5. Run WalletService.verify for DA.
+
+Expect:
+
+- Step 1: the migration applies without error.
+- Step 2: North is Rs 250 per order and South Rs 400; no table or column holds a per-size delivery amount.
+- Step 3: O1 and O2 keep their stored cost (fee.totalPaisa '33000'); the X1 quote is '25000'.
+- Step 4: the cancel returns the stored Rs 330, not Rs 250.
+- Step 5: the ledger sum equals the balance.
+
+Spec: ADR-07; ADR-08; owner decision 2026-10-26 (one delivery cost per order; placed orders keep their cost); DATA_MODEL §2, §3.3 · Test file: `apps/api/test/migrations/flat-delivery-cost.e2e-spec.ts`
+
+Note: The migration suites build their scratch databases from the earlier migrations (apps/api/test/migrations). Rs 330 is a cost of the old rule (Rs 250 + 2 × Rs 40); no new order can cost it. On live the per-size table is still empty when the migration drops it: release 2 creates and drops it in the same deploy. Not automated yet.
+
 ## RHS · Rehearsal day (dry run)
 
 The full-day dry run on the test server, in order, with a go / no-go rule at every step. 20 cases: P1 20 · P2 0 · P3 0.
@@ -14055,7 +14131,7 @@ Expect:
 - Step 3: the badge "Test server — not real money", and the tab title starts with "[TEST]".
 - Step 4: the values are as listed. Change any that differ, with a reason, before starting.
 - Step 5: Ahmed Gas Rs 5,000 and Bilal Gas Rs 0 (with the red chip "Low"), and each wallet page shows the chip "History adds up".
-- Step 5: prices North "Set" (base Rs 250; per cylinder 6 kg Rs 30 · 11.8 kg Rs 40 · 15 kg Rs 80 · 45.4 kg Rs 150), South "Set" (Rs 400) and East "Not set".
+- Step 5: prices North "Set" (Rs 250), South "Set" (Rs 400) and East "Not set".
 - Step 6: each app opens on its own home, with no "Wrong app" or "Update the app" screen. Shop: "Salam, Ahmed Gas", Balance Rs 5,000 and no "Being checked" row.
 - Step 6: drivers see "Nothing to do." and "New trips and refills appear by themselves.", and the van rows read "LEA-101" / "No cylinders" and "LEB-202" / "No cylinders".
 - Step 7: both cylinders are in Ahmed Gas Store, and the stock is 35 full: 20 × 11.8 kg, 10 × 15 kg and 5 × 45.4 kg.
@@ -14140,9 +14216,9 @@ Steps:
 Expect:
 
 - Step 1: the number shows as "300 1234567" after the +92.
-- Step 2: "Checking delivery area…", then "Delivery cost Rs 250 per order" with "+ Rs 30 to Rs 150 per cylinder".
+- Step 2: "Checking delivery area…", then "Delivery cost Rs 250" with no second line.
 - Step 3: the Toast "Customer saved".
-- Step 4: "Delivery cost Rs 400 per order" with no second line. Usman is saved.
+- Step 4: "Delivery cost Rs 400" with no second line. Usman is saved.
 - Step 5: East shows "No delivery price here yet." with "Call office". Outside shows "Outside our delivery area. Move the pin." "Save customer" is disabled in both.
 
 **GO / NO-GO:** GO only if both customers are saved in the right zone and neither blocked spot could be saved.
@@ -14159,7 +14235,7 @@ Before: Step 4 done. Balance Rs 7,000.
 
 Steps:
 
-1. Shop phone: new order for Sana. Deliver 2 × 11.8 kg (take back 2) and 1 × 45.4 kg (take back 1). Go to "Check and place", read it, then tap "Place order · pay Rs 480".
+1. Shop phone: new order for Sana. Deliver 2 × 11.8 kg (take back 2) and 1 × 45.4 kg (take back 1). Go to "Check and place", read it, then tap "Place order · pay Rs 250".
 2. New order for Usman: deliver 3 × 15 kg (take back 3). Place it.
 3. New order for Sana: deliver 1 × 11.8 kg (take back 1). Place it. This one is cancelled before loading in step 8.
 4. New order for Usman: deliver 1 × 15 kg (take back 1). Place it. This one is cancelled after loading in step 10.
@@ -14167,13 +14243,13 @@ Steps:
 
 Expect:
 
-- Step 1: "Delivery cost" "Rs 480" with "Rs 250 + 2 × Rs 40 + 1 × Rs 150", "Balance now Rs 7,000" and "After this order Rs 6,520", and "Refund only if cancelled before loading.". The toast "Order placed · Rs 480 paid" and "The office will assign a driver." Order AG-0001 shows "Waiting for driver" and "Rs 480 paid".
-- Step 2: "Delivery cost" "Rs 400", "Balance now Rs 6,520" and "After this order Rs 6,120" (AG-0002).
-- Step 3: "Delivery cost" "Rs 290" with "Rs 250 + 1 × Rs 40", "Balance now Rs 6,120" and "After this order Rs 5,830" (AG-0003).
-- Step 4: "Delivery cost" "Rs 400", "Balance now Rs 5,830" and "After this order Rs 5,430" (AG-0004).
-- Step 5: four "Delivery cost" rows of −Rs 480, −Rs 400, −Rs 290 and −Rs 400, with no "Balance after"; Home shows Rs 5,430.
+- Step 1: "Delivery cost" "Rs 250", "Balance now Rs 7,000" and "After this order Rs 6,750", and "Refund only if cancelled before loading.". The toast "Order placed · Rs 250 paid" and "The office will assign a driver." Order AG-0001 shows "Waiting for driver" and "Rs 250 paid".
+- Step 2: "Delivery cost" "Rs 400", "Balance now Rs 6,750" and "After this order Rs 6,350" (AG-0002).
+- Step 3: "Delivery cost" "Rs 250", "Balance now Rs 6,350" and "After this order Rs 6,100" (AG-0003).
+- Step 4: "Delivery cost" "Rs 400", "Balance now Rs 6,100" and "After this order Rs 5,700" (AG-0004).
+- Step 5: four "Delivery cost" rows of −Rs 250, −Rs 400, −Rs 250 and −Rs 400, with no "Balance after"; Home shows Rs 5,700.
 
-**GO / NO-GO:** GO only if the balance is Rs 5,430 and each order shows its own cost.
+**GO / NO-GO:** GO only if the balance is Rs 5,700 and each order shows its own cost.
 
 Spec: ADR-06; ADR-08; API_CONTRACT §7.6, §5.6, §8.1; UX_MOBILE S9, S7, §3.4
 
@@ -14222,7 +14298,7 @@ Expect:
 - Step 2: "Starts at: Ahmed Gas Store" with no store picker. The driver cards show "Kashif" with "Van LEA-101" and "Imran" with "Van LEB-202", each with one chip. The toast "AG-0001 assigned to Kashif", and the drawer closes.
 - Step 3: all four show "Driver assigned".
 - Step 4: each driver's Today shows one trip, "Deliver to 2 customers": Kashif's with "6 cylinders · load at Ahmed Gas Store", Imran's with "2 cylinders · load at Ahmed Gas Store"; the footer reads "Start trip".
-- Step 5: all four show "Driver assigned" and no cost chip (active rows have none; the costs show on each order and in History). Balance Rs 5,430.
+- Step 5: all four show "Driver assigned" and no cost chip (active rows have none; the costs show on each order and in History). Balance Rs 5,700.
 
 **GO / NO-GO:** GO only if both trips start at Ahmed Gas Store and carry only Ahmed Gas orders.
 
@@ -14244,12 +14320,12 @@ Steps:
 
 Expect:
 
-- Step 2: the title "Cancel order AG-0003?", "Back to your wallet" with "Rs 290" large, and the button "Cancel · get Rs 290 back". The toast "Order cancelled · Rs 290 returned".
-- Step 3: a "Refund" row +Rs 290 with "AG-0003 · Sana", and no "Balance after". Balance Rs 5,720.
-- Step 4: the timeline ends "Cancelled · Rs 290 returned", and the activity reads "Cancelled AG-0003 · Rs 290 returned".
+- Step 2: the title "Cancel order AG-0003?", "Back to your wallet" with "Rs 250" large, and the button "Cancel · get Rs 250 back". The toast "Order cancelled · Rs 250 returned".
+- Step 3: a "Refund" row +Rs 250 with "AG-0003 · Sana", and no "Balance after". Balance Rs 5,950.
+- Step 4: the timeline ends "Cancelled · Rs 250 returned", and the activity reads "Cancelled AG-0003 · Rs 250 returned".
 - Step 5: the trip now lists only Usman.
 
-**GO / NO-GO:** GO only if Rs 290 came back exactly once (balance Rs 5,720).
+**GO / NO-GO:** GO only if Rs 250 came back exactly once (balance Rs 5,950).
 
 Spec: ADR-07; API_CONTRACT §7.6 (cancel), §5.5; UX_MOBILE S11, S7; UX_ADMIN §2.5, §2.9
 
@@ -14276,7 +14352,7 @@ Expect:
 - Step 4: the tick appears, then "All 6 loaded", and "Not saved" disappears.
 - Step 5: a red strip "This size isn't needed on this trip any more."
 - Step 6: both orders become "On the way".
-- Step 7: the stage "On the way". The sheet reads "Cancel without refund?" with "Delivery has started." and "Not returned" "Rs 480".
+- Step 7: the stage "On the way". The sheet reads "Cancel without refund?" with "Delivery has started." and "Not returned" "Rs 250".
 
 **GO / NO-GO:** GO only if six cylinders are on van LEA-101 and the "Not saved" list is empty.
 
@@ -14300,10 +14376,10 @@ Expect:
 
 - Step 1: "All 1 loaded".
 - Step 3: the dialog says "Delivery has started. Cancelling now returns nothing." Afterwards the timeline shows "Cancelled · no refund".
-- Step 4: "Cancelled" with "No refund. Delivery had started.", and the balance stays Rs 5,720.
+- Step 4: "Cancelled" with "No refund. Delivery had started.", and the balance stays Rs 5,950.
 - Step 5: the trip's footer is "Unload at store", and the Unload step lists AG-C0024 under "Not delivered".
 
-**GO / NO-GO:** GO only if the balance is still Rs 5,720 and AG-C0024 is on van LEB-202.
+**GO / NO-GO:** GO only if the balance is still Rs 5,950 and AG-C0024 is on van LEB-202.
 
 Spec: ADR-07; API_CONTRACT §7.6 (cancel), §5.5, §9.8 (cancelled after loading); UX_ADMIN §2.5; UX_MOBILE §7.2 (R7)
 
@@ -14328,7 +14404,7 @@ Expect:
 - Step 1: the lines "11.8 kg · 0 of 2" and "45.4 kg · 0 of 1" reach "2 of 2" and "1 of 1", and the visit moves on to "Take back from Sana" by itself. "Could not deliver" is disabled once the first cylinder is given.
 - Step 3: "Visit done", then "Gave 3 · Took back 3" and, on the next line, "2 empty · 1 part-filled · 0 full".
 - Step 4: "Gave 3 · Took back 3" and "2 empty · 0 part-filled · 1 full".
-- Step 5: both "Delivered". The cost lines are unchanged ("Delivery cost Rs 480 · paid when the order was placed"), and the balance stays Rs 5,720.
+- Step 5: both "Delivered". The cost lines are unchanged ("Delivery cost Rs 250 · paid when the order was placed"), and the balance stays Rs 5,950.
 
 **GO / NO-GO:** GO only if both orders are Delivered with every cylinder scanned, and no money moved.
 
@@ -14356,7 +14432,7 @@ Expect:
 - Step 2: after the tap, "Thank you!" and "We told Ahmed Gas you got everything."
 - Step 4: "We sent your message to Ahmed Gas. They may call you."
 - Step 5: one row for AG-0002, with the chip "Customer sent a note" and the note. After marking it sorted it leaves the open list. No money choice appears anywhere.
-- Step 6: AG-0001 shows "Customer: all received". AG-0002 shows "Customer sent a note" with the note (its line "The office will look into it." went when the office sorted it). The balance stays Rs 5,720.
+- Step 6: AG-0001 shows "Customer: all received". AG-0002 shows "Customer sent a note" with the note (its line "The office will look into it." went when the office sorted it). The balance stays Rs 5,950.
 
 **GO / NO-GO:** GO only if each delivered order is answered "All received" or is on the problems list and sorted.
 
@@ -14393,7 +14469,7 @@ Spec: ADR-13; API_CONTRACT §9.2 (STORE_RECEIVE), §9.3 (trip finish), §9.4; UX
 
 **P1** · MAN-DRIVER · Inc 3 · Role: Driver (Kashif); Distributor (Ahmed Gas); Super admin (Owner)
 
-Before: Step 13 done. Balance Rs 5,720. Sana gives back the morning's cylinders: AG-C0001 empty, AG-C0002 part-filled, and AG-C0031 unused (full).
+Before: Step 13 done. Balance Rs 5,950. Sana gives back the morning's cylinders: AG-C0001 empty, AG-C0002 part-filled, and AG-C0031 unused (full).
 
 Steps:
 
@@ -14408,14 +14484,14 @@ Steps:
 
 Expect:
 
-- Step 1: "Delivery cost" "Rs 290" with "Rs 250 + 1 × Rs 40", "Balance now Rs 5,720" and "After this order Rs 5,430". The toast "Order placed · Rs 290 paid".
+- Step 1: "Delivery cost" "Rs 250", "Balance now Rs 5,950" and "After this order Rs 5,700". The toast "Order placed · Rs 250 paid".
 - Step 3: "All 1 loaded".
 - Step 5: three lists (Empty AG-C0001, Part-filled AG-C0002, Full AG-C0031) and "3 taken back · 2 expected".
 - Step 6: a red strip "You just delivered this one. You can't take it back now."
 - Step 7: "Visit done", then "Gave 1 · Took back 3" and "1 empty · 1 part-filled · 1 full".
 - Step 8: the card shows "Customer: all received".
 
-**GO / NO-GO:** GO only if the balance is Rs 5,430 and the three taken-back cylinders are on van LEA-101.
+**GO / NO-GO:** GO only if the balance is Rs 5,700 and the three taken-back cylinders are on van LEA-101.
 
 Spec: ADR-13; ADR-15; API_CONTRACT §9.2 (TAKE_BACK), §7.6; UX_MOBILE §7.1, §7.2 (R5), S9; CUSTOMER_PAGE §10
 
@@ -14459,9 +14535,9 @@ Steps:
 
 Expect:
 
-- Step 1: the toast "Refill requested". The row reads "2 × 11.8 kg" with "AG-R001" as the grey line, the time on the right and "Waiting for driver"; there is no station on the row. No money is shown, and the balance stays Rs 5,430.
+- Step 1: the toast "Refill requested". The row reads "2 × 11.8 kg" with "AG-R001" as the grey line, the time on the right and "Waiting for driver"; there is no station on the row. No money is shown, and the balance stays Rs 5,700.
 - Step 2: the row "AG-R001" with "2 × 11.8 kg" muted under it, the status "Needs a driver" and Ahmed Gas. After assigning, it reads "Driver assigned".
-- Step 3: "Driver assigned" with Imran's card. Balance Rs 5,430.
+- Step 3: "Driver assigned" with Imran's card. Balance Rs 5,700.
 
 **GO / NO-GO:** GO only if no money moved.
 
@@ -14487,7 +14563,7 @@ Expect:
 - Step 2: "All 2 picked up", then the next step "Fill at Lahore Filling Station".
 - Step 3: "All 2 filled", then the next step "Unload at Ahmed Gas Store" with "0 of 2 unloaded".
 - Step 4: the row "Imran · LEB-202" with a "Refill" chip and "0 of 2 received", and at the end "All 2 back · Refill done".
-- Step 5: the refill shows "Done". AG-C0001 and AG-C0002 are Full in the store. The office lists AG-R001 under Done. Balance Rs 5,430.
+- Step 5: the refill shows "Done". AG-C0001 and AG-C0002 are Full in the store. The office lists AG-R001 under Done. Balance Rs 5,700.
 
 **GO / NO-GO:** GO only if both cylinders are Full in the store, the refill is Done, and no money moved.
 
@@ -14531,16 +14607,16 @@ Steps:
 
 Expect:
 
-- Step 1: the card "1" "day-end to approve". "Today so far" shows Orders placed 5, Delivered 3, "Delivery costs Rs 1,570" and Top-ups approved Rs 2,000.
+- Step 1: the card "1" "day-end to approve". "Today so far" shows Orders placed 5, Delivered 3, "Delivery costs Rs 1,300" and Top-ups approved Rs 2,000.
 - Step 3: In store 31 · On vans 0 · With customers 4 · Differences 1. AG-C0020 shows "State differs" with the note "Valve damaged".
 - Step 4: the dialog "Approve and lock \<day>?" with "1 fix. Later changes need a reopen." After confirming, the day is approved and locked.
-- Step 5: AG-C0020 is Damaged in Ahmed Gas Store, and its history shows the day-end fix approved by Owner. The shop chip reads "Approved · day closed". Balance Rs 5,430.
+- Step 5: AG-C0020 is Damaged in Ahmed Gas Store, and its history shows the day-end fix approved by Owner. The shop chip reads "Approved · day closed". Balance Rs 5,700.
 
 **GO / NO-GO:** GO only if the day is approved and locked.
 
 Spec: ADR-17; API_CONTRACT §10.2, §7.13 (costTakenTodayPaisa); UX_ADMIN §4.3, §4.4, §2.1, §3.5; UX_MOBILE §8.3
 
-Note: Delivery costs = Rs 1,860 taken (480 + 400 + 290 + 400 + 290) − Rs 290 returned = Rs 1,570. The cylinder history this step reads (the day-end fix with its day) also has an automated proof: apps/api/test/inc3/gate/refill-and-history-reads.e2e-spec.ts ("RHS-019 …").
+Note: Delivery costs = Rs 1,550 taken (250 + 400 + 250 + 400 + 250) − Rs 250 returned = Rs 1,300. The cylinder history this step reads (the day-end fix with its day) also has an automated proof: apps/api/test/inc3/gate/refill-and-history-reads.e2e-spec.ts ("RHS-019 …").
 
 ### RHS-020 · Rehearsal step 20 · Next morning: the nightly wallet check is clean, then the final go / no-go
 
@@ -14557,8 +14633,8 @@ Steps:
 
 Expect:
 
-- Steps 1 and 2: a System row "Nightly wallet check: 2 wallets checked, all match" at about 03:30, and no wallet-check alert. Ahmed Gas Balance Rs 5,430 with "History adds up"; Bilal Gas Rs 0, also matching.
-- Step 3: Opening balance +Rs 5,000; "Top-up · AG-T001 · ref TESTREF001" +Rs 2,000; Delivery cost −Rs 480, −Rs 400, −Rs 290, −Rs 400; Delivery cost returned +Rs 290 (AG-0003); Delivery cost −Rs 290 (AG-0005). This ends at Rs 5,430.
+- Steps 1 and 2: a System row "Nightly wallet check: 2 wallets checked, all match" at about 03:30, and no wallet-check alert. Ahmed Gas Balance Rs 5,700 with "History adds up"; Bilal Gas Rs 0, also matching.
+- Step 3: Opening balance +Rs 5,000; "Top-up · AG-T001 · ref TESTREF001" +Rs 2,000; Delivery cost −Rs 250, −Rs 400, −Rs 250, −Rs 400; Delivery cost returned +Rs 250 (AG-0003); Delivery cost −Rs 250 (AG-0005). This ends at Rs 5,700.
 - Rule 1, top-ups: one bank line matches one approved top-up (AG-T001, Rs 2,000), and the duplicate AG-T002 was rejected.
 - Rule 2, deliveries: AG-0001 and AG-0005 answered "All received", and AG-0002 is on the problems list and sorted.
 - Rule 3, the wallet check is clean.
@@ -14580,16 +14656,16 @@ Tick each line when it holds. One unticked line is a no-go.
 - [ ] **Step 2** (RHS-002): GO only if the balance is still Rs 5,000: money is added only by the office.
 - [ ] **Step 3** (RHS-003): GO only if one bank line matches one approved top-up (AG-T001, Rs 2,000) and the duplicate was refused.
 - [ ] **Step 4** (RHS-004): GO only if both customers are saved in the right zone and neither blocked spot could be saved.
-- [ ] **Step 5** (RHS-005): GO only if the balance is Rs 5,430 and each order shows its own cost.
+- [ ] **Step 5** (RHS-005): GO only if the balance is Rs 5,700 and each order shows its own cost.
 - [ ] **Step 6** (RHS-006): GO only if no Ahmed Gas data appears and no order was created.
 - [ ] **Step 7** (RHS-007): GO only if both trips start at Ahmed Gas Store and carry only Ahmed Gas orders.
-- [ ] **Step 8** (RHS-008): GO only if Rs 290 came back exactly once (balance Rs 5,720).
+- [ ] **Step 8** (RHS-008): GO only if Rs 250 came back exactly once (balance Rs 5,950).
 - [ ] **Step 9** (RHS-009): GO only if six cylinders are on van LEA-101 and the "Not saved" list is empty.
-- [ ] **Step 10** (RHS-010): GO only if the balance is still Rs 5,720 and AG-C0024 is on van LEB-202.
+- [ ] **Step 10** (RHS-010): GO only if the balance is still Rs 5,950 and AG-C0024 is on van LEB-202.
 - [ ] **Step 11** (RHS-011): GO only if both orders are Delivered with every cylinder scanned, and no money moved.
 - [ ] **Step 12** (RHS-012): GO only if each delivered order is answered "All received" or is on the problems list and sorted.
 - [ ] **Step 13** (RHS-013): GO only if no van holds a cylinder.
-- [ ] **Step 14** (RHS-014): GO only if the balance is Rs 5,430 and the three taken-back cylinders are on van LEA-101.
+- [ ] **Step 14** (RHS-014): GO only if the balance is Rs 5,700 and the three taken-back cylinders are on van LEA-101.
 - [ ] **Step 15** (RHS-015): GO only if all three are in the store and no van holds a cylinder.
 - [ ] **Step 16** (RHS-016): GO only if no money moved.
 - [ ] **Step 17** (RHS-017): GO only if both cylinders are Full in the store, the refill is Done, and no money moved.
@@ -14622,8 +14698,8 @@ Built from each case's "Spec" line.
 | ADR-04 | Modules not used by the pilot are switched off | 9 | FND-001, FND-012, SEC-012, SEC-020, SEC-021, EXP-018, OFF-009, OFF-012, HLD-002 |
 | ADR-05 | Only delivery money is managed | 5 | EXP-014, CNF-037, REF-001, REF-004, REF-020 |
 | ADR-06 | One balance, deducted when the order is placed | 31 | FND-012, FND-019, FND-021, SEC-029, WAL-001, WAL-002, WAL-005, WAL-009, WAL-011, WAL-014, WAL-016, WAL-017, WAL-018, WAL-020, PRC-010, FEE-001, FEE-002, FEE-003, FEE-006, FEE-007, FEE-008, FEE-025, ORD-001, ORD-003, CNF-037, UXQ-004, MIG-003, MIG-014, RHS-005, RHS-006, RHS-020 |
-| ADR-07 | Refund only on a cancel before delivery has started | 51 | SEC-013, PRC-005, PRC-013, FEE-007, FEE-009, FEE-010, FEE-011, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-023, FEE-026, FEE-027, FEE-029, ORD-003, ORD-007, ORD-011, ORD-012, ORD-013, DRV-003, DRV-007, DRV-008, DRV-009, DRV-013, DRV-014, DRV-015, DRV-022, DRV-029, DRV-039, STR-008, STR-009, STR-013, CNF-001, CNF-034, CNF-037, CNF-044, CAS-008, REF-022, UXQ-004, MIG-006, RHS-008, RHS-009, RHS-010, RHS-011 |
-| ADR-08 | Delivery price per distributor per zone | 30 | FND-012, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-011, PRC-012, PRC-013, PRC-014, PRC-015, PRC-016, PRC-017, PRC-018, FEE-001, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-003, SET-005, RHS-004, RHS-005 |
+| ADR-07 | Refund only on a cancel before delivery has started | 52 | SEC-013, PRC-005, PRC-013, FEE-007, FEE-009, FEE-010, FEE-011, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-023, FEE-026, FEE-027, FEE-029, ORD-003, ORD-007, ORD-011, ORD-012, ORD-013, DRV-003, DRV-007, DRV-008, DRV-009, DRV-013, DRV-014, DRV-015, DRV-022, DRV-029, DRV-039, STR-008, STR-009, STR-013, CNF-001, CNF-034, CNF-037, CNF-044, CAS-008, REF-022, UXQ-004, MIG-006, MIG-021, RHS-008, RHS-009, RHS-010, RHS-011 |
+| ADR-08 | Delivery price per distributor per zone: one flat cost per order | 33 | FND-012, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-011, PRC-012, PRC-013, PRC-014, PRC-015, PRC-016, PRC-017, PRC-020, PRC-021, FEE-001, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-003, SET-005, SET-014, MIG-021, RHS-004, RHS-005 |
 | ADR-09 | Manual bank top-ups, approved once against the bank app | 27 | FND-003, FND-004, WAL-001, TOP-001, TOP-002, TOP-003, TOP-004, TOP-009, TOP-011, TOP-012, TOP-015, TOP-016, TOP-017, TOP-018, TOP-019, TOP-020, TOP-021, TOP-022, TOP-023, TOP-024, TOP-025, TOP-026, TOP-027, TOP-029, SET-005, RHS-002, RHS-003 |
 | ADR-10 | Wallet correction for genuine mistakes only | 9 | WAL-005, WAL-007, WAL-010, WAL-011, WAL-012, WAL-014, WAL-015, WAL-017, SET-002 |
 | ADR-11 | Opening balances | 3 | WAL-005, SET-002, MIG-003 |
@@ -14660,7 +14736,7 @@ Built from each case's "Spec" line.
 | §3.5 | Secrets never leave | 13 | SEC-001, SEC-017, SEC-025, SEC-026, SEC-027, ORD-009, OFF-004, OFF-013, OFF-015, HLD-014, CNF-042, REF-006, SET-006 |
 | §3.6 | Rate limits | 6 | FND-040, SEC-007, SEC-038, EXP-007, CNF-026, MSG-023 |
 | §3.7 | Boot guards | 9 | SEC-018, SEC-019, SEC-036, TOP-025, CNF-030, SET-011, MIG-011, MIG-013, MIG-017 |
-| §4 | Atomic and idempotent patterns | 42 | FND-012, FND-014, FND-019, FND-020, FND-021, FND-022, FND-037, SEC-024, WAL-018, TOP-030, PRC-018, FEE-026, CUS-003, CUS-012, ORD-004, ORD-014, ORD-015, ORD-019, ASG-006, ASG-007, EXP-009, EXP-010, OFF-004, DRV-007, DRV-015, DRV-020, DRV-022, HLD-004, HLD-010, HLD-019, STR-003, CNF-004, CNF-018, CAS-004, CAS-007, MSG-004, MSG-008, REF-007, REF-008, REF-011, REF-021, UXQ-010 |
+| §4 | Atomic and idempotent patterns | 41 | FND-012, FND-014, FND-019, FND-020, FND-021, FND-022, FND-037, SEC-024, WAL-018, TOP-030, FEE-026, CUS-003, CUS-012, ORD-004, ORD-014, ORD-015, ORD-019, ASG-006, ASG-007, EXP-009, EXP-010, OFF-004, DRV-007, DRV-015, DRV-020, DRV-022, HLD-004, HLD-010, HLD-019, STR-003, CNF-004, CNF-018, CAS-004, CAS-007, MSG-004, MSG-008, REF-007, REF-008, REF-011, REF-021, UXQ-010 |
 | §4.1 | Atomic and idempotent patterns: State guard | 10 | WAL-014, WAL-017, TOP-020, PRC-006, FEE-006, FEE-010, FEE-015, REF-016, REF-023, DAY-011 |
 | §4.2 | Atomic and idempotent patterns: Create idempotency | 13 | FND-035, WAL-010, WAL-013, TOP-002, TOP-007, TOP-010, TOP-015, TOP-019, TOP-029, FEE-001, FEE-005, FEE-009, REF-013 |
 | §4.3 | Atomic and idempotent patterns: Repeating a finished action | 6 | TOP-019, TOP-020, TOP-021, FEE-010, REF-017, DAY-011 |
@@ -14670,7 +14746,7 @@ Built from each case's "Spec" line.
 | §5.3 | AuditLogService | 7 | FND-002, FND-004, FND-013, FND-014, FND-041, OFF-010, CNF-039 |
 | §5.4 | WalletService | 23 | FND-014, FND-019, FND-021, WAL-005, WAL-010, WAL-011, WAL-014, WAL-016, WAL-017, WAL-018, WAL-020, TOP-015, FEE-001, FEE-002, FEE-003, FEE-004, FEE-006, FEE-009, FEE-010, FEE-023, REF-001, MIG-003, RHS-020 |
 | §5.5 | OrdersFeePolicy | 23 | FEE-001, FEE-003, FEE-009, FEE-013, FEE-014, FEE-016, FEE-019, FEE-021, FEE-022, FEE-023, FEE-027, FEE-029, ORD-011, DRV-003, DRV-008, DRV-014, STR-009, CNF-037, REF-022, MIG-006, RHS-008, RHS-009, RHS-010 |
-| §5.6 | PricingService and DeliveryFeeStrategy | 11 | PRC-002, PRC-003, PRC-008, PRC-010, PRC-012, PRC-017, PRC-018, CUS-004, CUS-005, SET-003, RHS-005 |
+| §5.6 | PricingService and DeliveryFeeStrategy | 11 | PRC-002, PRC-003, PRC-008, PRC-010, PRC-012, PRC-017, PRC-020, CUS-004, CUS-005, SET-003, RHS-005 |
 | §5.7 | PaymentProvider and TopupService | 2 | TOP-001, TOP-025 |
 | §5.8 | FilesService | 6 | FND-015, FND-017, FND-018, TOP-004, TOP-008, EXP-007 |
 | §5.9 | Inc 2 interfaces | 7 | DRV-002, HLD-002, STR-007, CNF-037, CNF-038, MSG-001, REF-014 |
@@ -14680,8 +14756,8 @@ Built from each case's "Spec" line.
 | §7.2 | Safety table for existing routes | 47 | FND-023, FND-035, SEC-001, SEC-003, SEC-010, SEC-011, SEC-012, SEC-016, SEC-017, SEC-020, SEC-023, SEC-024, SEC-025, SEC-026, SEC-027, SEC-028, SEC-029, SEC-033, SEC-034, TOP-025, PRC-017, CUS-004, CUS-005, CUS-011, ASG-001, ASG-003, EXP-018, OFF-006, OFF-007, OFF-015, OFF-016, OFF-017, OFF-020, DRV-040, DRV-048, HLD-002, HLD-015, HLD-016, CAS-009, REF-004, REF-012, REF-031, SET-003, SET-004, SET-006, SET-012, MIG-016 |
 | §7.3 | Distributors and their one store | 14 | FND-031, SEC-003, SEC-011, WAL-001, WAL-002, OFF-004, OFF-005, OFF-006, OFF-007, OFF-013, OFF-014, OFF-017, OFF-020, SET-005 |
 | §7.4 | Customers | 22 | FND-031, SEC-011, PRC-005, PRC-009, CUS-001, CUS-002, CUS-003, CUS-005, CUS-006, CUS-007, CUS-008, CUS-009, CUS-010, CUS-012, CUS-014, ORD-016, MSG-011, MSG-013, SET-006, SET-012, MIG-005, RHS-004 |
-| §7.5 | Delivery prices and quotes | 27 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-018, FEE-007, FEE-008, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, RHS-004 |
-| §7.6 | Orders | 91 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, HLD-020, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
+| §7.5 | Delivery prices and quotes | 29 | FND-002, PRC-001, PRC-002, PRC-003, PRC-004, PRC-005, PRC-006, PRC-007, PRC-008, PRC-009, PRC-010, PRC-013, PRC-016, PRC-020, PRC-021, FEE-007, FEE-008, CUS-001, CUS-004, CUS-005, CUS-006, CUS-007, ORD-001, ORD-002, ORD-003, SET-003, SET-005, SET-014, RHS-004 |
+| §7.6 | Orders | 93 | FND-002, FND-012, FND-019, FND-020, FND-022, FND-029, FND-035, SEC-011, SEC-012, SEC-013, SEC-017, SEC-031, WAL-017, PRC-003, PRC-005, PRC-010, PRC-011, PRC-013, PRC-014, PRC-015, PRC-020, PRC-021, FEE-001, FEE-002, FEE-004, FEE-005, FEE-007, FEE-008, FEE-009, FEE-010, FEE-011, FEE-012, FEE-013, FEE-014, FEE-015, FEE-016, FEE-017, FEE-018, FEE-019, FEE-020, FEE-021, FEE-022, FEE-026, FEE-029, CUS-010, ORD-001, ORD-002, ORD-005, ORD-006, ORD-007, ORD-008, ORD-009, ORD-010, ORD-011, ORD-012, ORD-013, ORD-014, ORD-015, ORD-016, ORD-019, ORD-020, ASG-001, ASG-002, ASG-003, ASG-004, ASG-005, ASG-006, ASG-007, ASG-010, ASG-011, ASG-012, OFF-016, DRV-005, DRV-007, DRV-008, DRV-013, DRV-014, DRV-015, DRV-041, HLD-004, HLD-005, HLD-006, HLD-020, REF-022, SET-006, SET-012, MIG-006, RHS-005, RHS-006, RHS-007, RHS-008, RHS-010, RHS-014 |
 | §7.7 | Trips and the legacy scan route | 17 | SEC-011, SEC-035, FEE-013, FEE-015, FEE-021, ASG-005, ASG-006, ASG-008, ASG-009, ASG-012, DRV-001, DRV-002, DRV-003, DRV-004, HLD-002, HLD-008, HLD-019 |
 | §7.8 | Wallet | 23 | FND-012, FND-014, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, WAL-004, WAL-005, WAL-006, WAL-007, WAL-008, WAL-009, WAL-010, WAL-011, WAL-012, WAL-013, WAL-017, WAL-019, WAL-022, WAL-023, WAL-024, SET-002 |
 | §7.9 | Top-ups | 39 | FND-003, FND-004, FND-018, FND-020, FND-035, SEC-011, SEC-012, SEC-014, WAL-001, TOP-001, TOP-002, TOP-003, TOP-004, TOP-005, TOP-006, TOP-007, TOP-008, TOP-009, TOP-011, TOP-013, TOP-014, TOP-015, TOP-016, TOP-017, TOP-018, TOP-019, TOP-020, TOP-021, TOP-022, TOP-023, TOP-024, TOP-026, TOP-028, TOP-029, TOP-030, FEE-024, SET-005, RHS-002, RHS-003 |
@@ -14710,7 +14786,7 @@ Built from each case's "Spec" line.
 | §9.13 | Read additions for the Inc 2/3 screens | 2 | DRV-058, HLD-021 |
 | §10.1 | Refills on QR scans | 16 | FEE-028, REF-008, REF-013, REF-014, REF-015, REF-016, REF-017, REF-018, REF-019, REF-020, REF-021, REF-022, REF-023, REF-024, RHS-016, RHS-017 |
 | §10.2 | Day-end | 27 | FEE-028, HLD-022, DAY-001, DAY-002, DAY-003, DAY-004, DAY-005, DAY-006, DAY-007, DAY-008, DAY-009, DAY-010, DAY-011, DAY-012, DAY-013, DAY-014, DAY-015, DAY-016, DAY-017, DAY-019, DAY-021, DAY-023, DAY-024, DAY-026, RHS-018, RHS-019, RHS-020 |
-| §10.3 | Pilot setup and reset CLI | 12 | SET-003, SET-004, SET-005, SET-006, SET-007, SET-008, SET-009, SET-010, SET-011, SET-013, MIG-011, RHS-001 |
+| §10.3 | Pilot setup and reset CLI | 13 | SET-003, SET-004, SET-005, SET-006, SET-007, SET-008, SET-009, SET-010, SET-011, SET-013, SET-014, MIG-011, RHS-001 |
 | §10.4 | Retirements and tests | 7 | FEE-028, REF-016, REF-019, REF-020, REF-031, DAY-012, SET-012 |
 | §10.5 | As built | 8 | SEC-038, HLD-023, HLD-025, REF-032, DAY-023, DAY-024, DAY-025, SET-013 |
 | Appendix A | Compatibility for the installed APKs | 26 | FND-008, FND-010, FND-012, FND-044, SEC-001, SEC-002, SEC-004, SEC-006, SEC-008, SEC-015, SEC-020, SEC-025, SEC-031, SEC-035, WAL-019, TOP-026, PRC-014, ORD-009, ORD-014, ORD-016, ASG-008, DRV-023, DRV-024, DRV-049, REF-002, REF-024 |
@@ -14721,6 +14797,8 @@ Built from each case's "Spec" line.
 Writing these cases turned up 158 gaps and contradictions in the docs, numbered G01-01 to G17-05 by group. Each one is settled below, one line per gap: what was unclear, then the decision. The doc changes these decisions made are listed in [CHANGELOG.md](CHANGELOG.md), and the cases now test the decisions. A Note that still says "assumed" covers a small detail that none of these questions raised. Where docs and code still disagree, the [README](README.md) precedence rule applies, and the lower doc is fixed in the same pull request.
 
 The simple-UX pass of 2026-10-23 changed some of the screen words these decisions quote; those decisions now quote the current words and say so (CHANGELOG, "Simple UX pass, 2026-10-23").
+
+The owner decision of 2026-10-26 made the delivery cost one amount per order, whatever cylinders it holds; G03-02 and G03-04 now say so, and no decision keeps a per-size amount.
 
 "Settled (a default; the owner may change it)" marks a decision that reads an owner decision as faithfully as it can; the cases test that default until the owner says otherwise. "Settled (the docs already said so)" means no doc had to change.
 
@@ -14753,9 +14831,9 @@ Each question has a default the build uses now. The owner can change it; until t
 ### Customers, zones and delivery prices
 
 - **G03-01.** Non-whole-rupee delivery price: API_CONTRACT §1.1 names AMOUNT_NOT_WHOLE_RUPEES for prices, §7.5 names PRICE_INVALID. **Settled:** As built in shared-validation: every bad delivery price amount (negative, not whole rupees, not an integer, not a number, more than 16 digits, or above the Rs 100,000 maximum of G03-02) is PRICE_INVALID: 400 PRICE_INVALID when the body has no other problem, otherwise 400 VALIDATION_FAILED with that field coded PRICE_INVALID. A missing basePaisa is VALIDATION_FAILED (REQUIRED). AMOUNT_NOT_WHOLE_RUPEES is for top-ups, corrections and expenses only. The promoted-code rule (a body whose field problems all carry the same catalogue code answers with that code, at that code's own HTTP status) is written into §2.2, as the built primaryErrorCode does.
-- **G03-02.** No maximum delivery price is defined (API_CONTRACT §7.5, §2.3 PRICE_INVALID 'Rs 0 or more'), so 'too large' is undefined; values beyond the BigInt range risk a 500. **Settled:** Each delivery price amount (basePaisa and every perCylinderPaisa) is at most Rs 100,000 (10,000,000 paisa), inclusive; above it is PRICE_INVALID. PRICE_INVALID's English becomes "Enter whole rupees, from Rs 0 to Rs 100,000." (no parameters), in ERROR_MESSAGE_EN and VALIDATION_MESSAGE_EN alike. With orders capped at 100 cylinders this keeps every order total at or below Rs 10,100,000, far inside safe integers and the BigInt column, so no amount can cause a 500 (the built paisaSchema already refuses more than 16 digits). The database CHECKs stay >= 0. The §7.5 PUT sentence is the single replacement given under G03-01.
+- **G03-02.** No maximum delivery price is defined (API_CONTRACT §7.5, §2.3 PRICE_INVALID 'Rs 0 or more'), so 'too large' is undefined; values beyond the BigInt range risk a 500. **Settled:** The delivery cost (basePaisa: one amount per order, whatever the cylinders, since the owner decision of 2026-10-26 ended the per-size amounts) is at most Rs 100,000 (10,000,000 paisa), inclusive; above it is PRICE_INVALID. PRICE_INVALID's English becomes "Enter whole rupees, from Rs 0 to Rs 100,000." (no parameters), in ERROR_MESSAGE_EN and VALIDATION_MESSAGE_EN alike. An order's total is that one amount, so it is at most Rs 100,000 too, far inside safe integers and the BigInt column, so no amount can cause a 500 (the built paisaSchema already refuses more than 16 digits). The database CHECKs stay >= 0. The §7.5 PUT sentence is the single replacement given under G03-01.
 - **G03-03.** LocationQuote.serviceable is not defined for a zone that is found but has no price, the PRICING_PRICE_NOT_SET case (API_CONTRACT §7.5). **Settled:** LocationQuote.serviceable = (blockCode === null): true only when an active zone covers the pin and this distributor has a price there. A zone found without a price: { serviceable: false, zone: {id, name}, price: null, blockCode: 'PRICING_PRICE_NOT_SET' }. Outside every active zone: { serviceable: false, zone: null, price: null, blockCode: 'PRICING_ZONE_NOT_COVERED' }.
-- **G03-04.** The response status and body of PUT and DELETE /pricing/prices are not specified (API_CONTRACT §7.5). **Settled:** PUT /pricing/prices/:distributorId/:zoneId answers 200 (first save or edit) with the zone's grid row, the built PriceGridZone: { zone: { id, name, cityName, isActive }, price: { basePaisa, sizes: [{ cylinderTypeId, perCylinderPaisa }] for every active size (missing '0'), updatedAt, updatedBy: { id, name } } }. A PUT whose base, per-size amounts (missing = 0) and note equal the stored price changes nothing, writes no price.set row, and still answers 200 with the row. DELETE /pricing/prices/:distributorId/:zoneId { reason (5–300) } answers 200 with the same row and price: null, auditing price.remove with the old price as before; with no price set it answers 200 with X-Already-Applied: true, price null and no audit row; it works on archived zones too. An unknown distributor or zone: 404 NOT_FOUND; a size that isn't an active cylinder type: 404 NOT_FOUND {field: 'sizes'}; PUT on an archived zone: 409 ZONE_ARCHIVED.
+- **G03-04.** The response status and body of PUT and DELETE /pricing/prices are not specified (API_CONTRACT §7.5). **Settled:** PUT /pricing/prices/:distributorId/:zoneId answers 200 (first save or edit) with the zone's grid row, the built PriceGridZone: { zone: { id, name, cityName, isActive }, price: { basePaisa, updatedAt, updatedBy: { id, name } } } (one amount per order since the owner decision of 2026-10-26; a body that still sends sizes is 400 VALIDATION_FAILED, sizes NOT_ALLOWED). A PUT whose amount and note equal the stored price changes nothing, writes no price.set row, and still answers 200 with the row. DELETE /pricing/prices/:distributorId/:zoneId { reason (5–300) } answers 200 with the same row and price: null, auditing price.remove with the old price as before; with no price set it answers 200 with X-Already-Applied: true, price null and no audit row; it works on archived zones too. An unknown distributor or zone: 404 NOT_FOUND; PUT on an archived zone: 409 ZONE_ARCHIVED.
 - **G03-05.** Customer phone uniqueness under concurrency: the unique index clients(distributor_id, phone) only arrives in inc1b (DATA_MODEL §3.5), so in Inc 1 two parallel POST /clients with the same phone can both pass the service check (API_CONTRACT §7.4 rule 2). **Settled:** POST /clients, and from Inc 2 PATCH /clients/:id when the phone changes, check phone uniqueness twice: once before the zone and price lookup (so the rule order 1-2-3-4 holds for the error a caller sees), and again inside the create transaction after locking the distributor row (SELECT id FROM distributors WHERE id = \$d FOR UPDATE). Two adds of one number at the same moment therefore give one 201 and one 409 CLIENT_PHONE_EXISTS {clientId, name} even in Inc 1, before the inc1b unique index. From inc1b, clients_distributor_id_phone_key is the safety net: the service maps its P2002 to the same 409 with the existing customer's id and name. A retry with the same Idempotency-Key is answered by the key lookup first (G15-01) and never reaches these checks. Adding an address needs no lock.
 - **G03-06.** What the office gets from GET /clients without ?distributorId is not defined (API_CONTRACT §7.4). **Settled:** GET /clients for the office (SUPER_ADMIN) requires ?distributorId=: without it, 400 VALIDATION_FAILED with details.fields [{path: 'distributorId', code: 'REQUIRED'}]; a malformed id is VALIDATION_FAILED (INVALID_ID); an id of no distributor gives 200 []. A distributor always gets its own customers and any distributorId it sends is ignored (the token decides). The response stays a bare array. No office screen lists customers in the pilot, so this only closes today's unfiltered leak.
 - **G03-07.** API_CONTRACT Appendix B has no audit action for creating a customer or adding an address (only client.update, Inc 2), so customer creation is not audited. **Settled:** No audit row for adding a customer or an address, by design: it is the distributor's own data, recorded on the rows themselves (clients.created_at, client_addresses.created_at, distributor_id; a distributor has exactly one user). Customer edits are audited from Inc 2 (client.update). Appendix B says so explicitly.

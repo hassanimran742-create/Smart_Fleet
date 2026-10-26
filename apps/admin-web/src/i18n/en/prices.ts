@@ -3,8 +3,8 @@
  * the admin-web-money lane. Keep `as const` and the export name: i18n/index.ts imports it by name, and
  * `t('prices:…')` is type-checked, so a missing key fails `tsc`.
  *
- * A price is a base per order plus an optional amount per full cylinder by size (ADR-08); a missing
- * price is always said in words ("Not set", "1 missing"), never by colour alone.
+ * A price is ONE delivery cost per order, whatever cylinders the order holds (ADR-08, 2026-10-26); a
+ * missing price is always said in words ("Not set", "1 missing"), never by colour alone.
  */
 export const prices = {
   page: {
@@ -43,10 +43,7 @@ export const prices = {
   grid: {
     caption: "{{distributor}}'s delivery prices by zone",
     zone: 'Zone',
-    base: 'Base per order',
-    perCylinder: 'Per cylinder',
-    /** "11.8 kg Rs 40", joined with " · ". */
-    sizeAmount: '{{size}} {{amount}}',
+    cost: 'Delivery cost per order',
     status: 'Status',
     action: 'Action',
     edit: 'Edit',
@@ -67,23 +64,11 @@ export const prices = {
     subtitleChanged: '{{city}} · changed {{date}} by {{name}}',
     subtitleChangedNoName: '{{city}} · changed {{date}}',
     zoneMissing: "We couldn't find this zone. It may have been removed.",
-    copyFrom: 'Copy from…',
-    /** "North · Rs 250 + per cylinder", "South · Rs 400". */
-    copyOption: '{{zone}} · {{summary}}',
-    copyWithSizes: '{{base}} + per cylinder',
-    base: 'Base per order',
-    baseMissing: 'Type the base per order.',
-    addSizes: 'Add per-cylinder amounts',
-    perCylinderTitle: 'Per cylinder',
-    perCylinderHint: 'Blank means Rs 0.',
-    exampleTitle: 'Example',
-    /** The example, shown once the base is an amount; zero parts are left out. */
-    example: {
-      both: '{{n}} × {{size}}: {{base}} + {{n}} × {{per}} = {{total}}',
-      baseOnly: 'Every order: {{base}}',
-      sizeOnly: '{{n}} × {{size}}: {{n}} × {{per}} = {{total}}',
-    },
-    note: "New orders use this price. Placed orders don't change.",
+    cost: 'Delivery cost per order',
+    costMissing: 'Type the delivery cost.',
+    /** The example, shown once the box holds an amount (Rs 0 included): the same cost for any order. */
+    example: 'Any order → {{cost}}',
+    note: "New orders use this cost. Placed orders don't change.",
     archived: 'This zone is archived. Its price is kept but not used.',
     save: 'Save price',
     saved: 'Price saved for Zone {{zone}}.',

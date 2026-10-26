@@ -73,7 +73,7 @@ describeDb('review robustness: graceful shutdown with a request in flight', () =
     // eslint-disable-next-line no-console
     console.log(`[shutdown] in-flight POST /orders -> ${answer.status} ${answer.code ?? ''}; orders=${orders}; balance=${balance}; close took ${closeMs} ms; listening=${server.listening}`);
 
-    const committed = orders === 1 && balance === 452_000n;
+    const committed = orders === 1 && balance === 475_000n;
     const nothingWritten = orders === 0 && balance === 500_000n;
     expect(committed || nothingWritten).toBe(true);
     // A graceful shutdown lets the request that was already running finish.

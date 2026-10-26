@@ -179,7 +179,7 @@ export async function setupPeople(): Promise<SetupPeople> {
   };
 }
 
-/** X1: Ahmed Gas orders 2 × 11.8 kg + 1 × 45.4 kg for Sana in North (Rs 480). */
+/** X1: Ahmed Gas orders 2 × 11.8 kg + 1 × 45.4 kg for Sana in North (Rs 250). */
 export function x1Body(people: SetupPeople): Record<string, unknown> {
   return {
     clientId: people.C1.id,

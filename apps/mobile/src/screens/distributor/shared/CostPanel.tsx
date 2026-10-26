@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { LocationQuote, PriceView } from '@smartfleet/shared-types';
+import type { LocationQuote } from '@smartfleet/shared-types';
 import { formatRs } from '@smartfleet/shared-utils';
 import type { ApiError } from '../../../api/errors';
 import { qk, STALE_MS } from '../../../api/keys';
 import { useOfficeContact } from '../../../hooks/useAppConfig';
 import { Button, colors, Icon, space, Text, useNoConnection, type IconName } from '../../../ui';
 import { fetchLocationQuote } from './api';
-import { paisaOrZero } from './format';
 
 /** A map pin. */
 export interface Pin {
@@ -77,27 +75,10 @@ export function useCostPanelState(pin: Pin | null): CostPanelState {
 }
 
 /**
- * What sizes add to a price, in one caption (shop spec §M): "+ Rs 40 per 11.8 kg cylinder" for one
- * size, "+ Rs 30 to Rs 150 per cylinder" for several, or null when only the base is charged.
- */
-function perSizeText(price: PriceView, t: TFunction): string | null {
-  const adding = price.sizes.filter((size) => paisaOrZero(size.perCylinderPaisa) > 0);
-  if (adding.length === 0) return null;
-  if (adding.length === 1) {
-    return t('customers.cost.perSize', { amount: formatRs(adding[0].perCylinderPaisa), size: adding[0].sizeLabel });
-  }
-  const amounts = adding.map((size) => paisaOrZero(size.perCylinderPaisa));
-  const min = Math.min(...amounts);
-  const max = Math.max(...amounts);
-  return min === max
-    ? t('customers.cost.perCylinder', { amount: formatRs(min) })
-    : t('customers.cost.perSizeRange', { min: formatRs(min), max: formatRs(max) });
-}
-
-/**
  * The one line under the map (shop spec §M item 5): the hint before a pin, "Checking delivery area…",
- * the cost once priced, or why the spot can't be saved, with its one action. It always says why
- * "Save" is greyed out. `locateError` is the "Use my location" failure, shown in the hint's place.
+ * the cost once priced ("Delivery cost Rs 250": one cost per order, whatever cylinders it holds, ADR-08),
+ * or why the spot can't be saved, with its one action. It always says why "Save" is greyed out.
+ * `locateError` is the "Use my location" failure, shown in the hint's place.
  */
 export function CostLine({ state, locateError }: { state: CostPanelState; locateError?: string | null }) {
   const { t } = useTranslation();
@@ -149,23 +130,15 @@ export function CostLine({ state, locateError }: { state: CostPanelState; locate
           ) : null}
         </View>
       );
-    case 'priced': {
-      const price = state.quote.price!;
-      const extra = perSizeText(price, t);
+    case 'priced':
       return (
         <View style={styles.row} accessibilityLiveRegion="polite">
           <Icon name="ok" size={24} tone="success" />
-          <View style={styles.flex}>
-            <Text variant="bodyStrong">{t('customers.cost.priced', { base: formatRs(price.basePaisa) })}</Text>
-            {extra ? (
-              <Text variant="caption" tone="secondary">
-                {extra}
-              </Text>
-            ) : null}
-          </View>
+          <Text variant="bodyStrong" style={styles.flex}>
+            {t('customers.cost.priced', { cost: formatRs(state.quote.price!.basePaisa) })}
+          </Text>
         </View>
       );
-    }
   }
 }
 

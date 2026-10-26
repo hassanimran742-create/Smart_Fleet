@@ -45,7 +45,7 @@ import { AppError } from '../../../src/common/errors/app-error';
 import { AuditLogService } from '../../../src/modules/audit-log/audit-log.service';
 import { isEditableOverApi, isShipped, RELEASE_INCREMENT, SETTINGS } from '../../../src/modules/settings/registry';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
-import { APP_SEEN_MIGRATION, INC2_SCHEMA, INC3_MIGRATION, INC3_SCHEMA, MIGRATIONS_DIR } from '../../helpers/migrations';
+import { APP_SEEN_MIGRATION, FLAT_COST_MIGRATION, INC2_SCHEMA, INC3_MIGRATION, INC3_SCHEMA, MIGRATIONS_DIR } from '../../helpers/migrations';
 
 const API_DIR = path.resolve(__dirname, '..', '..', '..');
 
@@ -234,18 +234,9 @@ describe('Inc 3 request schemas (shared-validation)', () => {
       { code: 'STD_15KG', name: '15 kg', weightKg: 15 },
       { code: 'STD_45_4KG', name: '45.4 kg', weightKg: 45.4 },
     ],
+    // One delivery cost per order (ADR-08): North Rs 250, South Rs 400; Bilal Gas South Rs 300.
     prices: [
-      {
-        distributor: 'AG',
-        zone: 'North',
-        basePaisa: 25000,
-        sizes: [
-          { cylinderType: 'STD_6KG', perCylinderPaisa: 3000 },
-          { cylinderType: 'STD_11_8KG', perCylinderPaisa: 4000 },
-          { cylinderType: 'STD_15KG', perCylinderPaisa: 8000 },
-          { cylinderType: 'STD_45_4KG', perCylinderPaisa: 15000 },
-        ],
-      },
+      { distributor: 'AG', zone: 'North', basePaisa: 25000 },
       { distributor: 'AG', zone: 'South', basePaisa: '40000' },
       { distributor: 'BG', zone: 'South', basePaisa: 30000 },
     ],
@@ -280,7 +271,12 @@ describe('Inc 3 request schemas (shared-validation)', () => {
     ]);
     expect(file.zones[2].shape.coordinates).toEqual(square(74.3).coordinates);
     expect(file.prices.map((price) => price.basePaisa)).toEqual(['25000', '40000', '30000']);
-    expect(file.prices[1].sizes).toEqual([]);
+    expect(file.prices.map((price) => price.sizes)).toEqual([undefined, undefined, undefined]);
+    // A file written before 2026-10-26 may still list per-size amounts: they parse, and setup ignores them with a note.
+    const older = standardFile();
+    (older.prices[0] as Record<string, unknown>).sizes = [{ cylinderType: 'STD_11_8KG', perCylinderPaisa: 4000 }];
+    const olderParsed = parseRequest(pilotSetupFileSchema, older);
+    expect(olderParsed).toMatchObject({ success: true });
     expect(file.drivers[0].van?.plateNo).toBe('LEA-101');
     expect(file.stock.map((stock) => stock.state)).toEqual(['FULL', 'FULL', 'FULL']);
     expect(file.cylinderTypes[0].capacityUnits).toBe(1);
@@ -508,9 +504,9 @@ describe('the inc3 migration file', () => {
     return run.stdout.replace(/\r\n/g, '\n').trim();
   };
 
-  it('is the last migration of the Increment 3 release (users_app_seen of the follow-ups comes next), UTF-8 without a BOM, with LF line endings', () => {
+  it('is the last migration of the Increment 3 release (users_app_seen and flat_delivery_cost come next), UTF-8 without a BOM, with LF line endings', () => {
     const names = fs.readdirSync(MIGRATIONS_DIR).filter((name) => /^\d{14}_/.test(name)).sort();
-    expect(names.slice(names.indexOf(INC3_MIGRATION))).toEqual([INC3_MIGRATION, APP_SEEN_MIGRATION]);
+    expect(names.slice(names.indexOf(INC3_MIGRATION))).toEqual([INC3_MIGRATION, APP_SEEN_MIGRATION, FLAT_COST_MIGRATION]);
     const bytes = fs.readFileSync(file);
     expect(bytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf]))).toBe(false);
     expect(bytes.includes(Buffer.from('\r\n'))).toBe(false);

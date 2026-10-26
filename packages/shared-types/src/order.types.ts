@@ -168,20 +168,13 @@ export interface OrderLineDto {
   expectedReturnCount: number;
 }
 
-/** One size in the order's own copy of its delivery cost. */
-export interface OrderFeeLineDto {
-  cylinderTypeId: UUID;
-  sizeLabel: string;
-  count: number;
-  perCylinderPaisa: Paisa;
-  subtotalPaisa: Paisa;
-}
-
-/** The cost the order stores at placement (ADR-08). `breakdown` is null for legacy orders. */
+/**
+ * The cost the order stored at placement (ADR-08): one flat delivery cost per order, whatever cylinders it
+ * holds. A price change later never changes it.
+ */
 export interface OrderFeeDto {
   totalPaisa: Paisa;
   status: OrderFeeStatus;
-  breakdown: { basePaisa: Paisa; lines: OrderFeeLineDto[] } | null;
 }
 
 /** What a cancel would do now (API_CONTRACT §5.5 `cancelTerms`). */

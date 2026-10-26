@@ -177,8 +177,8 @@ describe('FND-008 The error catalogue is complete: a status, English text, docum
 
   it('FND-008 every {{param}} has a documented details key, and ERROR_DETAIL_KEYS matches the §2.3 details table', () => {
     expect(
-      errorMessage('WALLET_INSUFFICIENT_BALANCE', { requiredPaisa: '48000', balancePaisa: '47900', shortByPaisa: '100' }),
-    ).toBe('Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue.');
+      errorMessage('WALLET_INSUFFICIENT_BALANCE', { requiredPaisa: '25000', balancePaisa: '24900', shortByPaisa: '100' }),
+    ).toBe('Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue.');
     expect(documentedParams('AUTH_WRONG_APP').has('app')).toBe(true);
     expect(documentedParams('FILE_TOO_LARGE').has('maxMb')).toBe(true);
     const mismatches: string[] = [];

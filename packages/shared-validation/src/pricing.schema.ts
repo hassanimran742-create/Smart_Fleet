@@ -1,35 +1,25 @@
 import { z } from 'zod';
 import { optionalTextSchema, paisaSchema, reasonSchema, uuidSchema } from './common.schema';
 
-/** The largest delivery price amount, base or per size: Rs 100,000 (API_CONTRACT §7.5). */
+/** The largest delivery cost: Rs 100,000 (API_CONTRACT §7.5). */
 export const PRICE_MAX_PAISA = 10_000_000;
 
 /**
- * A delivery price amount: whole rupees from Rs 0 to Rs 100,000 inclusive. Every bad amount (negative,
- * paisa, not a whole number, not a number, too large) is `PRICE_INVALID` (API_CONTRACT §7.5); only a
- * missing one is `REQUIRED`.
+ * A delivery cost: whole rupees from Rs 0 to Rs 100,000 inclusive. Every bad amount (negative, paisa, not
+ * a whole number, not a number, too large) is `PRICE_INVALID` (API_CONTRACT §7.5); only a missing one is
+ * `REQUIRED`.
  */
 export const priceAmountSchema = paisaSchema({ wholeRupees: true, maxPaisa: PRICE_MAX_PAISA, code: 'PRICE_INVALID' });
 
 /**
- * `PUT /pricing/prices/:distributorId/:zoneId` (office). Sizes are optional and a missing size costs 0;
- * each size appears once. The service checks the zone is active (`ZONE_ARCHIVED`).
+ * `PUT /pricing/prices/:distributorId/:zoneId` (office): the delivery cost per order (ADR-08), one flat
+ * amount whatever cylinders the order holds. Per-size amounts are gone (2026-10-26): a body that still
+ * sends `sizes` is refused (`NOT_ALLOWED`), so an old screen can never look as if it saved them. The
+ * service checks the zone is active (`ZONE_ARCHIVED`).
  */
 export const putPriceSchema = z.object({
   basePaisa: priceAmountSchema,
-  sizes: z
-    .array(z.object({ cylinderTypeId: uuidSchema, perCylinderPaisa: priceAmountSchema }))
-    .max(20)
-    .superRefine((sizes, ctx) => {
-      const seen = new Set<string>();
-      sizes.forEach((size, index) => {
-        if (seen.has(size.cylinderTypeId)) {
-          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, 'cylinderTypeId'], message: 'DUPLICATE_ITEM' });
-        }
-        seen.add(size.cylinderTypeId);
-      });
-    })
-    .optional(),
+  sizes: z.never().optional(),
   note: optionalTextSchema(200),
 });
 export type PutPriceInput = z.infer<typeof putPriceSchema>;

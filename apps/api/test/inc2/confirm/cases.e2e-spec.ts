@@ -292,15 +292,15 @@ describeDb('customer problems (cases)', () => {
     const res = await http(app)
       .post(`/api/v1/alerts/${caseId}/resolve`)
       .set(authHeader(std.SA1.actor))
-      .send({ note: 'Refund the customer', refundPaisa: '48000', amountPaisa: '48000' })
+      .send({ note: 'Refund the customer', refundPaisa: '25000', amountPaisa: '25000' })
       .expect(200);
     expect(res.body.status).toBe('RESOLVED');
     expect(JSON.stringify(res.body)).not.toMatch(/Paisa/);
     for (const path of ['refund', 'charge']) {
-      await http(app).post(`/api/v1/alerts/${caseId}/${path}`).set(authHeader(std.SA1.actor)).send({ amountPaisa: '48000' }).expect(404);
+      await http(app).post(`/api/v1/alerts/${caseId}/${path}`).set(authHeader(std.SA1.actor)).send({ amountPaisa: '25000' }).expect(404);
     }
     expect(await moneyOf(std.DA.id)).toEqual(before);
-    expect(before.balancePaisa).toBe(452_000n);
+    expect(before.balancePaisa).toBe(475_000n);
     expect(await auditRows('wallet.correction')).toHaveLength(0);
     expect((await db().order.findUniqueOrThrow({ where: { id: d1.order.id } })).feeStatus).toBe('DEDUCTED');
   });

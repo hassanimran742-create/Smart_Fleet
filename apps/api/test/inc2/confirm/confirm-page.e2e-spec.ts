@@ -504,7 +504,7 @@ describeDb('the confirmation page /c/:token', () => {
         { size: 'kg15', count: 1, expectedReturnCount: 1 },
         { size: 'kg45_4', count: 1, expectedReturnCount: 1 },
       ],
-      feePaisa: 52_000n,
+      feePaisa: 25_000n,
       unlabelled: [
         { size: 'kg11_8', state: 'EMPTY', count: 1 },
         { size: 'kg11_8', state: 'PART_FILLED', count: 1 },

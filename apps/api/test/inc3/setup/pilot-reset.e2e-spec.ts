@@ -258,7 +258,6 @@ describeDb('pilot reset CLI (SET-009 to SET-011)', () => {
       'outbound_messages',
       'stop_cylinders',
       'distributor_zone_prices',
-      'distributor_zone_price_sizes',
     ]) {
       expect({ table, rows: after[table] }).toEqual({ table, rows: 0 });
     }

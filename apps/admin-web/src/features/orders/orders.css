@@ -164,11 +164,6 @@
   list-style: none;
 }
 
-.sf-order__cost {
-  max-inline-size: 360px;
-  margin-block-end: 0;
-}
-
 .sf-order__skeleton {
   display: grid;
   gap: var(--sp-6);

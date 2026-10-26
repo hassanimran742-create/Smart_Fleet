@@ -51,7 +51,7 @@ describeDb('inc2 scan: legacy routes, assignment and trip access', () => {
     expect(tap.status).toBe(200);
     expect(tap.body).toMatchObject({ status: 'DELIVERED', deliveryMethod: 'SCANNED' });
     expect(await w.db.ledgerEntry.count({ where: { orderId: x1.id, entryType: { not: 'DEBIT_ORDER' } } })).toBe(0);
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
 
     // AG-C0011, taken back Empty earlier, is still on LEA-101.
     await w.withCustomer(11, 'C1');
@@ -135,7 +135,7 @@ describeDb('inc2 scan: legacy routes, assignment and trip access', () => {
     const t1 = await w.assign(x1, std.DR1);
     const x2 = await w.placeOrder(X2, 'C2');
     const y1 = await w.placeOrder(Y1, 'C2');
-    expect(await w.balance()).toBe(372_000n);
+    expect(await w.balance()).toBe(395_000n);
 
     const joined = await w.as(std.SA1).post(`/orders/${x2.id}/assign-driver`).send({ driverId: std.DR1.id }).expect(200);
     expect(joined.body).toMatchObject({ tripId: t1.id, appendedToExistingTrip: true });

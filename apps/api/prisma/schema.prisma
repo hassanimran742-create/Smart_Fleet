@@ -559,7 +559,6 @@ model CylinderType {
   orderLines OrderLine[]
   pricingRules PricingRule[]
   fillingOrders FillingOrder[]
-  zonePriceSizes DistributorZonePriceSize[]
   stopCylinders     StopCylinder[]
   unlabelledReturns StopUnlabelledReturn[]
   dayCloseLines     DayCloseLine[]
@@ -729,40 +728,26 @@ model PricingRule {
 }
 
 // The delivery price: one current row per distributor per zone, edited in place
-// (every edit writes a before/after audit row). Cost = base + Σ(per-size amount × full cylinders).
-// Orders keep their own copy of the cost, so there is no foreign key from orders to this table.
+// (every edit writes a before/after audit row). The cost is ONE flat amount per order, whatever
+// cylinders it holds (ADR-08, 2026-10-26). Orders keep their own copy of the cost, so there is no
+// foreign key from orders to this table.
 model DistributorZonePrice {
   id              String   @id @default(uuid()) @db.Uuid
   distributorId   String   @map("distributor_id") @db.Uuid
   zoneId          String   @map("zone_id") @db.Uuid
-  /// Charged once per order.
+  /// The delivery cost, charged once per order.
   basePaisa       BigInt   @map("base_paisa")
   note            String?
   updatedByUserId String?  @map("updated_by_user_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  distributor Distributor                @relation(fields: [distributorId], references: [id])
-  zone        Zone                       @relation(fields: [zoneId], references: [id])
-  sizes       DistributorZonePriceSize[]
+  distributor Distributor @relation(fields: [distributorId], references: [id])
+  zone        Zone        @relation(fields: [zoneId], references: [id])
 
   @@unique([distributorId, zoneId])
   @@index([zoneId])
   @@map("distributor_zone_prices")
-}
-
-// Optional per-size amounts. A size with no row costs 0 per cylinder.
-model DistributorZonePriceSize {
-  id               String @id @default(uuid()) @db.Uuid
-  priceId          String @map("price_id") @db.Uuid
-  cylinderTypeId   String @map("cylinder_type_id") @db.Uuid
-  perCylinderPaisa BigInt @map("per_cylinder_paisa")
-
-  price        DistributorZonePrice @relation(fields: [priceId], references: [id], onDelete: Cascade)
-  cylinderType CylinderType         @relation(fields: [cylinderTypeId], references: [id])
-
-  @@unique([priceId, cylinderTypeId])
-  @@map("distributor_zone_price_sizes")
 }
 
 // ---------- ORDERS / TRIPS ----------
@@ -786,6 +771,7 @@ model Order {
   deliveryFeePaisa     BigInt              @default(0) @map("delivery_fee_paisa")
   feeStatus            OrderFeeStatus      @default(NONE) @map("fee_status")
   feeStrategy          FeeStrategy?        @map("fee_strategy")
+  /// The zone's delivery cost per order when the order was placed (DISTRIBUTOR_ZONE orders).
   feeBasePaisa         BigInt?             @map("fee_base_paisa")
   feeQuotedAt          DateTime?           @map("fee_quoted_at")
   /// {zoneId, zoneName, priceId, priceUpdatedAt}: display only; the amount columns are authoritative.
@@ -843,9 +829,6 @@ model OrderLine {
   cylinderTypeId      String  @map("cylinder_type_id") @db.Uuid
   fullCount           Int     @map("full_count")
   expectedReturnCount Int     @default(0) @map("expected_return_count")
-  /// Copy of the size's amount at placement (0 when the size has no amount).
-  feePerCylinderPaisa BigInt? @map("fee_per_cylinder_paisa")
-  feePaisa            BigInt? @map("fee_paisa")
 
   order        Order        @relation(fields: [orderId], references: [id])
   cylinderType CylinderType @relation(fields: [cylinderTypeId], references: [id])

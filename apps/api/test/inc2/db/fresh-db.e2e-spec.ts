@@ -32,7 +32,7 @@ const ALL_CHECKS = [
   'distributors_code_chk',
   'distributors_counters_chk',
   'dzp_base_chk',
-  'dzps_amount_chk',
+  // (dzps_amount_chk went with the per-size price rows: flat_delivery_cost, 2026-10-26.)
   'expense_types_name_chk',
   'expenses_amount_chk',
   'expenses_void_chk',

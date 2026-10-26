@@ -82,11 +82,8 @@ export const customers = {
   /** The one line under the map (S8): `GET /pricing/quote?lat&lng`. */
   cost: {
     checking: 'Checking delivery area…',
-    priced: 'Delivery cost {{base}} per order',
-    perSize: '+ {{amount}} per {{size}} cylinder',
-    /** Several sizes that all add the same amount. */
-    perCylinder: '+ {{amount}} per cylinder',
-    perSizeRange: '+ {{min}} to {{max}} per cylinder',
+    /** One cost per order, whatever cylinders it holds (ADR-08). */
+    priced: 'Delivery cost {{cost}}',
     outside: 'Outside our delivery area. Move the pin.',
     priceNotSet: 'No delivery price here yet.',
     error: "Couldn't check this spot.",

@@ -67,11 +67,11 @@ describeDb('foundation: installed apps, health and status codes', () => {
         ],
       })
       .expect(201);
-    expect(placed.body).toMatchObject({ fee: { totalPaisa: '48000' }, deliveryFeePaisa: '48000', paymentStatus: 'PAID_VIA_LEDGER' });
+    expect(placed.body).toMatchObject({ fee: { totalPaisa: '25000' }, deliveryFeePaisa: '25000', paymentStatus: 'PAID_VIA_LEDGER' });
     const debits = await db().ledgerEntry.findMany({ where: { orderId: placed.body.id, entryType: 'DEBIT_ORDER' } });
-    expect(debits.map((row) => row.amountPaisa)).toEqual([-48_000n]);
+    expect(debits.map((row) => row.amountPaisa)).toEqual([-25_000n]);
     // Step 2.
-    expect((await http().get('/api/v1/ledger/balance').set(shop).expect(200)).body).toEqual({ balancePaisa: '452000', pendingTopupPaisa: '0' });
+    expect((await http().get('/api/v1/ledger/balance').set(shop).expect(200)).body).toEqual({ balancePaisa: '475000', pendingTopupPaisa: '0' });
     for (const url of ['/api/v1/ledger/me', '/api/v1/orders', '/api/v1/payments/mine', '/api/v1/clients', '/api/v1/filling-orders/mine']) {
       const res = await http().get(url).set(shop).expect(200);
       expect({ url, array: Array.isArray(res.body) }).toEqual({ url, array: true });

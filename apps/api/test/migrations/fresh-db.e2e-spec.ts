@@ -68,9 +68,9 @@ describeDb('migrations: a fresh database', () => {
     const extensions = await db.$queryRaw<Array<{ extname: string }>>`SELECT extname FROM pg_extension ORDER BY extname`;
     expect(extensions.map((row) => row.extname)).toEqual(expect.arrayContaining(['pgcrypto', 'postgis', 'uuid-ossp']));
     const tables = await db.$queryRaw<Array<{ tablename: string }>>`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`;
-    expect(tables.map((row) => row.tablename)).toEqual(
-      expect.arrayContaining(['distributor_zone_prices', 'distributor_zone_price_sizes', 'app_settings', 'stored_files', 'expense_types']),
-    );
+    expect(tables.map((row) => row.tablename)).toEqual(expect.arrayContaining(['distributor_zone_prices', 'app_settings', 'stored_files', 'expense_types']));
+    // flat_delivery_cost dropped inc1a's per-size price rows: one delivery cost per order (ADR-08).
+    expect(tables.map((row) => row.tablename)).not.toContain('distributor_zone_price_sizes');
     const types = await db.$queryRaw<Array<{ code: string; name: string; is_system: boolean; sort_order: number }>>`
       SELECT code, name, is_system, sort_order FROM expense_types WHERE archived_at IS NULL ORDER BY sort_order`;
     expect(types).toEqual(SEEDED_EXPENSE_TYPES.map(({ code, name, isSystem, sortOrder }) => ({ code, name, is_system: isSystem, sort_order: sortOrder })));
@@ -88,7 +88,6 @@ describeDb('migrations: a fresh database', () => {
         'distributors_code_chk',
         'distributors_counters_chk',
         'dzp_base_chk',
-        'dzps_amount_chk',
         'expense_types_name_chk',
         'expenses_amount_chk',
         'expenses_void_chk',
@@ -98,6 +97,8 @@ describeDb('migrations: a fresh database', () => {
         'stored_files_size_chk',
       ]),
     );
+    // dzps_amount_chk went with the per-size price rows (flat_delivery_cost).
+    expect(checks.map((row) => row.conname)).not.toContain('dzps_amount_chk');
 
     // Step 5: the API runs on it.
     const previous = process.env.DATABASE_URL;

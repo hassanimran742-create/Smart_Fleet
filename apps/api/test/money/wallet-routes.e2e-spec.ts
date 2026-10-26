@@ -85,7 +85,7 @@ describeDb('money: wallet routes', () => {
       app.get(WalletService).debit(tx, {
         distributorId: std.DA.id,
         subject: { type: 'ORDER', orderId: order.id },
-        amountPaisa: 48_000n,
+        amountPaisa: 25_000n,
         actor: userActor(std.DA.actor),
       }),
     );
@@ -195,8 +195,8 @@ describeDb('money: wallet routes', () => {
     const items = all.body.items as Array<Record<string, unknown>>;
     expect(items.map((i) => [i.kind, i.amountPaisa, i.balanceAfterPaisa, i.reasonCode])).toEqual([
       ['CORRECTION', '-10000', '690000', 'SYSTEM_ERROR'],
-      ['DELIVERY_COST_RETURNED', '48000', '700000', null],
-      ['DELIVERY_COST', '-48000', '652000', null],
+      ['DELIVERY_COST_RETURNED', '25000', '700000', null],
+      ['DELIVERY_COST', '-25000', '675000', null],
       ['TOPUP_ADDED', '200000', '700000', null],
       ['LEGACY', '-5000', '500000', null],
       ['OPENING_BALANCE', '505000', '505000', 'OPENING_BALANCE'],
@@ -378,7 +378,7 @@ describeDb('money: wallet routes', () => {
     expectPaisaStrings((await http().get('/api/v1/wallet').set(shop()).expect(200)).body, ['capPaisa']);
     const statement = await http().get('/api/v1/wallet/statement').set(shop()).expect(200);
     expectPaisaStrings(statement.body);
-    expect((statement.body.items as Array<{ amountPaisa: string }>)[0].amountPaisa).toBe('-48000');
+    expect((statement.body.items as Array<{ amountPaisa: string }>)[0].amountPaisa).toBe('-25000');
     // Step 2.
     const asNumber = await topupRequest(200000, key('a', 1)).expect(201);
     const asString = await topupRequest('300000', key('a', 2)).expect(201);
@@ -398,7 +398,7 @@ describeDb('money: wallet routes', () => {
     }
     expect(await db().payment.count({ where: { distributorId: std.DA.id } })).toBe(2);
     // Step 4.
-    expect((await http().get('/api/v1/ledger/balance').set(shop()).expect(200)).body).toEqual({ balancePaisa: '452000', pendingTopupPaisa: '500000' });
+    expect((await http().get('/api/v1/ledger/balance').set(shop()).expect(200)).body).toEqual({ balancePaisa: '475000', pendingTopupPaisa: '500000' });
     const mine = await http().get('/api/v1/ledger/me').set(shop()).expect(200);
     expect(Array.isArray(mine.body)).toBe(true);
     expect(mine.body.length).toBeLessThanOrEqual(100);
@@ -417,24 +417,24 @@ describeDb('money: wallet routes', () => {
     expectPaisaStrings((await http().post('/api/v1/orders/quote').set(shop()).send(x1OrderBody(std)).expect(200)).body);
   });
 
-  it('FEE-001 placing X1 deducts Rs 480 and the wallet history shows it as the newest delivery cost', async () => {
+  it('FEE-001 placing X1 deducts Rs 250 and the wallet history shows it as the newest delivery cost', async () => {
     const placed = await http()
       .post('/api/v1/orders')
       .set(shop())
       .set('Idempotency-Key', key('c', 1))
-      .send({ ...x1OrderBody(std), quotedTotalPaisa: '48000' })
+      .send({ ...x1OrderBody(std), quotedTotalPaisa: '25000' })
       .expect(201);
-    expect((await http().get('/api/v1/wallet').set(shop()).expect(200)).body.balancePaisa).toBe('452000');
+    expect((await http().get('/api/v1/wallet').set(shop()).expect(200)).body.balancePaisa).toBe('475000');
     const statement = await http().get('/api/v1/wallet/statement').set(shop()).expect(200);
     expect(statement.body.items[0]).toMatchObject({
       kind: 'DELIVERY_COST',
-      amountPaisa: '-48000',
-      balanceAfterPaisa: '452000',
+      amountPaisa: '-25000',
+      balanceAfterPaisa: '475000',
       subject: { type: 'ORDER', id: placed.body.id, clientName: 'Sana' },
     });
     const debits = await db().ledgerEntry.findMany({ where: { orderId: placed.body.id } });
     expect(debits.map((row) => [row.entryType, row.amountPaisa, row.idempotencyKey])).toEqual([
-      ['DEBIT_ORDER', -48_000n, `order:${placed.body.id}:debit`],
+      ['DEBIT_ORDER', -25_000n, `order:${placed.body.id}:debit`],
     ]);
     expect(await walletMismatches()).toEqual([]);
   });

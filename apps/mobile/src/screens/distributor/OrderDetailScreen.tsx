@@ -34,7 +34,7 @@ import {
 import { useCustomerAnswer } from './confirm/CustomerAnswer';
 import { cancelOrder, fetchOrder, fetchOrderTracking, type OrderTrackingDto } from './shared/api';
 import { CallButton } from './shared/CallButton';
-import { costParts, feeText, isPositivePaisa, orderCost, paisaOrZero, phoneText } from './shared/format';
+import { feeText, isPositivePaisa, paisaOrZero, phoneText } from './shared/format';
 import { shopKeys } from './shared/keys';
 import { useShopNavigation, useShopRoute } from './shared/navigation';
 import { usePullRefresh } from './shared/refresh';
@@ -316,8 +316,6 @@ function FactsCard({ order, visit }: { order: OrderDto; visit: VisitSummary | nu
   const charged = order.fee.status !== 'NONE' && isPositivePaisa(order.fee.totalPaisa);
   const cancelled = order.stage === 'CANCELLED';
   const delivered = order.stage === 'DELIVERED';
-  const cost = orderCost(order);
-  const parts = charged && !cancelled && cost ? costParts(cost, t) : null;
   const kept = cancelled && order.fee.status === 'DEDUCTED' && charged;
 
   return (
@@ -377,11 +375,6 @@ function FactsCard({ order, visit }: { order: OrderDto; visit: VisitSummary | nu
             <StatusChip kind="fee" value={order.fee.status} amountPaisa={order.fee.totalPaisa} />
           </View>
         )}
-        {parts ? (
-          <Text variant="caption" tone="secondary">
-            {parts}
-          </Text>
-        ) : null}
         {kept ? (
           <Text variant="caption" tone="secondary">
             {t('orders.detail.noRefund')}

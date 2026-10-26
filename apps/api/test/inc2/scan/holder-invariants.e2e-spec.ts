@@ -275,7 +275,7 @@ describeDb('inc2 scan: holder rules', () => {
       { size: '45.4', full: 1 },
     ]);
     const y1 = await w.placeOrder(Y1, 'C2');
-    expect(await w.balance()).toBe(412_000n);
+    expect(await w.balance()).toBe(435_000n);
     const t1 = await w.assign(x1, std.DR1);
     await w.assign(y1, std.DR1);
     await w.load(std.DR1, t1, [1, 2, 3, 31]);

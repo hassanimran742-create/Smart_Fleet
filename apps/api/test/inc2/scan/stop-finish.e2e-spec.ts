@@ -67,10 +67,10 @@ describeDb('inc2 scan: finish a visit', () => {
     expect(again.body.order.deliveredAt).toBe(res.body.order.deliveredAt);
 
     const wallet = await w.as(std.SA1).get(`/admin/distributors/${std.DA.id}/wallet`).expect(200);
-    expect(wallet.body.balancePaisa).toBe('452000');
+    expect(wallet.body.balancePaisa).toBe('475000');
     expect(wallet.body.integrity.ok).toBe(true);
     const ledger = await w.db.ledgerEntry.findMany({ where: { orderId: x1.id } });
-    expect(ledger.map((row) => [row.entryType, row.amountPaisa])).toEqual([['DEBIT_ORDER', -48_000n]]);
+    expect(ledger.map((row) => [row.entryType, row.amountPaisa])).toEqual([['DEBIT_ORDER', -25_000n]]);
     expect(await w.db.deliveryConfirmation.count({ where: { orderId: x1.id } })).toBe(0);
   });
 
@@ -82,7 +82,7 @@ describeDb('inc2 scan: finish a visit', () => {
       { size: '11.8', full: 2, back: 2 },
       { size: '45.4', full: 1, back: 1 },
     ]);
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     const t1 = await w.assign(x1, std.DR1);
     await w.load(std.DR1, t1, [1, 2, 31]);
     await w.doneLoading(std.DR1, t1);
@@ -111,7 +111,7 @@ describeDb('inc2 scan: finish a visit', () => {
     expect(late.body).toMatchObject({ code: 'SCAN_STOP_CLOSED', message: messageOf('SCAN_STOP_CLOSED') });
     expect(late.body.details.currentStatus).toBe('DONE');
     expect(await w.holder(12)).toMatchObject({ custodyType: 'CLIENT', custodyId: std.C1.id });
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     await w.walletClean();
   });
 
@@ -122,7 +122,7 @@ describeDb('inc2 scan: finish a visit', () => {
       { size: '11.8', full: 2, back: 2 },
       { size: '45.4', full: 1, back: 1 },
     ]);
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     const t = await w.assign(x1, std.DR1);
 
     const load = await scans.tripScan(std.DR1, t.id, { stopId: t.pickupStopId, action: 'LOAD', code: w.ag(5).qrCode, entryMethod: 'QR' });
@@ -145,7 +145,7 @@ describeDb('inc2 scan: finish a visit', () => {
     const done = await w.finishVisit(std.DR1, t, x1, { takeBackShort: { reasonCode: 'CUSTOMER_KEPT' } });
     expect(done.status).toBe(200);
     expect(done.body.order).toMatchObject({ status: 'DELIVERED', deliveryMethod: 'SCANNED', fee: { status: 'DEDUCTED' } });
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     const ledger = await w.db.ledgerEntry.findMany({ where: { orderId: x1.id } });
     expect(ledger.map((row) => row.entryType)).toEqual(['DEBIT_ORDER']);
     expect((await w.db.order.findUniqueOrThrow({ where: { id: x1.id } })).feeStatus).toBe('DEDUCTED');

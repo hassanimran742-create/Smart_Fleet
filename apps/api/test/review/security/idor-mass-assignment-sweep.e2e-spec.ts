@@ -182,7 +182,7 @@ describeDb('review security: IDOR and mass-assignment sweep', () => {
       .set('Idempotency-Key', KEY(20))
       .expect(201);
     const row = await db().order.findUniqueOrThrow({ where: { id: order.body.id } });
-    expect(row).toMatchObject({ distributorId: std.DA.id, deliveryFeePaisa: 48000n, feeStatus: 'DEDUCTED', status: 'PENDING', originStoreId: std.DA.homeStoreId, tripId: null });
+    expect(row).toMatchObject({ distributorId: std.DA.id, deliveryFeePaisa: 25000n, feeStatus: 'DEDUCTED', status: 'PENDING', originStoreId: std.DA.homeStoreId, tripId: null });
     // A customer "of DB".
     const client = await send(shop, ['post', '/clients', { name: 'Zara', phone: '0333 5556667', distributorId: std.DB.id, userId: std.DB.userId }])
       .set('Idempotency-Key', KEY(21))

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { getRouteApi, useParams } from '@tanstack/react-router';
 import { CircleCheck } from 'lucide-react';
-import type { PriceGridDto, PriceGridSize, PriceGridZone } from '@smartfleet/shared-types';
+import type { PriceGridDto, PriceGridZone } from '@smartfleet/shared-types';
 import { useTranslation } from 'react-i18next';
 import type { PricesSearch } from '../../app/search';
 import {
@@ -24,7 +24,6 @@ import {
 } from '../../ui';
 import { PRICES_FLASH, useDistributorDirectory, usePriceGrid } from './api';
 import { DistributorSwitcher, switcherOptions } from './DistributorSwitcher';
-import { sizeAmounts } from './example';
 import './prices.css';
 
 const route = getRouteApi('/prices/$distributorId');
@@ -34,7 +33,7 @@ type ZoneFilter = 'all' | 'missing';
 /**
  * Delivery prices (`/prices/$distributorId?missing&archived`, website spec W15): the distributor chips
  * with their missing count, one red line when a zone has no price, the All zones / Missing chips, and a
- * 5-column grid (zone, base per order, per cylinder, status, a button). A row opens the price drawer.
+ * 4-column grid (zone, delivery cost per order, status, a button). A row opens the price drawer.
  */
 export function PricesPage() {
   const { t } = useTranslation(['prices', 'common']);
@@ -68,7 +67,7 @@ export function PricesPage() {
   );
 
   const rows = useMemo(() => visibleRows(data, search), [data, search]);
-  const columns = usePriceColumns(data?.sizes, open);
+  const columns = usePriceColumns(open);
   const missing = data ? Math.max(0, data.coverage.total - data.coverage.priced) : 0;
   const hasArchived = Boolean(data?.zones.some((row) => !row.zone.isActive));
   const zoneFilter: ZoneFilter = search.missing ? 'missing' : 'all';
@@ -177,7 +176,7 @@ function visibleRows(data: PriceGridDto | undefined, search: PricesSearch): Pric
   });
 }
 
-function usePriceColumns(sizes: readonly PriceGridSize[] | undefined, open: (row: PriceGridZone) => void): TableColumn<PriceGridZone>[] {
+function usePriceColumns(open: (row: PriceGridZone) => void): TableColumn<PriceGridZone>[] {
   const { t } = useTranslation('prices');
   return useMemo<TableColumn<PriceGridZone>[]>(() => {
     const none = <span className="sf-prices__muted">{t('grid.none')}</span>;
@@ -195,29 +194,10 @@ function usePriceColumns(sizes: readonly PriceGridSize[] | undefined, open: (row
         ),
       },
       {
-        id: 'base',
-        header: t('grid.base'),
+        id: 'cost',
+        header: t('grid.cost'),
         align: 'end',
         cell: (row) => (row.price ? <MoneyText paisa={row.price.basePaisa} /> : none),
-      },
-      {
-        id: 'perCylinder',
-        header: t('grid.perCylinder'),
-        cell: (row) => {
-          const parts = sizeAmounts(row.price, sizes ?? []);
-          if (parts.length === 0) return none;
-          // "11.8 kg Rs 40 · 45.4 kg Rs 150": each size with its amount stays on one line.
-          return (
-            <span className="sf-prices__sizes-cell">
-              {parts.map((part, index) => (
-                <span key={part} className="sf-prices__size-amount">
-                  {index > 0 ? <span aria-hidden>· </span> : null}
-                  {part}
-                </span>
-              ))}
-            </span>
-          );
-        },
       },
       {
         id: 'status',
@@ -238,5 +218,5 @@ function usePriceColumns(sizes: readonly PriceGridSize[] | undefined, open: (row
           ) : null,
       },
     ];
-  }, [open, sizes, t]);
+  }, [open, t]);
 }

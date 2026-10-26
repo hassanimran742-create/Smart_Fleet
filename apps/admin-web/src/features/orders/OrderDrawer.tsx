@@ -19,7 +19,6 @@ import {
   ErrorState,
   FeeChip,
   InlineAlert,
-  KeyValueList,
   Skeleton,
   SkeletonText,
   StaleBanner,
@@ -32,7 +31,7 @@ import { AssignDriverDialog } from './AssignDriverDialog';
 import { CancelOrderDialog } from './CancelOrderDialog';
 import { CustomerAnswerSection, useAnswerOf } from './CustomerAnswer';
 import { FailOrderDialog } from './FailOrderDialog';
-import { costBreakdown, drawerSubtitle, driverText, FINISHED_STAGES, outcomeReason } from './format';
+import { drawerSubtitle, driverText, FINISHED_STAGES, outcomeReason } from './format';
 import { ManualDeliveryDialog } from './ManualDeliveryDialog';
 import { OrderScans } from './OrderScans';
 import { OrderStageChip } from './OrderStageChip';
@@ -183,7 +182,6 @@ function OrderBody({ order, history }: { order: OrderDto; history: readonly Audi
   const { t } = useTranslation('orders');
   const timeline = useMemo(() => orderTimeline(order, history), [order, history]);
   const driver = driverText(order);
-  const cost = costBreakdown(order);
   // Inc 2: the trip's scans (loaded, delivered, taken back) and the customer's answer while it is on.
   const trip = useOrderTrip(order.id, order.trip?.id ?? null, !FINISHED_STAGES.includes(order.stage));
   const answer = useAnswerOf(order);
@@ -225,15 +223,11 @@ function OrderBody({ order, history }: { order: OrderDto; history: readonly Audi
 
       <CustomerAnswerSection order={order} answer={answer} />
 
+      {/* One flat delivery cost per order (ADR-08): the chip says the amount and whether it was paid or returned. */}
       <Section title={t('drawer.sections.cost')}>
         <div className="sf-order__line">
           <FeeChip amountPaisa={order.fee.totalPaisa} status={order.fee.status} />
         </div>
-        {cost.kind === 'rows' ? (
-          <KeyValueList compact className="sf-order__cost" items={cost.rows.map((row) => ({ id: row.id, label: row.label, value: row.value }))} />
-        ) : (
-          <p className="sf-orders__muted">{cost.kind === 'legacy' ? t('drawer.costLegacy') : t('drawer.costNone')}</p>
-        )}
       </Section>
 
       <Section title={t('drawer.sections.driver')}>

@@ -17,6 +17,7 @@ import { describeDb } from '../../helpers/describe-db';
 import { http } from '../../helpers/http';
 import {
   APP_SEEN_MIGRATION,
+  FLAT_COST_MIGRATION,
   appliedMigrations,
   createScratchDb,
   deployRelease,
@@ -290,11 +291,20 @@ describeDb('inc3 release on today-shaped Increment 2 data', () => {
   });
 
   it('the API runs once the database has gone on through the current release: day-end is on, refills and Inc 2 reads still work', async () => {
-    // Today's code reads the follow-ups' users columns (users_app_seen), so it runs only after that migration,
-    // as every deploy migrates before it starts the new code (DATA_MODEL §2.5).
+    // Today's code reads the follow-ups' users columns (users_app_seen) and no longer the per-size prices
+    // (flat_delivery_cost), so it runs only after those migrations, as every deploy migrates before it
+    // starts the new code (DATA_MODEL §2.5).
     const upgraded = runMigrateSh(makeRelease('current'), today.url);
     expect({ code: upgraded.code, output: upgraded.code === 0 ? '' : upgraded.output }).toEqual({ code: 0, output: '' });
-    expect(await appliedMigrations(today.client())).toEqual(['0_baseline', INC1A_MIGRATION, INC1B_MIGRATION, INC2_MIGRATION, INC3_MIGRATION, APP_SEEN_MIGRATION]);
+    expect(await appliedMigrations(today.client())).toEqual([
+      '0_baseline',
+      INC1A_MIGRATION,
+      INC1B_MIGRATION,
+      INC2_MIGRATION,
+      INC3_MIGRATION,
+      APP_SEEN_MIGRATION,
+      FLAT_COST_MIGRATION,
+    ]);
     const previous = process.env.DATABASE_URL;
     process.env.DATABASE_URL = today.url;
     let app: INestApplication | undefined;

@@ -20,21 +20,14 @@ export type PricingBlockCode = 'PRICING_ZONE_NOT_COVERED' | 'PRICING_PRICE_NOT_S
 /** Whether a customer address can be priced: SET, NOT_SET (zone without a price) or OUTSIDE every zone. */
 export type PriceStatus = 'SET' | 'NOT_SET' | 'OUTSIDE';
 
-export interface PriceSizeView {
-  cylinderTypeId: UUID;
-  sizeLabel: string;
-  /** "0" when the size has no amount. */
-  perCylinderPaisa: Paisa;
-}
-
 /**
- * A distributor's delivery price in one zone (ADR-08): a base per order plus an optional amount per
- * full cylinder by size. `sizes` lists every active size; a missing amount is "0".
+ * A distributor's delivery cost in one zone (ADR-08): ONE flat amount per order, whatever cylinders the
+ * order holds. `basePaisa` is that cost (the name is kept from the earlier base-plus-sizes price).
  */
 export interface PriceView {
   zone: IdName;
+  /** The delivery cost per order. */
   basePaisa: Paisa;
-  sizes: PriceSizeView[];
   updatedAt: IsoDateTime;
 }
 
@@ -47,32 +40,20 @@ export interface LocationQuote {
   blockCode: PricingBlockCode | null;
 }
 
-export interface DeliveryQuoteLine {
-  cylinderTypeId: UUID;
-  sizeLabel: string;
-  count: number;
-  perCylinderPaisa: Paisa;
-  subtotalPaisa: Paisa;
-}
-
-/** The cost of one order: `totalPaisa = basePaisa + Σ subtotalPaisa`, with the base charged once. */
+/**
+ * The cost of one order: the zone's flat delivery cost, charged once per order. `basePaisa` and
+ * `totalPaisa` are the same amount; both are kept for the apps that read either.
+ */
 export interface DeliveryQuote {
   strategy: FeeStrategy;
   zone: IdName;
   basePaisa: Paisa;
-  lines: DeliveryQuoteLine[];
   totalPaisa: Paisa;
 }
 
-export interface PriceGridSize {
-  cylinderTypeId: UUID;
-  code: string;
-  label: string;
-}
-
 export interface PriceGridPrice {
+  /** The delivery cost per order. */
   basePaisa: Paisa;
-  sizes: { cylinderTypeId: UUID; perCylinderPaisa: Paisa }[];
   updatedAt: IsoDateTime;
   updatedBy: IdName | null;
 }
@@ -92,7 +73,6 @@ export interface PriceGridDto {
     /** Null only while the distributor's store is not set up. */
     store: { id: UUID; name: string; zone: IdName } | null;
   };
-  sizes: PriceGridSize[];
   zones: PriceGridZone[];
   coverage: { priced: number; total: number };
 }

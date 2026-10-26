@@ -1,8 +1,9 @@
 /**
  * MIG-020: users_app_seen (DATA_MODEL §5.6) on today's data. A database at the Increment 3 release, loaded with
  * Increment 2-shaped rows (inc3/db/fixtures/inc2-today.sql, then migrate.sh with inc3), goes on through
- * migrate.sh with the current release: three nullable `users` columns and two CHECKs, no pre-check, no
- * backfill. Proves that it applies with no drift from schema.prisma, that every row of every table is as it
+ * migrate.sh with the follow-ups' release (`appseen`): three nullable `users` columns and two CHECKs, no
+ * pre-check, no backfill. Proves that it applies with no drift from the schema it shipped with
+ * (fixtures/schema.appseen.prisma; flat_delivery_cost comes after it), that every row of every table is as it
  * was (users' old columns included, the new ones NULL), that no money moved, and that the CHECKs hold the
  * columns to what AppSeenService writes. The file's own shape is checked in users-app-seen-contracts.spec.ts.
  */
@@ -10,6 +11,7 @@ import * as path from 'path';
 import { describeDb } from '../helpers/describe-db';
 import {
   APP_SEEN_MIGRATION,
+  APP_SEEN_SCHEMA,
   appliedMigrations,
   createScratchDb,
   deployRelease,
@@ -71,7 +73,7 @@ describeDb('MIG-020 users_app_seen on an Increment 3 database', () => {
     const digests: Record<string, { rows: number; md5: string }> = {};
     for (const table of tables) digests[table] = await tableDigest(db, table);
     before = { tables, digests, users: (await oldUserColumns(db)).map((r) => r.row) };
-    run = runMigrateSh(makeRelease('current'), today.url);
+    run = runMigrateSh(makeRelease('appseen'), today.url);
   }, 600_000);
 
   afterAll(async () => {
@@ -80,11 +82,11 @@ describeDb('MIG-020 users_app_seen on an Increment 3 database', () => {
     removeScratchRoot();
   });
 
-  it('MIG-020 migrate.sh applies users_app_seen after inc3_refills_dayend, with no drift from schema.prisma', async () => {
+  it('MIG-020 migrate.sh applies users_app_seen after inc3_refills_dayend, with no drift from the schema it shipped with', async () => {
     expect({ code: run.code, output: run.code === 0 ? '' : run.output }).toEqual({ code: 0, output: '' });
     expect(run.output).toContain(APP_SEEN_MIGRATION);
     expect(await appliedMigrations(today.client())).toEqual(['0_baseline', INC1A_MIGRATION, INC1B_MIGRATION, INC2_MIGRATION, INC3_MIGRATION, APP_SEEN_MIGRATION]);
-    const live = prisma(['migrate', 'diff', '--from-url', today.url, '--to-schema-datamodel', 'prisma/schema.prisma', '--exit-code'], today.url);
+    const live = prisma(['migrate', 'diff', '--from-url', today.url, '--to-schema-datamodel', APP_SEEN_SCHEMA, '--exit-code'], today.url);
     expect({ code: live.code, output: live.code === 0 ? '' : live.output }).toEqual({ code: 0, output: '' });
   });
 

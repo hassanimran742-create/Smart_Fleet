@@ -70,7 +70,7 @@ describeDb('inc2 scan: the office names the cylinders of a manual delivery', () 
     expect(again.headers['x-already-applied']).toBe('true');
     expect(await w.db.cylinderEvent.count({ where: { orderId: x1.id, source: 'MANUAL' } })).toBe(4);
 
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     expect(await w.db.ledgerEntry.count({ where: { orderId: x1.id } })).toBe(1);
     const audit = await w.db.auditLog.findMany({ where: { action: 'order.manual_delivery', resourceId: x1.id } });
     expect(audit).toHaveLength(1);

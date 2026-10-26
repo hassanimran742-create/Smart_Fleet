@@ -74,13 +74,15 @@ Setting keys are defined once in API_CONTRACT §6. Sources: the owner decisions 
   The other values are `DRIVER_ASSIGNED` and `LEFT_STORE`. API_CONTRACT §5.5 has the one function that decides it. The rule is read when a cancel is decided and isn't stored on the order: changing the setting applies at once to every order that hasn't started yet, including orders already placed. Default.
 - `FAILED` is allowed only after the start. Before the start, the order must be cancelled instead (`ORDER_NOT_STARTED_USE_CANCEL`).
 
-### ADR-08 · Delivery price per distributor per zone · Decided (shape); per-size part · Default
+### ADR-08 · Delivery price per distributor per zone: one flat cost per order · Decided
 - The customer's zone, found from their address pin, picks the distributor's price.
-- **Cost = base per order + Σ (per-size amount × full cylinders).**
-- Per-size amounts are optional and **default to 0**, so the owner can run a flat cost or a cost by size with no code change. Whether "no cylinder pricing" also removes the per-size part is open (see the open questions).
+- **The delivery cost is ONE flat amount per order**, set per distributor per zone, whatever cylinders the order holds. The owner (2026-10-26): "We are managing deliveries not cylinder pricing. Only delivery costs."
+  - There are no per-size amounts anywhere: not on the server, not in the data, not on any screen. This replaces the earlier "base per order plus an amount per cylinder size" (2026-10-21).
+  - X1 (2 × 11.8 kg + 1 × 45.4 kg for Sana in North) costs Rs 250, like any other order there.
 - **No price row for this distributor in this zone → blocked** with `PRICING_PRICE_NOT_SET`: when adding the customer's address, at quote time, and when placing the order. A pin outside every active zone is blocked with `PRICING_ZONE_NOT_COVERED`.
 - There is one current price row per distributor and zone, edited in place with a before/after audit row.
-- Each order **stores its own copy of the cost** (total, base and per-line amounts). A price change never touches orders already placed.
+- Each order **stores its own copy of the cost**. A price change never touches orders already placed.
+- The cost is quoted when a customer is added and when an order is reviewed, deducted when the order is placed, and refunded only on a cancel before delivery has started (ADR-06, ADR-07).
 - Pricing goes through a `DeliveryFeeStrategy` interface. `DISTRIBUTOR_ZONE` is the pilot strategy, and "zones crossed" can be added later without changing the orders table.
 
 ### ADR-09 · Manual bank top-ups, approved once against the bank app · Decided

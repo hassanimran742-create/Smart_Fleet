@@ -50,17 +50,10 @@ describeDb('api-orders: orders', () => {
     const body = { ...x1OrderBody(std), deliveryLabel: 'House 14, Street 5' };
     // Step 1.
     const quote = await f.as(std.DA).post('/orders/quote').send(body).expect(200);
-    expect(quote.body.quote).toMatchObject({
-      zone: { name: 'North' },
-      basePaisa: '25000',
-      totalPaisa: '48000',
-      lines: [
-        { sizeLabel: '11.8 kg', count: 2, perCylinderPaisa: '4000', subtotalPaisa: '8000' },
-        { sizeLabel: '45.4 kg', count: 1, perCylinderPaisa: '15000', subtotalPaisa: '15000' },
-      ],
-    });
+    // One cost per order, whatever cylinders it holds (ADR-08).
+    expect(quote.body.quote).toEqual({ strategy: 'DISTRIBUTOR_ZONE', zone: { id: std.zones.North.id, name: 'North' }, basePaisa: '25000', totalPaisa: '25000' });
     // Step 2.
-    const placed = await f.as(std.DA).post('/orders').set('Idempotency-Key', newKey()).send({ ...body, quotedTotalPaisa: '48000' }).expect(201);
+    const placed = await f.as(std.DA).post('/orders').set('Idempotency-Key', newKey()).send({ ...body, quotedTotalPaisa: '25000' }).expect(201);
     const order = placed.body as OrderBody;
     expect(order).toMatchObject({ status: 'PENDING', stage: 'NEEDS_DRIVER', trip: null, assignedAt: null });
     expect(order.shortCode).toBe(`AG-${String(order.orderNo).padStart(4, '0')}`);
@@ -69,23 +62,13 @@ describeDb('api-orders: orders', () => {
       expect.objectContaining({ sizeLabel: '11.8 kg', fullCount: 2, expectedReturnCount: 2 }),
       expect.objectContaining({ sizeLabel: '45.4 kg', fullCount: 1, expectedReturnCount: 1 }),
     ]);
-    expect(order.fee).toMatchObject({
-      totalPaisa: '48000',
-      status: 'DEDUCTED',
-      breakdown: {
-        basePaisa: '25000',
-        lines: [
-          expect.objectContaining({ sizeLabel: '11.8 kg', count: 2, perCylinderPaisa: '4000', subtotalPaisa: '8000' }),
-          expect.objectContaining({ sizeLabel: '45.4 kg', count: 1, perCylinderPaisa: '15000', subtotalPaisa: '15000' }),
-        ],
-      },
-    });
+    expect(order.fee).toEqual({ totalPaisa: '25000', status: 'DEDUCTED' });
     expect(placed.body.destZone).toMatchObject({ name: 'North' });
     expect(placed.body.originStore).toMatchObject({ id: std.DA.homeStoreId, name: 'Ahmed Gas Store' });
-    expect(placed.body).toMatchObject({ deliveryFeePaisa: '48000', paymentStatus: 'PAID_VIA_LEDGER' });
+    expect(placed.body).toMatchObject({ deliveryFeePaisa: '25000', paymentStatus: 'PAID_VIA_LEDGER' });
     // Step 3.
     const read = await f.as(std.DA).get(`/orders/${order.id}`).expect(200);
-    expect(read.body).toMatchObject({ id: order.id, shortCode: order.shortCode, fee: { totalPaisa: '48000', status: 'DEDUCTED' } });
+    expect(read.body).toMatchObject({ id: order.id, shortCode: order.shortCode, fee: { totalPaisa: '25000', status: 'DEDUCTED' } });
     // Step 4.
     const audits = await f.as(std.SA1).get(`/audit-logs?action=order.create&resourceId=${order.id}`).expect(200);
     const items = Array.isArray(audits.body) ? audits.body : audits.body.items;
@@ -160,7 +143,7 @@ describeDb('api-orders: orders', () => {
     // Step 2.
     for (const person of [std.DA, std.SA1]) {
       const res = await f.as(person).get(`/orders/${x1.id}/tracking`).expect(200);
-      expect(res.body).toMatchObject({ orderId: x1.id, status: 'ASSIGNED', deliveryFeePaisa: '48000', tripId });
+      expect(res.body).toMatchObject({ orderId: x1.id, status: 'ASSIGNED', deliveryFeePaisa: '25000', tripId });
       expect(res.body.driver).toMatchObject({ id: std.DR1.id, name: 'Kashif', vehiclePlate: 'LEA-101' });
       bodies.push(res.body);
     }
@@ -355,7 +338,8 @@ describeDb('api-orders: orders', () => {
         lines: [{ cylinderTypeId: std.sizes.kg11_8, fullCount: 2, expectedReturnCount: 2 }],
       })
       .expect(201);
-    expect(placed.body).toMatchObject({ status: 'PENDING', deliveryFeePaisa: '33000', paymentStatus: 'PAID_VIA_LEDGER' });
+    // North's one delivery cost per order, whatever the cylinders (ADR-08).
+    expect(placed.body).toMatchObject({ status: 'PENDING', deliveryFeePaisa: '25000', paymentStatus: 'PAID_VIA_LEDGER' });
     // Step 3: a pin inside East (no price there).
     const east = await http(app)
       .post(`${API}/orders`)

@@ -19,7 +19,6 @@ import { SettingsService } from '../settings/settings.service';
 import { ZonesService } from '../zones/zones.service';
 import type { DeliveryFeeStrategy, FeeQuote, FeeQuoteLineInput } from './delivery-fee.strategy';
 import { DistributorZoneStrategy } from './distributor-zone.strategy';
-import type { CylinderSize } from './size-label';
 import { ZonePriceLookup, type ZonePriceRow } from './zone-price.lookup';
 
 /** A point on the map. */
@@ -28,10 +27,9 @@ export interface GeoPoint {
   lng: number;
 }
 
-/** What `price.set` and `price.remove` record (only stored, non-zero sizes). */
+/** What `price.set` and `price.remove` record: the delivery cost per order and the note. */
 interface PriceSnapshot {
   basePaisa: string;
-  sizes: { cylinderTypeId: string; perCylinderPaisa: string }[];
   note: string | null;
 }
 
@@ -42,15 +40,8 @@ interface ZoneRef {
   cityName: string;
 }
 
-function snapshotOf(price: { basePaisa: bigint; note: string | null; sizes: { cylinderTypeId: string; perCylinderPaisa: bigint }[] }): PriceSnapshot {
-  return {
-    basePaisa: price.basePaisa.toString(),
-    sizes: price.sizes
-      .filter((size) => size.perCylinderPaisa !== 0n)
-      .map((size) => ({ cylinderTypeId: size.cylinderTypeId, perCylinderPaisa: size.perCylinderPaisa.toString() }))
-      .sort((a, b) => a.cylinderTypeId.localeCompare(b.cylinderTypeId)),
-    note: price.note ?? null,
-  };
+function snapshotOf(price: { basePaisa: bigint; note: string | null }): PriceSnapshot {
+  return { basePaisa: price.basePaisa.toString(), note: price.note ?? null };
 }
 
 function sameSnapshot(a: PriceSnapshot, b: PriceSnapshot): boolean {
@@ -58,9 +49,10 @@ function sameSnapshot(a: PriceSnapshot, b: PriceSnapshot): boolean {
 }
 
 /**
- * Delivery prices and quotes (ADR-08, API_CONTRACT §5.6, §7.5). Prices are one row per distributor per
- * zone, edited in place with a before/after audit row; quotes read them live, and orders keep their own
- * copy of the cost. `pricing_rules` is frozen: only the office's legacy routes read or write it.
+ * Delivery prices and quotes (ADR-08, API_CONTRACT §5.6, §7.5). A price is ONE flat delivery cost per
+ * order, one row per distributor per zone, edited in place with a before/after audit row; quotes read it
+ * live, and orders keep their own copy of the cost. `pricing_rules` is frozen: only the office's legacy
+ * routes read or write it.
  */
 @Injectable()
 export class PricingService {
@@ -116,21 +108,11 @@ export class PricingService {
     );
   }
 
-  /** A distributor's price in a zone with every size listed (missing amounts "0"), or null when none is set. */
+  /** A distributor's delivery cost per order in a zone, or null when none is set. */
   async priceView(distributorId: string, zone: IdName, db: Db = this.prisma): Promise<PriceView | null> {
-    const [price, sizes] = await Promise.all([this.prices.priceFor(distributorId, zone.id, db), this.prices.sizes(db)]);
+    const price = await this.prices.priceFor(distributorId, zone.id, db);
     if (!price) return null;
-    const amounts = new Map(price.sizes.map((size) => [size.cylinderTypeId, size.perCylinderPaisa]));
-    return {
-      zone: { id: zone.id, name: zone.name },
-      basePaisa: price.basePaisa.toString(),
-      sizes: sizes.map((size) => ({
-        cylinderTypeId: size.id,
-        sizeLabel: size.label,
-        perCylinderPaisa: (amounts.get(size.id) ?? 0n).toString(),
-      })),
-      updatedAt: price.updatedAt.toISOString(),
-    };
+    return { zone: { id: zone.id, name: zone.name }, basePaisa: price.basePaisa.toString(), updatedAt: price.updatedAt.toISOString() };
   }
 
   /** The strategy named by setting `pricing.deliveryStrategy` (only DISTRIBUTOR_ZONE exists). */
@@ -154,19 +136,12 @@ export class PricingService {
       },
     });
     if (!distributor) throw new AppError('NOT_FOUND');
-    const [sizes, zones, prices] = await Promise.all([
-      this.prices.sizes(),
-      this.allZones(),
-      this.prisma.distributorZonePrice.findMany({
-        where: { distributorId },
-        include: { sizes: { select: { cylinderTypeId: true, perCylinderPaisa: true } } },
-      }),
-    ]);
+    const [zones, prices] = await Promise.all([this.allZones(), this.prisma.distributorZonePrice.findMany({ where: { distributorId } })]);
     const names = await this.userNames(prices.map((price) => price.updatedByUserId));
     const priceByZone = new Map(prices.map((price) => [price.zoneId, price]));
     const rows: PriceGridZone[] = zones.map((zone) => {
       const price = priceByZone.get(zone.id);
-      return { zone: this.zoneOut(zone), price: price ? this.gridPrice(price, sizes, names) : null };
+      return { zone: this.zoneOut(zone), price: price ? this.gridPrice(price, names) : null };
     });
     return {
       distributor: {
@@ -177,7 +152,6 @@ export class PricingService {
           ? { id: distributor.homeStore.id, name: distributor.homeStore.name, zone: { ...distributor.homeStore.zone } }
           : null,
       },
-      sizes: sizes.map((size) => ({ cylinderTypeId: size.id, code: size.code, label: size.label })),
       zones: rows,
       coverage: {
         priced: rows.filter((row) => row.zone.isActive && row.price !== null).length,
@@ -187,26 +161,17 @@ export class PricingService {
   }
 
   /**
-   * `PUT /pricing/prices/:distributorId/:zoneId` (office). One transaction upserts the row and
-   * replaces its size rows, audited `price.set` with before and after. A body equal to the stored
-   * price (missing sizes = 0) writes nothing. Two first saves at once both succeed in turn: the second
-   * waits for the first row, then edits it, so the stored price is always one body in full.
+   * `PUT /pricing/prices/:distributorId/:zoneId` (office): the delivery cost per order. One transaction
+   * upserts the row, audited `price.set` with before and after. A body equal to the stored price writes
+   * nothing. Two first saves at once both succeed in turn: the second waits for the first row, then edits
+   * it, so the stored price is always one body in full.
    */
   async putPrice(actor: Actor, distributorId: string, zoneId: string, body: PutPriceInput): Promise<PriceGridZone> {
     const distributor = await this.prisma.distributor.findUnique({ where: { id: distributorId }, select: { id: true, businessName: true } });
     if (!distributor) throw new AppError('NOT_FOUND', { field: 'distributorId' });
     const zone = await this.zoneRef(zoneId);
     if (!zone.isActive) throw new AppError('ZONE_ARCHIVED');
-    const sizes = await this.prices.sizes();
-    const known = new Set(sizes.map((size) => size.id));
-    for (const size of body.sizes ?? []) {
-      if (!known.has(size.cylinderTypeId)) throw new AppError('NOT_FOUND', { field: 'sizes' });
-    }
-    const wanted = snapshotOf({
-      basePaisa: BigInt(body.basePaisa),
-      note: body.note ?? null,
-      sizes: (body.sizes ?? []).map((size) => ({ cylinderTypeId: size.cylinderTypeId, perCylinderPaisa: BigInt(size.perCylinderPaisa) })),
-    });
+    const wanted = snapshotOf({ basePaisa: BigInt(body.basePaisa), note: body.note ?? null });
     const by = actorUserId(actor);
     const diff = { distributor: distributor.businessName, zone: zone.name };
 
@@ -220,7 +185,6 @@ export class PricingService {
           ON CONFLICT (distributor_id, zone_id) DO NOTHING
           RETURNING id`;
         if (inserted[0]) {
-          await this.writeSizes(tx, inserted[0].id, wanted);
           await this.audit.record(
             { action: 'price.set', actor, resourceType: 'price', resourceId: inserted[0].id, distributorId, before: null, after: wanted, diff },
             tx,
@@ -237,8 +201,6 @@ export class PricingService {
         UPDATE distributor_zone_prices
         SET base_paisa = ${BigInt(wanted.basePaisa)}, note = ${wanted.note}, updated_by_user_id = ${by}::uuid, updated_at = (now() AT TIME ZONE 'UTC')
         WHERE id = ${current.id}::uuid`;
-      await tx.distributorZonePriceSize.deleteMany({ where: { priceId: current.id } });
-      await this.writeSizes(tx, current.id, wanted);
       await this.audit.record(
         { action: 'price.set', actor, resourceType: 'price', resourceId: current.id, distributorId, before, after: wanted, diff },
         tx,
@@ -352,13 +314,6 @@ export class PricingService {
     return this.prices.priceFor(distributorId, zoneId, tx);
   }
 
-  private async writeSizes(tx: Tx, priceId: string, price: PriceSnapshot): Promise<void> {
-    if (price.sizes.length === 0) return;
-    await tx.distributorZonePriceSize.createMany({
-      data: price.sizes.map((size) => ({ priceId, cylinderTypeId: size.cylinderTypeId, perCylinderPaisa: BigInt(size.perCylinderPaisa) })),
-    });
-  }
-
   private async zoneRef(zoneId: string): Promise<ZoneRef> {
     const zone = await this.prisma.zone.findUnique({
       where: { id: zoneId },
@@ -381,23 +336,17 @@ export class PricingService {
   }
 
   private async gridRow(distributorId: string, zone: ZoneRef): Promise<PriceGridZone> {
-    const [price, sizes] = await Promise.all([this.prices.priceFor(distributorId, zone.id), this.prices.sizes()]);
+    const price = await this.prices.priceFor(distributorId, zone.id);
     const names = await this.userNames(price ? [price.updatedByUserId] : []);
     // The zone is read again: an archive between the check and the answer shows as it now is.
     const fresh = await this.zoneRef(zone.id);
-    return { zone: this.zoneOut(fresh), price: price ? this.gridPrice(price, sizes, names) : null };
+    return { zone: this.zoneOut(fresh), price: price ? this.gridPrice(price, names) : null };
   }
 
-  private gridPrice(
-    price: { basePaisa: bigint; updatedAt: Date; updatedByUserId: string | null; sizes: { cylinderTypeId: string; perCylinderPaisa: bigint }[] },
-    sizes: readonly CylinderSize[],
-    names: Map<string, string>,
-  ): PriceGridPrice {
-    const amounts = new Map(price.sizes.map((size) => [size.cylinderTypeId, size.perCylinderPaisa]));
+  private gridPrice(price: { basePaisa: bigint; updatedAt: Date; updatedByUserId: string | null }, names: Map<string, string>): PriceGridPrice {
     const by = price.updatedByUserId;
     return {
       basePaisa: price.basePaisa.toString(),
-      sizes: sizes.map((size) => ({ cylinderTypeId: size.id, perCylinderPaisa: (amounts.get(size.id) ?? 0n).toString() })),
       updatedAt: price.updatedAt.toISOString(),
       updatedBy: by && names.has(by) ? { id: by, name: names.get(by) as string } : null,
     };

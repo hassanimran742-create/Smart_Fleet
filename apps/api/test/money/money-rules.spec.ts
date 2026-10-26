@@ -87,8 +87,8 @@ describe('wallet history kinds (API_CONTRACT §1.4)', () => {
 
 describe('statement items (API_CONTRACT §7.8)', () => {
   it('WAL-019 money is a signed digit string and the time an ISO instant', () => {
-    const item = toStatementItem(row({ entryType: 'DEBIT_ORDER', amountPaisa: -48_000n, balanceAfterPaisa: 452_000n, reasonCode: null, ...withOrder }), ctx, 'DISTRIBUTOR');
-    expect(item).toMatchObject({ amountPaisa: '-48000', balanceAfterPaisa: '452000', at: '2026-10-22T05:00:00.000Z', reasonCode: null });
+    const item = toStatementItem(row({ entryType: 'DEBIT_ORDER', amountPaisa: -25_000n, balanceAfterPaisa: 475_000n, reasonCode: null, ...withOrder }), ctx, 'DISTRIBUTOR');
+    expect(item).toMatchObject({ amountPaisa: '-25000', balanceAfterPaisa: '475000', at: '2026-10-22T05:00:00.000Z', reasonCode: null });
   });
 
   it('WAL-005 the distributor view carries no note, author or bank reference; the office view always does', () => {

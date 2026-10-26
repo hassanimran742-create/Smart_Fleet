@@ -84,7 +84,7 @@ describeDb('inc2 scan: the store receives', () => {
       toCustodyId: std.DA.homeStoreId,
       source: 'SCAN',
     });
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
   });
 
   it('STR-002 Receiving keeps the state the driver tapped: Part-filled and Empty never become Full', async () => {
@@ -229,7 +229,7 @@ describeDb('inc2 scan: the store receives', () => {
     ]);
     const x2 = await w.placeOrder(X2, 'C2');
     const y1 = await w.placeOrder(Y1, 'C2');
-    expect(await w.balance()).toBe(372_000n);
+    expect(await w.balance()).toBe(395_000n);
     const t1 = await w.assign(x1, std.DR1);
     await w.assign(x2, std.DR1);
     await w.assign(y1, std.DR1);
@@ -264,7 +264,7 @@ describeDb('inc2 scan: the store receives', () => {
     const after = await scans.storeIncoming(std.DA).expect(200);
     expect(after.body.vans[0].counts.received).toBe(2);
     expect(after.body.vans[0].cylinders.map((c: { shortCode: string }) => c.shortCode).sort()).toEqual(['AG-C0021', 'AG-C0022', 'AG-C0023']);
-    expect(await w.balance()).toBe(372_000n);
+    expect(await w.balance()).toBe(395_000n);
     await w.walletClean();
   });
 

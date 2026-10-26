@@ -337,34 +337,26 @@ describe('wallet corrections', () => {
 });
 
 describe('delivery prices', () => {
-  it('accepts Rs 0 and more, sizes optional', () => {
+  it('accepts one delivery cost per order, Rs 0 and more', () => {
     expect(ok(putPriceSchema, { basePaisa: 0 })).toEqual({ basePaisa: '0' });
-    expect(ok(putPriceSchema, { basePaisa: '25000', sizes: [{ cylinderTypeId: ID, perCylinderPaisa: 4000 }] })).toEqual({
-      basePaisa: '25000',
-      sizes: [{ cylinderTypeId: ID, perCylinderPaisa: '4000' }],
-    });
+    expect(ok(putPriceSchema, { basePaisa: '25000', note: 'Pilot price' })).toEqual({ basePaisa: '25000', note: 'Pilot price' });
   });
 
   it('answers PRICE_INVALID for negative, part-rupee or too large amounts (Rs 0 to Rs 100,000)', () => {
     expect(ok(putPriceSchema, { basePaisa: 10000000 })).toEqual({ basePaisa: '10000000' });
     expect(fail(putPriceSchema, { basePaisa: 10000100 }).errorCode).toBe('PRICE_INVALID');
-    expect(fail(putPriceSchema, { basePaisa: 0, sizes: [{ cylinderTypeId: ID, perCylinderPaisa: 10000100 }] }).errorCode).toBe(
-      'PRICE_INVALID',
-    );
     expect(fail(putPriceSchema, { basePaisa: -100 }).errorCode).toBe('PRICE_INVALID');
     expect(fail(putPriceSchema, { basePaisa: 25050 }).errorCode).toBe('PRICE_INVALID');
     expect(fail(putPriceSchema, { basePaisa: 'abc' }).errorCode).toBe('PRICE_INVALID');
     expect(fail(putPriceSchema, {}).fields).toEqual([{ path: 'basePaisa', code: 'REQUIRED' }]);
   });
 
-  it('lists each size once', () => {
-    const sizes = [
-      { cylinderTypeId: ID, perCylinderPaisa: 4000 },
-      { cylinderTypeId: ID, perCylinderPaisa: 5000 },
-    ];
-    expect(fail(putPriceSchema, { basePaisa: 25000, sizes }).fields).toEqual([
-      { path: 'sizes.1.cylinderTypeId', code: 'DUPLICATE_ITEM' },
-    ]);
+  it('refuses per-size amounts: the cost is one amount per order, whatever the cylinders', () => {
+    expect(fail(putPriceSchema, { basePaisa: 25000, sizes: [{ cylinderTypeId: ID, perCylinderPaisa: 4000 }] })).toEqual({
+      errorCode: 'VALIDATION_FAILED',
+      fields: [{ path: 'sizes', code: 'NOT_ALLOWED' }],
+    });
+    expect(fail(putPriceSchema, { basePaisa: 25000, sizes: [] }).fields).toEqual([{ path: 'sizes', code: 'NOT_ALLOWED' }]);
   });
 });
 

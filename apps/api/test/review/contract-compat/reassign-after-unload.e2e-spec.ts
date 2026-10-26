@@ -99,7 +99,7 @@ describeDb('REVIEW contract-compat: reassign after an unload scan', () => {
     // Nothing was loaded: the order is still ASSIGNED, refundable, and the office is offered REASSIGN.
     const view = await http(app).get(`${API}/orders/${orderId}`).set(office).expect(200);
     expect(view.body).toMatchObject({ status: 'ASSIGNED', loadStartedAt: null, stage: 'DRIVER_ASSIGNED' });
-    expect(view.body.cancel).toMatchObject({ allowed: true, refundPaisa: '48000' });
+    expect(view.body.cancel).toMatchObject({ allowed: true, refundPaisa: '25000' });
     expect(view.body.allowedActions).toContain('REASSIGN');
 
     // The offered REASSIGN works (§7.6 rule 4: "any load scan or loadStartedAt"), and the old trip, left
@@ -123,7 +123,7 @@ describeDb('REVIEW contract-compat: reassign after an unload scan', () => {
     await storeReceive(empty.qrCode).expect(201);
 
     const cancelled = await http(app).post(`${API}/orders/${placed.body.id}/cancel`).set(authHeader(std.DA.actor)).send({ reasonCode: 'DUPLICATE' }).expect(200);
-    expect(cancelled.body.refundedPaisa).toBe('48000');
+    expect(cancelled.body.refundedPaisa).toBe('25000');
     const trip = await db().trip.findUniqueOrThrow({ where: { id: assigned.body.tripId } });
     // No other open order and no load scan: the trip is ABORTED, so the old driver app can't pick it as the current delivery.
     expect(trip.status).toBe('ABORTED');

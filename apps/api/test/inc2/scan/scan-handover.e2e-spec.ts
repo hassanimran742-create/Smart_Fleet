@@ -75,7 +75,7 @@ describeDb('inc2 scan: deliver at the customer', () => {
         tripStopId: sana,
       });
     }
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
   });
 
   it('DRV-019 Deliver accepts only the sizes and counts the order needs', async () => {
@@ -83,7 +83,7 @@ describeDb('inc2 scan: deliver at the customer', () => {
     const x1 = await w.placeOrder(X1);
     const x2 = await w.placeOrder(X2, 'C2');
     const y1 = await w.placeOrder(Y1, 'C2');
-    expect(await w.balance()).toBe(372_000n);
+    expect(await w.balance()).toBe(395_000n);
     const t1 = await w.assign(x1, std.DR1);
     expect((await w.assign(x2, std.DR1)).id).toBe(t1.id);
     expect((await w.assign(y1, std.DR1)).id).toBe(t1.id);
@@ -162,6 +162,6 @@ describeDb('inc2 scan: deliver at the customer', () => {
     expect(res.body).toMatchObject({ code: 'ORDER_HANDOVER_STARTED', message: messageOf('ORDER_HANDOVER_STARTED') });
     expect((await w.db.order.findUniqueOrThrow({ where: { id: x1.id } })).status).toBe('IN_TRANSIT');
     expect(await w.holder(1)).toMatchObject({ custodyType: 'CLIENT', custodyId: std.C1.id });
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
   });
 });

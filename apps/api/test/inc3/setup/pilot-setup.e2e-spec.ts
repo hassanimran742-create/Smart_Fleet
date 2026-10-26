@@ -202,28 +202,22 @@ describeDb('pilot setup CLI (SET-003 to SET-008)', () => {
       wallet: { balancePaisa: '0' },
     });
 
-    // Step 2: the prices (in paisa: 25000 with 3000, 4000, 8000, 15000; 40000 flat; 30000 flat).
-    const sizes = (row: { price: { sizes: Array<{ cylinderTypeId: string; perCylinderPaisa: string }> } | null }) =>
-      Object.fromEntries((row.price?.sizes ?? []).map((size) => [size.cylinderTypeId, size.perCylinderPaisa]));
+    // Step 2: the prices, one delivery cost per order (in paisa: 25000, 40000, 30000). A file that still lists
+    // per-size amounts (written before 2026-10-26) loads with them ignored, and a note says so.
     const grid = async (distributorId: string) => (await api().get(`${API}/pricing/prices/${distributorId}`).set(authHeader(people.SA1)).expect(200)).body;
     const ag = await grid(people.DA.distributorId);
     const agZone = (name: string) => ag.zones.find((row: { zone: { name: string } }) => row.zone.name === name);
-    expect(agZone('North').price.basePaisa).toBe('25000');
-    expect(sizes(agZone('North'))).toEqual({
-      [people.sizes.kg6]: '3000',
-      [people.sizes.kg11_8]: '4000',
-      [people.sizes.kg15]: '8000',
-      [people.sizes.kg45_4]: '15000',
-    });
+    expect(agZone('North').price).toEqual({ basePaisa: '25000', updatedAt: expect.any(String), updatedBy: null });
     expect(agZone('South').price.basePaisa).toBe('40000');
-    expect(Object.values(sizes(agZone('South')))).toEqual(['0', '0', '0', '0']);
     expect(agZone('East').price).toBeNull();
     expect(ag.coverage).toEqual({ priced: 2, total: 3 });
     const bg = await grid(people.DB.distributorId);
     const bgSouth = bg.zones.find((row: { zone: { name: string } }) => row.zone.name === 'South');
     expect(bgSouth.price.basePaisa).toBe('30000');
-    expect(Object.values(sizes(bgSouth))).toEqual(['0', '0', '0', '0']);
     expect(bg.coverage).toEqual({ priced: 1, total: 3 });
+    const sizesNoted = /prices\[0\] AG in North: per-size amounts are ignored; the delivery cost is one amount per order \(basePaisa\)\./;
+    if (sampleJson().prices[0].sizes?.length) expect(run.text).toMatch(sizesNoted);
+    else expect(run.text).not.toMatch(sizesNoted);
 
     // Step 3: the company account.
     const info = await api().get(`${API}/payments/topup-info`).set(authHeader(people.DA)).expect(200);

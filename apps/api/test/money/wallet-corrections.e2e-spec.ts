@@ -275,12 +275,12 @@ describeDb('money: wallet corrections', () => {
     await expectRunningBalances(std.DA.id);
   }, 180_000);
 
-  it('WAL-017 an order and a correction racing for the last Rs 480: exactly one wins', async () => {
-    await correct(std.DA.id, { direction: 'TAKE', amountPaisa: 452000, reasonCode: 'OTHER', note: 'Race test setup to Rs 480' }, key('9', 1)).expect(201);
+  it('WAL-017 an order and a correction racing for the last Rs 250: exactly one wins', async () => {
+    await correct(std.DA.id, { direction: 'TAKE', amountPaisa: 475000, reasonCode: 'OTHER', note: 'Race test setup to Rs 250' }, key('9', 1)).expect(201);
     for (let round = 1; round <= 20; round++) {
       const [order, take] = await Promise.all([
         http().post('/api/v1/orders').set(authHeader(std.DA.actor)).set('Idempotency-Key', key('a', round)).send(x1OrderBody(std)),
-        correct(std.DA.id, { direction: 'TAKE', amountPaisa: 48000, reasonCode: 'OTHER', note: 'Race test correction' }, key('b', round)),
+        correct(std.DA.id, { direction: 'TAKE', amountPaisa: 25000, reasonCode: 'OTHER', note: 'Race test correction' }, key('b', round)),
       ]);
       const wins = [order.status === 201, take.status === 201].filter(Boolean).length;
       expect({ round, wins }).toEqual({ round, wins: 1 });
@@ -290,26 +290,26 @@ describeDb('money: wallet corrections', () => {
         expect(order.status).toBe(409);
         expect(order.body).toMatchObject({
           code: 'WALLET_INSUFFICIENT_BALANCE',
-          details: { requiredPaisa: '48000', balancePaisa: '0', shortByPaisa: '48000' },
+          details: { requiredPaisa: '25000', balancePaisa: '0', shortByPaisa: '25000' },
         });
         expect(await db().order.count({ where: { clientRequestId: key('a', round) } })).toBe(0);
       }
       expect(await balanceOf(std.DA.id)).toBe(0n);
       expect(await walletMismatches()).toEqual([]);
-      await correct(std.DA.id, { direction: 'ADD', amountPaisa: 48000, reasonCode: 'OTHER', note: 'Race test reset to Rs 480' }, key('c', round)).expect(201);
+      await correct(std.DA.id, { direction: 'ADD', amountPaisa: 25000, reasonCode: 'OTHER', note: 'Race test reset to Rs 250' }, key('c', round)).expect(201);
     }
   }, 180_000);
 
   it('FEE-002 X4: the balance must cover the cost exactly; Rs 1 short is refused and nothing is created', async () => {
     const shop = authHeader(std.DA.actor);
-    await correct(std.DA.id, { direction: 'TAKE', amountPaisa: 452000, reasonCode: 'OTHER', note: 'X4 setup exact' }, key('d', 1)).expect(201);
+    await correct(std.DA.id, { direction: 'TAKE', amountPaisa: 475000, reasonCode: 'OTHER', note: 'X4 setup exact' }, key('d', 1)).expect(201);
     // Step 1.
     const exact = await http().post('/api/v1/orders').set(shop).set('Idempotency-Key', key('d', 2)).send(x1OrderBody(std)).expect(201);
     expect(await balanceOf(std.DA.id)).toBe(0n);
     const debit = await db().ledgerEntry.findFirstOrThrow({ where: { orderId: exact.body.id, entryType: 'DEBIT_ORDER' } });
     expect(debit.balanceAfterPaisa).toBe(0n);
     // Step 2.
-    await correct(std.DA.id, { direction: 'ADD', amountPaisa: 47900, reasonCode: 'OTHER', note: 'X4 setup one short' }, key('d', 3)).expect(201);
+    await correct(std.DA.id, { direction: 'ADD', amountPaisa: 24900, reasonCode: 'OTHER', note: 'X4 setup one short' }, key('d', 3)).expect(201);
     const nextOrderNo = (await db().distributor.findUniqueOrThrow({ where: { id: std.DA.id } })).nextOrderNo;
     const ordersBefore = await db().order.count();
     const ledgerBefore = await db().ledgerEntry.count();
@@ -317,13 +317,13 @@ describeDb('money: wallet corrections', () => {
     const short = await http().post('/api/v1/orders').set(shop).set('Idempotency-Key', key('d', 4)).send(x1OrderBody(std)).expect(409);
     expect(short.body).toMatchObject({
       code: 'WALLET_INSUFFICIENT_BALANCE',
-      details: { requiredPaisa: '48000', balancePaisa: '47900', shortByPaisa: '100' },
-      message: 'Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue.',
+      details: { requiredPaisa: '25000', balancePaisa: '24900', shortByPaisa: '100' },
+      message: 'Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue.',
     });
     // Step 4.
     expect(await db().order.count()).toBe(ordersBefore);
     expect(await db().ledgerEntry.count()).toBe(ledgerBefore);
     expect((await db().distributor.findUniqueOrThrow({ where: { id: std.DA.id } })).nextOrderNo).toBe(nextOrderNo);
-    expect(await balanceOf(std.DA.id)).toBe(47_900n);
+    expect(await balanceOf(std.DA.id)).toBe(24_900n);
   });
 });

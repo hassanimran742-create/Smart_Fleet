@@ -79,50 +79,29 @@ describeDb('orders: review fixes', () => {
     const failed = await f.fail(x1.id, { reasonCode: 'CUSTOMER_NOT_HOME', note: 'Nobody at Sana\'s house' }, std.SA1).expect(200);
     expect(failed.body.status).toBe('FAILED');
     expect(await f.ledger({ entryType: 'CREDIT_ORDER_REVERSAL', orderId: x1.id })).toEqual([]);
-    expect(await f.balance()).toBe(500_000n - 48_000n);
+    expect(await f.balance()).toBe(500_000n - 25_000n);
   });
 
   // ---------- money-data-04 ----------
 
-  it('REV money-data-04 the one-statement price read returns the price as stored, a flat price with no sizes and no price as null', async () => {
+  it('REV money-data-04 the one-statement price read returns the price as stored, and no price as null', async () => {
     const { std } = f;
     const lookup = app.get(ZonePriceLookup);
-    // DA's North price as the office last saved it: a note, its editor, two per-size amounts (the other sizes cost 0).
-    await f.as(std.SA1)
-      .put(`/pricing/prices/${std.DA.id}/${std.zones.North.id}`)
-      .send({
-        basePaisa: '26000',
-        note: 'Ring road surcharge',
-        sizes: [
-          { cylinderTypeId: std.sizes.kg11_8, perCylinderPaisa: '4500' },
-          { cylinderTypeId: std.sizes.kg15, perCylinderPaisa: '8000' },
-        ],
-      })
-      .expect(200);
-    const bySize = (a: { cylinderTypeId: string }, b: { cylinderTypeId: string }) => a.cylinderTypeId.localeCompare(b.cylinderTypeId);
+    // DA's North price as the office last saved it: the one cost per order, a note and its editor.
+    await f.as(std.SA1).put(`/pricing/prices/${std.DA.id}/${std.zones.North.id}`).send({ basePaisa: '26000', note: 'Ring road surcharge' }).expect(200);
     const stored = async (zoneId: string) => {
-      const price = await f.db.distributorZonePrice.findUnique({
-        where: { distributorId_zoneId: { distributorId: std.DA.id, zoneId } },
-        include: { sizes: true },
-      });
+      const price = await f.db.distributorZonePrice.findUnique({ where: { distributorId_zoneId: { distributorId: std.DA.id, zoneId } } });
       if (!price) return null;
       const { id, basePaisa, note, updatedAt, updatedByUserId } = price;
-      const sizes = price.sizes.map(({ cylinderTypeId, perCylinderPaisa }) => ({ cylinderTypeId, perCylinderPaisa })).sort(bySize);
-      return { id, basePaisa, note, updatedAt, updatedByUserId, sizes };
-    };
-    const read = async (zoneId: string) => {
-      const price = await lookup.priceFor(std.DA.id, zoneId);
-      return price && { ...price, sizes: [...price.sizes].sort(bySize) };
+      return { id, basePaisa, note, updatedAt, updatedByUserId };
     };
 
-    for (const zone of [std.zones.North, std.zones.South, std.zones.East]) expect(await read(zone.id)).toEqual(await stored(zone.id));
-    expect(await read(std.zones.North.id)).toMatchObject({ basePaisa: 26_000n, note: 'Ring road surcharge', updatedByUserId: std.SA1.id });
-    // South is a flat price (no size rows); East has no price at all.
-    expect((await read(std.zones.South.id))?.sizes).toEqual([]);
-    expect(await read(std.zones.East.id)).toBeNull();
-    // X1 (2 × 11.8 kg, 1 × 45.4 kg) is quoted from it: Rs 260 + 2 × Rs 45 + Rs 0.
+    for (const zone of [std.zones.North, std.zones.South, std.zones.East]) expect(await lookup.priceFor(std.DA.id, zone.id)).toEqual(await stored(zone.id));
+    expect(await lookup.priceFor(std.DA.id, std.zones.North.id)).toMatchObject({ basePaisa: 26_000n, note: 'Ring road surcharge', updatedByUserId: std.SA1.id });
+    expect(await lookup.priceFor(std.DA.id, std.zones.East.id)).toBeNull();
+    // X1 (2 × 11.8 kg, 1 × 45.4 kg) is quoted from it: Rs 260 once, whatever the cylinders.
     const quote = await f.as(std.DA).post('/orders/quote').send(x1OrderBody(std)).expect(200);
-    expect(String(quote.body.quote.totalPaisa)).toBe('35000');
+    expect(String(quote.body.quote.totalPaisa)).toBe('26000');
   });
 
   // ---------- money-data-06 ----------
@@ -314,7 +293,7 @@ describeDb('orders: review fixes', () => {
       const placed = await f.placeX1().expect(201);
       const took = Date.now() - started;
       expect({ queued: add.mock.calls.map((call) => call[1]), took: took < 5_000 }).toEqual({ queued: [{ orderId: placed.body.id }], took: true });
-      expect(await f.balance()).toBe(500_000n - 48_000n);
+      expect(await f.balance()).toBe(500_000n - 25_000n);
     } finally {
       add.mockRestore();
       await settings.set('dispatch.autoAssign.enabled', false, systemActor('cli:settings'), 'review: back to off', { allowNotEditable: true });

@@ -199,13 +199,13 @@ describeDb('inc2 scan: orders and assignment on scans', () => {
     expect((await w.receive(15)).status).toBe(201);
     const view = await w.as(std.SA1).get(`/orders/${x1.id}`).expect(200);
     expect(view.body.loadStartedAt).toBeNull();
-    expect(view.body.cancel.refundPaisa).toBe('48000');
+    expect(view.body.cancel.refundPaisa).toBe('25000');
     expect(view.body.allowedActions).toContain('REASSIGN');
     const moved = await w.as(std.SA1).post(`/orders/${x1.id}/assign-driver`).send({ driverId: std.DR2.id }).expect(200);
     expect(moved.body.reassignedFromTripId).toBe(t.id);
     expect((await w.db.trip.findUniqueOrThrow({ where: { id: t.id } })).status).toBe('ABORTED');
     const cancelled = await w.as(std.DA).post(`/orders/${x1.id}/cancel`).send({ reasonCode: 'CUSTOMER_CANCELLED' }).expect(200);
-    expect(cancelled.body.refundedPaisa).toBe('48000');
+    expect(cancelled.body.refundedPaisa).toBe('25000');
     expect((await w.db.trip.findUniqueOrThrow({ where: { id: moved.body.tripId } })).status).toBe('ABORTED');
 
     // A hand-over keeps the order on its trip.

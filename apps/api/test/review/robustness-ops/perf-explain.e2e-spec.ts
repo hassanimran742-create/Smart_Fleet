@@ -59,7 +59,7 @@ describeDb('review robustness: Inc 1 queries at 5,000 orders', () => {
       SELECT gen_random_uuid(), '${da}', '${std.C1.id}', ST_SetSRID(ST_MakePoint(74.23, 31.53), 4326), 'Sana''s house', '${zone}',
              '${std.DA.homeStoreId}', 1000 + g,
              (CASE WHEN g % 10 < 9 THEN 'DELIVERED' WHEN g % 20 = 9 THEN 'CANCELLED' WHEN g % 40 = 19 THEN 'FAILED' ELSE 'PENDING' END)::"OrderStatus",
-             'PAID_VIA_LEDGER', 48000, 'DEDUCTED', 'DISTRIBUTOR_ZONE', 25000,
+             'PAID_VIA_LEDGER', 25000, 'DEDUCTED', 'DISTRIBUTOR_ZONE', 25000,
              CASE WHEN g % 10 < 9 THEN (SELECT id FROM t WHERE t.rn = 1 + (g % ${ORDERS / 5})) END,
              now() - (g * 30 || ' minutes')::interval,
              CASE WHEN g % 10 < 9 THEN now() - (g * 30 || ' minutes')::interval END,
@@ -93,11 +93,11 @@ describeDb('review robustness: Inc 1 queries at 5,000 orders', () => {
     // Money: one top-up covering everything, then a DEBIT_ORDER per order; the balance stays equal to the ledger.
     await db.$executeRawUnsafe(`
       INSERT INTO ledger_entries (id, distributor_id, entry_type, amount_paisa, balance_after_paisa, idempotency_key, order_id, created_at)
-      SELECT gen_random_uuid(), '${da}', 'DEBIT_ORDER', -48000, 0, 'order:' || o.id || ':debit', o.id, o.created_at
+      SELECT gen_random_uuid(), '${da}', 'DEBIT_ORDER', -25000, 0, 'order:' || o.id || ':debit', o.id, o.created_at
       FROM orders o WHERE o.distributor_id = '${da}'`);
     await db.$executeRawUnsafe(`
       INSERT INTO ledger_entries (id, distributor_id, entry_type, amount_paisa, balance_after_paisa, idempotency_key, reason_code, created_at)
-      VALUES (gen_random_uuid(), '${da}', 'ADJUSTMENT', ${ORDERS * 48000}, 0, 'perf:${da}', 'OPENING_BALANCE', now() - interval '200 days')`);
+      VALUES (gen_random_uuid(), '${da}', 'ADJUSTMENT', ${ORDERS * 25000}, 0, 'perf:${da}', 'OPENING_BALANCE', now() - interval '200 days')`);
     await db.$executeRawUnsafe(`
       INSERT INTO audit_logs (id, actor_kind, actor_user_id, action, resource_type, resource_id, distributor_id, created_at)
       SELECT gen_random_uuid(), 'USER', '${std.DA.userId}', 'order.create', 'order', o.id, '${da}', o.created_at

@@ -33,7 +33,7 @@ describeDb('inc3 refills: beside the delivery runs', () => {
     await app?.close();
   });
 
-  /** Ahmed Gas places X1 for Sana (Rs 480) and the office gives it to Kashif: trip PLANNED, nothing loaded. */
+  /** Ahmed Gas places X1 for Sana (Rs 250) and the office gives it to Kashif: trip PLANNED, nothing loaded. */
   async function x1ForKashif(): Promise<{ orderId: string; tripId: string }> {
     const { std } = w;
     const placed = await w.as(std.DA).post('/orders').set('Idempotency-Key', randomUUID()).send(x1OrderBody(std)).expect(201);
@@ -45,7 +45,7 @@ describeDb('inc3 refills: beside the delivery runs', () => {
     const { std, db } = w;
     expect(await app.get(SettingsService).get('orders.deliveryStartedAt')).toBe('FIRST_LOAD_SCAN');
     const x1 = await x1ForKashif();
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     await w.empty(1);
     const r1 = await w.refill({ count: 2, assignTo: std.DR1 });
 
@@ -54,7 +54,7 @@ describeDb('inc3 refills: beside the delivery runs', () => {
 
     // Step 2.
     const order = await w.as(std.DA).get(`/orders/${x1.orderId}`).expect(200);
-    expect(order.body).toMatchObject({ loadStartedAt: null, stage: 'DRIVER_ASSIGNED', cancel: { allowed: true, refundPaisa: '48000', noRefundReason: null } });
+    expect(order.body).toMatchObject({ loadStartedAt: null, stage: 'DRIVER_ASSIGNED', cancel: { allowed: true, refundPaisa: '25000', noRefundReason: null } });
     expect((await db.order.findUniqueOrThrow({ where: { id: x1.orderId } })).loadStartedAt).toBeNull();
 
     // Step 3.
@@ -62,13 +62,13 @@ describeDb('inc3 refills: beside the delivery runs', () => {
       .as(std.DA)
       .post(`/orders/${x1.orderId}/cancel`)
       .set('Idempotency-Key', randomUUID())
-      .send({ reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '48000' })
+      .send({ reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '25000' })
       .expect(200);
-    expect(cancel.body.refundedPaisa).toBe('48000');
+    expect(cancel.body.refundedPaisa).toBe('25000');
     const reversals = await db.ledgerEntry.findMany({ where: { orderId: x1.orderId, entryType: 'CREDIT_ORDER_REVERSAL' } });
-    expect(reversals.map((row) => [row.idempotencyKey, row.amountPaisa])).toEqual([[`order:${x1.orderId}:reversal`, 48_000n]]);
+    expect(reversals.map((row) => [row.idempotencyKey, row.amountPaisa])).toEqual([[`order:${x1.orderId}:reversal`, 25_000n]]);
     const audit = await db.auditLog.findFirstOrThrow({ where: { action: 'order.cancel', resourceId: x1.orderId } });
-    expect(audit.diff).toMatchObject({ refunded: true, refundPaisa: '48000', startedRule: 'FIRST_LOAD_SCAN' });
+    expect(audit.diff).toMatchObject({ refunded: true, refundPaisa: '25000', startedRule: 'FIRST_LOAD_SCAN' });
 
     // Step 4.
     const wallet = await w.as(std.DA).get('/wallet').expect(200);

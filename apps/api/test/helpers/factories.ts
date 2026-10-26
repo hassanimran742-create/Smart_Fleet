@@ -343,24 +343,18 @@ export async function createCylinder(
 
 // ---------- delivery prices ----------
 
-/** The distributor's delivery price in a zone: a base per order plus optional per-size amounts. */
+/** The distributor's delivery price in a zone: ONE cost per order, whatever cylinders it holds (ADR-08). */
 export async function createZonePrice(
   opts: {
     distributorId: string;
     zoneId: string;
     basePaisa: bigint;
-    sizes?: Array<{ cylinderTypeId: string; perCylinderPaisa: bigint }>;
+    note?: string;
   },
   db: Db = getTestPrisma(),
 ) {
   return db.distributorZonePrice.create({
-    data: {
-      distributorId: opts.distributorId,
-      zoneId: opts.zoneId,
-      basePaisa: opts.basePaisa,
-      sizes: opts.sizes?.length ? { create: opts.sizes } : undefined,
-    },
-    include: { sizes: true },
+    data: { distributorId: opts.distributorId, zoneId: opts.zoneId, basePaisa: opts.basePaisa, note: opts.note ?? null },
   });
 }
 

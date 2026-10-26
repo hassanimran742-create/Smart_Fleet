@@ -64,7 +64,7 @@ describeDb('money: the nightly wallet check', () => {
 
   /** An order's money without the orders lane: the order row, then its deduction through WalletService. */
   async function placeByService(amountPaisa: bigint, zoneId = std.zones.North.id): Promise<string> {
-    const order = await insertOrder({ distributor: std.DA, client: amountPaisa === 48_000n ? std.C1 : std.C2, zoneId });
+    const order = await insertOrder({ distributor: std.DA, client: amountPaisa === 25_000n ? std.C1 : std.C2, zoneId });
     await db().$transaction((tx) =>
       wallet().debit(tx, { distributorId: std.DA.id, subject: { type: 'ORDER', orderId: order.id }, amountPaisa, actor: userActor(std.DA.actor) }),
     );
@@ -81,7 +81,7 @@ describeDb('money: the nightly wallet check', () => {
   async function normalDay(): Promise<void> {
     const request = await topupRequest(200000, key('1', 1)).expect(201);
     await approve(request.body.id, 'FT-1601-0001', 200000).expect(200);
-    const x1 = await placeByService(48_000n);
+    const x1 = await placeByService(25_000n);
     await cancelByService(x1);
     await placeByService(40_000n, std.zones.South.id);
     await correct({ direction: 'ADD', amountPaisa: 10000, reasonCode: 'SYSTEM_ERROR', note: 'Normal day correction' }, key('1', 2)).expect(201);
@@ -165,10 +165,10 @@ describeDb('money: the nightly wallet check', () => {
   // the inc1b pre-check refuses to deploy while one exists (MIG-014, test/inc2/db/inc1b.e2e-spec.ts).
 
   it('WAL-018 a burst of parallel money actions keeps balance, ledger sum and running balances consistent (wallet side)', async () => {
-    // Before: five X1 orders (Rs 2,600 left) and three Rs 1,000 top-up requests.
+    // Before: five X1 orders (Rs 3,750 left) and three Rs 1,000 top-up requests.
     const x1s: string[] = [];
-    for (let i = 0; i < 5; i++) x1s.push(await placeByService(48_000n));
-    expect(await balanceOf(std.DA.id)).toBe(260_000n);
+    for (let i = 0; i < 5; i++) x1s.push(await placeByService(25_000n));
+    expect(await balanceOf(std.DA.id)).toBe(375_000n);
     const requests: string[] = [];
     for (let i = 0; i < 3; i++) requests.push((await topupRequest(100000, key('3', i + 1)).expect(201)).body.id);
 
@@ -193,7 +193,7 @@ describeDb('money: the nightly wallet check', () => {
     const takes = done.filter((v) => v === 'take').length;
     for (const v of done) expect(['cancel', 'approve', 'order', 'take']).toContain(v);
 
-    const expected = 260_000n + 240_000n + 300_000n - 40_000n * BigInt(ordersCreated) - 10_000n * BigInt(takes);
+    const expected = 375_000n + 125_000n + 300_000n - 40_000n * BigInt(ordersCreated) - 10_000n * BigInt(takes);
     expect(await balanceOf(std.DA.id)).toBe(expected);
     await expectRunningBalances(std.DA.id);
     const count = (entryType: 'DEBIT_ORDER' | 'CREDIT_ORDER_REVERSAL' | 'CREDIT_TOPUP') =>
@@ -209,7 +209,7 @@ describeDb('money: the nightly wallet check', () => {
     for (let i = 0; i < 5; i++) {
       x1s.push((await http().post('/api/v1/orders').set(shop()).set('Idempotency-Key', key('5', i + 1)).send(x1OrderBody(std)).expect(201)).body.id);
     }
-    expect(await balanceOf(std.DA.id)).toBe(260_000n);
+    expect(await balanceOf(std.DA.id)).toBe(375_000n);
     const requests: string[] = [];
     for (let i = 0; i < 3; i++) requests.push((await topupRequest(100000, key('6', i + 1)).expect(201)).body.id);
     const SA2 = authHeader(std.SA2.actor);
@@ -226,7 +226,7 @@ describeDb('money: the nightly wallet check', () => {
     }
     const created = responses.slice(8, 18).filter((res) => res.status === 201).length;
     const takes = responses.slice(18).filter((res) => res.status === 201).length;
-    expect(await balanceOf(std.DA.id)).toBe(260_000n + 240_000n + 300_000n - 40_000n * BigInt(created) - 10_000n * BigInt(takes));
+    expect(await balanceOf(std.DA.id)).toBe(375_000n + 125_000n + 300_000n - 40_000n * BigInt(created) - 10_000n * BigInt(takes));
     await expectRunningBalances(std.DA.id);
     expect((await job().run()).mismatches).toBe(0);
   }, 180_000);

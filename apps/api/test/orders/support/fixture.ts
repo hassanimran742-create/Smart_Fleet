@@ -184,7 +184,7 @@ export interface OrderBody {
   shortCode: string;
   status: string;
   stage: string;
-  fee: { totalPaisa: string; status: string; breakdown: { basePaisa: string; lines: Array<Record<string, unknown>> } | null };
+  fee: { totalPaisa: string; status: string };
   cancel: { allowed: boolean; refundPaisa: string; noRefundReason: string | null };
   allowedActions: string[];
   trip: { id: string; status: string; driver: { id: string; name: string; phone: string }; vehicle: { plateNo: string } } | null;

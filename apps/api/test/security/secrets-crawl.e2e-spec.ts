@@ -83,14 +83,14 @@ describeDb('secrets: the response crawler', () => {
                           order_no, status, payment_status, delivery_fee_paisa, fee_status, fee_strategy, fee_base_paisa,
                           trip_id, assigned_at, created_at, updated_at)
       VALUES (gen_random_uuid(), ${std.DA.id}::uuid, ${std.C1.id}::uuid, ST_SetSRID(ST_MakePoint(74.23, 31.53), 4326), 'Sana''s house',
-              ${std.zones.North.id}::uuid, ${std.DA.homeStoreId}::uuid, 1, 'ASSIGNED', 'PAID_VIA_LEDGER', 48000, 'DEDUCTED',
+              ${std.zones.North.id}::uuid, ${std.DA.homeStoreId}::uuid, 1, 'ASSIGNED', 'PAID_VIA_LEDGER', 25000, 'DEDUCTED',
               'DISTRIBUTOR_ZONE', 25000, ${trip.id}::uuid, now(), now(), now())
       RETURNING id`;
     const x1 = orders[0].id;
     await db().orderLine.createMany({
       data: [
-        { orderId: x1, cylinderTypeId: std.sizes.kg11_8, fullCount: 2, expectedReturnCount: 2, feePerCylinderPaisa: 4000n, feePaisa: 8000n },
-        { orderId: x1, cylinderTypeId: std.sizes.kg45_4, fullCount: 1, expectedReturnCount: 1, feePerCylinderPaisa: 15000n, feePaisa: 15000n },
+        { orderId: x1, cylinderTypeId: std.sizes.kg11_8, fullCount: 2, expectedReturnCount: 2 },
+        { orderId: x1, cylinderTypeId: std.sizes.kg45_4, fullCount: 1, expectedReturnCount: 1 },
       ],
     });
     const stops = await db().$queryRaw<Array<{ id: string }>>`

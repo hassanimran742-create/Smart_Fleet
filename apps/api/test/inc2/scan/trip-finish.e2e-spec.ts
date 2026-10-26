@@ -49,7 +49,7 @@ describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
       { size: '45.4', full: 1 },
     ]);
     const x2 = await w.placeOrder(X2, 'C2');
-    expect(await w.balance()).toBe(412_000n);
+    expect(await w.balance()).toBe(435_000n);
     const t1 = await w.assign(x1, std.DR1);
     await w.assign(x2, std.DR1);
     await w.load(std.DR1, t1, [1, 2, 31, 21, 22, 23]);
@@ -77,7 +77,7 @@ describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
     expect((await w.receive(11)).status).toBe(201);
     const done = await scans.finishTrip(std.DR1, t1.id, {}).expect(200);
     expect(done.body.status).toBe('COMPLETED');
-    expect(await w.balance()).toBe(412_000n);
+    expect(await w.balance()).toBe(435_000n);
 
     const again = await scans.finishTrip(std.DR1, t1.id, {}).expect(200);
     expect(again.headers['x-already-applied']).toBe('true');
@@ -129,7 +129,7 @@ describeDb('inc2 scan: finish trip, leftovers and the van check', () => {
       expect(await w.holder(n)).toMatchObject({ custodyType: 'STORE', custodyId: std.DA.homeStoreId, state: 'FULL' });
     }
     await w.as(std.SA1).patch('/settings/trip.allowFinishWithLeftovers').send({ value: false, reason: 'Back to normal' }).expect(200);
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     await w.walletClean();
   });
 

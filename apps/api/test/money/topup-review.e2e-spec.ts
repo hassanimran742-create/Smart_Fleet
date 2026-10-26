@@ -469,7 +469,7 @@ describeDb('money: top-up review by the office', () => {
       await db().$transaction((tx) => wallet.debit(tx, { distributorId: std.DA.id, subject: { type: 'ORDER', orderId: order.id }, amountPaisa, actor }));
       return order.id;
     };
-    const x1 = await debit(48_000n);
+    const x1 = await debit(25_000n);
     await debit(40_000n, std.C2);
     await db().$transaction((tx) => wallet.reverse(tx, { subject: { type: 'ORDER', orderId: x1 }, actor, reason: 'Cancelled' }));
     // A Rs 400 debit at 02:30, before today's cut-off: yesterday's business day.

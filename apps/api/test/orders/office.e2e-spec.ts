@@ -49,7 +49,7 @@ describeDb('api-orders: office distributors and summary', () => {
 
   it('OFF-002 GET /admin/summary counts what is waiting and what happened today', async () => {
     const { std, db } = f;
-    // DA placed X1 (Rs 480) and cancelled it before loading, then X2 (Rs 400) and O3 (3 × 15 kg for Usman, Rs 400).
+    // DA placed X1 (Rs 250) and cancelled it before loading, then X2 (Rs 400) and O3 (3 × 15 kg for Usman, Rs 400).
     const x1 = await f.x1();
     await f.cancel(x1.id, { reasonCode: 'CUSTOMER_CANCELLED' }).expect(200);
     const x2 = await f.x2();

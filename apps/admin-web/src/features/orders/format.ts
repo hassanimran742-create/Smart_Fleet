@@ -1,7 +1,7 @@
 import type { OrderBoardTab, OrderDto, OrderStage } from '@smartfleet/shared-types';
 import { localDate } from '@smartfleet/shared-utils';
 import i18n from '../../i18n';
-import { formatAgo, formatDateTime, formatRs, formatTime } from '../../i18n/format';
+import { formatAgo, formatDateTime, formatTime } from '../../i18n/format';
 
 /**
  * Plain words for an order, shared by the board, the drawer and the dialogs (UX_ADMIN §2.5). Every
@@ -74,41 +74,6 @@ export function drawerSubtitle(order: OrderDto, now: number = Date.now()): strin
   }
   const when = whenText(order.createdAt, now);
   return distributor ? t('orders:drawer.subtitle', { distributor, when }) : t('orders:drawer.subtitleNoDistributor', { when });
-}
-
-/** One row of the drawer's cost breakdown: "Base · Rs 250", "11.8 kg · 2 × Rs 40". */
-export interface CostRow {
-  id: string;
-  label: string;
-  value: string;
-}
-
-/**
- * The delivery cost as the order stored it (UX_ADMIN §2.5, website spec W28), as rows instead of a
- * formula: the base, then each size with its count and amount. Parts of Rs 0 are left out, so a flat
- * price is the base alone. `legacy` is an older order without a breakdown; `none` has no cost.
- */
-export type CostBreakdown = { kind: 'rows'; rows: CostRow[] } | { kind: 'legacy' } | { kind: 'none' };
-
-export function costBreakdown(order: Pick<OrderDto, 'fee'>): CostBreakdown {
-  const { fee } = order;
-  if (fee.status === 'NONE' && (fee.totalPaisa === '0' || !fee.breakdown)) return { kind: 'none' };
-  if (!fee.breakdown) return { kind: 'legacy' };
-  const rows: CostRow[] = [];
-  if (fee.breakdown.basePaisa !== '0') {
-    rows.push({ id: 'base', label: i18n.t('orders:drawer.costBase'), value: formatRs(fee.breakdown.basePaisa) });
-  }
-  for (const line of fee.breakdown.lines) {
-    if (line.perCylinderPaisa === '0' || line.count === 0) continue;
-    rows.push({
-      id: line.cylinderTypeId,
-      label: line.sizeLabel,
-      value: i18n.t('orders:drawer.costLine', { n: line.count, amount: formatRs(line.perCylinderPaisa) }),
-    });
-  }
-  // A breakdown of only zeros: the base row says Rs 0.
-  if (rows.length === 0) rows.push({ id: 'base', label: i18n.t('orders:drawer.costBase'), value: formatRs(fee.breakdown.basePaisa) });
-  return { kind: 'rows', rows };
 }
 
 /** Stages that can't change any more. */

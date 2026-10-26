@@ -86,37 +86,6 @@ export function lineTime(at: TimeInput, t?: WhenTranslate, now: TimeInput = Date
   return localDate(at) === localDate(now) ? formatPkTime(at) : formatWhen(at, now, t);
 }
 
-/** The parts of a delivery cost: a quote, a price applied to counts, or an order's stored copy. */
-export interface CostLike {
-  basePaisa: PaisaLike;
-  totalPaisa: PaisaLike;
-  lines: readonly { sizeLabel: string; count: number; perCylinderPaisa: PaisaLike }[];
-}
-
-/**
- * The cost's parts as a data-only caption under the big total (shop spec §3.5, §P): "Rs 250 + 2 ×
- * Rs 40 + 1 × Rs 150", with the sizes that cost nothing left out. Null when no size adds to the cost
- * (the total says it all) or the cost is Rs 0. Never "=", brackets or zone names.
- */
-export function costParts(cost: CostLike, t: TFunction): string | null {
-  if (!isPositivePaisa(cost.totalPaisa)) return null;
-  const lineParts = cost.lines
-    .filter((line) => line.count > 0 && isPositivePaisa(line.perCylinderPaisa))
-    .map((line) => t('orders.new.costLine', { count: line.count, amount: formatRs(line.perCylinderPaisa) }));
-  if (lineParts.length === 0) return null;
-  const parts = isPositivePaisa(cost.basePaisa)
-    ? [t('orders.new.costBase', { amount: formatRs(cost.basePaisa) }), ...lineParts]
-    : lineParts;
-  return parts.join(t('orders.new.costJoin'));
-}
-
-/** An order's stored cost as a {@link CostLike}, or null for a legacy order without a breakdown. */
-export function orderCost(order: OrderDto): CostLike | null {
-  const breakdown = order.fee.breakdown;
-  if (!breakdown) return null;
-  return { basePaisa: breakdown.basePaisa, totalPaisa: order.fee.totalPaisa, lines: breakdown.lines };
-}
-
 /** "2 × 11.8 kg, 1 × 45.4 kg" for an order's lines. */
 export function itemsText(lines: OrderDto['lines'], t: TFunction): string {
   return lines

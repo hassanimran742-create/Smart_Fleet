@@ -132,7 +132,7 @@ describeDb('confirmation records: the audit row and no money', () => {
     expect(checks).toEqual([expect.objectContaining({ distributorId: std.DA.id, ok: true })]);
     for (const d of orders) {
       const order = await http(app).get(`/api/v1/orders/${d.order.id}`).set(authHeader(std.DA.actor)).expect(200);
-      expect(order.body.fee).toMatchObject({ status: 'DEDUCTED', totalPaisa: '48000' });
+      expect(order.body.fee).toMatchObject({ status: 'DEDUCTED', totalPaisa: '25000' });
     }
     const statementAfter = (await http(app).get('/api/v1/wallet/statement').set(authHeader(std.DA.actor)).expect(200)).body;
     expect(statementAfter).toEqual(statementBefore);

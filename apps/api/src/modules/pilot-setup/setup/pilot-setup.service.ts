@@ -316,7 +316,7 @@ export class PilotSetupService {
       await this.step(['distributors', index], shop.businessName, () => this.writeDistributor(run, shop, checked.phones.distributors[index], index));
     }
     for (const [index, price] of file.prices.entries()) {
-      await this.step(['prices', index], `${price.distributor} in ${price.zone}`, () => this.writePrice(run, price));
+      await this.step(['prices', index], `${price.distributor} in ${price.zone}`, () => this.writePrice(run, price, index));
     }
     for (const [index, driver] of file.drivers.entries()) {
       await this.step(['drivers', index], driver.name, () => this.writeDriver(run, driver, checked.phones.drivers[index], index));
@@ -577,37 +577,28 @@ export class PilotSetupService {
     else this.unchanged(run, 'distributors');
   }
 
-  /** A delivery price by PricingService (`price.set`), compared first so an equal price writes nothing. */
-  private async writePrice(run: RunState, price: PilotSetupFile['prices'][number]): Promise<void> {
+  /**
+   * A delivery price by PricingService (`price.set`), compared first so an equal price writes nothing. The
+   * price is one delivery cost per order (ADR-08): an older file's per-size amounts are ignored, with a note.
+   */
+  private async writePrice(run: RunState, price: PilotSetupFile['prices'][number], index: number): Promise<void> {
     const shop = this.shopOf(run, price.distributor);
     const zoneId = run.zones.get(key(price.zone));
     if (!zoneId) throw new AppError('NOT_FOUND', { field: 'zone' });
-    const sizes = price.sizes.map((size) => ({ cylinderTypeId: this.typeOf(run, size.cylinderType).id, perCylinderPaisa: size.perCylinderPaisa }));
-    const wanted = {
-      basePaisa: price.basePaisa,
-      note: price.note ?? null,
-      sizes: sizes
-        .filter((size) => BigInt(size.perCylinderPaisa) !== 0n)
-        .map((size) => `${size.cylinderTypeId}:${BigInt(size.perCylinderPaisa).toString()}`)
-        .sort(),
-    };
-    const current = await this.prices.priceFor(shop.id, zoneId, run.tx);
     const name = `${shop.code} in ${price.zone}`;
+    if (price.sizes && price.sizes.length > 0) {
+      run.outcome.notes.push(`prices[${index}] ${name}: per-size amounts are ignored; the delivery cost is one amount per order (basePaisa).`);
+    }
+    const wanted = { basePaisa: price.basePaisa, note: price.note ?? null };
+    const current = await this.prices.priceFor(shop.id, zoneId, run.tx);
     if (current) {
-      const stored = {
-        basePaisa: current.basePaisa.toString(),
-        note: current.note ?? null,
-        sizes: current.sizes
-          .filter((size) => size.perCylinderPaisa !== 0n)
-          .map((size) => `${size.cylinderTypeId}:${size.perCylinderPaisa.toString()}`)
-          .sort(),
-      };
+      const stored = { basePaisa: current.basePaisa.toString(), note: current.note ?? null };
       if (JSON.stringify(stored) === JSON.stringify(wanted)) {
         this.unchanged(run, 'prices');
         return;
       }
     }
-    await this.pricing.putPrice(this.actor, shop.id, zoneId, { basePaisa: price.basePaisa, sizes, note: price.note });
+    await this.pricing.putPrice(this.actor, shop.id, zoneId, { basePaisa: price.basePaisa, note: price.note });
     if (current) this.changed(run, 'prices', name);
     else this.created(run, 'prices', name);
   }

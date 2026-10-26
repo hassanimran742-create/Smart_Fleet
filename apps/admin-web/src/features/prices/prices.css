@@ -41,58 +41,13 @@
   font-weight: 600;
 }
 
-/* The per-cylinder amounts wrap between sizes, never inside "45.4 kg Rs 150". */
-.sf-prices__sizes-cell {
-  display: inline-flex;
-  flex-wrap: wrap;
-  column-gap: var(--sp-1);
-}
-
-.sf-prices__size-amount {
-  white-space: nowrap;
-}
-
 /* ---- Drawer ---- */
 
 .sf-prices__drawer-alert {
   margin-block-end: var(--sp-4);
 }
 
-.sf-prices__copy {
-  max-inline-size: 320px;
-}
-
-.sf-prices__sizes {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-inline-size: 0;
-}
-
-.sf-prices__sizes-title {
-  margin-block-end: var(--sp-2);
-  padding: 0;
-  font-size: var(--fs-14);
-  font-weight: 600;
-}
-
-.sf-prices__sizes-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--sp-4);
-}
-
-@media (max-width: 599px) {
-  .sf-prices__sizes-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.sf-prices__sizes-hint {
-  margin-block-start: calc(-1 * var(--sp-2));
-  font-size: var(--fs-13);
-}
-
+/* The one-line example under the box: "Any order → Rs 250". */
 .sf-prices__example {
   margin-block-end: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
@@ -100,13 +55,6 @@
   border-radius: var(--r-md);
   background: var(--surface-2);
   font-variant-numeric: tabular-nums;
-}
-
-.sf-prices__example-title {
-  margin-block-end: var(--sp-1);
-  color: var(--text-muted);
-  font-size: var(--fs-13);
-  font-weight: 600;
 }
 
 .sf-prices__note {

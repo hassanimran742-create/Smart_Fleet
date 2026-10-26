@@ -35,7 +35,7 @@ Driver words map to scan codes like this (the code names read backwards from the
 ### Increment 1: Foundations, money and expenses
 - **Safety baseline:** webhook switched off (410), approve-once top-ups, atomic balances, a delivered guard, role and ownership checks, no password or CNIC leaks, the legacy scan route locked down, socket auth, customer login off, boot guards, an audit log, a migrations baseline.
 - **One store per distributor.** Every trip starts at it.
-- **Delivery price per distributor per zone:** a base per order plus optional per-size amounts (default 0). A missing price blocks adding the customer and placing the order, with a clear message.
+- **Delivery price per distributor per zone:** ONE flat delivery cost per order, whatever cylinders it holds (2026-10-26: "We are managing deliveries not cylinder pricing. Only delivery costs."). A missing price blocks adding the customer and placing the order, with a clear message.
 - **The cost is quoted** when a customer is added and when an order is reviewed. It is **deducted when the order is placed**, and **returned only on a cancel before delivery has started** (setting `orders.deliveryStartedAt`, default the first load scan).
 - **Wallet card** (balance plus money being checked) and a wallet history.
 - **A super-admin wallet correction**, with a reason, for genuine mistakes.
@@ -87,7 +87,7 @@ Rules when the docs and the code disagree:
 5. **Database changes ship only as Prisma migrations** made with `prisma migrate diff` (DATA_MODEL §2). Never use `db push` after the baseline release.
 
 ## Conventions used everywhere
-- **Money** is integer paisa: `BigInt` in the database, a digit string in JSON (money out carries a leading `-`, `"-48000"`), and shown as "Rs 3,450" or "−Rs 480" by `formatRs()`.
+- **Money** is integer paisa: `BigInt` in the database, a digit string in JSON (money out carries a leading `-`, `"-25000"`), and shown as "Rs 3,450" or "−Rs 250" by `formatRs()`.
 - **Time** is ISO-8601 UTC on the wire. The business day is Asia/Karachi with a 03:00 cut-off (settings `day.timezone` and `day.cutoffLocalTime`). Expense dates are plain Asia/Karachi calendar dates, with no cut-off.
 - **Human numbers** come from `Distributor.code`: order `AG-0142`, top-up `AG-T031`, refill `AG-R007`, cylinder `AG-C0042`, C for cylinder, typed as `42`, `0042`, `C0042` or `AG-C0042` (`formatNo()` and `parseCylinderNo()` in shared-utils).
 - **Plain words on screen.** No enum values, UUIDs or words like `PAID_VIA_LEDGER`.

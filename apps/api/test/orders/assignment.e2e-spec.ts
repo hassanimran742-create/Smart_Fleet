@@ -162,7 +162,7 @@ describeDb('api-orders: assignment and trips', () => {
     expect(audits[0]).toMatchObject({ actorUserId: std.SA1.id, reason: 'Kashif is sick' });
     expect(audits[0].diff).toMatchObject({ fromTripId: T1, toTripId: T2 });
     // Step 6.
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
   });
 
   it('ASG-005 changing the driver is refused once a cylinder is loaded, and the office cannot abort that trip', async () => {
@@ -197,7 +197,7 @@ describeDb('api-orders: assignment and trips', () => {
 
   it('ASG-006 a driver change racing the first load scan: either the change wins or the load wins, never both', async () => {
     const { std } = f;
-    await f.setBalance(std.DA, 20n * 48_000n);
+    await f.setBalance(std.DA, 20n * 25_000n);
     const codes = await f.extraCylinders(20, std.sizes.kg11_8, 'SWAP');
     for (let round = 0; round < 20; round++) {
       const x1 = await f.x1();

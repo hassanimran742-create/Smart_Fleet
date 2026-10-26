@@ -125,17 +125,9 @@ export async function createStandardData(opts: { cylinders?: boolean } = {}): Pr
 
   const sizes = await standardSizes(db);
   const rs = (rupees: number) => BigInt(rupees * 100);
-  await createZonePrice({
-    distributorId: DA.id,
-    zoneId: North.id,
-    basePaisa: rs(250),
-    sizes: [
-      { cylinderTypeId: sizes.kg6, perCylinderPaisa: rs(30) },
-      { cylinderTypeId: sizes.kg11_8, perCylinderPaisa: rs(40) },
-      { cylinderTypeId: sizes.kg15, perCylinderPaisa: rs(80) },
-      { cylinderTypeId: sizes.kg45_4, perCylinderPaisa: rs(150) },
-    ],
-  });
+  // One delivery cost per order, whatever cylinders it holds (ADR-08): Ahmed Gas North Rs 250, South Rs 400,
+  // East none; Bilal Gas South Rs 300.
+  await createZonePrice({ distributorId: DA.id, zoneId: North.id, basePaisa: rs(250) });
   await createZonePrice({ distributorId: DA.id, zoneId: South.id, basePaisa: rs(400) });
   await createZonePrice({ distributorId: DB.id, zoneId: South.id, basePaisa: rs(300) });
 
@@ -170,7 +162,7 @@ export async function createStandardData(opts: { cylinders?: boolean } = {}): Pr
   return { SA1, SA2, DA, DB, DR1, DR2, zones: { North, South, East }, outside, sizes, C1, C2, C3 };
 }
 
-/** X1: Ahmed Gas orders 2 × 11.8 kg + 1 × 45.4 kg for Sana in North, Rs 480 (TEST_CASES.md "Worked money examples"). */
+/** X1: Ahmed Gas orders 2 × 11.8 kg + 1 × 45.4 kg for Sana in North, Rs 250 (TEST_CASES.md "Worked money examples"). */
 export function x1OrderBody(std: StandardData): Record<string, unknown> {
   return {
     clientId: std.C1.id,

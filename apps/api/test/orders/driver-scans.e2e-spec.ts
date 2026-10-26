@@ -113,7 +113,7 @@ describeDb('api-orders: the legacy driver scan route', () => {
     const scans = (await events('AG-C0001')).filter((event) => event.eventType === 'SCAN_OUT');
     expect(scans).toHaveLength(1);
     expect(scans[0]).toMatchObject({ actorUserId: std.DR1.userId, tripId: T1 });
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
   });
 
   it('DRV-004 the legacy scan guards refuse each wrong move and change nothing', async () => {
@@ -164,7 +164,7 @@ describeDb('api-orders: the legacy driver scan route', () => {
     // Step 5.
     const order = await f.order(x1.id);
     expect(['DELIVERED', 'FAILED']).not.toContain(order.status);
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
     expect(await f.audits('order.fail', x1.id)).toEqual([]);
   });
 
@@ -184,8 +184,8 @@ describeDb('api-orders: the legacy driver scan route', () => {
     const again = await f.fail(x1.id, { reasonCode: 'CUSTOMER_NOT_HOME', lat: 31.53, lng: 74.23 }, std.DR1).expect(200);
     expect(again.headers['x-already-applied']).toBe('true');
     // Step 6.
-    expect(await f.balance()).toBe(452_000n);
-    expect((await f.ledger({ orderId: x1.id })).map((row) => [row.entryType, row.amountPaisa])).toEqual([['DEBIT_ORDER', -48_000n]]);
+    expect(await f.balance()).toBe(475_000n);
+    expect((await f.ledger({ orderId: x1.id })).map((row) => [row.entryType, row.amountPaisa])).toEqual([['DEBIT_ORDER', -25_000n]]);
     const audits = await f.audits('order.fail', x1.id);
     expect(audits).toHaveLength(1);
     expect(audits[0]).toMatchObject({ actorUserId: std.DR1.userId, reason: 'CUSTOMER_NOT_HOME' });

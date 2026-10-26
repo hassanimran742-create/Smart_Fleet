@@ -82,12 +82,13 @@ const pilotPriceSchema = z
   .object({
     distributor: distributorCodeSchema,
     zone: textSchema(2, 60),
+    /** The delivery cost per order (ADR-08): one flat amount, whatever cylinders the order holds. */
     basePaisa: priceAmountSchema,
-    /** Optional amounts per size; a size left out costs 0 per cylinder. */
-    sizes: z
-      .array(z.object({ cylinderType: cylinderTypeCodeSchema, perCylinderPaisa: priceAmountSchema }).strict())
-      .max(20)
-      .default([]),
+    /**
+     * Per-size amounts of a file written before 2026-10-26. They are no longer used: setup ignores them and
+     * says so in a note (API_CONTRACT §10.5). New files leave the key out.
+     */
+    sizes: z.array(z.unknown()).max(20).optional(),
     note: optionalTextSchema(200),
   })
   .strict();
@@ -223,8 +224,6 @@ export const pilotSetupFileSchema = z
     file.prices.forEach((price, i) => {
       mustName(shops, price.distributor, ['prices', i, 'distributor'], issues);
       mustName(zones, price.zone, ['prices', i, 'zone'], issues);
-      uniqueBy(price.sizes, (s) => s.cylinderType, (j) => ['prices', i, 'sizes', j, 'cylinderType'], issues);
-      price.sizes.forEach((size, j) => mustName(sizes, size.cylinderType, ['prices', i, 'sizes', j, 'cylinderType'], issues));
     });
     file.drivers.forEach((driver, i) => {
       if (driver.van) mustName(zones, driver.van.homeZone, ['drivers', i, 'van', 'homeZone'], issues);

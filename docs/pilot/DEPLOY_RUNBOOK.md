@@ -5,7 +5,7 @@ For the IT person who deploys Smart Fleet. There are two releases, deployed in t
 | Release | What it does | Commit on branch `release/pilot` |
 |---|---|---|
 | **1, the baseline** | Records the live database's migration history. On a server that runs af889bf, it changes no table, no data and no app. | The first commit, "Release 1, the baseline: …" |
-| **2, the switch-over** | Increments 1, 2 and 3: the new server, office website and phone apps, and five database migrations. | The second commit, "Release 2: …" |
+| **2, the switch-over** | Increments 1, 2 and 3: the new server, office website and phone apps, and six database migrations (the last, flat_delivery_cost, makes the delivery cost one amount per order). | The second commit, "Release 2: …" |
 
 If release 2 is deployed to a database that hasn't had release 1, it stops with `DB_NOT_BASELINED: deploy the baseline release first` and changes nothing.
 
@@ -140,7 +140,7 @@ Start only when release 1 runs on that environment: `migrate status` lists `0_ba
    sudo bash /srv/smartfleet/src/infrastructure/aws/deploy.sh staging $R2
    sudo bash /srv/smartfleet/src/infrastructure/aws/deploy.sh prod $R2
    ```
-   The log shows `BOOT_PREFLIGHT_OK`, then `Applying migration …` five times (inc1a, inc1b, inc2, inc3, users_app_seen). It ends with `healthy at commit <R2>`.
+   The log shows `BOOT_PREFLIGHT_OK`, then `Applying migration …` six times (inc1a, inc1b, inc2, inc3, users_app_seen, flat_delivery_cost). It ends with `healthy at commit <R2>`.
 
    **Check it worked:**
    ```bash

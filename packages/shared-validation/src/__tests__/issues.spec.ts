@@ -58,8 +58,8 @@ describe('primaryErrorCode', () => {
     expect(primaryErrorCode([{ path: 'amountPaisa', code: 'AMOUNT_NOT_WHOLE_RUPEES' }])).toBe('AMOUNT_NOT_WHOLE_RUPEES');
     expect(
       primaryErrorCode([
-        { path: 'basePaisa', code: 'PRICE_INVALID' },
-        { path: 'sizes.0.perCylinderPaisa', code: 'PRICE_INVALID' },
+        { path: 'prices.0.basePaisa', code: 'PRICE_INVALID' },
+        { path: 'prices.1.basePaisa', code: 'PRICE_INVALID' },
       ]),
     ).toBe('PRICE_INVALID');
     expect(

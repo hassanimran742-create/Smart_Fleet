@@ -229,6 +229,6 @@ describe('FND-025 BigInt money serialises exactly (API_CONTRACT §1.1)', () => {
     const { installBigIntJson } = require('../../src/common/bootstrap/bigint-json') as typeof import('../../src/common/bootstrap/bigint-json');
     installBigIntJson();
     expect(JSON.stringify({ amountPaisa: 9007199254740993n })).toBe('{"amountPaisa":"9007199254740993"}');
-    expect(JSON.stringify({ amountPaisa: -48000n, balanceAfterPaisa: 0n })).toBe('{"amountPaisa":"-48000","balanceAfterPaisa":"0"}');
+    expect(JSON.stringify({ amountPaisa: -25000n, balanceAfterPaisa: 0n })).toBe('{"amountPaisa":"-25000","balanceAfterPaisa":"0"}');
   });
 });

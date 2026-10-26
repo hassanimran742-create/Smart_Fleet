@@ -113,7 +113,7 @@ describeDb('issuing the confirmation when an order is delivered', () => {
       expect(await confirmationOf(d1.order.id)).toBeNull();
       expect(await messagesOf(d1.order.id)).toEqual([]);
       expect(spy.calls).toHaveLength(0);
-      expect(before.balancePaisa).toBe(452_000n);
+      expect(before.balancePaisa).toBe(475_000n);
       expect(await moneyOf(std.DA.id)).toEqual(before);
       // The order lists' `confirmation` field: none.
       expect((await app.get(ConfirmationService).summariesFor([d1.order.id])).get(d1.order.id)).toBeUndefined();

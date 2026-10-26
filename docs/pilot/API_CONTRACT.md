@@ -20,9 +20,9 @@ Every change is additive unless marked **BREAKING**. BREAKING is used only where
 - **Money is integer paisa.**
   - Responses send it as a JSON **string of digits**. `BigInt.prototype.toJSON` is kept (main.ts:13-15), and old apps already call `Number(x)`.
   - Requests accept an integer or a digit string. Field names end in `Paisa`.
-  - A signed amount (statement and ledger rows) carries a leading ASCII `-` for money out and no sign otherwise: `"-48000"`, `"500000"`, `"0"`. Request amounts are never negative (400 `VALIDATION_FAILED`, `INVALID_AMOUNT` or `AMOUNT_TOO_SMALL`).
+  - A signed amount (statement and ledger rows) carries a leading ASCII `-` for money out and no sign otherwise: `"-25000"`, `"500000"`, `"0"`. Request amounts are never negative (400 `VALIDATION_FAILED`, `INVALID_AMOUNT` or `AMOUNT_TOO_SMALL`).
   - Top-ups, corrections and expenses must be whole rupees (`% 100 === 0`, else `AMOUNT_NOT_WHOLE_RUPEES`). Delivery prices must be whole rupees too, but every bad price amount is `PRICE_INVALID` (§7.5).
-- **English money** is printed by `formatRs(paisa)` in packages/shared-utils/src/money.ts: "Rs 3,450", "Rs 3,450.50", "−Rs 330" (U+2212) and, with `sign: 'always'`, "+Rs 5,000"; the sign sits right before "Rs" with no space, and zero is never signed. The old `formatPkr` ("Rs. 3,450.00") stays only until no caller is left.
+- **English money** is printed by `formatRs(paisa)` in packages/shared-utils/src/money.ts: "Rs 3,450", "Rs 3,450.50", "−Rs 250" (U+2212) and, with `sign: 'always'`, "+Rs 5,000"; the sign sits right before "Rs" with no space, and zero is never signed. The old `formatPkr` ("Rs. 3,450.00") stays only until no caller is left.
 - **Time** is ISO-8601 UTC.
   - The business day is Asia/Karachi with a 03:00 cut-off (`day.timezone`, `day.cutoffLocalTime`). Business dates in SQL follow both settings (DATA_MODEL §5.4). Change them only between business days, with no day-end OPEN or SUBMITTED (an ops rule; the API doesn't refuse it): stored dates never move, while "today" counts and reports regroup at once.
   - `businessDate` is `YYYY-MM-DD`. Expense dates are plain calendar dates `YYYY-MM-DD` in Asia/Karachi, with no 03:00 cut-off; so are fuel-log months.
@@ -102,7 +102,7 @@ LOADING lasts from the first load scan until the store stop departs ("Done loadi
 
 The shop app (UX_MOBILE §8.1) and the website (UX_ADMIN §4.1) map these values to their own words.
 
-**`OrderFeeStatus`** (`fee.status`): `NONE`, `DEDUCTED`, `REVERSED`.
+**`OrderFeeStatus`** (`fee.status`): `NONE`, `DEDUCTED`, `REVERSED`. An order's `fee` is `{ totalPaisa, status }`: ONE delivery cost per order, whatever cylinders it holds (ADR-08, 2026-10-26), with no per-size parts; the apps show it as one amount ("Delivery cost Rs 250").
 
 **`DayEndStage`** [Inc 3], computed by `deriveDayEndStage(day)` in shared-utils and sent as `stage` on every day-end DTO, first match wins:
 
@@ -192,8 +192,8 @@ From Inc 3 `COMPLETE` and the Inc 1 driver step names are no longer offered: the
 This replaces common/filters/http-exception.filter.ts.
 ```json
 { "statusCode": 409, "code": "WALLET_INSUFFICIENT_BALANCE",
-  "message": "Not enough balance. This needs Rs 330 and you have Rs 120. Add money to continue.",
-  "details": { "requiredPaisa": "33000", "balancePaisa": "12000", "shortByPaisa": "21000" },
+  "message": "Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue.",
+  "details": { "requiredPaisa": "25000", "balancePaisa": "24900", "shortByPaisa": "100" },
   "error": "WALLET_INSUFFICIENT_BALANCE", "requestId": "…", "path": "/api/v1/orders", "timestamp": "…" }
 ```
 - **`code`** is a stable UPPER_SNAKE value from `ErrorCode` in **packages/shared-types/src/errors.ts**. That file exports:
@@ -609,7 +609,7 @@ These apply when `NODE_ENV` is `production` or `staging`:
 | wallet (new) | `distributors.advance_balance_paisa`, ledger_entries | audit |
 | ledger | none (a compatibility façade over wallet) | wallet |
 | payments | payments | wallet, files, settings, audit |
-| pricing | distributor_zone_prices, distributor_zone_price_sizes (pricing_rules frozen: kept, and writable by the office through the legacy routes, but never read by quotes, orders or fees) | zones, settings |
+| pricing | distributor_zone_prices: one delivery cost per order per distributor per zone (pricing_rules frozen: kept, and writable by the office through the legacy routes, but never read by quotes, orders or fees) | zones, settings |
 | zones, stores | zones, stores | none |
 | distributors | distributors (except the balance), its store row | stores, zones, wallet (read), audit, auth (`SessionCheckService.forget`) |
 | clients | clients, client_addresses | pricing, zones |
@@ -716,7 +716,7 @@ interface DeliveryFeeStrategy {
 quoteLocation(distributorId, point): Promise<LocationQuote>;          // never throws for coverage: blockCode instead
 quoteOrder(distributorId, point, lines, tx?): Promise<DeliveryQuote>; // throws PRICING_ZONE_NOT_COVERED / PRICING_PRICE_NOT_SET
 ```
-- **DISTRIBUTOR_ZONE:** `total = price.basePaisa + Σ(perCylinder(size) × fullCount)`. A missing size row counts as 0. The base is charged **once per order** (today pricing.service.ts:77 adds it once per line). `originStore` is always the distributor's home store, never the body's (409 `DISTRIBUTOR_NO_STORE` when there is none, which only a legacy distributor can have before inc1b). `quoteLocation` and `GET /pricing/quote` don't need it, because the price depends only on the customer's zone.
+- **DISTRIBUTOR_ZONE:** `total = price.basePaisa`: ONE flat delivery cost per order, whatever cylinders it holds (ADR-08; owner, 2026-10-26: "We are managing deliveries not cylinder pricing. Only delivery costs."). It is charged **once per order** (the af889bf code added a cost once per line). The lines don't change the cost, but each must name a cylinder size (404 `NOT_FOUND` `{field: 'lines'}`). `originStore` is always the distributor's home store, never the body's (409 `DISTRIBUTOR_NO_STORE` when there is none, which only a legacy distributor can have before inc1b). `quoteLocation` and `GET /pricing/quote` don't need it, because the price depends only on the customer's zone.
 - **Zone lookup (ZonesService.findContainingPoint)** follows DATA_MODEL §6.6: active zones only, `ST_Covers`, ordered by area, then created_at, then id.
 - The strategy is picked by setting `pricing.deliveryStrategy`. It can't be edited until a second strategy exists.
 
@@ -823,7 +823,7 @@ Shared response shapes, in shared-types (`Paisa` = digit string):
 OrderDto = { id; orderNo; shortCode: 'AG-0142'; status: OrderStatus; stage: OrderStage;
   client: { id; name; phone }; lines: { id; cylinderTypeId; sizeLabel: '11.8 kg'; fullCount; expectedReturnCount }[];
   deliveryAddressLabel; destination: { lat; lng }; destZone: { id; name };
-  fee: { totalPaisa; status: OrderFeeStatus; breakdown: { basePaisa; lines: { cylinderTypeId; sizeLabel; count; perCylinderPaisa; subtotalPaisa }[] } | null };
+  fee: { totalPaisa; status: OrderFeeStatus };       // one delivery cost per order (ADR-08); no per-size parts
   cancel: { allowed: boolean; refundPaisa: Paisa; noRefundReason: 'DELIVERY_STARTED' | null };
   originStore: { id; name; address } | null;
   trip: { id; status; driver: { id; name; phone }; vehicle: { plateNo } } | null;
@@ -949,27 +949,27 @@ The apps type these routes with them and never redefine them (README rule 2).
 
 ### 7.5 Delivery prices and quotes
 ```ts
-PriceView     = { zone: { id; name }; basePaisa; sizes: { cylinderTypeId; sizeLabel; perCylinderPaisa }[]; updatedAt }  // all active sizes; missing = "0"
+PriceView     = { zone: { id; name }; basePaisa /* the delivery cost per order */; updatedAt }
 LocationQuote = { serviceable: boolean; zone: { id; name } | null; price: PriceView | null;
                   blockCode: null | 'PRICING_ZONE_NOT_COVERED' | 'PRICING_PRICE_NOT_SET' }
                 // serviceable === (blockCode === null). PRICING_PRICE_NOT_SET: { serviceable: false, zone, price: null }. PRICING_ZONE_NOT_COVERED: { serviceable: false, zone: null, price: null }.
-DeliveryQuote = { strategy: FeeStrategy; zone: { id; name }; basePaisa;
-                  lines: { cylinderTypeId; sizeLabel; count; perCylinderPaisa; subtotalPaisa }[]; totalPaisa }
+DeliveryQuote = { strategy: FeeStrategy; zone: { id; name }; basePaisa; totalPaisa }  // the same amount: one cost per order
 ```
+- **One flat delivery cost per order** (ADR-08, owner 2026-10-26), set per distributor per zone, whatever cylinders the order holds. There are no per-size amounts: none is stored, quoted, charged or shown. `basePaisa` keeps its name from the earlier base-plus-sizes price and now is the whole cost, so every app that reads a cost field (`basePaisa`, `totalPaisa`, the order's `fee.totalPaisa` and its legacy `deliveryFeePaisa`) gets that one cost.
+- Standard data (TEST_CASES.md): Ahmed Gas North Rs 250, South Rs 400, East no price; Bilal Gas South Rs 300. X1 (2 × 11.8 kg + 1 × 45.4 kg for Sana in North) costs Rs 250, so the balance goes Rs 5,000 → Rs 4,750; X2 (3 × 15 kg for Usman in South) costs Rs 400.
 - **`GET /pricing/prices/:distributorId`** (office) returns the grid:
   ```
   { distributor: { id, businessName, code, store: { id, name, zone: { id, name } } },
-    sizes: [{ cylinderTypeId, code, label }],
     zones: [{ zone: { id, name, cityName, isActive },
-              price: null | { basePaisa, sizes: [{ cylinderTypeId, perCylinderPaisa }], updatedAt, updatedBy: { id, name } | null } }],
+              price: null | { basePaisa, updatedAt, updatedBy: { id, name } | null } }],
     coverage: { priced, total } }
   ```
   `total` counts active zones.
-- **`PUT /pricing/prices/:distributorId/:zoneId`** (office): `{ basePaisa, sizes?: [{ cylinderTypeId, perCylinderPaisa }], note? }`.
-  - Every amount is whole rupees from Rs 0 to Rs 100,000 inclusive. Any bad amount (negative, paisa, not a whole number, not a number, above Rs 100,000) is `PRICE_INVALID` (400 `PRICE_INVALID` when nothing else in the body is wrong, else `VALIDATION_FAILED` with that field coded `PRICE_INVALID`, §2.2), never `AMOUNT_NOT_WHOLE_RUPEES`; a missing `basePaisa` is `VALIDATION_FAILED` (`REQUIRED`). Sizes are optional; a missing size is 0. The zone must be active (`ZONE_ARCHIVED`).
-  - One transaction: upsert the row and replace its size rows. Audit `price.set` with before and after.
+- **`PUT /pricing/prices/:distributorId/:zoneId`** (office): `{ basePaisa, note? }`, the delivery cost per order.
+  - The cost is whole rupees from Rs 0 to Rs 100,000 inclusive. Any bad amount (negative, paisa, not a whole number, not a number, above Rs 100,000) is `PRICE_INVALID` (400 `PRICE_INVALID` when nothing else in the body is wrong, else `VALIDATION_FAILED` with that field coded `PRICE_INVALID`, §2.2), never `AMOUNT_NOT_WHOLE_RUPEES`; a missing `basePaisa` is `VALIDATION_FAILED` (`REQUIRED`). A body that still sends `sizes` (an old screen) is 400 `VALIDATION_FAILED` with `sizes` coded `NOT_ALLOWED`, and nothing is saved. The zone must be active (`ZONE_ARCHIVED`).
+  - One transaction: upsert the row. Audit `price.set` with before and after, each `{ basePaisa, note }`.
   - New orders use it immediately. Placed orders keep their copy.
-  - Response 200 (a first save or an edit): the zone's row as in the grid, `{ zone: { id, name, cityName, isActive }, price: { basePaisa, sizes: [{ cylinderTypeId, perCylinderPaisa }] (every active size; missing "0"), updatedAt, updatedBy: { id, name } } }`. A PUT whose base, per-size amounts (missing = 0) and note equal the stored price changes nothing and writes no `price.set` row; it still answers 200 with the row. An unknown distributor or zone: 404 `NOT_FOUND`; a size that isn't an active cylinder type: 404 `NOT_FOUND` `{field: 'sizes'}`.
+  - Response 200 (a first save or an edit): the zone's row as in the grid, `{ zone: { id, name, cityName, isActive }, price: { basePaisa, updatedAt, updatedBy: { id, name } } }`. A PUT whose cost and note equal the stored price changes nothing and writes no `price.set` row; it still answers 200 with the row. An unknown distributor or zone: 404 `NOT_FOUND`.
 - **`DELETE /pricing/prices/:distributorId/:zoneId`** (office): `{ reason (5–300) }`. Removes the price, which blocks that zone again. Audit `price.remove`, with the old price as before. Response 200: the same row as PUT with `price: null`. With no price set: 200 with `X-Already-Applied: true` and no audit row. It also works on an archived zone.
 - **`GET /pricing/quote?lat&lng`** (DISTRIBUTOR exact; the office adds `&distributorId`): **200 always**, returning `LocationQuote`. It feeds the live pin panel.
 - **`POST /orders/quote`** (DISTRIBUTOR exact)
@@ -1325,7 +1325,7 @@ Every `@Cron` passes `{ timeZone: 'Asia/Karachi' }` literally, even where it cha
 
 As shipped, the deploy is two releases on branch `release/pilot` (the steps are in DEPLOY_RUNBOOK.md):
 - release 1 is step 2;
-- release 2 carries steps 4, 9 and 10 in one deploy. One `migrate deploy` applies inc1a, inc1b, inc2, inc3 and users_app_seen, after the checks of step 3 (`docs/pilot/release2-ready.sql`).
+- release 2 carries steps 4, 9 and 10 in one deploy. One `migrate deploy` applies inc1a, inc1b, inc2, inc3, users_app_seen and flat_delivery_cost, after the checks of step 3 (`docs/pilot/release2-ready.sql`).
 
 1. The owner confirms what is live (AWS or Railway) and whether it holds real data. Run the restore drill of DATA_MODEL §2.6 on the test server and record its times. Take a snapshot. On AWS, bring the host up to date before any deploy:
    - copy `infrastructure/aws/docker-compose.aws.yml` and `Caddyfile` to `/srv/smartfleet/`. The host's copies are hand-edited: deploy.sh refuses a compose file that doesn't take the service's image from `IMAGE_PROD` / `IMAGE_STAGING`, and Caddy must serve `api.smartfleetpk.com` and `staging.smartfleetpk.com`;
@@ -1380,7 +1380,7 @@ As shipped, the deploy is two releases on branch `release/pilot` (the steps are 
 **Orders and the wallet**
 - Two parallel orders can't spend more than the balance, and the balance never goes negative.
 - Placing an order deducts exactly once. A retry with the same Idempotency-Key returns the first order, with one ledger row.
-- A missing price gives 422 at add-address, quote and order. Sizes with no amount make the cost equal to the base.
+- A missing price gives 422 at add-address, quote and order. The cost is the zone's one cost per order, whatever cylinders the order holds.
 - Cancels:
   - a cancel before the start reverses once (a double cancel still writes one reversal row);
   - a cancel after the first load scan reverses nothing;
@@ -1847,7 +1847,7 @@ These points settle what §10.1–§10.4 left open, as the Increment 3 server bu
 - `GET /admin/summary` adds `refills: { needsDriver, oldestNeedsDriverAt }` (PENDING refills: "Refills need a driver"; the same refills as the office's needs-driver tab, §7.11) and `dayEnd: { toApprove, oldest: { id, businessDate, distributor } | null }` (SUBMITTED days: "Day-end ready to approve"), the second left out while `dayEnd.enabled` is off.
 
 **Pilot setup and reset (§10.3):**
-- The file format is shared-validation `pilotSetupFileSchema`, with `docs/pilot/pilot-setup.sample.json` as the documented example (the standard test data; `pilot/test.json` is the same data and `pilot/rehearsal.json` the same without Sana and Usman). Sections: `city`, `zones [{ name, shape (MultiPolygon, or a Polygon read as one), active }]`, `officeUsers`, `cylinderTypes`, `distributors [{ code, businessName, ownerName?, phone, cnic?, store }]`, `prices [{ distributor (code), zone (name), basePaisa, sizes [{ cylinderType (code), perCylinderPaisa }], note? }]`, `drivers [{ name, phone, licenceNo, cnic?, van? { plateNo, capacityUnits, homeZone } }]`, `stations`, `settings` (a record by registry key), `stock [{ distributor, cylinderType, count, state }]`, `customers`, `openingBalances [{ distributor, amountPaisa, note 10–300 }]`, and an optional `description`. Every object is strict (an unknown key is `NOT_ALLOWED`), natural keys are unique (`DUPLICATE_ITEM`) and references resolve inside the file (`INVALID_CHOICE`); any issue under `zones[i].shape` is `ZONE_INVALID_SHAPE`.
+- The file format is shared-validation `pilotSetupFileSchema`, with `docs/pilot/pilot-setup.sample.json` as the documented example (the standard test data; `pilot/test.json` is the same data and `pilot/rehearsal.json` the same without Sana and Usman). Sections: `city`, `zones [{ name, shape (MultiPolygon, or a Polygon read as one), active }]`, `officeUsers`, `cylinderTypes`, `distributors [{ code, businessName, ownerName?, phone, cnic?, store }]`, `prices [{ distributor (code), zone (name), basePaisa (the delivery cost per order), note? }]` (a file written before 2026-10-26 may still list `sizes`: they parse and are ignored, and the run prints "Note: prices[i] AG in North: per-size amounts are ignored; the delivery cost is one amount per order (basePaisa)."), `drivers [{ name, phone, licenceNo, cnic?, van? { plateNo, capacityUnits, homeZone } }]`, `stations`, `settings` (a record by registry key), `stock [{ distributor, cylinderType, count, state }]`, `customers`, `openingBalances [{ distributor, amountPaisa, note 10–300 }]`, and an optional `description`. Every object is strict (an unknown key is `NOT_ALLOWED`), natural keys are unique (`DUPLICATE_ITEM`) and references resolve inside the file (`INVALID_CHOICE`); any issue under `zones[i].shape` is `ZONE_INVALID_SHAPE`.
 - Check order: the file and the whole-file rules first (phones normalised and unique across logins and per shop's customers, one cylinder type per size, opening balances only with `--test`), then the zone shapes and overlaps (read-only; an overlap names both zones and the shared area in m²). After that every rule is the services' own, applied in section order inside the one transaction: city, zones, office users, cylinder types, distributors, prices, drivers and vans, stations, settings, stock, customers, opening balances. `--dry-run` runs the same write and rolls it back, so its plan is exact. Exit codes: 0 done, 1 refused or failed (nothing written), 2 bad arguments, 3 done but the labels file could not be saved (the labels are printed; `GET /cylinders` lists the QR values; review23 robustness-jobs-08). In the image (dist only, no `scripts/` or `pilot/`), run `node dist/modules/pilot-setup/cli/pilot-setup.js` / `pilot-reset.js` with the setup folder mounted (`-v /srv/smartfleet/pilot:/pilot --file /pilot/<name>.json --labels /pilot/<labels>.csv`), or copy the file in for `docker exec` (infrastructure/aws/README.md "Pilot setup and reset on the server"). Without `--labels` the CSV lands in `/app` inside the container. New flag `--labels <file.csv>` (default `./pilot-labels-<UTC yyyymmdd-HHMMss>.csv`, never overwritten; columns Cylinder number, QR value, Size, State, Shop code, Shop).
 - Re-runs: zones match by name within the city, case-insensitive (shape and active changes go through ZonesService); shops by code (contact and store changes through DistributorsService; a PENDING shop is activated, a SUSPENDED one stays suspended); an equal price writes nothing; drivers by phone (an existing driver keeps its profile; its van is linked with `assignVehicle`, refused while a van holds cylinders); vans by plate; stations by name; a setting the office may edit, or `topup.account`, else `SETTING_NOT_EDITABLE` (an equal value writes nothing); stock is topped up and never removed; customers by shop and phone, only created; opening balances once (a re-run notes a different amount and changes nothing); an existing SUPER_ADMIN with the phone is that office login, any other user with it `USER_PHONE_IN_USE`. Every successful run, a re-run included, writes one `pilot.setup` row.
 - Cylinder types match by code, else by weight (one stored type per size); the file's code then names the stored type within the file, so the sample also loads on a server seeded with the `LPG_*` types. A stored code with another weight is refused, and two file types of one weight are `DUPLICATE_ITEM`.

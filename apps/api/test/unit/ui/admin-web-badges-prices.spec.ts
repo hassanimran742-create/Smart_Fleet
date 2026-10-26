@@ -2,7 +2,7 @@
  * Review fixes on the office website's Today badge and price drawer (UX_ADMIN §1.3, §2.3). The website
  * has no UI test runner, so the rules run here on their own:
  * - the "waiting" count behind the Today badge and the "(n)" of the browser tab (web-ux-04);
- * - the price drawer's live example, none while the base is still blank (web-ux-07). example.ts reads its
+ * - the price drawer's live example, none while the cost is still blank (web-ux-07). example.ts reads its
  *   words through the website's i18n setup, which needs Vite, so that one module is replaced here by the
  *   website's own English strings (i18n/en/prices.ts) and the shared formatRs.
  */
@@ -16,7 +16,7 @@ const ADMIN_SRC = path.resolve(__dirname, '..', '..', '..', '..', 'admin-web', '
 const { navBadgeCounts } = require(path.join(ADMIN_SRC, 'hooks', 'navBadgeCounts.ts')) as typeof import('../../../../admin-web/src/hooks/navBadgeCounts');
 const { prices } = require(path.join(ADMIN_SRC, 'i18n', 'en', 'prices.ts')) as typeof import('../../../../admin-web/src/i18n/en/prices');
 
-/** `t('prices:drawer.example.both', values)` over the website's English strings. */
+/** `t('prices:drawer.example', values)` over the website's English strings. */
 function t(key: string, values: Record<string, unknown> = {}): string {
   const [ns, keyPath] = key.split(':');
   if (ns !== 'prices') throw new Error(`unexpected namespace in ${key}`);
@@ -35,7 +35,7 @@ type Summary = Parameters<typeof navBadgeCounts>[0] & object;
 function summary(extra: Partial<Summary> = {}): Summary {
   return {
     topups: { toCheck: 4, oldestWaitingAt: '2026-10-23T03:00:00.000Z', approvedToday: { count: 1, totalPaisa: '500000' } },
-    orders: { needsDriver: 3, oldestNeedsDriverAt: '2026-10-23T03:00:00.000Z', inProgress: 1, placedToday: 4, deliveredToday: 1, costTakenTodayPaisa: '88000' },
+    orders: { needsDriver: 3, oldestNeedsDriverAt: '2026-10-23T03:00:00.000Z', inProgress: 1, placedToday: 4, deliveredToday: 1, costTakenTodayPaisa: '65000' },
     prices: {
       missing: [
         { distributorId: 'a', distributorName: 'Ahmed Gas', zones: 1 },
@@ -88,31 +88,29 @@ describe('REV web-ux-04 the Today badge and the tab count are top-ups to check +
   });
 });
 
-describe('REV web-ux-07 the price example never says "costs Rs 0" for a blank base', () => {
-  const sizes: Parameters<typeof priceExample>[1] = [
-    { cylinderTypeId: 's6', code: 'STD_6KG', label: '6 kg' },
-    { cylinderTypeId: 's11', code: 'STD_11_8KG', label: '11.8 kg' },
-  ];
-
-  it('REV web-ux-07 no base yet: no example (the drawer shows none until a base is typed)', () => {
-    expect(priceExample(null, sizes, new Map())).toBeNull();
-    expect(priceExample(null, [], new Map())).toBeNull();
-    expect(prices.drawer.example).not.toHaveProperty('needsBase');
+describe('REV web-ux-07 the price example never says "costs Rs 0" for a blank cost', () => {
+  it('REV web-ux-07 no cost yet: no example (the drawer shows none until an amount is typed)', () => {
+    expect(priceExample(null)).toBeNull();
+    expect(prices.drawer).not.toHaveProperty('needsBase');
   });
 
-  it('REV web-ux-07 a typed base gives the example, and Rs 0 typed on purpose still reads as Rs 0', () => {
-    expect(priceExample(25000n, sizes, new Map())).toBe('Every order: Rs 250');
-    expect(priceExample(25000n, sizes, new Map([['s11', 4000n]]))).toBe('2 × 11.8 kg: Rs 250 + 2 × Rs 40 = Rs 330');
-    expect(priceExample(25000n, sizes, new Map([['s6', 3000n], ['s11', 4000n]]))).toBe('2 × 11.8 kg: Rs 250 + 2 × Rs 40 = Rs 330');
-    expect(priceExample(0n, sizes, new Map([['s6', 3000n]]))).toBe('2 × 6 kg: 2 × Rs 30 = Rs 60');
-    expect(priceExample(0n, sizes, new Map())).toBe('Every order: Rs 0');
+  it('REV web-ux-07 a typed cost gives the one-line example, the same for any order, and Rs 0 typed on purpose reads as Rs 0', () => {
+    expect(priceExample(25000n)).toBe('Any order → Rs 250');
+    expect(priceExample(40000n)).toBe('Any order → Rs 400');
+    expect(priceExample(0n)).toBe('Any order → Rs 0');
+    expect(prices.drawer.note).toBe("New orders use this cost. Placed orders don't change.");
   });
 
-  it('REV web-ux-07 the drawer passes the base only when it is an amount, and shows no example otherwise', () => {
+  it('REV web-ux-07 the drawer has one box, passes the cost only when it is an amount, and shows no example otherwise', () => {
     const drawer = fs.readFileSync(path.join(ADMIN_SRC, 'features', 'prices', 'PriceDrawer.tsx'), 'utf8');
-    expect(drawer).toMatch(/priceExample\(base\.ok \? base\.paisa : null, grid\.sizes, amounts\)/);
+    expect(drawer).toMatch(/priceExample\(cost\.ok \? cost\.paisa : null\)/);
     expect(drawer).not.toMatch(/priceExample\([^)]*0n/);
     expect(drawer).toMatch(/\{example \? \(/);
     expect(drawer).not.toMatch(/needsBase/);
+    // One cost per order (ADR-08): one money box, no per-size boxes.
+    expect(drawer.match(/<MoneyInput/g)).toHaveLength(1);
+    expect(drawer).not.toMatch(/sizes|perCylinder/);
+    expect(prices.drawer.cost).toBe('Delivery cost per order');
+    expect(prices.grid.cost).toBe('Delivery cost per order');
   });
 });

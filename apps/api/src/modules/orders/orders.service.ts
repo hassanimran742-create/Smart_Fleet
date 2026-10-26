@@ -850,19 +850,14 @@ export class OrdersService {
         (now() AT TIME ZONE 'UTC'), (now() AT TIME ZONE 'UTC'))
       RETURNING id`;
     const orderId = rows[0].id;
-    const perSize = new Map(quote.lines.map((line) => [line.cylinderTypeId, line]));
+    // The cost is per order (ADR-08): the lines carry the cylinders only.
     await tx.orderLine.createMany({
-      data: body.lines.map((line) => {
-        const priced = perSize.get(line.cylinderTypeId);
-        return {
-          orderId,
-          cylinderTypeId: line.cylinderTypeId,
-          fullCount: line.fullCount,
-          expectedReturnCount: line.expectedReturnCount,
-          feePerCylinderPaisa: priced?.perCylinderPaisa ?? 0n,
-          feePaisa: priced?.subtotalPaisa ?? 0n,
-        };
-      }),
+      data: body.lines.map((line) => ({
+        orderId,
+        cylinderTypeId: line.cylinderTypeId,
+        fullCount: line.fullCount,
+        expectedReturnCount: line.expectedReturnCount,
+      })),
     });
     await this.feePolicy.onCreated(tx, { id: orderId, distributorId }, quote, actor);
     await this.audit.record(

@@ -17,7 +17,7 @@ function order(over: Partial<OrderForPolicy> = {}): OrderForPolicy {
     status: 'ASSIGNED',
     feeStatus: 'DEDUCTED',
     feeStrategy: 'DISTRIBUTOR_ZONE',
-    deliveryFeePaisa: 48_000n,
+    deliveryFeePaisa: 25_000n,
     assignedAt: null,
     loadStartedAt: null,
     storeDepartedAt: null,
@@ -50,7 +50,7 @@ describe('api-orders: OrdersFeePolicy', () => {
 
   it('FEE-023 cancelTerms: the refund only for a cost this platform deducted, before the start', () => {
     const rule: DeliveryStartedRule = 'FIRST_LOAD_SCAN';
-    expect(cancelTerms(order(), rule)).toEqual({ allowed: true, refundPaisa: 48_000n, noRefundReason: null });
+    expect(cancelTerms(order(), rule)).toEqual({ allowed: true, refundPaisa: 25_000n, noRefundReason: null });
     expect(cancelTerms(order({ loadStartedAt: T }), rule)).toEqual({ allowed: true, refundPaisa: 0n, noRefundReason: 'DELIVERY_STARTED' });
     // Charged by the old code before the switch-over: nothing comes back, and no reason is shown.
     expect(cancelTerms(order({ feeStrategy: 'LEGACY_ZONE_PAIR' }), rule)).toEqual({ allowed: true, refundPaisa: 0n, noRefundReason: null });
@@ -88,7 +88,7 @@ describe('api-orders: OrdersFeePolicy', () => {
     expect(wallet.reverse).toHaveBeenCalledWith(tx, { subject: { type: 'ORDER', orderId: 'order-1' }, actor, reason: 'CUSTOMER_CANCELLED' });
 
     // The refund the person saw differs: 409 ORDER_CANCEL_TERMS_CHANGED with today's refund.
-    const changed = policy.cancel(tx, order({ loadStartedAt: T }), { actor, reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: 48_000n });
+    const changed = policy.cancel(tx, order({ loadStartedAt: T }), { actor, reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: 25_000n });
     await expect(changed).rejects.toBeInstanceOf(AppError);
     await expect(changed).rejects.toMatchObject({ code: 'ORDER_CANCEL_TERMS_CHANGED', details: { refundPaisa: '0' } });
   });
@@ -98,11 +98,11 @@ describe('api-orders: OrdersFeePolicy', () => {
     const policy = new OrdersFeePolicy(wallet, { get: jest.fn() } as unknown as SettingsService);
     const tx = {} as never;
     const actor = systemActor('test');
-    await policy.onCreated(tx, { id: 'order-1', distributorId: 'distributor-da' }, { totalPaisa: 48_000n }, actor);
+    await policy.onCreated(tx, { id: 'order-1', distributorId: 'distributor-da' }, { totalPaisa: 25_000n }, actor);
     expect(wallet.debit).toHaveBeenCalledWith(tx, {
       distributorId: 'distributor-da',
       subject: { type: 'ORDER', orderId: 'order-1' },
-      amountPaisa: 48_000n,
+      amountPaisa: 25_000n,
       actor,
     });
   });

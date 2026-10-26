@@ -79,13 +79,13 @@ describeDb('money: WalletService on the database', () => {
     const { distributor, client } = await shop(500_000n);
     const o = await order(distributor, client);
 
-    const taken = await debit(distributor.id, o.id, 48_000n);
-    expect(taken).toMatchObject({ entryType: 'DEBIT_ORDER', amountPaisa: -48_000n, balanceAfterPaisa: 452_000n, orderId: o.id });
+    const taken = await debit(distributor.id, o.id, 25_000n);
+    expect(taken).toMatchObject({ entryType: 'DEBIT_ORDER', amountPaisa: -25_000n, balanceAfterPaisa: 475_000n, orderId: o.id });
     expect(taken?.idempotencyKey).toBe(walletKeys.orderDebit(o.id));
 
     const first = await reverse(o.id);
     const second = await reverse(o.id);
-    expect(first).toMatchObject({ entryType: 'CREDIT_ORDER_REVERSAL', amountPaisa: 48_000n, balanceAfterPaisa: 500_000n });
+    expect(first).toMatchObject({ entryType: 'CREDIT_ORDER_REVERSAL', amountPaisa: 25_000n, balanceAfterPaisa: 500_000n });
     expect(first?.idempotencyKey).toBe(walletKeys.orderReversal(o.id));
     expect(second?.id).toBe(first?.id);
     expect(await db().ledgerEntry.count({ where: { orderId: o.id, entryType: 'CREDIT_ORDER_REVERSAL' } })).toBe(1);
@@ -117,7 +117,7 @@ describeDb('money: WalletService on the database', () => {
       await resetDb();
       const { distributor, client } = await shop(500_000n, status);
       const o = await order(distributor, client);
-      const covered = await refusal(debit(distributor.id, o.id, 48_000n));
+      const covered = await refusal(debit(distributor.id, o.id, 25_000n));
       expect({ status, code: covered.code }).toEqual({ status, code: 'DISTRIBUTOR_NOT_ACTIVE' });
       // Not active and short of money: still the status.
       const short = await refusal(debit(distributor.id, o.id, 900_000n));

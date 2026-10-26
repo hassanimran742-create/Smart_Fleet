@@ -203,7 +203,7 @@ Items 25–31 are the rulebook's new components (UX_PRINCIPLES §3), built from 
    - A **double-tap guard** ignores presses while loading and for 600 ms after a press.
 6. **Card** `{tone: default|brand|success|warning|danger, onPress?, padding}`. A pressable card gets a ripple and `role=button`.
 7. **MoneyText** `{paisa: string|number|bigint, variant, tone, sign: none|auto|always}`
-   - Formats with `formatRs`: "Rs 3,450", "+Rs 5,000" (`sign="always"`), "−Rs 330" (U+2212), with no space after the sign; zero is never signed. Tabular numbers.
+   - Formats with `formatRs`: "Rs 3,450", "+Rs 5,000" (`sign="always"`), "−Rs 250" (U+2212), with no space after the sign; zero is never signed. Tabular numbers.
    - The accessibility label comes from `money.a11y` ("{{amount}} rupees").
 8. **StatusChip** `{kind: order|fee|topup|answer|refill|dayEnd|step, value, stepIcon?}`
    - Looks up tone, icon and words from the tables in §3.4, or takes `{tone, icon, label}` directly. `stepIcon` sets the IN_PROGRESS step chip's icon (`van` for Load, `customer` for Deliver, `store` for Unload; default `truck`).
@@ -278,7 +278,7 @@ Also in `ui/` and `hooks/`: `useNoConnection()` (true while the OfflineBanner sh
 - A footer button's own failure is one line just above it (ActionLine). No second Try again.
 - A cancel in the content is a `dangerOutline` button, never a footer button.
 - A form with input asks "Leave without saving?" / "What you typed will be lost." with Leave and Stay (ConfirmSheet on `beforeRemove`).
-- Irreversible money actions use ConfirmSheet, unless the screen is itself a review that names the amount on its button ("Place order · pay Rs 330").
+- Irreversible money actions use ConfirmSheet, unless the screen is itself a review that names the amount on its button ("Place order · pay Rs 250").
 - `Alert.alert` is never used. There are no hex literals in screens, only tokens.
 
 ---
@@ -353,7 +353,7 @@ The words live in `i18n/en/stages.ts` and the tones and icons in `ui/statusTable
 | REVERSED | "{{fee}} returned" (success) |
 | NONE | "No delivery cost" (neutral) |
 
-- On My orders a cost chip shows only on a cancelled Done row: "Rs 330 returned", or "No refund" (neutral, `orders.list.noRefund`) when the cost was taken and kept. The order detail says the same: "No refund. Delivery had started.".
+- On My orders a cost chip shows only on a cancelled Done row: "Rs 250 returned", or "No refund" (neutral, `orders.list.noRefund`) when the cost was taken and kept. The order detail says the same: "No refund. Delivery had started.".
 - The long forms "Paid from your wallet" / "Returned to your wallet" are no longer shown.
 
 **Top-up stage** (`stages.topup.*`)
@@ -441,7 +441,7 @@ It is shown as a separate chip, never as the order stage.
 - Only `formatRs` divides by 100:
   - 345000 → "Rs 3,450"
   - 345050 → "Rs 3,450.50"
-  - −33000 → "−Rs 330" (and, with `sign: 'always'`, 500000 → "+Rs 5,000")
+  - −25000 → "−Rs 250" (and, with `sign: 'always'`, 500000 → "+Rs 5,000")
 - **Rupee input** accepts digits only and shows grouping as you type. `parseRupeesInput("5,000")` returns 500000.
 
 ---
@@ -452,7 +452,7 @@ Rebuilt to UX_PRINCIPLES on 2026-10-23 (the shop spec, with the lead's DECIDED a
 - **The bottom:** one main `lg` button in the footer, or a Fab on a list screen. A main button is disabled only when a visible line says why ("Pick a size first."); otherwise it stays enabled and points at what is missing when pressed. Cancels are never in the footer.
 - **Back:** the header arrow is the only Back; New order and Add customer go back one step; each step opens at the top.
 - **Rows:** the WhatsApp-like row (§2.2 #13), time on the right with `rowTime`. History is the one list with the amount on the right.
-- **Money and time:** `MoneyText`/`formatRs`; a cost breakdown is a data-only caption ("Rs 250 + 2 × Rs 40 + 1 × Rs 150") under a big total, never with "=" or zone names. Checking hours are 12-hour through `formatClock` (shared-utils): "9 am to 9 pm".
+- **Money and time:** `MoneyText`/`formatRs`; a delivery cost is one amount per order ("Delivery cost Rs 250", DECISIONS ADR-08), with no parts, no "=" and no zone names. Checking hours are 12-hour through `formatClock` (shared-utils): "9 am to 9 pm".
 - **No zone names** anywhere in the shop app (§0).
 
 ### S1 Sign in, Wrong app, Update required (foundation; shared by both apps)
@@ -638,7 +638,7 @@ Active orders
     |---|---|
     | no pin | "Tap the map to drop the pin." |
     | checking | "Checking delivery area…" |
-    | priced | the `ok` icon and "Delivery cost {{base}} per order", plus a caption only when sizes add a cost: "+ {{min}} to {{max}} per cylinder", "+ {{amount}} per cylinder" when several sizes add the same, or "+ {{amount}} per {{size}} cylinder" for one size (`customers.cost.priced`; captions `.perSizeRange` / `.perCylinder` / `.perSize`) |
+    | priced | the `ok` icon and "Delivery cost Rs 250": the one cost per order there, whatever the cylinders (`customers.cost.priced` "Delivery cost {{cost}}"; no caption) |
     | `PRICING_ZONE_NOT_COVERED` | "Outside our delivery area. Move the pin." |
     | `PRICING_PRICE_NOT_SET` | "No delivery price here yet." with a secondary "Call office" |
     | error | "Couldn't check this spot." with "Try again" |
@@ -665,7 +665,7 @@ Customers and New order step 1 share one list, `screens/distributor/shared/Custo
   - The caption "For Sana · House 14, Street 5".
   - One row per size, sorted by weight: a Stepper labelled with the size, then, while it is above 0, an indented "Take back" Stepper that follows it until changed.
   - **Every count starts at 0** (the lead, 2026-10-23: never prefill silently, so no wrong order goes out by accident). While nothing is chosen and the customer has ordered before, a one-tap chip **"Same as last time"** fills the sizes, counts and take-back of the customer's newest order in the cached first pages of Active and Done; it hides once a count is set.
-  - Footer: the line "Delivery cost about Rs 330", or "Add at least 1 cylinder." with nothing chosen (Next is then disabled), plus "Up to 30 cylinders per order." at the cap (`orders.maxCylindersPerOrder`); then "Next".
+  - Footer: the line "Delivery cost Rs 250" (the address's one cost per order, `orders.new.costPerOrder`; hidden at Rs 0), or "Add at least 1 cylinder." with nothing chosen (Next is then disabled), plus "Up to 30 cylinders per order." at the cap (`orders.maxCylindersPerOrder`); then "Next".
 - **Step 3 of 3, "Check and place"**
   ```
   Sana · 0300 1234567
@@ -673,13 +673,12 @@ Customers and New order step 1 share one list, `screens/distributor/shared/Custo
   ---------------------------------------------------
   2 × 11.8 kg · take back 2
   ---------------------------------------------------
-  Delivery cost                                Rs 330    (big)
-  Rs 250 + 2 × Rs 40                                     (caption, only when sizes add)
+  Delivery cost                                Rs 250    (big)
   ---------------------------------------------------
-  Balance now                               Rs 3,450
-  After this order                          Rs 3,120
+  Balance now                               Rs 5,000
+  After this order                          Rs 4,750
   (i) Refund only if cancelled before loading.
-  [ Place order · pay Rs 330 ]
+  [ Place order · pay Rs 250 ]
   ```
   - **Data:** `POST /orders/quote` on entry and on every change. "Change" opens the address PickerSheet "Deliver to" (`screens/distributor/shared/AddressPickerSheet.tsx`): the saved addresses with a tick on the current one, blocked ones with their chip (opening in place, the sheet staying open), and a last row "+ New address" that opens the **New address** screen (`NewAddressScreen.tsx`, route `NewAddress`: House and street, then S8's location picker and cost line, "Save address"; toast "Address saved"). Saving from step 3 comes back to step 3 with the new address. New address and "Use {{name}}" can also start from Customers or Home: they then replace themselves with New order on step 2, so Back returns where they started.
   - **The refund line** follows `appConfig.orders.deliveryStartedAt`, read fresh (the app refetches `GET /app/config` when this step opens):
@@ -703,7 +702,7 @@ Customers and New order step 1 share one list, `screens/distributor/shared/Custo
   | `orders.new.title` / `.who` / `.cylinders` / `.review` | New order / Who is it for? / Cylinders to deliver / Check and place |
   | `orders.new.forCustomer` | For {{name}} · {{address}} |
   | `orders.new.sameAsLast` | Same as last time |
-  | `orders.new.takeBack` / `.costAbout` / `.pickSome` | Take back / Delivery cost about {{fee}} / Add at least 1 cylinder. |
+  | `orders.new.takeBack` / `.costPerOrder` / `.pickSome` | Take back / Delivery cost {{fee}} / Add at least 1 cylinder. |
   | `orders.new.noPrice` / `.outside` / `.noAddress` | No price yet / Outside delivery area / No address yet |
   | `orders.new.change` | Change |
   | `orders.new.deliveryCost` / `.costNone` / `.costError` | Delivery cost / No delivery cost / Couldn't get the cost. |
@@ -716,7 +715,7 @@ Customers and New order step 1 share one list, `screens/distributor/shared/Custo
 ### S10 My orders (`distributor/OrdersScreen.tsx`, `shared/OrderRow.tsx`)
 - **Layout:** SegmentedControl "Active ({{n}})" | "Done".
   - Each row: the customer's name; the grey line "2 × 11.8 kg · AG-0007"; the time on the right ("10:46 am"); the stage chip below; a chevron.
-  - A cost chip only on a **cancelled Done row**: "Rs 330 returned", or "No refund" when the cost was kept. Active and delivered rows have none.
+  - A cost chip only on a **cancelled Done row**: "Rs 250 returned", or "No refund" when the cost was kept. Active and delivered rows have none.
   - The **Fab** "+ New order".
 - **Data:** `GET /orders?tab=active|done&cursor`, every 30 seconds while focused, plus pull to refresh.
 - **Empty:** Active "No active orders." (the Fab is the button); Done "No finished orders yet.".
@@ -728,7 +727,7 @@ The live socket is removed.
   - The stage chip. While waiting for a driver, the caption "The office will assign a driver.".
   - **Active orders:** the Timeline "Placed · {{fee}} paid" → "Driver assigned" → "Loading" → "On the way" → "Delivered", each with its time.
   - **Finished orders** show one status line instead: Delivered "Today, 11:02 am"; Cancelled "Today, 10:30 am · Customer cancelled"; Not delivered (red) "Today, 11:40 am · Customer not home" (`orders.detail.statusLine` "{{when}} · {{reason}}"). A ghost **"All steps"** opens the Timeline in place; a cancelled order's Timeline ends with the neutral `stopped` marker.
-  - **One facts card:** the customer "Sana · 0300 1234567" with a 48 dp call button (screen readers "Call {{name}}") and the address (no zone); while active with a trip, the driver "Kashif · Van LEA-101"; the cylinders "Deliver 2 × 11.8 kg · take back 2"; and the cost: "Delivery cost" with the fee chip and the caption "Rs 250 + 2 × Rs 40", or, for a cancelled order whose cost was kept, "No refund. Delivery had started.".
+  - **One facts card:** the customer "Sana · 0300 1234567" with a 48 dp call button (screen readers "Call {{name}}") and the address (no zone); while active with a trip, the driver "Kashif · Van LEA-101"; the cylinders "Deliver 2 × 11.8 kg · take back 2"; and the cost: "Delivery cost" with the fee chip (one amount, no parts), or, for a cancelled order whose cost was kept, "No refund. Delivery had started.".
   - While ON_THE_WAY and a driver position exists: "Where the driver is", a small map (polls `/orders/:id/tracking` every 20 seconds).
   - **Cancel** (only while `cancel.allowed`): a full-width **`dangerOutline`** button at the end of the content, never in the footer: "Cancel order" while a refund is due, "Cancel · no refund" when `noRefundReason = DELIVERY_STARTED`.
   - **Footer:** "Call driver" while a driver is assigned and the order is active; otherwise no footer (the screen only shows; the header arrow leaves). From Inc 2 a delivered order's footer belongs to the customer-answer card (§7.3).
@@ -1005,7 +1004,7 @@ interface ScanPanelProps {
 **As built (Inc 2/3 screens, 2026-10-25)**
 - **Home rows:** the problems row is red ("2 customer problems" / "The office will look into it"); "Receive from driver" with "{{count}} coming back" polls every 15 s, and with one van it opens that van's scan; "Day-end sheet" naming the day that waits (§8.3). Each shows only while its feature is on. "Coming back" counts only what will come back: `GET /store/incoming` leaves out cylinders out for delivery (API_CONTRACT §9.13), so a van loading or out on its run isn't listed until something on it is coming back.
 - **S13** is `screens/distributor/receive/ReceiveListScreen.tsx` and `ReceiveScanScreen.tsx` (routes ReceiveList and ReceiveScan). The list's words are `receive.*`; the scan's are the shared `scan.*` (step RECEIVE): "AG-C0011 · 11.8 kg received", the grey "Already in your store", "All 2 received", "All 3 back · Refill done". The list never jumps to a scan by itself, so Back from a scan doesn't bounce.
-- **S14** (`OrderDetailScreen.tsx`, `shared/visit.ts`): Delivered per size and Taken back by number come from `OrderDto.visit` (API_CONTRACT §9.13): "Empty · AG-C0021", "Empty · No label · 1 × 15 kg", and "{{count}} expected" when the total differs. The cost line reads "Delivery cost Rs 480 · paid when the order was placed". The answer card is `screens/distributor/confirm/CustomerAnswer.tsx` (`useCustomerAnswer`: the card, the footer button and the sheets); see CUSTOMER_PAGE §10. The answer chip shows in the card on the detail, and under the stage chip on the order rows.
+- **S14** (`OrderDetailScreen.tsx`, `shared/visit.ts`): Delivered per size and Taken back by number come from `OrderDto.visit` (API_CONTRACT §9.13): "Empty · AG-C0021", "Empty · No label · 1 × 15 kg", and "{{count}} expected" when the total differs. The cost line reads "Delivery cost Rs 250 · paid when the order was placed". The answer card is `screens/distributor/confirm/CustomerAnswer.tsx` (`useCustomerAnswer`: the card, the footer button and the sheets); see CUSTOMER_PAGE §10. The answer chip shows in the card on the detail, and under the stage chip on the order rows.
 - **S15** (`CasesScreen.tsx`): the customer's name first, then "AG-0001 · “Only 2 came”", the time on the right, the answer chip below.
 - **S15b** is its own screen, `EditCustomerScreen.tsx` (route EditCustomer), reached from the card's "Fix number"; Add customer keeps its single save button (REV mobile-ux-08). A number fixed while a link is pending makes the order ask "Make a new link?" once the shop is back on it. `CLIENT_PHONE_EXISTS` shows Add customer's words "{{name}} already has this number.".
 

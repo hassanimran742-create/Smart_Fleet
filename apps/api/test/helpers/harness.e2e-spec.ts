@@ -83,18 +83,13 @@ describeDb('test harness (database)', () => {
     expect(noAddress.addressId).toBeNull();
   });
 
-  it('creates cylinders held by the store, and delivery prices with per-size amounts', async () => {
+  it('creates cylinders held by the store, and one delivery price per distributor per zone', async () => {
     const shop = await createDistributor();
     const size = await createCylinderType();
     const cylinder = await createCylinder({ distributor: shop, cylinderTypeId: size.id });
     expect(cylinder).toMatchObject({ state: CylinderState.FULL, custodyType: CustodyType.STORE, custodyId: shop.homeStoreId });
-    const price = await createZonePrice({
-      distributorId: shop.id,
-      zoneId: shop.zone.id,
-      basePaisa: 15_000n,
-      sizes: [{ cylinderTypeId: size.id, perCylinderPaisa: 2_000n }],
-    });
-    expect(price.sizes).toHaveLength(1);
+    const price = await createZonePrice({ distributorId: shop.id, zoneId: shop.zone.id, basePaisa: 15_000n });
+    expect(price).toMatchObject({ distributorId: shop.id, zoneId: shop.zone.id, basePaisa: 15_000n, note: null });
     await expect(
       createZonePrice({ distributorId: shop.id, zoneId: shop.zone.id, basePaisa: 1n }),
     ).rejects.toMatchObject({ code: 'P2002' });

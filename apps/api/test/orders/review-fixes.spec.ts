@@ -58,48 +58,28 @@ describe('REV security-03 scoped ids come from the token or the call is refused'
   });
 });
 
-describe('REV money-data-04 a price and its per-size amounts come from one read', () => {
+describe('REV money-data-04 a price is read in one statement', () => {
   const DISTRIBUTOR = '11111111-1111-4111-8111-111111111111';
   const ZONE = '22222222-2222-4222-8222-222222222222';
   const updatedAt = new Date('2026-10-22T10:00:00.000Z');
-  const row = (cylinderTypeId: string | null, perCylinderPaisa: bigint | null) => ({
-    id: 'price-1',
-    basePaisa: 25_000n,
-    note: 'Ring road',
-    updatedAt,
-    updatedByUserId: 'office-1',
-    cylinderTypeId,
-    perCylinderPaisa,
-  });
+  const row = { id: 'price-1', basePaisa: 25_000n, note: 'Ring road', updatedAt, updatedByUserId: 'office-1' };
 
-  it('REV money-data-04 priceFor sends one statement for the price and its sizes, never a second read a price edit could slip between', async () => {
+  it('REV money-data-04 priceFor sends one statement for the one cost per order, with no size rows (ADR-08)', async () => {
     const queryRaw = jest.fn();
-    // Only `$queryRaw`: a Prisma `findUnique({ include: { sizes } })` (two SELECTs) would throw here.
+    // Only `$queryRaw`: any other read would throw here.
     const db = { $queryRaw: queryRaw } as unknown as Db;
     const lookup = new ZonePriceLookup({} as PrismaService);
 
-    queryRaw.mockResolvedValueOnce([row('size-6', 3_000n), row('size-11.8', 4_000n)]);
-    expect(await lookup.priceFor(DISTRIBUTOR, ZONE, db)).toEqual({
-      id: 'price-1',
-      basePaisa: 25_000n,
-      note: 'Ring road',
-      updatedAt,
-      updatedByUserId: 'office-1',
-      sizes: [
-        { cylinderTypeId: 'size-6', perCylinderPaisa: 3_000n },
-        { cylinderTypeId: 'size-11.8', perCylinderPaisa: 4_000n },
-      ],
-    });
-    // A flat price: the join gives the price once, with no size.
-    queryRaw.mockResolvedValueOnce([row(null, null)]);
-    expect(await lookup.priceFor(DISTRIBUTOR, ZONE, db)).toMatchObject({ basePaisa: 25_000n, sizes: [] });
+    queryRaw.mockResolvedValueOnce([row]);
+    expect(await lookup.priceFor(DISTRIBUTOR, ZONE, db)).toEqual(row);
     // No price in that zone.
     queryRaw.mockResolvedValueOnce([]);
     expect(await lookup.priceFor(DISTRIBUTOR, ZONE, db)).toBeNull();
 
-    expect(queryRaw).toHaveBeenCalledTimes(3);
+    expect(queryRaw).toHaveBeenCalledTimes(2);
     const sql = (queryRaw.mock.calls[0][0] as TemplateStringsArray).join('?');
-    expect(sql).toMatch(/FROM distributor_zone_prices p\s+LEFT JOIN distributor_zone_price_sizes s ON s\.price_id = p\.id/);
+    expect(sql).toMatch(/FROM distributor_zone_prices p\s+WHERE p\.distributor_id = \?::uuid AND p\.zone_id = \?::uuid/);
+    expect(sql).not.toMatch(/JOIN|sizes/i);
     expect(queryRaw.mock.calls[0].slice(1)).toEqual([DISTRIBUTOR, ZONE]);
   });
 });

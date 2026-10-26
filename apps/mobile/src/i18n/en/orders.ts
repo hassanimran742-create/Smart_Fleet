@@ -27,7 +27,8 @@ export const orders = {
     /** The one-tap chip that fills the customer's last order (DECIDED: counts start at 0). */
     sameAsLast: 'Same as last time',
     takeBack: 'Take back',
-    costAbout: 'Delivery cost about {{fee}}',
+    /** The address's cost while the cylinders are picked: one cost per order, whatever it holds (ADR-08). */
+    costPerOrder: 'Delivery cost {{fee}}',
     pickSome: 'Add at least 1 cylinder.',
     capReached: 'Up to {{count}} cylinder per order.',
     capReached_plural: 'Up to {{count}} cylinders per order.',
@@ -41,11 +42,6 @@ export const orders = {
     lineNoBack: '{{count}} × {{size}}',
     lineNoBack_plural: '{{count}} × {{size}}',
     deliveryCost: 'Delivery cost',
-    /** The cost's parts under the total: "Rs 250 + 2 × Rs 40" (data only). */
-    costBase: '{{amount}}',
-    costLine: '{{count}} × {{amount}}',
-    costLine_plural: '{{count}} × {{amount}}',
-    costJoin: ' + ',
     costNone: 'No delivery cost',
     costError: "Couldn't get the cost.",
     balanceNow: 'Balance now',

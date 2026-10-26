@@ -93,8 +93,8 @@ export const activity = {
   },
 
   price: {
-    /** diff { distributor, zone }, after { basePaisa, sizes, note } */
-    set: "Set {{distributor}}'s price in {{zone}}: base {{base}}",
+    /** diff { distributor, zone }, after { basePaisa, note }: the delivery cost per order */
+    set: "Set {{distributor}}'s delivery cost in {{zone}}: {{base}}",
     /** diff { distributor, zone } */
     remove: "Removed {{distributor}}'s price in {{zone}}",
   },

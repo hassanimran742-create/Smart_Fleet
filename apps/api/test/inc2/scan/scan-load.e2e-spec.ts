@@ -30,7 +30,7 @@ describeDb('inc2 scan: load at the store', () => {
   it('DRV-010 Load moves a full cylinder from the store onto this trip\'s van and shows progress', async () => {
     const { std, scans } = w;
     const x1 = await w.placeOrder(X1);
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     const t1 = await w.assign(x1, std.DR1);
     const sanaStop = await t1.stopFor(x1.id);
 
@@ -86,7 +86,7 @@ describeDb('inc2 scan: load at the store', () => {
     });
     const cylinder = await w.db.cylinder.findUniqueOrThrow({ where: { id: w.ag(1).id } });
     expect(cylinder.lastEventId).toBe(event.id);
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     await w.walletClean();
   });
 
@@ -145,14 +145,14 @@ describeDb('inc2 scan: load at the store', () => {
     for (const n of [20, 19, 18, 17]) expect(await w.eventCount(n)).toBe(1);
     const order = await w.as(std.DA).get(`/orders/${x1.id}`).expect(200);
     expect(order.body.loadStartedAt).toBeNull();
-    expect(order.body.cancel).toMatchObject({ allowed: true, refundPaisa: '48000' });
+    expect(order.body.cancel).toMatchObject({ allowed: true, refundPaisa: '25000' });
   });
 
   it('DRV-013 Load takes only sizes the trip\'s open orders still need', async () => {
     const { std, scans } = w;
     const x1 = await w.placeOrder(X1);
     const x2 = await w.placeOrder(X2, 'C2');
-    expect(await w.balance()).toBe(412_000n);
+    expect(await w.balance()).toBe(435_000n);
     const t1 = await w.assign(x1, std.DR1);
     const joined = await w.assign(x2, std.DR1);
     expect(joined.id).toBe(t1.id);
@@ -160,7 +160,7 @@ describeDb('inc2 scan: load at the store', () => {
 
     const cancel = await w.as(std.DA).post(`/orders/${x2.id}/cancel`).send({ reasonCode: 'CUSTOMER_CANCELLED' }).expect(200);
     expect(cancel.body.refundedPaisa).toBe('40000');
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
     expect((await w.db.trip.findUniqueOrThrow({ where: { id: t1.id } })).status).toBe('PLANNED');
 
     const fifteen = await scans.tripScan(std.DR1, t1.id, { stopId: t1.pickupStopId, action: 'LOAD', code: w.ag(21).qrCode });
@@ -201,7 +201,7 @@ describeDb('inc2 scan: load at the store', () => {
     expect((await w.db.tripStop.findUniqueOrThrow({ where: { id: usmanStop } })).status).toBe('CANCELLED');
     expect((await w.db.trip.findUniqueOrThrow({ where: { id: t1.id } })).status).toBe('IN_PROGRESS');
 
-    expect(await w.balance()).toBe(412_000n);
+    expect(await w.balance()).toBe(435_000n);
     expect(await w.db.ledgerEntry.count({ where: { orderId: x2.id, entryType: 'CREDIT_ORDER_REVERSAL' } })).toBe(0);
     const audits = await w.db.auditLog.findMany({ where: { action: 'order.cancel', resourceId: x2.id } });
     expect(audits).toHaveLength(1);
@@ -226,12 +226,12 @@ describeDb('inc2 scan: load at the store', () => {
       const holder = await w.holder(round);
       const reversals = await w.db.ledgerEntry.count({ where: { orderId: x1.id, entryType: 'CREDIT_ORDER_REVERSAL' } });
       const order = await w.db.order.findUniqueOrThrow({ where: { id: x1.id } });
-      if (cancel.body.refundedPaisa === '48000') {
+      if (cancel.body.refundedPaisa === '25000') {
         outcomes.cancelWon += 1;
         expect({ round, load: load.status, code: load.body.code }).toEqual({ round, load: 409, code: 'SCAN_TRIP_CLOSED' });
         expect(holder.custodyType).toBe('STORE');
         expect(reversals).toBe(1);
-        expect(await w.balance()).toBe(before + 48_000n);
+        expect(await w.balance()).toBe(before + 25_000n);
       } else {
         outcomes.loadWon += 1;
         expect({ round, load: load.status, refunded: cancel.body.refundedPaisa }).toEqual({ round, load: 201, refunded: '0' });
@@ -241,7 +241,7 @@ describeDb('inc2 scan: load at the store', () => {
         expect(await w.balance()).toBe(before);
       }
       // Never a refund together with the cylinder on the van.
-      expect(cancel.body.refundedPaisa === '48000' && holder.custodyType === 'VEHICLE').toBe(false);
+      expect(cancel.body.refundedPaisa === '25000' && holder.custodyType === 'VEHICLE').toBe(false);
       await w.walletClean();
     }
     expect(outcomes.cancelWon + outcomes.loadWon).toBe(20);
@@ -273,7 +273,7 @@ describeDb('inc2 scan: load at the store', () => {
     const trip = await scans.trip(std.DR1, t1.id).expect(200);
     const pickup = trip.body.stops.find((s: { id: string }) => s.id === t1.pickupStopId);
     expect(pickup).toMatchObject({ status: 'DONE', departedAt: expect.any(String) });
-    expect(await w.balance()).toBe(452_000n);
+    expect(await w.balance()).toBe(475_000n);
 
     const again = await scans.finishStop(std.DR1, t1.id, t1.pickupStopId).expect(200);
     expect(again.headers['x-already-applied']).toBe('true');

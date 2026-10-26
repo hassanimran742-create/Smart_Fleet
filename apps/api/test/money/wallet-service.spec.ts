@@ -59,7 +59,7 @@ describe('WalletService.debit refusals', () => {
 
   it('FEE-004 a guarded update refused only by status gives DISTRIBUTOR_NOT_ACTIVE, not WALLET_INSUFFICIENT_BALANCE', async () => {
     const { tx } = fakeTx({ updated: [], distributor: { status: 'SUSPENDED', advanceBalancePaisa: 500_000n } });
-    const error = await refusal(debit(service(), tx, 48_000n));
+    const error = await refusal(debit(service(), tx, 25_000n));
     expect(error.code).toBe('DISTRIBUTOR_NOT_ACTIVE');
   });
 
@@ -95,7 +95,7 @@ describe('WalletService.debit refusals', () => {
       if (sql.includes('INSERT INTO ledger_entries')) return [{ id: 'new-entry' }];
       return [];
     });
-    await expect(debit(service(), tx, 48_000n)).resolves.toEqual({ id: 'new-entry' });
+    await expect(debit(service(), tx, 25_000n)).resolves.toEqual({ id: 'new-entry' });
     expect(attempts).toBe(2);
   });
 
@@ -119,7 +119,7 @@ describe('WalletService.debit refusals', () => {
       distributor: null,
       existing: { distributorId: DISTRIBUTOR, amountPaisa: -10_000n, entryType: 'DEBIT_ORDER' as const },
     });
-    expect((await refusal(debit(service(), tx, 48_000n))).code).toBe('INTERNAL_ERROR');
+    expect((await refusal(debit(service(), tx, 25_000n))).code).toBe('INTERNAL_ERROR');
     expect(raw).not.toHaveBeenCalled();
   });
 });

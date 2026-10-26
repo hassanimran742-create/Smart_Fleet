@@ -37,7 +37,7 @@ describeDb('review money-data: races that hold', () => {
 
   it('a cancel racing the driver arriving at the customer never refunds after an arrival that came first', async () => {
     const { std } = f;
-    await f.setBalance(std.DA, 25n * 48_000n);
+    await f.setBalance(std.DA, 25n * 25_000n);
     let bad = 0;
     for (let round = 0; round < 25; round++) {
       const x1 = await f.x1();
@@ -51,7 +51,7 @@ describeDb('review money-data: races that hold', () => {
       expect([200, 409]).toContain(arrive.status);
       const stop = await f.db.tripStop.findUniqueOrThrow({ where: { id: delivery.id } });
       const order = await f.order(x1.id);
-      if (cancel.body.refundedPaisa === '48000' && stop.arrivedAt && order.cancelledAt && stop.arrivedAt < order.cancelledAt) bad += 1;
+      if (cancel.body.refundedPaisa === '25000' && stop.arrivedAt && order.cancelledAt && stop.arrivedAt < order.cancelledAt) bad += 1;
     }
     expect(bad).toBe(0);
     await f.expectWalletsConsistent();
@@ -78,10 +78,10 @@ describeDb('review money-data: races that hold', () => {
     await f.expectWalletsConsistent();
   });
 
-  it('a cancel and a new order racing for the same last Rs 480 never overdraw and never lose the refund', async () => {
+  it('a cancel and a new order racing for the same last Rs 250 never overdraw and never lose the refund', async () => {
     const { std } = f;
     for (let round = 0; round < 15; round++) {
-      await f.setBalance(std.DA, 48_000n);
+      await f.setBalance(std.DA, 25_000n);
       const a = await f.x1();
       expect(await f.balance()).toBe(0n);
       const [cancel, place] = await together(f.cancel(a.id, { reasonCode: 'CUSTOMER_CANCELLED' }), f.placeX1(newKey()));
@@ -91,7 +91,7 @@ describeDb('review money-data: races that hold', () => {
         expect({ round, balance }).toEqual({ round, balance: 0n });
         await f.cancel(place.body.id, { reasonCode: 'CUSTOMER_CANCELLED' }).expect(200);
       } else {
-        expect({ round, code: place.body.code, balance }).toEqual({ round, code: 'WALLET_INSUFFICIENT_BALANCE', balance: 48_000n });
+        expect({ round, code: place.body.code, balance }).toEqual({ round, code: 'WALLET_INSUFFICIENT_BALANCE', balance: 25_000n });
       }
     }
     await f.expectWalletsConsistent();

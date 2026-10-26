@@ -50,7 +50,7 @@ describeDb('money: office reports', () => {
   }
 
   it('orders by zone: revenue is the delivery costs taken from the ledger, net of costs returned', async () => {
-    await charged(std.zones.North.id, 48_000n);
+    await charged(std.zones.North.id, 25_000n);
     const returned = await charged(std.zones.South.id, 40_000n, std.C2);
     await db().$transaction((tx) =>
       app.get(WalletService).reverse(tx, { subject: { type: 'ORDER', orderId: returned }, actor: userActor(std.DA.actor), reason: 'Cancelled' }),
@@ -59,7 +59,7 @@ describeDb('money: office reports', () => {
     await insertOrder({ distributor: std.DA, client: std.C2, zoneId: std.zones.South.id, feePaisa: 99_900n });
     const res = await http().get(`/api/v1/reports/orders-by-zone/${std.zones.North.cityId}`).set(office()).expect(200);
     const byName = new Map((res.body as Array<{ name: string; order_count: number; revenue_paisa: string }>).map((row) => [row.name, row]));
-    expect(byName.get('North')).toMatchObject({ order_count: 1, revenue_paisa: '48000' });
+    expect(byName.get('North')).toMatchObject({ order_count: 1, revenue_paisa: '25000' });
     expect(byName.get('South')).toMatchObject({ order_count: 2, revenue_paisa: '0' });
     expect(byName.get('East')).toMatchObject({ order_count: 0, revenue_paisa: '0' });
   });

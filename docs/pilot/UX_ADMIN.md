@@ -192,8 +192,8 @@ The rulebook's new pieces (FilterChips, DateChips, AddMore, SearchSelect) and th
 
   | Status | Chip |
   |---|---|
-  | `DEDUCTED` | "Rs 330 paid" (neutral, wallet icon) |
-  | `REVERSED` | "Rs 330 returned" (success) |
+  | `DEDUCTED` | "Rs 250 paid" (neutral, wallet icon) |
+  | `REVERSED` | "Rs 250 returned" (success) |
   | `NONE` | "No delivery cost" |
 
   It never says "on hold".
@@ -246,7 +246,7 @@ The rulebook's new pieces (FilterChips, DateChips, AddMore, SearchSelect) and th
 
   | Function | Output |
   |---|---|
-  | `formatRs` | "Rs 3,450", or signed "+Rs 5,000" / "−Rs 330" (no space after the sign; zero never signed) |
+  | `formatRs` | "Rs 3,450", or signed "+Rs 5,000" / "−Rs 250" (no space after the sign; zero never signed) |
   | `formatDateTime` | "21 Oct, 4:12 pm" |
   | `formatTime` | "4:12 pm" |
   | `formatDay` | "Wed 21 Oct" |
@@ -348,24 +348,21 @@ Rebuilt to UX_PRINCIPLES on 2026-10-23 (the website spec W01–W49, with the lea
 - **Distributor picker:** FilterChips for up to 6 distributors (a search box above them for more), each with a red "1 missing" or a green tick and "All set". The choice stays in the URL.
 - **Alert** when any zone is missing, one line: "1 zone has no price. Customers there are blocked." / "{{count}} zones have no price. Customers there are blocked."
 - **Filters:** [All zones] [Missing (n)] (the "Missing (0)" chip still shows, so a `?missing=true` link can be un-picked) and the toggle chip [Show archived] when archived zones exist. Today's "Set prices" opens this page with Missing picked.
-- **Grid** (`GET /pricing/prices/:distributorId`, 5 columns):
+- **Grid** (`GET /pricing/prices/:distributorId`, 4 columns). A price is ONE delivery cost per order, whatever cylinders the order holds (DECISIONS ADR-08, 2026-10-26); no column or box is per size:
 
   | Column | Content | Priority |
   |---|---|---|
   | Zone | name, with the city muted; sticky | 1 |
-  | Base per order | MoneyText | 1 |
-  | Per cylinder | only the sizes with an amount, "11.8 kg Rs 40 · 45.4 kg Rs 150", or "—" | 1 |
+  | Delivery cost per order | MoneyText, or "—" | 1 |
   | Status | "Set" (green) or "Not set" (red) | 2 |
   | Action | a secondary small button "Set price" or "Edit"; an archived zone with a price shows "View" | 1 |
 
   Archived zones are hidden behind "Show archived".
 - **Price drawer** (`md`)
   - "Ali Gas · Zone G-9" with the chip Set or Not set; the subtitle "Lahore · changed 23 Oct by Owner" ("Lahore" alone when never set).
-  - "Copy from…" (a Select, when this distributor has other priced zones): "North · Rs 250 + per cylinder", "South · Rs 400". It fills the boxes; nothing is saved until "Save price".
-  - **Base per order** (MoneyInput, required, Rs 0 to Rs 100,000; the first focus). A blank base pressed: "Type the base per order.".
-  - AddMore **"+ Add per-cylinder amounts"** (already open when any size has an amount): a 2×2 grid of MoneyInputs labelled by size, at most Rs 100,000 each, "Blank means Rs 0."
-  - **Example**, only once the base is a valid amount: "2 × 11.8 kg: Rs 250 + 2 × Rs 40 = Rs 330" (11.8 kg when it has an amount, else the first size that has one), or "Every order: Rs 250" for a flat price. Rs 0 is a real price, and a blank base never reads as "costs Rs 0".
-  - The note "New orders use this price. Placed orders don't change."
+  - One field: **Delivery cost per order** (MoneyInput, required, Rs 0 to Rs 100,000; the first focus). A blank box pressed: "Type the delivery cost.".
+  - **Example**, one line in a box under it, only once the box holds a valid amount: "Any order → Rs 250". Rs 0 is a real price, and a blank box never reads as "Any order → Rs 0".
+  - The note "New orders use this cost. Placed orders don't change."
   - An archived zone: "This zone is archived. Its price is kept but not used." and the form is read-only.
   - Footer: "Remove price…" (ghost-danger, only when set) and the primary "Save price" (`PUT`). Toast "Price saved for Zone G-9."; the row is tinted and the chip turns "All set" when complete. A typed "250.5" stays with "Whole rupees only".
   - **Remove price…** (ConfirmDialog with a reason): "Remove the price for Zone South?" / "Customers in South will be blocked until a new price is set." with "Why?" (5–300). Toast "Price removed for Zone South." (6 words at most: the dialog already says customers are blocked).
@@ -433,7 +430,7 @@ Rebuilt to UX_PRINCIPLES on 2026-10-23 (the website spec W01–W49, with the lea
 - **Order drawer**
   - "Order AG-0142" with the stage chip; the subtitle follows the stage: "Ali Gas · placed 10:12 am", "… · delivered 10:42 am", "… · cancelled 9:50 am", "… · not delivered 10:30 am". While loading, the title uses the number from the board.
   - **The outcome line** first in the body, only when it applies: warning "Cancelling now returns nothing: delivery has started." (loading or on the way); neutral "Rs 400 returned to the wallet · Customer cancelled" or "No refund: delivery had started · Customer cancelled"; danger "Customer not home · The driver brings the cylinders back to the store."
-  - Sections: **Customer** (the name, the phone as a `tel:` link, the address, "Zone North" muted); **Cylinders** ("2 × 11.8 kg" with "Take back 2" or "Nothing to take back"); **Delivery cost** (the FeeChip and the breakdown rows "Base · Rs 250", "6 kg · 1 × Rs 30", "11.8 kg · 2 × Rs 40"; an older order "No breakdown for this older order."; a free one "No delivery cost for this order."); **Driver** ("Kashif · LEA-101" with the phone link and a muted "Starts at Ahmed Gas Store"; or "No driver yet."); the **Timeline** ("Placed · Rs 330 taken from wallet", "Driver assigned (by Sana)", "Loading started", "Delivered", or "Cancelled · Rs 330 returned" / "Cancelled · no refund" / "Not delivered", with the reason under it). Then Activity (n), collapsed.
+  - Sections: **Customer** (the name, the phone as a `tel:` link, the address, "Zone North" muted); **Cylinders** ("2 × 11.8 kg" with "Take back 2" or "Nothing to take back"); **Delivery cost** (the FeeChip alone: "Rs 250 paid", "Rs 250 returned" or "No fee"; one cost per order, so no breakdown); **Driver** ("Kashif · LEA-101" with the phone link and a muted "Starts at Ahmed Gas Store"; or "No driver yet."); the **Timeline** ("Placed · Rs 250 taken from wallet", "Driver assigned (by Sana)", "Loading started", "Delivered", or "Cancelled · Rs 250 returned" / "Cancelled · no refund" / "Not delivered", with the reason under it). Then Activity (n), collapsed.
   - **Footer, from `allowedActions` only, with no More:** "Cancel order…" (ghost-danger) at the start when CANCEL; at the end, in this order, "Mark delivered…" (ghost) when MANUAL_DELIVERY, "Could not deliver…" (secondary) when MARK_FAILED, "Change driver" (secondary) when REASSIGN, and the primary "Assign driver" when ASSIGN. At most 4 buttons ever show (ASSIGN and REASSIGN never come together; TRACK isn't a button), so the drawer never needs More. "Change driver" is hidden once loading or once a cylinder was handed to or taken from the customer.
   - **After an action:** an assign or a driver change closes the drawer (the next order is on the list) with its toast, and the row moves tab. A cancel, not delivered or mark delivered keeps the drawer open on the new state, with its outcome line and toast.
 - **Assign driver dialog** (560 px; replaces CurrentOrdersScreen.tsx:179-228)
@@ -447,14 +444,14 @@ Rebuilt to UX_PRINCIPLES on 2026-10-23 (the website spec W01–W49, with the lea
 
   | When | Money line | Confirm |
   |---|---|---|
-  | `refundPaisa > 0` (before the start) | success "Rs 330 goes back to Ali Gas's wallet." | "Cancel and return Rs 330" |
+  | `refundPaisa > 0` (before the start) | success "Rs 250 goes back to Ali Gas's wallet." | "Cancel and return Rs 250" |
   | `noRefundReason = DELIVERY_STARTED` (after the start; danger) | "Delivery has started. Cancelling now returns nothing." | "Cancel without refund" |
   | `refundPaisa` 0 and no `noRefundReason` (no cost, or an order the old system charged before the switch-over) | neutral "Nothing goes back to the wallet for this order." | "Cancel order" |
 
   - Pressed with a gap: "Pick a reason first." / "Write a note of at least 5 characters." The note stays required (settled point G04-01; the lead kept it).
   - `ORDER_CANCEL_TERMS_CHANGED` re-renders the dialog with the new terms and its notice, the catalogue text "Delivery has just started. The refund is now Rs 0." (the shop app says the same).
   - `ORDER_HANDOVER_STARTED`: "The driver has started delivering. Use 'Could not deliver…' or 'Mark delivered…'."
-  - Toasts: "AG-0142 cancelled · Rs 330 returned", "AG-0142 cancelled · no refund", "AG-0142 cancelled".
+  - Toasts: "AG-0142 cancelled · Rs 250 returned", "AG-0142 cancelled · no refund", "AG-0142 cancelled".
 - **Could not deliver…** (only after the start; Modal): "Mark AG-0008 not delivered?" with two facts, "No refund: Rs 400 stays paid." (left out when the order has no cost) and "The driver brings the cylinders back to the store."; RadioCards in 2 columns (6; "Other" was "Other reason"); a required note (5–300) with the placeholder "What happened?"; [Mark not delivered]. Toast "AG-0008 marked not delivered." No money moves. Before the start the action is hidden.
 - **Mark delivered…** (the footer button; Modal): "Mark AG-0008 delivered?" / "Only when the driver can't do it in the app. No money moves." with one box "Who confirmed the delivery?" (required, 10–300; "Write a reason of at least 10 characters."). [Mark delivered]. Toast "AG-0008 marked delivered by the office." It is logged with the office user's name in Activity. Inc 2 replaces the dialog with the one that names each cylinder (§3.4), behind the same button and title. Errors: `ORDER_INVALID_TRANSITION` refetches the drawer, which then shows the order's real stage. An X-Already-Applied answer shows the same toast.
 - **Removed:** Auto-dispatch, the "Confirm" button, the store picker, the UUID driver column, DeliveryOrdersScreen, the board's subtitle, the More menu holding one item, and the cost formula sentence.
@@ -571,7 +568,7 @@ Rebuilt to UX_PRINCIPLES on 2026-10-23 (the website spec W01–W49, with the lea
 | `topup.reject` | "Rejected top-up {{no}} ({{reason}})", the reason in the office words ("Name on the account doesn't match") |
 | `wallet.correction` | "{{direction}} {{amount}} for {{distributor}}: {{reason}}" |
 | `wallet.check` | "Nightly wallet check: {{checked}} wallets checked, all match", or "Nightly wallet check: {{mismatches}} of {{checked}} wallets don't match their history" (actor shown as "System") |
-| `price.set` / `price.remove` | "Set {{distributor}}'s price in {{zone}}: base {{base}}…" / "Removed {{distributor}}'s price in {{zone}}" |
+| `price.set` / `price.remove` | "Set {{distributor}}'s delivery cost in {{zone}}: {{base}}" / "Removed {{distributor}}'s price in {{zone}}" |
 | `zone.create` / `.update` / `.archive` / `.reactivate` | "Added zone {{zone}}" / "Changed zone {{zone}}" / "Archived zone {{zone}}" / "Reactivated zone {{zone}}" |
 | `order.assign` / `order.reassign` | "Assigned {{no}} to {{driver}}" / "Moved {{no}} from {{from}} to {{to}}" |
 | `order.cancel` | "Cancelled {{no}} · {{refund}} returned", or "Cancelled {{no}} · no refund" |
@@ -634,7 +631,7 @@ An unknown action shows its code in words. System actors show as "System" and cu
   - A used reference is refused at the field.
   - A double click, or a retry after a network drop, adds money once.
   - When two admins have the same request open, the second sees "already approved".
-- **Delivery prices:** every active zone shows Set or Not set (red) for each distributor. A missing price is flagged in text on Prices, Today and Distributors. Optional per-size amounts are hidden when 0.
+- **Delivery prices:** every active zone shows Set or Not set (red) for each distributor. A missing price is flagged in text on Prices, Today and Distributors. A price is one delivery cost per order: no amount per size anywhere.
 - **Distributors:** a distributor can't be created without a store, and the store's zone comes from the pin.
 - **Orders**
   - The assign dialog has no store picker and no Auto-dispatch.

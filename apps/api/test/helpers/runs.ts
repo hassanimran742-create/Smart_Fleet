@@ -121,8 +121,6 @@ export async function createOrder(
         cylinderTypeId: line.cylinderTypeId,
         fullCount: line.fullCount,
         expectedReturnCount: line.expectedReturnCount ?? 0,
-        feePerCylinderPaisa: 0n,
-        feePaisa: 0n,
       },
     });
     lines.push({ id: row.id, cylinderTypeId: row.cylinderTypeId, fullCount: row.fullCount, expectedReturnCount: row.expectedReturnCount });

@@ -39,44 +39,37 @@ describeDb('api-orders: delivery costs', () => {
   const debits = (orderId?: string) => f.ledger({ entryType: 'DEBIT_ORDER', ...(orderId ? { orderId } : {}) });
   const reversals = (orderId?: string) => f.ledger({ entryType: 'CREDIT_ORDER_REVERSAL', ...(orderId ? { orderId } : {}) });
 
-  it('FEE-001 placing X1 deducts Rs 480 in the same transaction that creates the order', async () => {
+  it('FEE-001 placing X1 deducts Rs 250 in the same transaction that creates the order', async () => {
     const { std } = f;
     // Step 1.
-    const res = await f.placeX1(newKey(), { deliveryLabel: 'House 1, North', quotedTotalPaisa: '48000' }).expect(201);
+    const res = await f.placeX1(newKey(), { deliveryLabel: 'House 1, North', quotedTotalPaisa: '25000' }).expect(201);
     const order = res.body as OrderBody;
     expect(order).toMatchObject({
       shortCode: 'AG-0001',
       status: 'PENDING',
       stage: 'NEEDS_DRIVER',
-      fee: {
-        totalPaisa: '48000',
-        status: 'DEDUCTED',
-        breakdown: {
-          basePaisa: '25000',
-          lines: [
-            { sizeLabel: '11.8 kg', count: 2, perCylinderPaisa: '4000', subtotalPaisa: '8000' },
-            { sizeLabel: '45.4 kg', count: 1, perCylinderPaisa: '15000', subtotalPaisa: '15000' },
-          ],
-        },
-      },
-      cancel: { allowed: true, refundPaisa: '48000', noRefundReason: null },
-      deliveryFeePaisa: '48000',
+      fee: { totalPaisa: '25000', status: 'DEDUCTED' },
+      cancel: { allowed: true, refundPaisa: '25000', noRefundReason: null },
+      deliveryFeePaisa: '25000',
       paymentStatus: 'PAID_VIA_LEDGER',
       originStore: { name: 'Ahmed Gas Store' },
     });
     // Step 2 (the balance; the wallet routes are checked with api-money below).
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
     // Step 3.
     const row = await f.order(order.id);
     expect(row).toMatchObject({ feeStatus: 'DEDUCTED', feeStrategy: 'DISTRIBUTOR_ZONE', feeBasePaisa: 25_000n });
     expect(row.feeDetails).toMatchObject({ zoneId: std.zones.North.id, zoneName: 'North' });
-    const lines = await f.db.orderLine.findMany({ where: { orderId: order.id } });
-    const byType = new Map(lines.map((line) => [line.cylinderTypeId, line]));
-    expect(byType.get(std.sizes.kg11_8)).toMatchObject({ feePerCylinderPaisa: 4_000n, feePaisa: 8_000n });
-    expect(byType.get(std.sizes.kg45_4)).toMatchObject({ feePerCylinderPaisa: 15_000n, feePaisa: 15_000n });
+    // One cost per order (ADR-08): the base is charged once, and the lines carry the cylinders only.
+    expect(row.deliveryFeePaisa).toBe(25_000n);
+    const lines = await f.db.orderLine.findMany({ where: { orderId: order.id }, orderBy: { fullCount: 'desc' } });
+    expect(lines.map((line) => [line.cylinderTypeId, line.fullCount, line.expectedReturnCount])).toEqual([
+      [std.sizes.kg11_8, 2, 2],
+      [std.sizes.kg45_4, 1, 1],
+    ]);
     const debit = await debits(order.id);
     expect(debit).toHaveLength(1);
-    expect(debit[0]).toMatchObject({ amountPaisa: -48_000n, balanceAfterPaisa: 452_000n, idempotencyKey: `order:${order.id}:debit` });
+    expect(debit[0]).toMatchObject({ amountPaisa: -25_000n, balanceAfterPaisa: 475_000n, idempotencyKey: `order:${order.id}:debit` });
     const audits = await f.audits('order.create', order.id);
     expect(audits).toHaveLength(1);
     expect(audits[0]).toMatchObject({ actorUserId: std.DA.userId, distributorId: std.DA.id });
@@ -90,25 +83,25 @@ describeDb('api-orders: delivery costs', () => {
   it('FEE-001 the wallet and its statement show the deduction', async () => {
     const order = await f.x1();
     const wallet = await f.as(f.std.DA).get('/wallet').expect(200);
-    expect(wallet.body.balancePaisa).toBe('452000');
+    expect(wallet.body.balancePaisa).toBe('475000');
     const statement = await f.as(f.std.DA).get('/wallet/statement').expect(200);
     expect(statement.body.items[0]).toMatchObject({
       kind: 'DELIVERY_COST',
-      amountPaisa: '-48000',
-      balanceAfterPaisa: '452000',
+      amountPaisa: '-25000',
+      balanceAfterPaisa: '475000',
       subject: { type: 'ORDER', id: order.id },
     });
   });
 
   it('FEE-002 X4: the balance must cover the cost exactly; Rs 1 short is refused and nothing is created', async () => {
     const { std, db } = f;
-    await f.setBalance(std.DA, 48_000n);
+    await f.setBalance(std.DA, 25_000n);
     // Step 1.
     const first = await f.placeX1(newKey()).expect(201);
     expect(await f.balance()).toBe(0n);
     expect((await debits(first.body.id))[0].balanceAfterPaisa).toBe(0n);
     // Step 2.
-    await f.setBalance(std.DA, 47_900n);
+    await f.setBalance(std.DA, 24_900n);
     const before = {
       orders: await db.order.count(),
       lines: await db.orderLine.count(),
@@ -120,8 +113,8 @@ describeDb('api-orders: delivery costs', () => {
     const refused = await f.placeX1(newKey()).expect(409);
     expect(refused.body).toMatchObject({
       code: 'WALLET_INSUFFICIENT_BALANCE',
-      details: { requiredPaisa: '48000', balancePaisa: '47900', shortByPaisa: '100' },
-      message: 'Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue.',
+      details: { requiredPaisa: '25000', balancePaisa: '24900', shortByPaisa: '100' },
+      message: 'Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue.',
     });
     // Step 4.
     expect(await db.order.count()).toBe(before.orders);
@@ -129,7 +122,7 @@ describeDb('api-orders: delivery costs', () => {
     expect(await db.ledgerEntry.count()).toBe(before.ledger);
     expect(await db.auditLog.count({ where: { action: 'order.create' } })).toBe(before.audits);
     expect((await db.distributor.findUniqueOrThrow({ where: { id: std.DA.id } })).nextOrderNo).toBe(before.next);
-    expect(await f.balance()).toBe(47_900n);
+    expect(await f.balance()).toBe(24_900n);
     await f.expectWalletsConsistent();
   });
 
@@ -215,12 +208,12 @@ describeDb('api-orders: delivery costs', () => {
     const K = newKey();
     // Step 1.
     const first = await f.placeX1(K).expect(201);
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
     // Step 2.
     const replay = await f.placeX1(K).expect(200);
     expect(replay.headers['idempotent-replay']).toBe('true');
     expect([replay.body.id, replay.body.shortCode]).toEqual([first.body.id, first.body.shortCode]);
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
     // Step 3.
     const conflict = await f.placeX1(K, { lines: [{ cylinderTypeId: std.sizes.kg11_8, fullCount: 3, expectedReturnCount: 3 }] }).expect(409);
     expect(conflict.body.code).toBe('IDEMPOTENCY_CONFLICT');
@@ -229,7 +222,7 @@ describeDb('api-orders: delivery costs', () => {
     const [a, b] = await together(f.placeX1(K2), f.placeX1(K2));
     expect([a.status, b.status].sort()).toEqual([200, 201]);
     expect(a.body.id).toBe(b.body.id);
-    expect(await f.balance()).toBe(404_000n);
+    expect(await f.balance()).toBe(450_000n);
     // Step 5.
     for (const key of [K, K2]) expect(await db.order.count({ where: { clientRequestId: key } })).toBe(1);
     const orders = await db.order.findMany({ orderBy: { orderNo: 'asc' } });
@@ -249,20 +242,20 @@ describeDb('api-orders: delivery costs', () => {
     const { std, db } = f;
     // Step 1.
     for (let round = 0; round < 20; round++) {
-      await f.setBalance(std.DA, 48_000n);
+      await f.setBalance(std.DA, 25_000n);
       const [a, b] = await together(f.placeX1(newKey()), f.placeX1(newKey()));
       const refused = [a, b].find((res) => res.status === 409);
       expect({ round, statuses: [a.status, b.status].sort() }).toEqual({ round, statuses: [201, 409] });
       expect(refused?.body).toMatchObject({
         code: 'WALLET_INSUFFICIENT_BALANCE',
-        details: { requiredPaisa: '48000', balancePaisa: '0', shortByPaisa: '48000' },
+        details: { requiredPaisa: '25000', balancePaisa: '0', shortByPaisa: '25000' },
       });
       expect(await f.balance()).toBe(0n);
     }
     expect(await db.order.count()).toBe(20);
     expect(await debits()).toHaveLength(20);
     // Step 2.
-    await f.setBalance(std.DA, 96_000n);
+    await f.setBalance(std.DA, 50_000n);
     const both = await together(f.placeX1(newKey()), f.placeX1(newKey()));
     expect(both.map((res) => res.status)).toEqual([201, 201]);
     expect(await f.balance()).toBe(0n);
@@ -275,32 +268,32 @@ describeDb('api-orders: delivery costs', () => {
     await f.expectWalletsConsistent();
   });
 
-  it('FEE-009 X3: the distributor cancels before the first load scan and gets Rs 480 back', async () => {
+  it('FEE-009 X3: the distributor cancels before the first load scan and gets Rs 250 back', async () => {
     const { std } = f;
     const x1 = await f.x1();
     const { tripId } = await f.assign(x1.id, std.DR1);
     // Step 1.
     const read = await f.as(std.DA).get(`/orders/${x1.id}`).expect(200);
-    expect(read.body.cancel).toEqual({ allowed: true, refundPaisa: '48000', noRefundReason: null });
+    expect(read.body.cancel).toEqual({ allowed: true, refundPaisa: '25000', noRefundReason: null });
     expect(read.body.allowedActions).toContain('CANCEL');
     // Step 2.
-    const res = await f.cancel(x1.id, { reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '48000' }).set('Idempotency-Key', newKey()).expect(200);
+    const res = await f.cancel(x1.id, { reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '25000' }).set('Idempotency-Key', newKey()).expect(200);
     expect(res.body).toMatchObject({
-      order: { status: 'CANCELLED', stage: 'CANCELLED', fee: { status: 'REVERSED', totalPaisa: '48000' }, paymentStatus: 'UNPAID', cancelReasonCode: 'CUSTOMER_CANCELLED' },
-      refundedPaisa: '48000',
+      order: { status: 'CANCELLED', stage: 'CANCELLED', fee: { status: 'REVERSED', totalPaisa: '25000' }, paymentStatus: 'UNPAID', cancelReasonCode: 'CUSTOMER_CANCELLED' },
+      refundedPaisa: '25000',
     });
     // Step 3.
     expect(await f.balance()).toBe(500_000n);
     const back = await reversals(x1.id);
     expect(back).toHaveLength(1);
-    expect(back[0]).toMatchObject({ amountPaisa: 48_000n, idempotencyKey: `order:${x1.id}:reversal`, balanceAfterPaisa: 500_000n });
+    expect(back[0]).toMatchObject({ amountPaisa: 25_000n, idempotencyKey: `order:${x1.id}:reversal`, balanceAfterPaisa: 500_000n });
     const stops = await f.stops(tripId);
     expect(stops.find((stop) => stop.stopType === 'DELIVERY')?.status).toBe('CANCELLED');
     expect((await f.trip(tripId)).status).toBe('ABORTED');
     const audits = await f.audits('order.cancel', x1.id);
     expect(audits).toHaveLength(1);
     expect(audits[0]).toMatchObject({ actorUserId: std.DA.userId, reason: 'CUSTOMER_CANCELLED' });
-    expect(audits[0].diff).toMatchObject({ refunded: true, refundPaisa: '48000', startedRule: 'FIRST_LOAD_SCAN' });
+    expect(audits[0].diff).toMatchObject({ refunded: true, refundPaisa: '25000', startedRule: 'FIRST_LOAD_SCAN' });
     await f.expectWalletsConsistent();
   });
 
@@ -313,7 +306,7 @@ describeDb('api-orders: delivery costs', () => {
     for (const k of [key, newKey()]) {
       const again = await f.cancel(one.id, { reasonCode: 'CUSTOMER_CANCELLED' }).set('Idempotency-Key', k).expect(200);
       expect(again.headers['x-already-applied']).toBe('true');
-      expect(again.body).toMatchObject({ order: { status: 'CANCELLED' }, refundedPaisa: '48000' });
+      expect(again.body).toMatchObject({ order: { status: 'CANCELLED' }, refundedPaisa: '25000' });
     }
     expect(await f.balance()).toBe(500_000n);
     // Step 2.
@@ -385,7 +378,7 @@ describeDb('api-orders: delivery costs', () => {
     }
     const row = await f.order(x1.id);
     expect([row.status, row.feeStatus]).toEqual(['ASSIGNED', 'DEDUCTED']);
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
     expect(await reversals()).toEqual([]);
     expect(await f.audits('order.cancel')).toEqual([]);
   });
@@ -408,7 +401,7 @@ describeDb('api-orders: delivery costs', () => {
     const res = await f.cancel(x1.id, { reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '0' }).expect(200);
     expect(res.body.refundedPaisa).toBe('0');
     expect(res.body.order).toMatchObject({ status: 'CANCELLED', fee: { status: 'DEDUCTED' } });
-    expect(await f.balance()).toBe(452_000n);
+    expect(await f.balance()).toBe(475_000n);
     expect(await reversals()).toEqual([]);
     expect((await f.audits('order.cancel', x1.id))[0].diff).toMatchObject({ refunded: false, refundPaisa: '0', startedRule: 'FIRST_LOAD_SCAN' });
     expect((await f.trip(tripId)).status).not.toBe('ABORTED');
@@ -426,7 +419,7 @@ describeDb('api-orders: delivery costs', () => {
     await f.loadScan(std.DR1, t1.tripId, 'AG-C0005').expect(201);
     const balance = await f.balance();
     // Step 2.
-    const changed = await f.cancel(O1.id, { reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '48000' }).expect(409);
+    const changed = await f.cancel(O1.id, { reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '25000' }).expect(409);
     expect(changed.body).toMatchObject({
       code: 'ORDER_CANCEL_TERMS_CHANGED',
       details: { refundPaisa: '0' },
@@ -438,13 +431,13 @@ describeDb('api-orders: delivery costs', () => {
     expect((await f.cancel(O1.id, { reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '0' }).expect(200)).body.refundedPaisa).toBe('0');
     // Step 4.
     const other = await f.cancel(O2.id, { reasonCode: 'CUSTOMER_CANCELLED', confirmRefundPaisa: '0' }).expect(409);
-    expect(other.body).toMatchObject({ code: 'ORDER_CANCEL_TERMS_CHANGED', details: { refundPaisa: '48000' } });
+    expect(other.body).toMatchObject({ code: 'ORDER_CANCEL_TERMS_CHANGED', details: { refundPaisa: '25000' } });
     expect((await f.order(O2.id)).status).toBe('ASSIGNED');
   });
 
   it('FEE-015 a cancel racing the first load scan never gives both a refund and a load', async () => {
     const { std } = f;
-    await f.setBalance(std.DA, 30n * 48_000n);
+    await f.setBalance(std.DA, 30n * 25_000n);
     const codes = await f.extraCylinders(30, std.sizes.kg11_8, 'RACE');
     let refunds = 0;
     let loads = 0;
@@ -455,7 +448,7 @@ describeDb('api-orders: delivery costs', () => {
       expect({ round, cancel: cancel.status }).toEqual({ round, cancel: 200 });
       const order = await f.order(x1.id);
       const cylinder = await f.cylinder(codes[round]);
-      if (cancel.body.refundedPaisa === '48000') {
+      if (cancel.body.refundedPaisa === '25000') {
         refunds += 1;
         expect({ round, scan: scan.status }).toEqual({ round, scan: 409 });
         expect(typeof scan.body.code).toBe('string');
@@ -482,7 +475,7 @@ describeDb('api-orders: delivery costs', () => {
     const t2 = (await f.assign(x2.id, std.DR2)).tripId;
     await f.loadScan(std.DR2, t2, 'AG-C0021').expect(201);
     await f.fail(x2.id, { reasonCode: 'CUSTOMER_NOT_HOME' }, std.DR2).expect(200);
-    expect(await f.balance()).toBe(412_000n);
+    expect(await f.balance()).toBe(435_000n);
     // Step 1.
     await f.as(std.DR1).post('/custody/scan').send({ qrCode: 'AG-C0005-QR', eventType: 'DELIVERED', tripId: t1, orderId: x1.id }).expect(201);
     // Step 2.
@@ -505,7 +498,7 @@ describeDb('api-orders: delivery costs', () => {
     expect(delivered.body).toMatchObject({ code: 'ORDER_NOT_CANCELLABLE', message: 'This order is already finished.', details: { currentStatus: 'DELIVERED' } });
     const failed = await f.cancel(x2.id, { reasonCode: 'CUSTOMER_CANCELLED' }).expect(409);
     expect(failed.body).toMatchObject({ code: 'ORDER_NOT_CANCELLABLE', details: { currentStatus: 'FAILED' } });
-    expect(await f.balance()).toBe(412_000n);
+    expect(await f.balance()).toBe(435_000n);
     expect(await reversals()).toEqual([]);
     expect(await f.audits('order.cancel')).toEqual([]);
   });
@@ -514,7 +507,7 @@ describeDb('api-orders: delivery costs', () => {
     const { std } = f;
     const x1 = await f.x1();
     const x2 = await f.x2();
-    expect(await f.balance()).toBe(412_000n);
+    expect(await f.balance()).toBe(435_000n);
     // Step 1.
     const first = await f.assign(x1.id, std.DR1);
     const second = await f.assign(x1.id, std.DR2);
@@ -523,7 +516,7 @@ describeDb('api-orders: delivery costs', () => {
     expect(await f.audits('order.reassign', x1.id)).toHaveLength(1);
     expect((await f.trip(first.tripId)).status).toBe('ABORTED');
     expect((await f.stops(first.tripId)).every((stop) => stop.status === 'CANCELLED')).toBe(true);
-    expect(await f.balance()).toBe(412_000n);
+    expect(await f.balance()).toBe(435_000n);
     // Step 2.
     await f.as(std.DR2).patch(`/trips/${second.tripId}/status`).send({ status: 'IN_PROGRESS' }).expect(200);
     for (const code of ['AG-C0005', 'AG-C0006', 'AG-C0031']) await f.loadScan(std.DR2, second.tripId, code).expect(201);
@@ -534,7 +527,7 @@ describeDb('api-orders: delivery costs', () => {
     // From Inc 2 the tap is the visit finish with matching scans (API_CONTRACT §9.10).
     expect(tap.body.deliveryMethod).toBe('SCANNED');
     expect((await f.as(std.DR2).patch(`/orders/${x1.id}/status`).send({ status: 'DELIVERED' }).expect(200)).headers['x-already-applied']).toBe('true');
-    expect(await f.balance()).toBe(412_000n);
+    expect(await f.balance()).toBe(435_000n);
     // Step 3.
     await f.assign(x2.id, std.DR1);
     expect((await f.as(std.SA1).post(`/orders/${x2.id}/manual-delivery`).send({ reason: 'Too short' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
@@ -545,7 +538,7 @@ describeDb('api-orders: delivery costs', () => {
     expect(manual.body).toMatchObject({ status: 'DELIVERED', deliveryMethod: 'MANUAL' });
     expect(await f.audits('order.manual_delivery', x2.id)).toHaveLength(1);
     // Step 4.
-    expect(await f.balance()).toBe(412_000n);
+    expect(await f.balance()).toBe(435_000n);
     const money = await f.ledger({ distributorId: std.DA.id, entryType: { not: 'ADJUSTMENT' } });
     expect(money.map((row) => row.entryType)).toEqual(['DEBIT_ORDER', 'DEBIT_ORDER']);
     for (const order of [x1, x2]) expect((await f.order(order.id)).feeStatus).toBe('DEDUCTED');
@@ -581,7 +574,7 @@ describeDb('api-orders: delivery costs', () => {
     await f.loadScan(std.DR2, t2, 'AG-C0021').expect(201);
     expect((await f.fail(x2.id, { reasonCode: 'OTHER' }, std.SA1).expect(400)).body.code).toBe('VALIDATION_FAILED');
     expect((await f.fail(x2.id, { reasonCode: 'OTHER', note: 'Gate locked, customer away' }, std.SA1).expect(200)).body.status).toBe('FAILED');
-    expect(await f.balance()).toBe(412_000n);
+    expect(await f.balance()).toBe(435_000n);
     expect(await reversals()).toEqual([]);
     for (const order of [x1, x2]) expect((await f.order(order.id)).feeStatus).toBe('DEDUCTED');
   });
@@ -623,8 +616,8 @@ describeDb('api-orders: delivery costs', () => {
       if (scenario.refunded) {
         expect({ name: scenario.name, refund: read.body.cancel.refundPaisa, refunded: res.body.refundedPaisa }).toEqual({
           name: scenario.name,
-          refund: '48000',
-          refunded: '48000',
+          refund: '25000',
+          refunded: '25000',
         });
         expect(await reversals(x1.id)).toHaveLength(1);
       } else {
@@ -659,7 +652,7 @@ describeDb('api-orders: delivery costs', () => {
     // Step 2.
     await setRule('DRIVER_ASSIGNED');
     const A = await f.x1();
-    expect((await refundOf(A.id)).refundedPaisa).toBe('48000');
+    expect((await refundOf(A.id)).refundedPaisa).toBe('25000');
     const B = await f.x1();
     await f.assign(B.id, std.DR1);
     expect((await f.as(std.DA).get(`/orders/${B.id}`).expect(200)).body.cancel).toMatchObject({ refundPaisa: '0', noRefundReason: 'DELIVERY_STARTED' });
@@ -668,7 +661,7 @@ describeDb('api-orders: delivery costs', () => {
     await setRule('LEFT_STORE');
     const C = await f.x1();
     await loadOnTrip(C.id, 'AG-C0008');
-    expect((await refundOf(C.id)).refundedPaisa).toBe('48000');
+    expect((await refundOf(C.id)).refundedPaisa).toBe('25000');
     const D = await f.x1();
     await loadOnTrip(D.id, 'AG-C0009');
     expect((await f.fail(D.id, { reasonCode: 'CUSTOMER_REFUSED' }, std.DR1).expect(409)).body.code).toBe('ORDER_NOT_STARTED_USE_CANCEL');
@@ -727,7 +720,7 @@ describeDb('api-orders: delivery costs', () => {
 
   it('FEE-024 delivery costs taken today = costs deducted minus costs returned, by the business day', async () => {
     const { std, db } = f;
-    // Today: X1 (Rs 480), X2 (Rs 400), X1 cancelled before loading (Rs 480 back).
+    // Today: X1 (Rs 250), X2 (Rs 400), X1 cancelled before loading (Rs 250 back).
     const x1 = await f.x1();
     await f.x2();
     await f.cancel(x1.id, { reasonCode: 'CUSTOMER_CANCELLED' }).expect(200);
@@ -760,7 +753,7 @@ describeDb('api-orders: delivery costs', () => {
 
   it('FEE-026 after loading, a cancel and a could-not-deliver at the same moment: one wins and no money moves', async () => {
     const { std } = f;
-    await f.setBalance(std.DA, 20n * 48_000n);
+    await f.setBalance(std.DA, 20n * 25_000n);
     const codes = await f.extraCylinders(20, std.sizes.kg11_8, 'DUEL');
     for (let round = 0; round < 20; round++) {
       const x1 = await f.x1();
@@ -794,6 +787,6 @@ describeDb('api-orders: delivery costs', () => {
     const first = await f.placeX1(K).expect(201);
     await f.as(std.SA1).put(`/pricing/prices/${std.DA.id}/${std.zones.North.id}`).send({ basePaisa: 30000 }).expect(200);
     const replay = await f.as(std.DA).post('/orders').set('Idempotency-Key', K).send(x1OrderBody(std)).expect(200);
-    expect(replay.body).toMatchObject({ id: first.body.id, fee: { totalPaisa: '48000' } });
+    expect(replay.body).toMatchObject({ id: first.body.id, fee: { totalPaisa: '25000' } });
   });
 });

@@ -1,5 +1,5 @@
 import { Prisma, UserRole } from '@prisma/client';
-import type { DeliveryFailureReason, DeliveryStartedRule, OrderCancelReason, OrderDto, OrderFeeLineDto } from '@smartfleet/shared-types';
+import type { DeliveryFailureReason, DeliveryStartedRule, OrderCancelReason, OrderDto } from '@smartfleet/shared-types';
 import { deriveOrderStage, formatNo } from '@smartfleet/shared-utils';
 import type { PolicyCaller } from '../../common/auth/policies';
 import { compareSizes, toCylinderSize } from '../pricing/size-label';
@@ -58,13 +58,6 @@ export async function toOrderDtos(db: Db, rows: readonly OrderViewRow[], caller:
     const lines = row.lines
       .map((line) => ({ line, size: toCylinderSize(line.cylinderType) }))
       .sort((a, b) => compareSizes(a.size, b.size) || a.line.id.localeCompare(b.line.id));
-    const breakdownLines: OrderFeeLineDto[] = lines.map(({ line, size }) => ({
-      cylinderTypeId: line.cylinderTypeId,
-      sizeLabel: size.label,
-      count: line.fullCount,
-      perCylinderPaisa: (line.feePerCylinderPaisa ?? 0n).toString(),
-      subtotalPaisa: (line.feePaisa ?? 0n).toString(),
-    }));
     const dto: OrderDto = {
       id: row.id,
       orderNo: row.orderNo ?? 0,
@@ -82,14 +75,8 @@ export async function toOrderDtos(db: Db, rows: readonly OrderViewRow[], caller:
       deliveryAddressLabel: row.deliveryAddressLabel,
       destination: pinById.get(row.id) ?? { lat: 0, lng: 0 },
       destZone: { id: row.destZone.id, name: row.destZone.name },
-      fee: {
-        totalPaisa: row.deliveryFeePaisa.toString(),
-        status: row.feeStatus,
-        breakdown:
-          row.feeStrategy === 'DISTRIBUTOR_ZONE' && row.feeBasePaisa !== null
-            ? { basePaisa: row.feeBasePaisa.toString(), lines: breakdownLines }
-            : null,
-      },
+      // One flat cost per order (ADR-08): what was deducted when it was placed.
+      fee: { totalPaisa: row.deliveryFeePaisa.toString(), status: row.feeStatus },
       cancel: { allowed: terms.allowed, refundPaisa: terms.refundPaisa.toString(), noRefundReason: terms.noRefundReason },
       originStore: row.originStore ? { id: row.originStore.id, name: row.originStore.name, address: row.originStore.address } : null,
       trip: row.trip

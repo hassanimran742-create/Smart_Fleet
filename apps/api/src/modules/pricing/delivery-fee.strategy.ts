@@ -1,7 +1,7 @@
 import type { DeliveryQuote, FeeStrategy, IdName } from '@smartfleet/shared-types';
 import type { Db } from '../orders/support/tx';
 
-/** One size on an order, as quoted: full cylinders only (take-backs cost nothing). */
+/** One size on an order, as quoted: full cylinders only. */
 export interface FeeQuoteLineInput {
   cylinderTypeId: string;
   fullCount: number;
@@ -15,28 +15,20 @@ export interface FeeQuoteContext {
   /** The active zone covering the delivery pin (DATA_MODEL §6.6). */
   zone: IdName;
   destination: { lat: number; lng: number };
+  /** The order's sizes. Each must be a known size; DISTRIBUTOR_ZONE's cost doesn't depend on them. */
   lines: FeeQuoteLineInput[];
 }
 
-/** One priced line. Money is BigInt paisa inside the API; the wire turns it into digit strings. */
-export interface FeeQuoteLine {
-  cylinderTypeId: string;
-  sizeLabel: string;
-  count: number;
-  perCylinderPaisa: bigint;
-  subtotalPaisa: bigint;
-}
-
 /**
- * The cost of one order, computed by a {@link DeliveryFeeStrategy}: `totalPaisa = basePaisa +
- * Σ subtotalPaisa`, the base charged once per order. `price` names the price row it came from, kept on
- * the order as display-only `fee_details` (orders carry their own copy of the cost, ADR-08).
+ * The cost of one order, computed by a {@link DeliveryFeeStrategy}. For DISTRIBUTOR_ZONE it is ONE flat
+ * amount per order, whatever cylinders it holds, so `totalPaisa === basePaisa` (ADR-08). Money is BigInt
+ * paisa inside the API; the wire turns it into digit strings. `price` names the price row it came from,
+ * kept on the order as display-only `fee_details` (orders carry their own copy of the cost).
  */
 export interface FeeQuote {
   strategy: FeeStrategy;
   zone: IdName;
   basePaisa: bigint;
-  lines: FeeQuoteLine[];
   totalPaisa: bigint;
   price: { id: string; updatedAt: Date };
 }
@@ -57,13 +49,6 @@ export function toDeliveryQuote(quote: FeeQuote): DeliveryQuote {
     strategy: quote.strategy,
     zone: { id: quote.zone.id, name: quote.zone.name },
     basePaisa: quote.basePaisa.toString(),
-    lines: quote.lines.map((line) => ({
-      cylinderTypeId: line.cylinderTypeId,
-      sizeLabel: line.sizeLabel,
-      count: line.count,
-      perCylinderPaisa: line.perCylinderPaisa.toString(),
-      subtotalPaisa: line.subtotalPaisa.toString(),
-    })),
     totalPaisa: quote.totalPaisa.toString(),
   };
 }

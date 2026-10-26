@@ -100,7 +100,7 @@ describeDb('roles and ownership', () => {
     const status = await send(office, ['patch', `/orders/${x1.body.id}/status`, { status: 'DELIVERED' }]).expect(400);
     expect(status.body).toMatchObject({ code: 'ORDER_USE_MANUAL_DELIVERY', message: 'Use "Mark delivered by office" for this.' });
     // Nothing changed.
-    expect((await db().distributor.findUniqueOrThrow({ where: { id: std.DA.id } })).advanceBalancePaisa).toBe(452_000n);
+    expect((await db().distributor.findUniqueOrThrow({ where: { id: std.DA.id } })).advanceBalancePaisa).toBe(475_000n);
     expect(await db().order.count()).toBe(1);
     expect(await db().payment.count()).toBe(0);
     expect(await db().client.count({ where: { name: 'Office Customer' } })).toBe(0);
@@ -204,7 +204,7 @@ describeDb('roles and ownership', () => {
     ]);
     // Nothing changed.
     expect((await db().payment.findUniqueOrThrow({ where: { id: topup.body.id } })).status).toBe('PENDING');
-    expect((await db().distributor.findUniqueOrThrow({ where: { id: std.DA.id } })).advanceBalancePaisa).toBe(452_000n);
+    expect((await db().distributor.findUniqueOrThrow({ where: { id: std.DA.id } })).advanceBalancePaisa).toBe(475_000n);
     expect(await db().expense.count()).toBe(0);
     expect((await db().order.findUniqueOrThrow({ where: { id: x1.body.id } })).status).toBe('PENDING');
     const setting = await send(office, ['get', '/settings']).expect(200);
@@ -271,11 +271,11 @@ describeDb('roles and ownership', () => {
     const { bgTopup } = await twoShops();
     const shop = authHeader(std.DA.actor);
     // Step 1: the distributorId parameter is ignored.
-    expect((await send(shop, ['get', `/wallet?distributorId=${std.DB.id}`]).expect(200)).body.balancePaisa).toBe('452000');
+    expect((await send(shop, ['get', `/wallet?distributorId=${std.DB.id}`]).expect(200)).body.balancePaisa).toBe('475000');
     const statement = await send(shop, ['get', `/wallet/statement?distributorId=${std.DB.id}`]).expect(200);
     const daLedger = await db().ledgerEntry.findMany({ where: { distributorId: std.DA.id }, select: { id: true } });
     for (const item of statement.body.items as Array<{ id: string }>) expect(daLedger.map((row) => row.id)).toContain(item.id);
-    expect((await send(shop, ['get', `/ledger/balance?distributorId=${std.DB.id}`]).expect(200)).body.balancePaisa).toBe('452000');
+    expect((await send(shop, ['get', `/ledger/balance?distributorId=${std.DB.id}`]).expect(200)).body.balancePaisa).toBe('475000');
     const ledger = await send(shop, ['get', '/ledger/me']).expect(200);
     for (const row of ledger.body as Array<{ distributorId: string }>) expect(row.distributorId).toBe(std.DA.id);
     // Step 2.

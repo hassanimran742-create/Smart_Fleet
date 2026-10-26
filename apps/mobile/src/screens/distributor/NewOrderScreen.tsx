@@ -44,7 +44,6 @@ import { AddressPickerSheet } from './shared/AddressPickerSheet';
 import { CustomerList } from './shared/CustomerList';
 import {
   addressBlock,
-  costParts,
   defaultAddress,
   isPositivePaisa,
   lastOrderOf,
@@ -143,7 +142,7 @@ export function NewOrderScreen() {
     : null;
   const block = addressBlock(address);
 
-  // The customer's price, for "Delivery cost about …" and the size words (step 2).
+  // The customer's price, for "Delivery cost Rs 250" on step 2: one cost per order, whatever it holds.
   const addressPrice = useQuery<LocationQuote, ApiError>({
     queryKey: address ? qk.pricing.quote(address.lat, address.lng) : [...qk.pricing.all, 'none'],
     queryFn: () => fetchLocationQuote(address!.lat, address!.lng),
@@ -155,13 +154,8 @@ export function NewOrderScreen() {
     () =>
       [...(types.data ?? [])]
         .sort((a, b) => weightSortKey(a.weightKg) - weightSortKey(b.weightKg))
-        .map((type) => ({
-          id: type.id,
-          label:
-            addressPrice.data?.price?.sizes.find((s) => s.cylinderTypeId === type.id)?.sizeLabel ??
-            sizeLabelFromWeight(type.weightKg, t),
-        })),
-    [types.data, addressPrice.data, t],
+        .map((type) => ({ id: type.id, label: sizeLabelFromWeight(type.weightKg, t) })),
+    [types.data, t],
   );
 
   const chosen = sizes
@@ -346,15 +340,8 @@ export function NewOrderScreen() {
 
   // ---- Step 2: cylinders -------------------------------------------------------------------------
   if (step === 2) {
-    const price = addressPrice.data?.price ?? null;
-    const aboutPaisa = price
-      ? paisaOrZero(price.basePaisa) +
-        chosen.reduce(
-          (sum, line) =>
-            sum + paisaOrZero(price.sizes.find((s) => s.cylinderTypeId === line.id)?.perCylinderPaisa) * line.choice.deliver,
-          0,
-        )
-      : 0;
+    // One cost per order, whatever cylinders it holds (ADR-08): the address's price is the order's cost.
+    const costPaisa = paisaOrZero(addressPrice.data?.price?.basePaisa);
     return (
       <Screen
         key="step-2"
@@ -364,9 +351,9 @@ export function NewOrderScreen() {
               <Text tone="secondary" align="center">
                 {t('orders.new.pickSome')}
               </Text>
-            ) : aboutPaisa > 0 ? (
+            ) : costPaisa > 0 ? (
               <Text variant="bodyStrong" align="center" accessibilityLiveRegion="polite">
-                {t('orders.new.costAbout', { fee: formatRs(aboutPaisa) })}
+                {t('orders.new.costPerOrder', { fee: formatRs(costPaisa) })}
               </Text>
             ) : null}
             {total >= cap ? (
@@ -454,7 +441,6 @@ export function NewOrderScreen() {
   const quoteError = !result && quote.isError ? quote.error : null;
   const priceBlock =
     quoteError?.code === 'PRICING_PRICE_NOT_SET' ? 'noPrice' : quoteError?.code === 'PRICING_ZONE_NOT_COVERED' ? 'outside' : null;
-  const parts = result && !free ? costParts(result.quote, t) : null;
 
   const submit = () => {
     if (!body || !result || place.isPending) return;
@@ -556,11 +542,6 @@ export function NewOrderScreen() {
                 <Skeleton width={112} height={28} />
               )}
             </View>
-            {parts ? (
-              <Text variant="caption" tone="secondary" align="right">
-                {parts}
-              </Text>
-            ) : null}
             {quoteError && priceBlock && client ? (
               <BlockedCost block={priceBlock} onChangeAddress={() => openSheet(client)} />
             ) : quoteError ? (

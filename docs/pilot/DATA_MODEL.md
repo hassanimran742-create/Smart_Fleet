@@ -28,7 +28,7 @@ Facts the test confirmed, which still apply:
 
 1. **Money**
    - Money is `BigInt` paisa. Ledger amounts are signed: `+` for money in, `−` for money out.
-   - JSON carries money as a digit string (main.ts:13-15 patches `BigInt.prototype.toJSON`); a negative amount has a leading ASCII `-` (`"-48000"`, API_CONTRACT §1.1).
+   - JSON carries money as a digit string (main.ts:13-15 patches `BigInt.prototype.toJSON`); a negative amount has a leading ASCII `-` (`"-25000"`, API_CONTRACT §1.1).
 2. **One balance per distributor:** `distributors.advance_balance_paisa`.
    - The ledger (`ledger_entries`) is append-only, and its sum equals the balance.
    - No hold tables, no split balance.
@@ -215,9 +215,9 @@ Reason codes stored as text are TypeScript unions in shared-types. API_CONTRACT 
 | `Zone` (:289) | relations `zonePrices`, `clientAddresses` | `@@index([polygon], type: Gist)`, `@@index([cityId, isActive])` |
 | `Client` (:355) | `clientRequestId String? @db.Uuid @map("client_request_id")`: the Idempotency-Key of `POST /clients` | `@@unique([distributorId, clientRequestId])` (`clients_distributor_id_client_request_id_key`) |
 | `ClientAddress` (:380) | `zoneId String?` (the zone that covered the pin when saved, kept for the record; lists, quotes and orders re-check the pin live), `createdAt` | `@@index([clientId])` |
-| `CylinderType` (:393) | relation `zonePriceSizes` | none |
+| `CylinderType` (:393) | relation `zonePriceSizes` (gone with that model, §5.7) | none |
 | `Order` (:530) | see the table below. `deliveryFeePaisa` (:540) now means **the cost deducted at placement**. `paymentStatus` (:539) is a legacy mirror for old app builds: `PAID_VIA_LEDGER` while DEDUCTED, `UNPAID` otherwise. `cancellationReason` (:544) stays as the free-text cancel note. | `@@unique([distributorId, orderNo])`, `@@unique([distributorId, clientRequestId])`, `@@index([distributorId, createdAt])`, `@@index([tripId])`, `@@index([status, deliveredAt])` |
-| `OrderLine` (:564) | `feePerCylinderPaisa BigInt?`, `feePaisa BigInt?` (copy at placement; 0 when the size has no amount) | `@@index([orderId])` |
+| `OrderLine` (:564) | `feePerCylinderPaisa BigInt?`, `feePaisa BigInt?` (copy at placement; 0 when the size has no amount). Dropped by flat_delivery_cost (§5.7): the cost is per order, so a line holds the cylinders only. | `@@index([orderId])` |
 | `TripStop` (:597) | `storeId String?` (STORE_PICKUP / RETURN_DROPOFF), `status TripStopStatus @default(PENDING)`, `completedAt`, `cancelledAt` | `@@index([orderId])` |
 | `Payment` (:618) | see the table below | `@@unique([distributorId, requestNo])`, `@@unique([distributorId, clientRequestId])`, `@@index([status, createdAt])`; `bankReferenceKey @unique`; the existing `@@unique([provider, providerTxnId])` stays |
 | `LedgerEntry` (:638) | `idempotencyKey String? @unique` (NOT NULL in 1b), `fillingOrderId String?` (FK, RESTRICT; links old refill debits), `reasonCode String?`, `createdByUserId String?` (NULL = system). `balanceAfterPaisa` = the balance after this row. | `@@index([orderId])`, `@@index([fillingOrderId])` |
@@ -288,7 +288,7 @@ model DistributorZonePrice {           // one current row per distributor per zo
   id              String   @id @default(uuid()) @db.Uuid
   distributorId   String   @map("distributor_id") @db.Uuid
   zoneId          String   @map("zone_id") @db.Uuid
-  basePaisa       BigInt   @map("base_paisa")                 // once per order
+  basePaisa       BigInt   @map("base_paisa")                 // the delivery cost, once per order (§5.7: the whole cost)
   note            String?
   updatedByUserId String?  @map("updated_by_user_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
@@ -300,7 +300,7 @@ model DistributorZonePrice {           // one current row per distributor per zo
   @@index([zoneId])
   @@map("distributor_zone_prices")
 }
-model DistributorZonePriceSize {       // optional; a size with no row costs 0 per cylinder
+model DistributorZonePriceSize {       // optional; a size with no row costs 0 per cylinder. Dropped 2026-10-26 (§5.7)
   id               String @id @default(uuid()) @db.Uuid
   priceId          String @map("price_id") @db.Uuid
   cylinderTypeId   String @map("cylinder_type_id") @db.Uuid
@@ -353,7 +353,7 @@ model ExpenseType {                    // super-admin managed; seeded types have
   @@map("expense_types")
 }
 ```
-The order is the record of its cost: `deliveryFeePaisa`, `feeBasePaisa`, the per-line amounts and `feeDetails`. There is no foreign key to the price row, so prices can be edited or removed freely.
+The order is the record of its cost: `deliveryFeePaisa`, `feeBasePaisa` and `feeDetails` (inc1a also copied a per-line amount, dropped by flat_delivery_cost, §5.7). There is no foreign key to the price row, so prices can be edited or removed freely.
 
 ### 3.4 inc1a hand edits
 **(1) Pre-check.** Block if a `home_store_id` is shared by more than one distributor. Unchanged from the tested file.
@@ -412,7 +412,7 @@ The order is the record of its cost: `deliveryFeePaisa`, `feeBasePaisa`, the per
 **(4) CHECK constraints**
 ```sql
 ALTER TABLE distributor_zone_prices      ADD CONSTRAINT dzp_base_chk    CHECK (base_paisa >= 0);
-ALTER TABLE distributor_zone_price_sizes ADD CONSTRAINT dzps_amount_chk CHECK (per_cylinder_paisa >= 0);
+ALTER TABLE distributor_zone_price_sizes ADD CONSTRAINT dzps_amount_chk CHECK (per_cylinder_paisa >= 0);  -- gone with its table (§5.7)
 ALTER TABLE distributors
   ADD CONSTRAINT distributors_code_chk     CHECK (code IS NULL OR code ~ '^[A-Z][A-Z0-9]{1,5}$'),
   ADD CONSTRAINT distributors_counters_chk CHECK (next_order_no >= 1 AND next_topup_no >= 1
@@ -459,9 +459,9 @@ inc1b ships in the first Increment 2 deploy, together with `inc2_driver_flow` (�
 
 ### 3.6 Write patterns (each is one transaction; `WalletService` owns every money statement)
 **Place an order** (API_CONTRACT §7.6)
-1. Resolve the zone for the pin (active zones only, `ST_Covers`, deterministic order) and read the `distributor_zone_prices` row with its sizes.
+1. Resolve the zone for the pin (active zones only, `ST_Covers`, deterministic order) and read the `distributor_zone_prices` row.
    - No zone: `PRICING_ZONE_NOT_COVERED`. No row: `PRICING_PRICE_NOT_SET`.
-2. Compute the cost: `base + Σ(perCylinder(size) × fullCount)`. A missing size row counts as 0.
+2. The cost is the row's `base_paisa`: ONE delivery cost per order, whatever cylinders it holds (ADR-08, 2026-10-26).
 3. Number the order:
    ```sql
    UPDATE distributors SET next_order_no = next_order_no + 1 WHERE id = $d RETURNING next_order_no - 1 AS no
@@ -473,7 +473,7 @@ inc1b ships in the first Increment 2 deploy, together with `inc2_driver_flow` (�
    - `fee_status` = `'DEDUCTED'`, or `'NONE'` if the cost is 0;
    - `payment_status` = `'PAID_VIA_LEDGER'`, or `'UNPAID'` if the cost is 0.
 
-   Enum parameters need casts, for example `${v}::"OrderFeeStatus"`. Then insert the lines with their per-size amounts.
+   Enum parameters need casts, for example `${v}::"OrderFeeStatus"`. Then insert the lines (the cylinders only).
 5. If the cost is above 0, deduct it:
    ```sql
    UPDATE distributors SET advance_balance_paisa = advance_balance_paisa - $f, updated_at = now()
@@ -852,6 +852,20 @@ Which app each shop and driver last used, so the switch-over checks every pilot 
 - **One writer:** AppSeenService (`apps/api/src/common/app-seen`), from the update gate, with a raw `UPDATE users SET app_variant, app_version, app_seen_at = (now() AT TIME ZONE 'UTC')`, so `updated_at` keeps meaning a change to the user. It writes when the app or its version changes, and otherwise at most every 10 minutes per user and API process, also for a call the gate refuses; a failed write is logged and never fails the call. No audit row: it is not a change anyone makes.
 - **Readers:** the office's `GET /drivers`, `GET /drivers/:id`, `GET /distributors` and `GET /distributors/:id`, which derive `app.status` from it and `app.minVersion` (`AppStatus`, not stored). The pilot reset needs nothing new: the columns go with the user rows it deletes.
 - **Proved:** on a fresh database (no drift, the CI shadow check), and on an Increment 3 database with Increment 2-shaped data through `migrate.sh` (no drift, every row of every table unchanged, the users rows' old columns included, the new ones NULL, no money moved), with the CHECKs refusing what AppSeenService never writes (TEST_CASES MIG-020).
+
+### 5.7 flat_delivery_cost (2026-10-26)
+The owner's decision (DECISIONS ADR-08): "We are managing deliveries not cylinder pricing. Only delivery costs." The delivery cost is ONE flat amount per order, set per distributor per zone (`distributor_zone_prices.base_paisa`, unchanged), whatever cylinders the order holds; there are no per-size amounts in the data. The migration is `20261026023716_flat_delivery_cost`, made with `npm run db:new-migration -- flat_delivery_cost` against HEAD, whose schema is the users_app_seen release's (snapshot `test/helpers/fixtures/schema.appseen.prisma`, which the `appseen` test release now uses).
+
+| Dropped | Was |
+|---|---|
+| table `distributor_zone_price_sizes` (its rows, two foreign keys and `dzps_amount_chk` go with it) | an optional amount per full cylinder by size, on top of the base |
+| `order_lines.fee_per_cylinder_paisa`, `order_lines.fee_paisa` | each line's copy of that amount at placement |
+
+- **Pre-check:** a comment only, on purpose. Release 2 is not deployed anywhere: live runs af889bf, which never had these, and this migration ships in release 2 with inc1a, which creates them in the same deploy, so on live the table is still empty when it is dropped. A database that ran inc1a earlier (dev, test, a staging rehearsal) holds test data only.
+- **Placed orders keep their cost:** `orders.delivery_fee_paisa` (what was deducted, and what a cancel before delivery has started refunds), `fee_status`, `fee_base_paisa` and `fee_details` are not touched. No money moves; no backfill; no new CHECK.
+- **Contract step in one release:** a drop normally waits one release after the code stops using the old shape (§1 rule 6). Here live's previous release never knew these columns, and a database whose code did holds only test data.
+- **Code:** `ZonePriceLookup.priceFor` reads the one price row in one statement; `DistributorZoneStrategy` charges `base_paisa` once per order (a line must still name a cylinder size); orders insert their lines without amounts; the pilot reset no longer lists the dropped table.
+- **Proved:** on a fresh database (no drift, the CI shadow check), and on a users_app_seen database with Increment 2-shaped data plus a per-size row and line amounts, through `migrate.sh` (no drift, the table and the two columns gone, every other row of every table unchanged, each order's cost unchanged, no money moved) (TEST_CASES MIG-021).
 
 ---
 

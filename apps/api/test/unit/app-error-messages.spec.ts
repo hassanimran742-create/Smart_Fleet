@@ -67,9 +67,9 @@ function loadAdmin(): MessageOf {
 
 const CASES: [string, Case, string][] = [
   [
-    'insufficient balance (example X4, Rs 479)',
-    { code: 'WALLET_INSUFFICIENT_BALANCE', details: { requiredPaisa: '48000', balancePaisa: '47900', shortByPaisa: '100' } },
-    'Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue.',
+    'insufficient balance (example X4, Rs 249)',
+    { code: 'WALLET_INSUFFICIENT_BALANCE', details: { requiredPaisa: '25000', balancePaisa: '24900', shortByPaisa: '100' } },
+    'Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue.',
   ],
   ['top-up too small', { code: 'TOPUP_AMOUNT_TOO_SMALL', details: { minPaisa: '50000', maxPaisa: '5000000' } }, 'The minimum top-up is Rs 500.'],
   [

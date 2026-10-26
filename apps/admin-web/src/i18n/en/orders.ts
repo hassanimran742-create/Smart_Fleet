@@ -100,11 +100,6 @@ export const orders = {
     driverNone: 'No driver yet.',
     callDriver: 'Call {{name}} on {{phone}}',
     startsAt: 'Starts at {{store}}',
-    /** The cost breakdown: "Base · Rs 250", then "11.8 kg · 2 × Rs 40" (the size is the label). */
-    costBase: 'Base',
-    costLine: '{{n}} × {{amount}}',
-    costLegacy: 'No breakdown for this older order.',
-    costNone: 'No delivery cost for this order.',
     noRefund: 'Cancelling now returns nothing: delivery has started.',
   },
   timeline: {

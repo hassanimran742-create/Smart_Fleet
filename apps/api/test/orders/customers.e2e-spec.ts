@@ -55,13 +55,8 @@ describeDb('api-orders: customers and zones', () => {
       .expect(201);
     expect(res.body.client).toMatchObject({ name: 'Sana', phone: '+923001234567', area: 'Model Town' });
     expect(res.body.address).toMatchObject({ label: 'House 14, Street 5', zone: { name: 'North' } });
-    expect(res.body.price).toMatchObject({ zone: { name: 'North' }, basePaisa: '25000' });
-    expect((res.body.price.sizes as Array<{ sizeLabel: string; perCylinderPaisa: string }>).map((size) => [size.sizeLabel, size.perCylinderPaisa])).toEqual([
-      ['6 kg', '3000'],
-      ['11.8 kg', '4000'],
-      ['15 kg', '8000'],
-      ['45.4 kg', '15000'],
-    ]);
+    // The delivery cost per order there: Rs 250, whatever cylinders an order holds (ADR-08).
+    expect(res.body.price).toEqual({ zone: { id: std.zones.North.id, name: 'North' }, basePaisa: '25000', updatedAt: expect.any(String) });
     // Step 2.
     const list = await f.as(std.DA).get('/clients').expect(200);
     expect(Array.isArray(list.body)).toBe(true);
@@ -177,7 +172,7 @@ describeDb('api-orders: customers and zones', () => {
     // Step 5.
     await f.as(std.SA1).patch(`/zones/${std.zones.North.id}/reactivate`).expect(200);
     const back = await f.as(std.DA).post('/orders/quote').send(body).expect(200);
-    expect(back.body.quote).toMatchObject({ zone: { name: 'North' }, totalPaisa: '48000' });
+    expect(back.body.quote).toMatchObject({ zone: { name: 'North' }, totalPaisa: '25000' });
   });
 
   it('CUS-006 a second address in another zone gets that zone price, and the quote follows the chosen address', async () => {
@@ -185,12 +180,12 @@ describeDb('api-orders: customers and zones', () => {
     // Step 1.
     const added = await f.as(std.DA).post(`/clients/${std.C1.id}/addresses`).send({ label: 'Shop, Main Market', ...southPin }).expect(201);
     expect(added.body).toMatchObject({ ok: true, zone: { name: 'South' }, price: { basePaisa: '40000' } });
-    expect((added.body.price.sizes as Array<{ perCylinderPaisa: string }>).every((size) => size.perCylinderPaisa === '0')).toBe(true);
+    expect(Object.keys(added.body.price).sort()).toEqual(['basePaisa', 'updatedAt', 'zone']);
     const quote = (addressId: string) => f.as(std.DA).post('/orders/quote').send({ ...x1OrderBody(std), addressId }).expect(200);
     // Step 2.
     expect((await quote(added.body.id)).body.quote).toMatchObject({ zone: { name: 'South' }, totalPaisa: '40000' });
     // Step 3.
-    expect((await quote(std.C1.addressId as string)).body.quote).toMatchObject({ zone: { name: 'North' }, totalPaisa: '48000' });
+    expect((await quote(std.C1.addressId as string)).body.quote).toMatchObject({ zone: { name: 'North' }, totalPaisa: '25000' });
     // Step 4.
     const east = await f.as(std.DA).post(`/clients/${std.C1.id}/addresses`).send({ label: 'Test East', ...std.zones.East.center }).expect(422);
     expect(east.body).toMatchObject({ code: 'PRICING_PRICE_NOT_SET', details: { zoneName: 'East' } });

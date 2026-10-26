@@ -63,26 +63,26 @@ describeDb('foundation: idempotency keys on the create routes', () => {
 
   it("FND-019 a request that failed doesn't use up its Idempotency-Key (example X4)", async () => {
     await correct(key(1), { direction: 'TAKE', amountPaisa: 452100, reasonCode: 'OTHER', note: 'Set up example X4' }).expect(201);
-    expect(await balanceOf(std.DA.id)).toBe(47_900n);
+    expect(await balanceOf(std.DA.id)).toBe(24_900n);
     const ledgerBefore = await db().ledgerEntry.count();
 
     // Step 1.
     const short = await placeX1(K5).expect(409);
     expect(short.body).toMatchObject({
       code: 'WALLET_INSUFFICIENT_BALANCE',
-      details: { requiredPaisa: '48000', balancePaisa: '47900', shortByPaisa: '100' },
-      message: 'Not enough balance. This needs Rs 480 and you have Rs 479. Add money to continue.',
+      details: { requiredPaisa: '25000', balancePaisa: '24900', shortByPaisa: '100' },
+      message: 'Not enough balance. This needs Rs 250 and you have Rs 249. Add money to continue.',
     });
     expect(await db().order.count()).toBe(0);
     expect(await db().ledgerEntry.count()).toBe(ledgerBefore);
     // Step 2.
     await correct(key(2), { direction: 'ADD', amountPaisa: 100, reasonCode: 'OTHER', note: 'Complete example X4' }).expect(201);
-    expect(await balanceOf(std.DA.id)).toBe(48_000n);
+    expect(await balanceOf(std.DA.id)).toBe(25_000n);
     // Step 3: a new order, not a replay.
     const placed = await placeX1(K5).expect(201);
     expect(placed.headers['idempotent-replay']).toBeUndefined();
     const debits = await db().ledgerEntry.findMany({ where: { entryType: 'DEBIT_ORDER', distributorId: std.DA.id } });
-    expect(debits.map((row) => row.amountPaisa)).toEqual([-48_000n]);
+    expect(debits.map((row) => row.amountPaisa)).toEqual([-25_000n]);
     expect(await balanceOf(std.DA.id)).toBe(0n);
     // Step 4.
     const replay = await placeX1(K5).expect(200);
@@ -129,7 +129,7 @@ describeDb('foundation: idempotency keys on the create routes', () => {
     expect(malformed.body.code).toBe('VALIDATION_FAILED');
     expect(malformed.body.details.fields[0]).toMatchObject({ path: 'Idempotency-Key', code: 'INVALID_ID' });
     // Step 6.
-    expect(await balanceOf(std.DA.id)).toBe(452_000n);
+    expect(await balanceOf(std.DA.id)).toBe(475_000n);
     const orders = await db().order.findMany({ include: { lines: true } });
     expect(orders).toHaveLength(1);
     expect(orders[0].id).toBe(x1.body.id);
@@ -139,7 +139,7 @@ describeDb('foundation: idempotency keys on the create routes', () => {
         [std.sizes.kg45_4, 1],
       ].sort(),
     );
-    expect(orders[0].deliveryFeePaisa).toBe(48_000n);
+    expect(orders[0].deliveryFeePaisa).toBe(25_000n);
     expect(await db().payment.count({ where: { distributorId: std.DA.id } })).toBe(1);
     const expenses = await db().expense.findMany();
     expect(expenses.map((row) => row.amountPaisa)).toEqual([150_000n]);
@@ -202,7 +202,7 @@ describeDb('foundation: idempotency keys on the create routes', () => {
     expect(replay.headers['idempotent-replay']).toBe('true');
     expect(replay.body.id).toBe(first.body.id);
     expect(replay.body.shortCode).toMatch(/^AG-/);
-    expect(await balanceOf(std.DA.id)).toBe(452_000n);
+    expect(await balanceOf(std.DA.id)).toBe(475_000n);
   });
 
   it('starts from the standard data: Ahmed Gas with Rs 5,000 and a consistent wallet', async () => {

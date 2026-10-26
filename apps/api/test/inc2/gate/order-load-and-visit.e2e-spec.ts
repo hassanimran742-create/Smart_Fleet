@@ -14,7 +14,7 @@ import { buildWorld, type Line, type World } from '../scan/support/world';
 
 jest.setTimeout(180_000);
 
-/** X1 with its expected returns: 2 × 11.8 kg and 1 × 45.4 kg back (still Rs 480). */
+/** X1 with its expected returns: 2 × 11.8 kg and 1 × 45.4 kg back (still Rs 250). */
 const X1_BACK: Line[] = [
   { size: '11.8', full: 2, back: 2 },
   { size: '45.4', full: 1, back: 1 },

@@ -6,7 +6,7 @@
  * "an earlier run" are written the way ScanService writes them (helpers/runs.ts).
  *
  *   const w = await buildWorld(app);
- *   const x1 = await w.placeOrder(X1);                       // Rs 480, balance Rs 4,520
+ *   const x1 = await w.placeOrder(X1);                       // Rs 250, balance Rs 4,750
  *   const t1 = await w.assign(x1, w.std.DR1);                // trip T1 on LEA-101
  *   await w.load(w.std.DR1, t1, [1, 2, 31]);                 // AG-C0001, AG-C0002, AG-C0031
  *   await w.doneLoading(w.std.DR1, t1);

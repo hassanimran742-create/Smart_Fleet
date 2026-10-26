@@ -52,7 +52,7 @@ export const CASE_TIMEOUT_MS = 90_000;
 export const LINK_BASE = () => (process.env.PUBLIC_LINK_BASE_URL ?? '').replace(/\/+$/, '');
 
 /** The X1 cost (Rs 250 + 2 × Rs 40 + Rs 150) and DA's balance after one X1 (TEST_CASES "Worked money examples"). */
-export const X1_FEE_PAISA = 48_000n;
+export const X1_FEE_PAISA = 25_000n;
 
 // ---------- waiting on another lane ----------
 
@@ -145,7 +145,7 @@ export interface X1Options {
   deliver?: boolean;
   /** Hand the cylinders over at the door (default true); false leaves them loaded on the van. */
   handOver?: boolean;
-  /** The order's cost; default X1's Rs 480. */
+  /** The order's cost; default X1's Rs 250. */
   feePaisa?: bigint;
   /** The customer; default C1 Sana. */
   client?: 'C1' | 'C2';
@@ -166,7 +166,7 @@ export interface X1Delivery {
 }
 
 /**
- * X1 for C1 Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 480 deducted at placement), assigned to DR1 Kashif
+ * X1 for C1 Sana (2 × 11.8 kg + 1 × 45.4 kg, Rs 250 deducted at placement), assigned to DR1 Kashif
  * (LEA-101), loaded at Ahmed Gas Store, every cylinder handed over at Sana's stop, the unlabelled
  * returns recorded; then delivered as the visit finish delivers it (unless `deliver: false`).
  */

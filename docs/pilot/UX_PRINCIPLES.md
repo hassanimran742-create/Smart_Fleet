@@ -54,15 +54,15 @@ Contents: 1 People · 2 The 16 rules · 3 Which control · 4 Status words and co
 | 3 | **Tap, don't type.** Chips or segments for 2–6 options, a searchable sheet for long lists, steppers for counts, amount chips, date chips, +92 fixed, the right keyboard. | "Deliver – 2 +" and "Take back – 2 +" steppers; quick amounts Rs 2,000 · Rs 5,000 · Rs 10,000. | A text box for the cylinder count. Add money opening the keyboard first (`autoFocus`) when one tap on Rs 5,000 would do. |
 | 4 | **Familiar patterns.** WhatsApp-like rows, a floating + for "new", bottom sheets for choices, pull to refresh, a back arrow, at most 2–3 top tabs. | My orders row: Bilal Khan in bold, one grey line "2 × 11.8 kg · AG-0142", the time on the right, the status chip under the grey line; a floating "+ New order". | A "Select customer" dropdown; a long menu of emoji tiles (the old side menu). |
 | 5 | **Status is colour + icon + 1–3 words, the same everywhere** (§4). | The amber clock "Being checked" on the wallet card, the history row and the status screen. | A waiting order grey in the shop app but amber on the website (NEEDS_DRIVER before 2026-10-23). |
-| 6 | **Money and counts big and bold.** | "Rs 4,520" in display type on the wallet card; "3 of 5 loaded" with a bar. | "Rs. 4520", "PKR 4,520.00", "8/10" for priced zones, or "Rs 0" while the balance loads. |
-| 7 | **Confirm only money or no-undo actions,** with a short summary sheet and one big confirm. Everything else acts at once, with a toast. | "Cancel order AG-0142?" · "Back to your wallet" with "Rs 330" big · [Cancel · get Rs 330 back] · [Keep order]. | An "Are you sure?" before Copy IBAN, "I've arrived" or Save customer. |
+| 6 | **Money and counts big and bold.** | "Rs 4,750" in display type on the wallet card; "3 of 5 loaded" with a bar. | "Rs. 4750", "PKR 4,750.00", "8/10" for priced zones, or "Rs 0" while the balance loads. |
+| 7 | **Confirm only money or no-undo actions,** with a short summary sheet and one big confirm. Everything else acts at once, with a toast. | "Cancel order AG-0142?" · "Back to your wallet" with "Rs 250" big · [Cancel · get Rs 250 back] · [Keep order]. | An "Are you sure?" before Copy IBAN, "I've arrived" or Save customer. |
 | 8 | **Errors in plain words, with what to do and Try again.** Never a code. A field error is one line under the field. No connection is one banner, on every surface. A button's own failure is one line just above it. | "No connection · Try again" at the top, while the saved list stays on screen, stamped "Saved 4:12 pm". "Not sent. Tap again." just above "Place order". | "Error 409 TOPUP_TOO_MANY_PENDING"; a pop-up box after a scan; the offline strip, a red card and a "Showing saved info" line all saying the same thing at once; "No internet" when the server is down. |
 | 9 | **Empty states:** an icon, one line, the main button. | My orders, Active: "No active orders." and [New order]. | Delivery prices with no zones: "Zones are loaded by the setup script. Ask engineering to load the agreed zone shapes." |
 | 10 | **Smart defaults.** Prefill what we know, remember filters, hide optional fields behind "+ Add more". Never prefill what would send something wrong if it went unnoticed: offer it as a one-tap chip instead. | Take back follows Deliver; the name on the account comes from the last top-up; the last signed-in number is filled in; "Same as last time" fills the last order's sizes and counts with one tap. | Add customer showing Area and Notes open; typing the same name on every top-up; counts prefilled silently from the last order. |
-| 11 | **One question per step,** with progress, and a summary before money moves. | Add money: Amount → How to pay → Tell us you paid. New order ends on "Place order · pay Rs 330". | One long form with customer, cylinders, address and payment together. |
+| 11 | **One question per step,** with progress, and a summary before money moves. | Add money: Amount → How to pay → Tell us you paid. New order ends on "Place order · pay Rs 250". | One long form with customer, cylinders, address and payment together. |
 | 12 | **Everyday words,** one word per thing (§5), sentence case, digits for numbers. | "History", "Delivery cost", "Paid from wallet", "3 cylinders". | "Ledger", "PAID_VIA_LEDGER", "Receive (SCAN_IN)", "client", "admin", "three cylinders". |
 | 13 | **Easy to reach and read.** 48 dp targets (driver 56), AA contrast that holds in sunlight, 360 dp and the largest font, one hand. | History's three filters in one row of three (ChoiceChips `columns={3}`), wrapping at the largest font: they fit a 360 dp phone at any font size. | Refill size chips that scroll sideways at the largest font. |
-| 14 | **Instant feedback.** A spinner on the pressed button, skeletons for lists, a tick on success. | "Place order · pay Rs 330" becomes "Placing order…", ignores a second tap, then "Order placed · Rs 330 paid" with a tick. | A button that looks the same while it works, or "Rs 0" while loading (both in the app before Inc 1). |
+| 14 | **Instant feedback.** A spinner on the pressed button, skeletons for lists, a tick on success. | "Place order · pay Rs 250" becomes "Placing order…", ignores a second tap, then "Order placed · Rs 250 paid" with a tick. | A button that looks the same while it works, or "Rs 0" while loading (both in the app before Inc 1). |
 | 15 | **Urdu-ready.** Icons carry meaning, strings stay short, layouts can flip right-to-left. | One key "{{done}} of {{total}} loaded"; `marginStart`; the truck icon on "On the way". | "Deliver " + count + " cylinders" glued from pieces; an arrow fixed to point right; words inside a picture. |
 | 16 | **The website follows the same rules.** Tables of 4–6 columns, filter chips, a search box, numbers right-aligned, one primary button per page, details in a side drawer, no walls of text. | Top-ups: tabs, a search box, Amount right-aligned, "Review" opening the drawer; the labelled sidebar at every laptop width. | The Activity log's "What" dropdown of 6 options; the 49-word Suspend dialog; an icon-only menu rail. |
 
@@ -161,8 +161,8 @@ Contents: 1 People · 2 The 16 rules · 3 Which control · 4 Status words and co
 | | DELIVERED | Delivered | Delivered | Green |
 | | NOT_DELIVERED | Not delivered | Not delivered | Red |
 | | CANCELLED | Cancelled | Cancelled | Grey |
-| **Delivery cost** | DEDUCTED | Rs 330 paid | Rs 330 paid | Grey (a fact) |
-| | REVERSED | Rs 330 returned | Rs 330 returned | Green |
+| **Delivery cost** | DEDUCTED | Rs 250 paid | Rs 250 paid | Grey (a fact) |
+| | REVERSED | Rs 250 returned | Rs 250 returned | Green |
 | | NONE | No delivery cost | No delivery cost | Grey |
 | | cancelled and kept (shop list rows only; not a status) | No refund | No refund | Grey |
 | **Top-up** | BEING_CHECKED | Being checked | To check | Amber |
@@ -233,10 +233,10 @@ Buttons keep their verbs: the driver's "Could not deliver" and the office's "Cou
 ### 5.1 Copy rules
 - Sentence case everywhere, banners too ("Training · test money only"). No capitals for emphasis.
 - Digits for numbers: "3 cylinders", "2 of 3". Never "three", "3/5" or "60%".
-- Money only through `formatRs` and `MoneyText`: "Rs 3,450", "+Rs 5,000", "−Rs 330". Never "Rs.", "PKR", ".00" or "/-".
+- Money only through `formatRs` and `MoneyText`: "Rs 3,450", "+Rs 5,000", "−Rs 250". Never "Rs.", "PKR", ".00" or "/-".
 - Times through `formatWhen` (phone) and `format.ts` (website): "Today, 4:12 pm", "Mon 19 Oct". Numbers through `formatNo`: "AG-0142", "AG-T031".
 - Phone numbers through `formatPkPhone`: "0300 1234567" as text in the apps and on the customer page, "+92 300 1234567" on the website; a phone field shows "+92" fixed, then "300 1234567". In the apps the two halves are joined by a no-break space (`ui/keepTogether`), and on the customer page the number is a no-wrap span, so a number never splits across two lines (review23 ux-11).
-- A button is a verb and its thing, with the amount after "·": "Place order · pay Rs 330", "Send for checking".
+- A button is a verb and its thing, with the amount after "·": "Place order · pay Rs 250", "Send for checking".
 - Talk to the person: "you" and "your wallet" on the phone. On the website, name the distributor: "Add Rs 5,000 to Ali Gas wallet".
 - Say what to do, not what broke: "Enter a number like 300 1234567", not "Invalid format".
 - One idea per line. No brackets or semicolons in phone copy.
@@ -333,12 +333,12 @@ The last column gives the example that was over before the 2026-10-23 pass and t
 | Item | At most | Fits | Was over, and the fix |
 |---|---|---|---|
 | Phone screen | about 25 words; driver screens aim for 15 | Add money · Amount: 18 | New order · Check and place: about 58, the refund paragraph alone 29. Now 26, with one line, "Refund only if cancelled before loading.", still worded by `orders.deliveryStartedAt`. |
-| Button | 3 words, plus the amount after "·" | "Place order · pay Rs 330" | "Yes, cancel and get Rs 330 back" (5) → "Cancel · get Rs 330 back" |
+| Button | 3 words, plus the amount after "·" | "Place order · pay Rs 250" | "Yes, cancel and get Rs 250 back" (5) → "Cancel · get Rs 250 back" |
 | Helper line | 8 words, one per field | "Up to 30 per refill." | `refill.request.sizeHelp` (10) → "One size per refill." |
 | Error | 12 words | "Wrong phone number or password." | `SCAN_NOT_ON_YOUR_VAN` (14) → "Not loaded on your van. Don't deliver it. Call office." |
 | Status chip | 3 words | "Being checked" | "Back in your store" (4) → "Back at store" |
-| Toast | 6 words | "Order placed · Rs 330 paid" | `orders.assign.toast` (9) → "AG-0142 assigned to Imran" |
-| Sheet or dialog | a title of 6, a body of 12 | "Cancel order AG-0142?" · "Rs 330 comes back to your wallet." | `distributors.suspend.body` (49) → 3 or 4 short facts in a list |
+| Toast | 6 words | "Order placed · Rs 250 paid" | `orders.assign.toast` (9) → "AG-0142 assigned to Imran" |
+| Sheet or dialog | a title of 6, a body of 12 | "Cancel order AG-0142?" · "Rs 250 comes back to your wallet." | `distributors.suspend.body` (49) → 3 or 4 short facts in a list |
 | Empty state | one line of 8, plus the button | "No active orders." and [New order] | `prices.empty.zonesBody` (15, developer words) → "No zones yet. Ask the tech team." |
 | Driver step | 15 words; a hint of 8 | "Load at Ali Gas store" · "3 of 5" · [Done loading] | `driver.steps.load.body` (19) → "Scan each full cylinder." |
 | Website page, outside the table | about 40 words; a subtitle is one line of 12 or fewer | Top-ups: 30 | Delivery prices: about 48 (the subtitle 21, the missing-price alert 18). Now 25 |
@@ -360,7 +360,7 @@ The last column gives the example that was over before the 2026-10-23 pass and t
 |                                  |
 |  [ - ]  2  [ + ]    [chip][chip] |  easy: steppers, chips, segments
 | +------------------------------+ |
-| |   Place order · pay Rs 330   | |  easiest: the one main button, 56 dp
+| |   Place order · pay Rs 250   | |  easiest: the one main button, 56 dp
 | +------------------------------+ |
 +----------------------------------+
 ```
@@ -518,7 +518,7 @@ A reviewer answers each check Yes or No for every screen, in every state. A scre
 | 4 | **Tap first.** Choices, counts, money, dates and phone numbers use the §3 control. The keyboard opens only for names, addresses and notes. |
 | 5 | **Smart defaults.** What the app knows is filled in, filters are remembered, and optional fields wait behind "+ Add more". |
 | 6 | **Status.** Every state is a `StatusChip` from §4 (colour, icon and words), the same as in the other apps. |
-| 7 | **Money.** Amounts and counts are big ("Rs 4,520", "3 of 5"), and every money action names its amount on the confirm button. |
+| 7 | **Money.** Amounts and counts are big ("Rs 4,750", "3 of 5"), and every money action names its amount on the confirm button. |
 | 8 | **Asks only when it matters.** Only the rule 7 list asks first; everything else acts at once, with a toast. |
 | 9 | **States.** The skeleton, the empty state (icon, line, button), the error (plain words and Try again), the "No connection" banner with "Saved …" or "Nothing saved yet.", a button's own "Not sent. Tap again." line and the success tick were all seen. |
 | 10 | **Fits.** At 360 dp with the largest font (phone) or at 1024×768 (website, with the labelled 200 px sidebar), nothing is cut off or scrolls sideways, and every target is at least 48 dp (driver 56). |
